@@ -1045,16 +1045,35 @@
       return true;
     }
 
-    for (var li = 0; li < 22; li++) {
-      var la, lr;
-      if (li < 14) { la = (li / 14) * Math.PI * 2 + 0.22; lr = tiers[0].r + 0.55; }
-      else         { la = FRONT_A + (li - 17.5) * 0.26;   lr = tiers[0].r + 1.45; }
+    // Кольцо вокруг стилобата — по кругу, поэтому с любой стороны
+    // видно неравномерно: то гуще, то реже, смотря по углу обзора.
+    for (var li = 0; li < 14; li++) {
+      var la = (li / 14) * Math.PI * 2 + 0.22;
+      var lr = tiers[0].r + 0.55;
       var lx2 = Math.cos(la) * lr, lz2 = Math.sin(la) * lr;
       if (!lampFree(lx2, lz2)) continue;
       lamps.push({
         b: addXYZ(lx2, groundY(lr), lz2),
         t: addXYZ(lx2, groundY(lr) + LAMP_H, lz2)
       });
+    }
+
+    /* У входа — не вразнобой, а двумя чёткими рядами по сторонам от
+       прохода, как и положено на парадном подходе (по описаниям —
+       от подножия холма к зданию вёл длинный марш лестниц; фонари
+       вдоль него стоят по прямой, а не по дуге, как раньше). */
+    var frontDX = -Math.sin(FRONT_A), frontDZ = Math.cos(FRONT_A);
+    for (var side = -1; side <= 1; side += 2) {
+      for (var step = 0; step < 3; step++) {
+        var lr2 = tiers[0].r + 0.7 + step * 0.8;
+        var lx3 = Math.cos(FRONT_A) * lr2 + frontDX * side * 0.55;
+        var lz3 = Math.sin(FRONT_A) * lr2 + frontDZ * side * 0.55;
+        if (!lampFree(lx3, lz3)) continue;
+        lamps.push({
+          b: addXYZ(lx3, groundY(lr2), lz3),
+          t: addXYZ(lx3, groundY(lr2) + LAMP_H, lz3)
+        });
+      }
     }
 
     /* ======== скамейки ========

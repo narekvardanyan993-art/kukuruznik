@@ -227,9 +227,9 @@ body.night { background: #0d1230; }
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 54px;
-  height: 54px;
-  margin: -27px 0 0 -27px;
+  width: 60px;
+  height: 60px;
+  margin: -30px 0 0 -30px;
   z-index: 2;
   transform: translate(0, 0) scale(0.28);
   opacity: 0;
@@ -266,8 +266,8 @@ body.night { background: #0d1230; }
 .ri {
   appearance: none;
   -webkit-appearance: none;
-  width: 54px;
-  height: 54px;
+  width: 60px;
+  height: 60px;
   margin: 0;
   padding: 0;
   border: 1px solid var(--g-line);
@@ -290,7 +290,7 @@ body.night { background: #0d1230; }
   box-shadow: inset 0 1.5px 0 var(--g-top), inset 0 -1px 0 var(--g-bot),
               0 0 0 9px rgba(255, 255, 255, 0.16);
 }
-.ri svg { width: 25px; height: 25px; display: block; }
+.ri svg { width: 28px; height: 28px; display: block; }
 
 /* На мыши (не на пальце) — мягкая подсветка под курсором; на тачскрине
    этого правила просто нет, чтобы подсветка не "залипала" после тапа. */

@@ -1,3 +1,17 @@
+  /* Сводит «солнечный» тон к «теневому» по мере того, как NIGHT растёт
+     от 0.2 до 0.7 -- см. пояснение в applyTime(). При NIGHT=0 ведёт
+     себя как обычный tint(bLit) (день не меняется), при NIGHT>=0.7
+     полностью равен tint(bDrk). */
+  function tintNight(bLit, bDrk) {
+    var k = NIGHT < 0.2 ? 0 : NIGHT > 0.7 ? 1 : (NIGHT - 0.2) / 0.5;
+    if (k <= 0) return tint(bLit);
+    if (k >= 1) return tint(bDrk);
+    var r = bLit[0] + (bDrk[0] - bLit[0]) * k;
+    var g = bLit[1] + (bDrk[1] - bLit[1]) * k;
+    var b = bLit[2] + (bDrk[2] - bLit[2]) * k;
+    return tint([r, g, b, bLit[3]]);
+  }
+
   function applyTime(t) {
     TOD = t;
     NIGHT = t < 0.46 ? 0 : Math.min(1, (t - 0.46) / 0.40);
@@ -18,9 +32,17 @@
     C_RAIL = tint(B.RAIL);         C_ROOF = tint(B.ROOF);
     C_FLARE = tint(B.FLARE);
     C_GLASS = lamp(B.GLASS, NIGHT * 0.9);          // ресторан вечером горит
-    C_CELL_LIT = tint(B.CELL_LIT); C_CELL_DRK = tint(B.CELL_DRK);
-    C_WIN_LIT = tint(B.WIN_LIT);   C_WIN_DRK = tint(B.WIN_DRK);
-    C_BALC_LIT = tint(B.BALC_LIT); C_BALC_DRK = tint(B.BALC_DRK);
+    /* Днём «на солнце / в тени» решает, с какой стороны ствола светлее.
+       Ночью это перестаёт быть правдой: у здания нет своего солнца,
+       окна тёмные все, и светятся только те, где кто-то не спит.
+       Поэтому к ночи «солнечный» тон окна и балкона сам сходится к
+       «теневому» — а видимую жизнь зданию потом даёт точечная
+       подсветка окон (.lamp, ниже, в 13-cells.js). Без этого пункта
+       вся освещённая солнцем сторона ночью просто светилась бы целиком
+       тёплым, как днём, и ни одно окно не выглядело бы отдельным. */
+    C_CELL_LIT = tintNight(B.CELL_LIT, B.CELL_DRK); C_CELL_DRK = tint(B.CELL_DRK);
+    C_WIN_LIT = tintNight(B.WIN_LIT, B.WIN_DRK);     C_WIN_DRK = tint(B.WIN_DRK);
+    C_BALC_LIT = tintNight(B.BALC_LIT, B.BALC_DRK);  C_BALC_DRK = tint(B.BALC_DRK);
     C_SIDE_LIT = tint(B.SIDE_LIT); C_SIDE_DRK = tint(B.SIDE_DRK);
     C_SHADOW = tint(B.SHADOW);
     INK = tint(B.INK);
