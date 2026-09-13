@@ -10,7 +10,7 @@
 (function (global) {
   'use strict';
 
-  var BUILD = '42';     // видно на самой странице — чтобы не гадать, свежая ли версия
+  var BUILD = '43';     // видно на самой странице — чтобы не гадать, свежая ли версия
 
   var PAPER = '#f5ecda';
   var INK   = '#2f2a25';
@@ -254,6 +254,33 @@
     this.w = 0; this.h = 0; this.dpr = 1;
     this.S = 1; this.ox = 0; this.oy = 0;
     this.rot = { cy: 1, sy: 0, cp: 1, sp: 0 };
+
+    /* Облака, птицы, звёзды — просто случайные наборы чисел, размер
+       экрана им не нужен вовсе. Раньше жили внутри resize() под
+       защитой «once», и при холодном старте, когда resize() выходит
+       раньше времени из-за нулевого окна (см. комментарий в самом
+       resize()), они не создавались — а цикл кадров уже запущен и
+       падал на первом же обращении к this.stars.length. */
+    var rc2 = seeded(91);
+    this.clouds = [];
+    for (var ci = 0; ci < 7; ci++) {
+      this.clouds.push({
+        x: rc2() * 1200, y: 0.04 + rc2() * 0.26,
+        s: 0.045 + rc2() * 0.045,
+        v: 3 + rc2() * 8,                 // пикселей в секунду
+        ph: rc2() * 6.28
+      });
+    }
+    var rb = seeded(404);
+    this.birds = [];
+    for (var bi2 = 0; bi2 < 3; bi2++) {
+      this.birds.push({ x: rb() * 900, y: 0.10 + rb() * 0.18,
+                        s: 0.008 + rb() * 0.005, v: 16 + rb() * 14, p: rb() * 6.28 });
+    }
+    var rs = seeded(555);
+    this.stars = [];
+    for (var si = 0; si < 340; si++) this.stars.push(rs() * 6.28318, rs() * 0.92, rs() * 6.28);
+
     this.resize();
   }
 
@@ -261,6 +288,13 @@
     var dpr = Math.min(global.devicePixelRatio || 1, this.maxDpr || MAX_DPR);
     var w = global.innerWidth;
     var h = global.innerHeight;
+
+    /* Холодный запуск отдельным приложением («На экран Домой») иногда
+       отдаёт нулевой размер окна на первом проходе скрипта — WebKit
+       ещё не досчитал лэйаут. Нулю канвас не отдаём: лучше на кадр
+       позже, чем навсегда 0×0. boot() подстрахует повторным вызовом. */
+    if (!w || !h) return;
+
     this.w = w; this.h = h; this.dpr = dpr;
 
     var c1 = this.canvas, c2 = this.paper;
@@ -274,34 +308,6 @@
 
     this.paperCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.drawPaper();
-
-    /* Облака и звёзды задаются один раз: если сыпать их заново каждый
-       кадр, небо будет кипеть. */
-    if (!this.clouds) {
-      var rc2 = seeded(91);
-      this.clouds = [];
-      for (var ci = 0; ci < 7; ci++) {
-        this.clouds.push({
-          x: rc2() * 1200, y: 0.04 + rc2() * 0.26,
-          s: 0.045 + rc2() * 0.045,
-          v: 3 + rc2() * 8,                 // пикселей в секунду
-          ph: rc2() * 6.28
-        });
-      }
-      var rb = seeded(404);
-      this.birds = [];
-      for (var bi2 = 0; bi2 < 3; bi2++) {
-        this.birds.push({ x: rb() * 900, y: 0.10 + rb() * 0.18,
-                          s: 0.008 + rb() * 0.005, v: 16 + rb() * 14, p: rb() * 6.28 });
-      }
-
-      var rs = seeded(555);
-      this.stars = [];
-      /* [азимут 0..2π, высота 0..0.92 от горизонта, фаза мерцания] на
-         каждую звезду — тройка чисел, как и раньше, но первое теперь
-         угол в мире, а не доля экрана. */
-      for (var si = 0; si < 340; si++) this.stars.push(rs() * 6.28318, rs() * 0.92, rs() * 6.28);
-    }
   };
 
   /* Текстура бумаги. Рисуется один раз на ресайз, лежит отдельным слоем
@@ -385,6 +391,9 @@
   /* ================== один кадр ================== */
 
   Engine.prototype.render = function (state) {
+    /* Страховка на тот самый кадр между холодным стартом и первым
+       успешным resize(): без размера рисовать нечего и не на чем. */
+    if (!this.w || !this.h) return;
     var ctx = this.ctx, m = this.model;
     ctx.clearRect(0, 0, this.w, this.h);
     this.time = state.time || 0;
@@ -2084,6 +2093,20 @@
 
     var model = global.Model.build({ ribs: 16, floors: 15 });
     var engine = new Engine(sceneCanvas, paperCanvas, model);
+
+    /* Страховка на холодный запуск отдельным приложением: если самый
+       первый resize() внутри конструктора застал окно нулевого
+       размера (см. комментарий в resize()), пробуем на каждом кадре,
+       пока размер не появится — и тогда сразу останавливаемся. Если
+       всё было в порядке с самого начала, это один лишний дешёвый
+       вызов и всё. Кадры без размера сами по себе ничего не рисуют
+       (см. защиту в начале render()), так что ждать не страшно. */
+    (function ensureSized(triesLeft) {
+      if (engine.w && engine.h) return;
+      engine.resize();
+      if ((engine.w && engine.h) || triesLeft <= 0) return;
+      requestAnimationFrame(function () { ensureSized(triesLeft - 1); });
+    })(90);                                    // запас на полторы секунды при 60 fps
 
     /* ОТКРЫВАЮЩИЙ КАДР.
 

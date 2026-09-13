@@ -1,4 +1,7 @@
   Engine.prototype.render = function (state) {
+    /* Страховка на тот самый кадр между холодным стартом и первым
+       успешным resize(): без размера рисовать нечего и не на чем. */
+    if (!this.w || !this.h) return;
     var ctx = this.ctx, m = this.model;
     ctx.clearRect(0, 0, this.w, this.h);
     this.time = state.time || 0;

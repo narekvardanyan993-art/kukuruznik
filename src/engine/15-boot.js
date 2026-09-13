@@ -12,6 +12,20 @@
     var model = global.Model.build({ ribs: 16, floors: 15 });
     var engine = new Engine(sceneCanvas, paperCanvas, model);
 
+    /* Страховка на холодный запуск отдельным приложением: если самый
+       первый resize() внутри конструктора застал окно нулевого
+       размера (см. комментарий в resize()), пробуем на каждом кадре,
+       пока размер не появится — и тогда сразу останавливаемся. Если
+       всё было в порядке с самого начала, это один лишний дешёвый
+       вызов и всё. Кадры без размера сами по себе ничего не рисуют
+       (см. защиту в начале render()), так что ждать не страшно. */
+    (function ensureSized(triesLeft) {
+      if (engine.w && engine.h) return;
+      engine.resize();
+      if ((engine.w && engine.h) || triesLeft <= 0) return;
+      requestAnimationFrame(function () { ensureSized(triesLeft - 1); });
+    })(90);                                    // запас на полторы секунды при 60 fps
+
     /* ОТКРЫВАЮЩИЙ КАДР.
 
        Первое, что видит человек, должно быть готовым кадром, а не
