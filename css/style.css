@@ -1,9 +1,26 @@
-/* Тёплая бумага, тушь. Никаких теней средствами CSS — всё рисует canvas. */
+/* Тёплая бумага, тушь. Рисунок целиком на canvas.
+   Панель — стекло: размытый фон, тонкая светлая кромка, мягкая тень.
+   Ночью стекло темнеет вместе со сценой (класс .night на body). */
 
 :root {
   --paper: #f4ead7;
   --ink: #2f2a25;
   --ink-soft: rgba(47, 42, 37, 0.72);
+
+  --glass: rgba(255, 255, 255, 0.46);
+  --glass-line: rgba(255, 255, 255, 0.70);
+  --glass-text: #2f2a25;
+  --glass-shadow: 0 10px 30px rgba(60, 48, 30, 0.18);
+  --accent: #d98a3c;
+}
+
+body.night {
+  --glass: rgba(22, 28, 52, 0.52);
+  --glass-line: rgba(190, 205, 240, 0.24);
+  --glass-text: #e8eaf2;
+  --glass-shadow: 0 12px 34px rgba(0, 0, 0, 0.45);
+  --ink-soft: rgba(226, 232, 245, 0.62);
+  --accent: #e8b06a;
 }
 
 * { box-sizing: border-box; }
@@ -20,7 +37,10 @@ html, body {
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
+  transition: background 400ms ease;
 }
+
+body.night { background: #0d1230; }
 
 /* Сцена на весь экран. touch-action: none — иначе iOS перехватит жесты себе. */
 #stage {
@@ -39,8 +59,6 @@ html, body {
   display: block;
 }
 
-/* Нижний слой — текстура бумаги, рисуется один раз при ресайзе.
-   Верхний — сцена, перерисовывается каждый кадр. */
 #paper { z-index: 0; }
 #scene { z-index: 1; }
 
@@ -55,14 +73,96 @@ html, body {
   pointer-events: none;
 }
 
-#panel {
+/* ---------- стекло ---------- */
+
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  border-radius: 999px;
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  color: var(--glass-text);
+  transition: background 400ms ease, border-color 400ms ease, color 400ms ease;
+}
+
+#dock {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
   z-index: 10;
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  padding: 0 14px;
+}
+
+/* ---------- ползунок дня и ночи ---------- */
+
+#todWrap {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 16px;
+  width: min(330px, 100%);
+}
+
+#todWrap .ic {
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.75;
+  flex: none;
+}
+
+#tod {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 1;
+  height: 22px;
+  margin: 0;
+  background: transparent;
+  touch-action: manipulation;
+}
+
+#tod::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f0c37a, #8fb4d6 55%, #26305e);
+}
+
+#tod::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f0c37a, #8fb4d6 55%, #26305e);
+}
+
+#tod::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -8px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  box-shadow: 0 2px 7px rgba(0, 0, 0, 0.28);
+}
+
+#tod::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+}
+
+/* ---------- кнопки ---------- */
+
+#panel {
+  display: flex;
+  gap: 8px;
   justify-content: center;
 }
 
@@ -70,36 +170,32 @@ html, body {
   appearance: none;
   -webkit-appearance: none;
   margin: 0;
-  padding: 11px 18px;
+  padding: 10px 18px;
   font: inherit;
   font-size: 14px;
-  color: var(--ink);
-  background: rgba(244, 234, 215, 0.82);
-  border: 1.5px solid var(--ink);
-  border-radius: 999px;
   cursor: pointer;
   touch-action: manipulation;
-  transition: background 120ms ease, color 120ms ease;
 }
 
-#panel button:active { background: rgba(47, 42, 37, 0.12); }
+#panel button:active { transform: scale(0.97); }
 
 #panel button[aria-pressed="true"] {
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--accent);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: #fff;
 }
 
 #hint {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 74px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 124px);
   z-index: 10;
   text-align: center;
   font-size: 12px;
   color: var(--ink-soft);
   pointer-events: none;
-  transition: opacity 500ms ease;
+  transition: opacity 500ms ease, color 400ms ease;
 }
 
 #hint.gone { opacity: 0; }

@@ -417,7 +417,8 @@
           a: addPt(a0, rb, yb), b: addPt(a1, rb, yb),
           c: addPt(a1, rt, yt), d: addPt(a0, rt, yt),
           nx: Math.cos((a0 + a1) * 0.5), ny: 0, nz: Math.sin((a0 + a1) * 0.5),
-          vis: false, lit: 0
+          vis: false, lit: 0,
+          lamp: rnd()          // горит ли окно ночью
         });
       }
     }

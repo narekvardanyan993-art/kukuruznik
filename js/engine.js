@@ -7,7 +7,7 @@
 (function (global) {
   'use strict';
 
-  var BUILD = '19';     // видно на самой странице — чтобы не гадать, свежая ли версия
+  var BUILD = '20';     // видно на самой странице — чтобы не гадать, свежая ли версия
 
   var PAPER = '#f5ecda';
   var INK   = '#2f2a25';
@@ -66,11 +66,122 @@
   var C_SIDE_DRK = 'rgba(88, 96, 124, 0.14)';    // теневая сторона ствола
   var C_SHADOW   = 'rgba(78, 86, 124, 1)';       // тень на земле
 
+  /* ==================== ВРЕМЯ СУТОК ====================
+     Все цвета выше — дневные. Это база. При движении ползунка они
+     пересчитываются ОДИН раз (а не каждый кадр): ночь — это затемнение
+     и уход в синеву, закат — тёплый сдвиг. Кадр от этого не дорожает
+     ни на грамм: рисование получает уже готовые строки цвета. */
+
+  var TOD = 0.26;     // 0 — раннее утро, 1 — глубокая ночь
+  var NIGHT = 0;      // насколько темно (0..1)
+  var DUSK = 0;       // насколько «золотой час» (0..1)
+
+  function parseCol(str) {
+    var m = str.match(/[\d.]+/g);
+    return [+m[0], +m[1], +m[2], m.length > 3 ? +m[3] : 1];
+  }
+
+  // Опорные цвета ночи: к ним всё и сходится
+  var NTINT = [40, 50, 84];
+
+  function tint(b) {
+    var r = b[0], g = b[1], bl = b[2];
+    // закат: света становится меньше, но он теплеет
+    r += 17 * DUSK; g += 2 * DUSK; bl -= 13 * DUSK;
+    // ночь: гасим и уводим в синеву
+    var k = 1 - 0.52 * NIGHT, m = 0.58 * NIGHT;
+    r = r * k + (NTINT[0] - r * k) * m;
+    g = g * k + (NTINT[1] - g * k) * m;
+    bl = bl * k + (NTINT[2] - bl * k) * m;
+    r = r < 0 ? 0 : r > 255 ? 255 : r;
+    g = g < 0 ? 0 : g > 255 ? 255 : g;
+    bl = bl < 0 ? 0 : bl > 255 ? 255 : bl;
+    return b[3] < 1
+      ? 'rgba(' + (r | 0) + ',' + (g | 0) + ',' + (bl | 0) + ',' + b[3] + ')'
+      : 'rgb(' + (r | 0) + ',' + (g | 0) + ',' + (bl | 0) + ')';
+  }
+
+  // Тёплый свет в окнах: к нему уходят стёкла, когда стемнело
+  function lamp(b, amount) {
+    var w = [236, 196, 118];
+    var c = parseCol(tint(b)), a = amount;
+    return 'rgba(' + ((c[0] + (w[0] - c[0]) * a) | 0) + ',' +
+                     ((c[1] + (w[1] - c[1]) * a) | 0) + ',' +
+                     ((c[2] + (w[2] - c[2]) * a) | 0) + ',' +
+                     (b[3] < 1 ? b[3] : 1) + ')';
+  }
+
+  var B = {};
+  function grab(name, val) { B[name] = parseCol(val); }
+
+  grab('TERR', C_TERR);        grab('TERRTOP', C_TERRTOP);
+  grab('CITY', C_CITY);        grab('CITY_TOP', C_CITY_TOP);
+  grab('CITY_BND', C_CITY_BND);
+  grab('TREE_A', C_TREE_A);    grab('TREE_B', C_TREE_B);
+  grab('TREE_DRK', C_TREE_DRK); grab('TRUNK', C_TRUNK);
+  grab('GROUND', C_GROUND);    grab('GROUND_FAR', C_GROUND_FAR);
+  grab('PODIUM', C_PODIUM);    grab('HALL', C_HALL);
+  grab('SLAB', C_SLAB);        grab('SLABTOP', C_SLABTOP);
+  grab('DECK', C_DECK);        grab('SHAFT', C_SHAFT);
+  grab('NECK', C_NECK);        grab('GLASS', C_GLASS);
+  grab('PARAPET', C_PARAPET);  grab('RAIL', C_RAIL);
+  grab('ROOF', C_ROOF);        grab('FLARE', C_FLARE);
+  grab('CELL_LIT', C_CELL_LIT); grab('CELL_DRK', C_CELL_DRK);
+  grab('WIN_LIT', C_WIN_LIT);  grab('WIN_DRK', C_WIN_DRK);
+  grab('BALC_LIT', C_BALC_LIT); grab('BALC_DRK', C_BALC_DRK);
+  grab('SIDE_LIT', C_SIDE_LIT); grab('SIDE_DRK', C_SIDE_DRK);
+  grab('SHADOW', C_SHADOW);    grab('INK', 'rgb(47,42,37)');
+
+  var C_LAMP = 'rgba(236, 196, 118, 0.95)';
+
+  function applyTime(t) {
+    TOD = t;
+    NIGHT = t < 0.46 ? 0 : Math.min(1, (t - 0.46) / 0.40);
+    var d = 1 - Math.abs(t - 0.50) / 0.22;
+    DUSK = d > 0 ? d : 0;
+
+    C_TERR = tint(B.TERR);         C_TERRTOP = tint(B.TERRTOP);
+    C_CITY = tint(B.CITY);         C_CITY_TOP = tint(B.CITY_TOP);
+    C_CITY_BND = lamp(B.CITY_BND, NIGHT * 0.85);
+    C_TREE_A = tint(B.TREE_A);     C_TREE_B = tint(B.TREE_B);
+    C_TREE_DRK = tint(B.TREE_DRK); C_TRUNK = tint(B.TRUNK);
+    C_GROUND = tint(B.GROUND);     C_GROUND_FAR = tint(B.GROUND_FAR);
+    C_PODIUM = tint(B.PODIUM);     C_HALL = tint(B.HALL);
+    C_SLAB = tint(B.SLAB);         C_SLABTOP = tint(B.SLABTOP);
+    C_DECK = tint(B.DECK);         C_SHAFT = tint(B.SHAFT);
+    C_NECK = tint(B.NECK);         C_PARAPET = tint(B.PARAPET);
+    C_RAIL = tint(B.RAIL);         C_ROOF = tint(B.ROOF);
+    C_FLARE = tint(B.FLARE);
+    C_GLASS = lamp(B.GLASS, NIGHT * 0.9);          // ресторан вечером горит
+    C_CELL_LIT = tint(B.CELL_LIT); C_CELL_DRK = tint(B.CELL_DRK);
+    C_WIN_LIT = tint(B.WIN_LIT);   C_WIN_DRK = tint(B.WIN_DRK);
+    C_BALC_LIT = tint(B.BALC_LIT); C_BALC_DRK = tint(B.BALC_DRK);
+    C_SIDE_LIT = tint(B.SIDE_LIT); C_SIDE_DRK = tint(B.SIDE_DRK);
+    C_SHADOW = tint(B.SHADOW);
+    INK = tint(B.INK);
+    // ночью тушь светлеет, иначе рисунок тонет в темноте
+    if (NIGHT > 0) {
+      var ic = parseCol(INK), a = 0.62 * NIGHT;
+      INK = 'rgb(' + ((ic[0] + (168 - ic[0]) * a) | 0) + ',' +
+                     ((ic[1] + (178 - ic[1]) * a) | 0) + ',' +
+                     ((ic[2] + (202 - ic[2]) * a) | 0) + ')';
+    }
+
+    /* Солнце ходит по небу вместе с ползунком: к вечеру оно ниже и
+       сбоку, и тени удлиняются сами. Это и делает картинку живой
+       сильнее любой анимации. */
+    var ang = Math.PI * (0.14 + t * 0.74);
+    var ly = Math.sin(ang); if (ly < 0.20) ly = 0.20;
+    var lx = Math.cos(ang) * 0.92, lz = 0.52;
+    var ln = Math.sqrt(lx * lx + ly * ly + lz * lz);
+    LX = lx / ln; LY = ly / ln; LZ = lz / ln;
+  }
+
   var CAM_DIST = 14;    // камера стоит на этом расстоянии
   var FOCAL    = 10;    // «фокусное»: больше — меньше перспективы
   var MAX_DPR  = 2;     // выше 2 нет смысла, только жрёт пиксели
 
-  // Свет: слева сверху и немного спереди
+  // Свет. Задаётся временем суток (см. applyTime выше).
   var LX = -0.46, LY = 0.58, LZ = 0.67;
 
   // Дрожание линий должно быть у каждой линии своё, но ПОСТОЯННОЕ:
@@ -148,10 +259,36 @@
 
     this.paperCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.drawPaper();
+
+    /* Облака и звёзды задаются один раз: если сыпать их заново каждый
+       кадр, небо будет кипеть. */
+    if (!this.clouds) {
+      var rc2 = seeded(91);
+      this.clouds = [];
+      for (var ci = 0; ci < 4; ci++) {
+        this.clouds.push({
+          x: rc2() * 1200, y: 0.04 + rc2() * 0.26,
+          s: 0.045 + rc2() * 0.045,
+          v: 4 + rc2() * 7                  // пикселей в секунду
+        });
+      }
+      var rs = seeded(555);
+      this.stars = [];
+      for (var si = 0; si < 70; si++) this.stars.push(rs(), rs() * 0.92, rs() * 6.28);
+    }
   };
 
   /* Текстура бумаги. Рисуется один раз на ресайз, лежит отдельным слоем
      под сценой. Каждый кадр её не трогаем — это и есть экономия. */
+  // Цвет стопа неба: между дневным и ночным, по текущему NIGHT
+  function st(day, nite, a0, a1) {
+    var r = day[0] + (nite[0] - day[0]) * NIGHT;
+    var g = day[1] + (nite[1] - day[1]) * NIGHT;
+    var b = day[2] + (nite[2] - day[2]) * NIGHT;
+    return 'rgba(' + (r | 0) + ',' + (g | 0) + ',' + (b | 0) + ',' +
+           (a0 + (a1 - a0) * NIGHT).toFixed(3) + ')';
+  }
+
   Engine.prototype.drawPaper = function () {
     var c = this.paperCtx, w = this.w, h = this.h;
     var TAU = Math.PI * 2;
@@ -159,41 +296,42 @@
     c.fillStyle = PAPER;
     c.fillRect(0, 0, w, h);
 
-    // Небо: акварельная заливка сверху, к горизонту сходит на нет.
+    /* Небо и облака отсюда УБРАНЫ: они теперь рисуются каждый кадр на
+       верхнем холсте, потому что должны меняться со временем суток и
+       двигаться. Здесь остаётся только бумага, зерно и виньетка —
+       то, что не меняется никогда.
+
+       Небо: акварельная заливка сверху, к горизонту сходит на нет.
+       Оно зависит от времени суток, но НЕ от кадра, поэтому живёт
+       здесь: ползунок двигают редко, а кадров шестьдесят в секунду.
     // Всё это рисуется один раз на ресайз и кадру не стоит ничего.
     /* Небо не однотонное: сверху густая синь, а у горизонта воздух
        теплеет и светлеет. Эта тёплая полоса внизу — то, из-за чего
        небо перестаёт выглядеть заливкой и начинает выглядеть небом. */
+    /* Одна заливка на весь экран вместо двух. Небо и ночное затемнение
+       земли сведены в общий градиент: ниже горизонта его дневные стопы
+       полностью прозрачны, поэтому днём там не рисуется ничего, а ночью
+       ложится синий тон. Заливка во весь экран — самая дорогая операция
+       на телефоне, и делать её дважды было расточительством. */
     var horizon = h * 0.72;
-    var sky = c.createLinearGradient(0, 0, 0, horizon);
-    sky.addColorStop(0.00, 'rgba(96, 142, 186, 0.60)');
-    sky.addColorStop(0.42, 'rgba(142, 180, 206, 0.34)');
-    sky.addColorStop(0.76, 'rgba(214, 200, 172, 0.20)');
-    sky.addColorStop(1.00, 'rgba(226, 206, 168, 0.00)');
-    c.fillStyle = sky;
-    c.fillRect(0, 0, w, horizon);
+    var g = c.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0.00, st([96, 142, 186], [10, 14, 40], 0.60, 0.94));
+    g.addColorStop(0.30, st([142, 180, 206], [20, 26, 58], 0.34, 0.86));
+    g.addColorStop(0.55, st([214, 200, 172], [46, 40, 70], 0.20, 0.66));
+    g.addColorStop(0.72, st([226, 206, 168], [40, 36, 66], 0.00, 0.62));
+    g.addColorStop(1.00, st([226, 206, 168], [16, 20, 44], 0.00, 0.78));
+    c.fillStyle = g;
+    c.fillRect(0, 0, w, h);
 
-    // Облака. Все овалы одного облака — в одном пути и одна заливка,
-    // иначе на перекрытиях полезут швы от прозрачности.
-    var rc = seeded(91);
-    for (var k = 0; k < 4; k++) {
-      var cx = w * (0.06 + rc() * 0.88);
-      var cy = h * (0.04 + rc() * 0.26);
-      var sc = Math.min(w, h) * (0.045 + rc() * 0.045);
-      // Два прохода: широкий и очень бледный снизу, поплотнее сверху.
-      // От этого у облака мягкий край, а не наклейка.
-      for (var q = 0; q < 2; q++) {
-        var e = q === 0 ? 1.28 : 1.0;
-        c.fillStyle = q === 0 ? 'rgba(252, 252, 248, 0.22)'
-                              : 'rgba(255, 254, 250, 0.42)';
-        c.beginPath();
-        puff(c, cx, cy, sc * e, 1.00, 0.38, TAU);
-        puff(c, cx - sc * 0.60, cy + sc * 0.13, sc * e, 0.50, 0.26, TAU);
-        puff(c, cx + sc * 0.64, cy + sc * 0.11, sc * e, 0.54, 0.28, TAU);
-        puff(c, cx + sc * 0.10, cy - sc * 0.19, sc * e, 0.44, 0.29, TAU);
-        c.fill();
-      }
+    // закатная полоса у горизонта
+    if (DUSK > 0.01) {
+      var gd = c.createLinearGradient(0, horizon * 0.55, 0, horizon);
+      gd.addColorStop(0, 'rgba(236, 150, 88, 0)');
+      gd.addColorStop(1, 'rgba(240, 146, 84, ' + (0.34 * DUSK).toFixed(3) + ')');
+      c.fillStyle = gd;
+      c.fillRect(0, horizon * 0.55, w, horizon * 0.45);
     }
+
 
     // Зерно бумаги — поверх неба, чтобы всё лежало на одном листе
     var rnd = seeded(7);
@@ -223,6 +361,8 @@
   Engine.prototype.render = function (state) {
     var ctx = this.ctx, m = this.model;
     ctx.clearRect(0, 0, this.w, this.h);
+    this.time = state.time || 0;
+    this.drawSky();
 
     var r = this.rot;
     r.cy = Math.cos(state.yaw);  r.sy = Math.sin(state.yaw);
@@ -404,7 +544,10 @@
     var ctx = this.ctx, px = this.px, py = this.py, pz = this.pz;
     var b = f.p;
     var k = FOCAL / Math.max(1, CAM_DIST - pz[b]) * this.S;
-    var cx = px[b] + f.lean * k;
+    /* Лёгкое качание. Амплитуда крошечная — полпроцента ширины кроны:
+       больше выглядит как шторм, а не как ветер. */
+    var sway = Math.sin(this.time * 0.8 + f.wob[0] * 9.3) * k * 0.014;
+    var cx = px[b] + f.lean * k + sway;
     var cy = py[b] - f.h * k * 0.74;
     var rx = f.w * k, ry = f.h * k * 0.40;
     if (mode === 2) { cx += rx * 0.30; cy += ry * 0.18; rx *= 0.80; ry *= 0.80; }
@@ -536,6 +679,47 @@
       any = true;
     }
     if (any) { ctx.fillStyle = g; ctx.fill(); }
+  };
+
+  /* Небо. Рисуется каждый кадр — иначе не сменить время суток и не
+     двинуть облака. Стоит дёшево: одна заливка с градиентом, четыре
+     облака по восемь дуг и горсть звёзд. */
+  Engine.prototype.drawSky = function () {
+    var ctx = this.ctx, w = this.w, h = this.h, t = this.time;
+    var horizon = h * 0.72;
+
+    // 3. звёзды
+    if (NIGHT > 0.12) {
+      var stars = this.stars;
+      ctx.fillStyle = 'rgba(255, 252, 236, ' + (0.85 * NIGHT).toFixed(3) + ')';
+      for (var i = 0; i < stars.length; i += 3) {
+        var tw = 0.65 + 0.35 * Math.sin(t * 1.7 + stars[i + 2]);
+        var rr = stars[i + 2] % 1 * 0.9 + 0.5;
+        ctx.globalAlpha = tw;
+        ctx.fillRect(stars[i] * w, stars[i + 1] * horizon, rr, rr);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // 4. облака: медленно плывут, ночью почти гаснут
+    var cl = this.clouds, span = w + 400;
+    for (var k = 0; k < cl.length; k++) {
+      var c0 = cl[k];
+      var cx = ((c0.x + t * c0.v) % span + span) % span - 200;
+      var cy = c0.y * h;
+      var sc = c0.s * Math.min(w, h);
+      for (var q = 0; q < 2; q++) {
+        var e = q === 0 ? 1.28 : 1.0;
+        var al = (q === 0 ? 0.22 : 0.42) * (1 - 0.72 * NIGHT);
+        ctx.fillStyle = 'rgba(252, 252, 248, ' + al.toFixed(3) + ')';
+        ctx.beginPath();
+        puff(ctx, cx, cy, sc * e, 1.00, 0.38, Math.PI * 2);
+        puff(ctx, cx - sc * 0.60, cy + sc * 0.13, sc * e, 0.50, 0.26, Math.PI * 2);
+        puff(ctx, cx + sc * 0.64, cy + sc * 0.11, sc * e, 0.54, 0.28, Math.PI * 2);
+        puff(ctx, cx + sc * 0.10, cy - sc * 0.19, sc * e, 0.44, 0.29, Math.PI * 2);
+        ctx.fill();
+      }
+    }
   };
 
   /* Для каждой грани и чешуйки: смотрит ли на камеру и насколько на свету */
@@ -764,6 +948,26 @@
           ctx.fillStyle = (pass === 1 || grp === 5) ? layers[L].drk : layers[L].lit;
           ctx.fill();
         }
+      }
+    }
+
+    /* Свет в окнах. Ночью часть лоджий горит тёплым — это сильнее
+       всего говорит «здание живое», и стоит одну заливку. */
+    if (NIGHT > 0.2) {
+      var anyL = false;
+      ctx.beginPath();
+      for (var i = 0; i < n; i++) {
+        var f = cells[i];
+        if (!f.vis || (f.grp || 0) !== grp || f.arch) continue;
+        if (f.lamp === undefined || f.lamp > 0.45) continue;
+        this.archPath(f, 0.66);
+        anyL = true;
+      }
+      if (anyL) {
+        ctx.globalAlpha = Math.min(1, (NIGHT - 0.2) / 0.4);
+        ctx.fillStyle = C_LAMP;
+        ctx.fill();
+        ctx.globalAlpha = 1;
       }
     }
 
@@ -1096,6 +1300,7 @@
       if (dt > 100) dt = 100;        // вернулись во вкладку — не прыгаем
       if (dt <= 0) return;
 
+      state.time = now * 0.001;
       controls.update(dt);
       engine.render(state);
 
@@ -1110,7 +1315,24 @@
     var hintEl = global.document.getElementById('hint');
     if (hintEl) hintEl.textContent += ' · сборка ' + BUILD;
 
-    global.Kukuruznik = { engine: engine, state: state, controls: controls, build: BUILD };
+    var timeEl = document.getElementById('tod');
+    if (timeEl) {
+      var applyUI = function () {
+        var v = timeEl.value / 100;
+        applyTime(v);
+        engine.drawPaper();      // небо живёт в нижнем слое, его и обновляем
+        document.body.classList.toggle('night', NIGHT > 0.45);
+      };
+      timeEl.addEventListener('input', applyUI);
+      applyUI();
+    } else {
+      applyTime(TOD);
+    }
+
+    global.Kukuruznik = {
+      engine: engine, state: state, controls: controls,
+      build: BUILD, setTime: applyTime
+    };
   }
 
   if (document.readyState === 'loading') {
