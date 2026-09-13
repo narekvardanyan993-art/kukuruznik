@@ -288,11 +288,22 @@
       ctx.stroke();
     }
 
-    // 4. облака: медленно плывут, ночью почти гаснут
-    var cl = this.clouds, span = w + 400;
+    // 4. облака: медленно плывут по миру, ночью почти гаснут
+    /* Тот же приём, что у звёзд и солнца: азимут в мире минус текущий
+       yaw даёт угол относительно камеры, а дальше — то же сжатие
+       SKY_K и тот же перевод в экранные координаты. Раньше облако
+       двигалось по формуле, не знавшей о повороте камеры вовсе —
+       отсюда и приклеенность к экрану при повороте. */
+    var cl = this.clouds;
+    var Fcl = FOCAL * this.S / Math.cos(pitch);
     for (var k = 0; k < cl.length; k++) {
       var c0 = cl[k];
-      var cx = ((c0.x + t * c0.v) % span + span) % span - 200;
+      var thc = c0.th + t * c0.v - yaw + Math.PI / 2;
+      while (thc > Math.PI) thc -= Math.PI * 2;
+      while (thc < -Math.PI) thc += Math.PI * 2;
+      if (Math.cos(thc) <= 0.03) continue;        // за спиной — не рисуем
+      var cx = this.ox + Math.tan(thc * SKY_K) * Fcl;
+      if (cx < -260 || cx > w + 260) continue;     // далеко за краем — не тратим кадр
       var cy = c0.y * h;
       var sc = c0.s * Math.min(w, h) * (1 + Math.sin(t * 0.10 + c0.ph) * 0.09);
       for (var q = 0; q < 2; q++) {
