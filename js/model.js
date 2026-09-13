@@ -860,7 +860,99 @@
       });
     }
 
+    /* ======== фонари ========
+       На фотографии у входа стоят фонари на тонких мачтах. Ночью они
+       единственное, что светит на площадку — без них терраса остаётся
+       чёрным пятном, даже когда в окнах горит свет. */
+    var lamps = [];
+    var LAMP_H = 0.34;
+
+    // мачта не должна вырастать посреди крыши корпуса
+    function lampFree(x, z) {
+      if (x > 0.9 && x < 5.0 && Math.abs(z) < 1.5) return false;   // корпус
+      if (x < -1.0 && x > -4.7 && Math.abs(z) < 1.1) return false; // крыло
+      return true;
+    }
+
+    for (var li = 0; li < 22; li++) {
+      var la, lr;
+      if (li < 14) { la = (li / 14) * Math.PI * 2 + 0.22; lr = tiers[0].r + 0.55; }
+      else         { la = FRONT_A + (li - 17.5) * 0.26;   lr = tiers[0].r + 1.45; }
+      var lx2 = Math.cos(la) * lr, lz2 = Math.sin(la) * lr;
+      if (!lampFree(lx2, lz2)) continue;
+      lamps.push({
+        b: addXYZ(lx2, groundY(lr), lz2),
+        t: addXYZ(lx2, groundY(lr) + LAMP_H, lz2)
+      });
+    }
+
+    /* ======== люди ========
+       Ходят по кругу вокруг стилобата. Человек — 1.7 метра, то есть
+       0.15 единицы при башне в 60 метров. Именно они дают понять, что
+       здание огромное: дерево врёт, человек нет. */
+    var walkers = [];
+    var wrnd = seeded(777);
+    for (var wi = 0; wi < 30; wi++) {
+      /* Рост. Честные 1.7 метра — это 0.15 единицы, и на телефоне
+         человек превращался в невидимую волосинку. Рисунок имеет право
+         на условность: берём 0.26, примерно вдвое выше правды. Зато
+         человек виден, а именно он и объясняет размер здания. */
+      var ring2 = wi < 20 ? 2.55 + wrnd() * 1.9 : 5.3 + wrnd() * 2.6;
+      walkers.push({
+        r: ring2,
+        y: groundY(ring2) - yCenter,
+        ph: wrnd() * Math.PI * 2,
+        sp: (0.05 + wrnd() * 0.06) * (wrnd() < 0.5 ? -1 : 1),
+        st: wrnd() * 6.28,
+        h: 0.24 + wrnd() * 0.06
+      });
+    }
+
+    /* ======== скамейки ========
+       Мелочь, которой не замечаешь, но без которой площадь не похожа
+       на место, где бывают люди. */
+    var benches = [];
+    for (var bi3 = 0; bi3 < 10; bi3++) {
+      var ba = (bi3 / 10) * Math.PI * 2 + 0.5;
+      var br = tiers[0].r + 0.95;
+      var bx3 = Math.cos(ba) * br, bz3 = Math.sin(ba) * br;
+      if (!lampFree(bx3, bz3)) continue;
+      var byy = groundY(br);
+      var tx3 = -Math.sin(ba) * 0.17, tz3 = Math.cos(ba) * 0.17;
+      benches.push({
+        a: addXYZ(bx3 - tx3, byy + 0.075, bz3 - tz3),
+        b: addXYZ(bx3 + tx3, byy + 0.075, bz3 + tz3),
+        c: addXYZ(bx3 - tx3, byy, bz3 - tz3),
+        d: addXYZ(bx3 + tx3, byy, bz3 + tz3)
+      });
+    }
+
+    /* ======== кусты у подножия ======== */
+    for (var bu = 0; bu < 14; bu++) {
+      var ua = trnd() * Math.PI * 2;
+      var ur = 3.0 + trnd() * 1.6;
+      var ux = Math.cos(ua) * ur, uz = Math.sin(ua) * ur;
+      if (!freeSpot(ux, uz)) continue;
+      var uw = new Float32Array(10);
+      for (var uk = 0; uk < 10; uk++) uw[uk] = 0.80 + trnd() * 0.34;
+      trees.push({
+        p: addXYZ(ux, groundY(ur), uz),
+        h: 0.30 + trnd() * 0.14, w: 0.26 + trnd() * 0.10,
+        wob: uw, tone: trnd() < 0.5 ? 0 : 1, lean: 0, bush: true
+      });
+    }
+
     return {
+      /* Куда людям нельзя: они ходят по кругу, и круг проходит сквозь
+         корпуса. Проверять при отрисовке дешевле, чем выкраивать
+         каждому дуги в обход зданий. */
+      blocks: [
+        { x0: 0.9, x1: 5.0, z0: -1.5, z1: 1.5 },
+        { x0: -4.7, x1: -1.0, z0: -1.1, z1: 1.1 }
+      ],
+      benches: benches,
+      lamps: lamps,
+      walkers: walkers,
       city: city,
       cityCenters: new Float32Array(cityCenters),
       cityParts: cityParts,

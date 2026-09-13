@@ -7,7 +7,7 @@
 (function (global) {
   'use strict';
 
-  var BUILD = '21';     // видно на самой странице — чтобы не гадать, свежая ли версия
+  var BUILD = '22';     // видно на самой странице — чтобы не гадать, свежая ли версия
 
   var PAPER = '#f5ecda';
   var INK   = '#2f2a25';
@@ -82,14 +82,14 @@
   }
 
   // Опорные цвета ночи: к ним всё и сходится
-  var NTINT = [40, 50, 84];
+  var NTINT = [46, 52, 74];   // ночь не чернильно-синяя, а сумеречная
 
   function tint(b) {
     var r = b[0], g = b[1], bl = b[2];
     // закат: света становится меньше, но он теплеет
     r += 17 * DUSK; g += 2 * DUSK; bl -= 13 * DUSK;
     // ночь: гасим и уводим в синеву
-    var k = 1 - 0.52 * NIGHT, m = 0.58 * NIGHT;
+    var k = 1 - 0.46 * NIGHT, m = 0.50 * NIGHT;
     r = r * k + (NTINT[0] - r * k) * m;
     g = g * k + (NTINT[1] - g * k) * m;
     bl = bl * k + (NTINT[2] - bl * k) * m;
@@ -414,6 +414,7 @@
     this.strokeBody(3);
     this.drawShadows(1);   // тень башни на террасе — уже поверх террасы
     this.drawLamps();
+    this.drawBenches();
     this.drawPeople(false);   // те, кто за башней
 
     /* Нижний корпус стоит сбоку, а не сверху, поэтому очередь у него
@@ -716,10 +717,21 @@
     var o = this._po || (this._po = {});
     var listB = [], listH = [];
 
+    var blk = this.model.blocks || [];
     for (var i = 0; i < W.length; i++) {
       var f = W[i];
       var a = f.ph + t * f.sp;
-      this.proj(Math.cos(a) * f.r, f.y, Math.sin(a) * f.r, o);
+      var wx = Math.cos(a) * f.r, wz = Math.sin(a) * f.r;
+
+      // человек не должен идти сквозь стену корпуса
+      var inside = false;
+      for (var bq = 0; bq < blk.length; bq++) {
+        var bk = blk[bq];
+        if (wx > bk.x0 && wx < bk.x1 && wz > bk.z0 && wz < bk.z1) { inside = true; break; }
+      }
+      if (inside) continue;
+
+      this.proj(wx, f.y, wz, o);
       if ((o.z > 0) !== !!near) continue;
       listB.push(o.x, o.y, o.k, i);
     }
@@ -736,11 +748,18 @@
       ctx.lineTo(x + step, y);
       ctx.moveTo(x, y - hh * 0.34);            // корпус
       ctx.lineTo(x, y - hh * 0.80);
-      listH.push(x, y - hh * 0.90, hh * 0.115);
+      listH.push(x, y - hh * 0.90, hh * 0.098);
     }
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = Math.max(1, listB[2] * 0.013);
-    ctx.globalAlpha = 0.82;
+    /* Тот же силуэт кладётся дважды: сначала толстой светлой линией,
+       потом тонкой тёмной. Светлая подложка отбивает человека от фона —
+       без неё фигурка терялась на сером стилобате и на телефоне её было
+       просто не видно. */
+    var lw = Math.max(1.6, listB[2] * 0.020);
+    ctx.strokeStyle = NIGHT > 0.5 ? 'rgba(240,236,224,0.55)' : 'rgba(250,246,236,0.85)';
+    ctx.lineWidth = lw * 2.1;
+    ctx.stroke();
+    ctx.strokeStyle = NIGHT > 0.5 ? 'rgb(24,26,44)' : 'rgb(52,46,40)';
+    ctx.lineWidth = lw;
     ctx.stroke();
 
     ctx.beginPath();
@@ -748,8 +767,30 @@
       ctx.moveTo(listH[q2] + listH[q2 + 2], listH[q2 + 1]);
       ctx.arc(listH[q2], listH[q2 + 1], listH[q2 + 2], 0, Math.PI * 2);
     }
-    ctx.fillStyle = INK;
+    ctx.fillStyle = NIGHT > 0.5 ? 'rgba(240,236,224,0.55)' : 'rgba(250,246,236,0.85)';
+    ctx.lineWidth = lw * 2.1;
+    ctx.stroke();
+    ctx.fillStyle = NIGHT > 0.5 ? 'rgb(24,26,44)' : 'rgb(52,46,40)';
     ctx.fill();
+    ctx.globalAlpha = 1;
+  };
+
+  /* Скамейки. Сиденье и две ножки, все разом одним путём. */
+  Engine.prototype.drawBenches = function () {
+    var Bc = this.model.benches;
+    if (!Bc || !Bc.length) return;
+    var ctx = this.ctx, px = this.px, py = this.py;
+    ctx.beginPath();
+    for (var i = 0; i < Bc.length; i++) {
+      var f = Bc[i];
+      ctx.moveTo(px[f.a], py[f.a]); ctx.lineTo(px[f.b], py[f.b]);
+      ctx.moveTo(px[f.a], py[f.a]); ctx.lineTo(px[f.c], py[f.c]);
+      ctx.moveTo(px[f.b], py[f.b]); ctx.lineTo(px[f.d], py[f.d]);
+    }
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = Math.max(1.1, this.S * 0.013);
+    ctx.globalAlpha = 0.72;
+    ctx.stroke();
     ctx.globalAlpha = 1;
   };
 
@@ -1431,14 +1472,34 @@
     var controls = global.Controls.create(stage, state);
     controls.onFirstTouch(function () { hint.classList.add('gone'); });
 
+    /* Дрон: медленный облёт с плавным подъёмом и наездом. Не «камера
+       летит по маршруту», а спокойный круг — из такого кадра получается
+       готовый ролик без единого касания. */
+    var droneBtn = document.getElementById('droneBtn');
+    var droneT = 0;
+    droneBtn.addEventListener('click', function () {
+      state.drone = !state.drone;
+      droneBtn.setAttribute('aria-pressed', state.drone ? 'true' : 'false');
+      if (state.drone) {
+        state.auto = false;
+        autoBtn.setAttribute('aria-pressed', 'false');
+      }
+    });
+
     autoBtn.addEventListener('click', function () {
       state.auto = !state.auto;
       autoBtn.setAttribute('aria-pressed', state.auto ? 'true' : 'false');
+      if (state.auto) {
+        state.drone = false;
+        droneBtn.setAttribute('aria-pressed', 'false');
+      }
     });
     resetBtn.addEventListener('click', function () {
       controls.reset();
       state.auto = false;
+      state.drone = false;
       autoBtn.setAttribute('aria-pressed', 'false');
+      droneBtn.setAttribute('aria-pressed', 'false');
     });
 
     var resizeTimer = 0;
@@ -1464,6 +1525,13 @@
 
       state.time = now * 0.001;
       controls.update(dt);
+
+      if (state.drone) {
+        droneT += dt * 0.001;
+        state.yaw += 0.085 * dt * 0.001;
+        state.pitch = 0.34 + 0.21 * Math.sin(droneT * 0.17);
+        state.zoom = 1.04 + 0.30 * Math.sin(droneT * 0.12 + 1.2);
+      }
       engine.render(state);
 
       fpsAvg += (1000 / dt - fpsAvg) * 0.08;
