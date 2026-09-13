@@ -253,6 +253,7 @@
     // стилобат и лестница
     this.fillShells('podium',  C_PODIUM);
     this.fillShells('deck',    C_DECK);
+    this.drawCells(3);     // арочный портал в стене стилобата
     this.hatch();
     this.strokeBody(3);
     this.drawShadows(1);   // тень башни на террасе — уже поверх террасы

@@ -179,11 +179,27 @@
     /* Край слегка неровный, но не рваный: движок обводит его гладкой
        кривой. Линии земли в общий список не идут — их рисует движок
        вместе с заливкой, тем же самым путём. */
+    /* Здание стояло на вершине холма (Канакерская высота, конец улицы
+       Абовяна) — место выбрали так, чтобы его было видно отовсюду.
+       Плоская лужайка была враньём: вокруг площадки земля уходит вниз,
+       и город лежит НИЖЕ здания, а не рядом с ним. */
     var GN = 48, rGround = 13.0;
+    var rPlateau = 5.0, hDrop = 2.15;
+
+    function groundY(r) {
+      if (r <= rPlateau) return yGround;
+      var t = (r - rPlateau) / (rGround - rPlateau);
+      if (t > 1) t = 1;
+      return yGround - hDrop * t * t * (3 - 2 * t);   // плавный перегиб
+    }
+
     var groundRing = new Array(GN);
     for (var i = 0; i < GN; i++) {
-      groundRing[i] = addPt((i / GN) * Math.PI * 2, rGround * (0.94 + rnd() * 0.12), yGround);
+      var rg = rGround * (0.94 + rnd() * 0.12);
+      groundRing[i] = addPt((i / GN) * Math.PI * 2, rg, groundY(rg));
     }
+
+    var FRONT_A = -Math.PI / 2;       // куда смотрит фасад: в сторону −Z
 
     // ======== стилобат ========
     curPart = 3;
@@ -207,6 +223,19 @@
     ringLines(botR[1], MED,  deck1Ids,  wallIds[1]);
     ringLines(midR[1], THIN, wallIds[1], wallIds[1]);
     ringLines(topR[1], MED,  wallIds[1], deck2Ids);
+
+    /* Арочный портал. На фотографии это главный вход: большая арка,
+       врезанная в каменную стену стилобата ровно под башней. */
+    var portalA = FRONT_A - 0.19, portalB = FRONT_A + 0.19;
+    cells.push({
+      grp: 3, arch: true,
+      a: addPt(portalB, tiers[0].r + 0.01, yGround + 0.01),
+      b: addPt(portalA, tiers[0].r + 0.01, yGround + 0.01),
+      c: addPt(portalA, tiers[0].r + 0.01, tiers[0].y1 - 0.01),
+      d: addPt(portalB, tiers[0].r + 0.01, tiers[0].y1 - 0.01),
+      nx: Math.cos(FRONT_A), ny: 0, nz: Math.sin(FRONT_A),
+      vis: false, lit: 0
+    });
 
     // ======== лестницы ========
     /* Два марша уступами. Каждый стоит СНАРУЖИ той террасы, на которую
@@ -243,7 +272,7 @@
        Теперь это ступени-дуги, разбегающиеся наружу по сектору фасада.
        Каждая ступень — проступь (горизонтальная) и подступёнок
        (вертикальный), плюс закрытые щёки по краям сектора. */
-    var FRONT = -Math.PI / 2;         // сторона фасада: туда смотрит −Z
+    var FRONT = FRONT_A;              // сторона фасада: туда смотрит −Z
 
     function stairArc(rIn, yTop, yBot, half, steps, depth) {
       var K = 12;
@@ -655,9 +684,9 @@
     var city = [], cityCenters = [], cityParts = [];
     var crnd = seeded(31337);
 
-    for (var c2 = 0; c2 < 90 && city.length < 13; c2++) {
+    for (var c2 = 0; c2 < 140 && city.length < 18; c2++) {
       var cang = crnd() * Math.PI * 2;
-      var crad = 8.2 + crnd() * 3.8;
+      var crad = 7.4 + crnd() * 4.6;
       var ccx = Math.cos(cang) * crad, ccz = Math.sin(cang) * crad;
       if (ccx > 0.5 && ccx < 6.4 && Math.abs(ccz) < 2.6) continue;   // за корпусом
       if (ccx < -0.5 && ccx > -6.2 && Math.abs(ccz) < 2.4) continue; // за крылом
@@ -665,9 +694,9 @@
       var bi = city.length;
       curPart = 20 + bi;
 
-      var bw = 0.62 + crnd() * 0.85;      // половина длины
-      var bd = 0.52 + crnd() * 0.55;      // половина ширины
-      var bh = 0.80 + crnd() * 1.45;
+      var bw = 0.50 + crnd() * 0.70;      // половина длины
+      var bd = 0.42 + crnd() * 0.45;      // половина ширины
+      var bh = 0.55 + crnd() * 1.05;
       var brot = crnd() * Math.PI;
       var ca2 = Math.cos(brot), sa2 = Math.sin(brot);
 
@@ -677,10 +706,13 @@
       var lxs = [-bw, bw, bw, -bw], lzs = [-bd, -bd, bd, bd];
       var nrm = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
+      /* Дома стоят на склоне, а не на уровне площадки: основание
+         опущено по рельефу. Именно это и читается как «город внизу». */
+      var cby = groundY(crad);
       var bb = [], bt = [];
       for (var k = 0; k < 4; k++) {
-        bb.push(bpt(lxs[k], lzs[k], yGround));
-        bt.push(bpt(lxs[k], lzs[k], bh));
+        bb.push(bpt(lxs[k], lzs[k], cby));
+        bt.push(bpt(lxs[k], lzs[k], cby + bh));
       }
 
       var wf = [];
@@ -701,7 +733,7 @@
       }
 
       // пояс окон: одна лента на стену, дальше глаз всё равно не читает
-      var gy0 = bh * 0.40, gy1 = bh * 0.66;
+      var gy0 = cby + bh * 0.40, gy1 = cby + bh * 0.66;
       for (var k = 0; k < 4; k++) {
         var k1 = (k + 1) % 4;
         var ix0 = lxs[k] + (lxs[k1] - lxs[k]) * 0.14;
@@ -727,7 +759,7 @@
       city.push0 = 0;
 
       city.push({ x: ccx, z: ccz, h: bh });
-      cityCenters.push(ccx, bh * 0.5 - yCenter, ccz);
+      cityCenters.push(ccx, cby + bh * 0.5 - yCenter, ccz);
       cityParts.push(20 + bi);
     }
     curPart = 0;
@@ -745,6 +777,10 @@
     var trnd = seeded(9091);
 
     function freeSpot(x, z) {
+      /* Сектор перед фасадом держим пустым: там вход, каскад лестниц и
+         подъём с дороги. Роща, посаженная сплошняком, закрывала именно
+         то, ради чего здание и разворачивают к себе. */
+      if (z < 0 && Math.abs(x) < Math.abs(z) * 0.9 + 1.6) return false;
       if (x * x + z * z < 3.3 * 3.3) return false;              // стилобат
       if (x > 0.9 && x < 5.3 && Math.abs(z) < 1.9) return false;  // корпус
       if (x < -1.0 && x > -5.1 && Math.abs(z) < 1.5) return false; // крыло
@@ -764,7 +800,7 @@
       for (var w2 = 0; w2 < 10; w2++) wob[w2] = 0.82 + trnd() * 0.30;
 
       trees.push({
-        p: addXYZ(tx, yGround, tz),
+        p: addXYZ(tx, groundY(rad), tz),
         h: hh, w: ww, wob: wob,
         tone: trnd() < 0.5 ? 0 : 1,               // два оттенка зелени
         lean: (trnd() - 0.5) * 0.16
