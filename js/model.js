@@ -371,7 +371,7 @@
 
     // ======== нижний корпус с волнистой крышей ========
     curPart = 4;
-    var HX0 = 1.70, HX1 = 4.60;     // корпус вытянут вдоль оси X
+    var HX0 = 1.32, HX1 = 4.60;     // корпус вытянут вдоль оси X
     var HZ  = 1.50;                 // половина ширины
     var HT  = 0.17;                 // толщина плиты кровли
     var HK  = 26;                   // точек вдоль волны
@@ -404,6 +404,9 @@
       line(hTopF[i], hTopF[i + 1], MED,  sF, rT);   // волна, дальняя сторона
       line(hBotN[i], hBotN[i + 1], THIN, wN, sN);
       line(hBotF[i], hBotF[i + 1], THIN, wF, sF);
+      /* Поперечное ребро кровли. Без него плита — просто белое пятно
+         размером с полздания, и весь корпус выглядит картонным. */
+      if (i % 4 === 2) line(hTopN[i], hTopF[i], MED, rT, rT);
       line(hGndN[i], hGndN[i + 1], MED,  wN, wN);
       line(hGndF[i], hGndF[i + 1], MED,  wF, wF);
       line(hCrsN[i], hCrsN[i + 1], THIN, wN, wN);
@@ -429,7 +432,7 @@
        высоких узких арок, а сверху лежит плоская плита с выносом.
        Стоит по другую сторону от волнистого корпуса, вдоль той же оси. */
     curPart = 5;
-    var WX0 = -1.95, WX1 = -4.35;   // от стилобата наружу
+    var WX0 = -1.52, WX1 = -4.35;   // от стилобата наружу
     var WZ  = 1.22;                 // половина ширины
     var WY  = 0.88;                 // верх стены
     var WYT = 1.00;                 // верх плиты кровли
@@ -469,7 +472,42 @@
     line(sbN1, stN1, MED,  slabN, slabW);
     line(sbF1, stF1, MED,  slabF, slabW);
 
+    /* Бортик по краю кровли. Плоская плита без бортика читается как
+       лист картона: у неё нет ни толщины, ни границы. */
+    var PH = 0.085;
+    var pN0 = addXYZ(WX0, WYT + PH, -WZ - WO), pN1 = addXYZ(WX1 - WO, WYT + PH, -WZ - WO);
+    var pF0 = addXYZ(WX0, WYT + PH,  WZ + WO), pF1 = addXYZ(WX1 - WO, WYT + PH,  WZ + WO);
+    var iN0 = addXYZ(WX0, WYT + PH, -WZ - WO + 0.09), iN1 = addXYZ(WX1 - WO - 0.09, WYT + PH, -WZ - WO + 0.09);
+    var iF0 = addXYZ(WX0, WYT + PH,  WZ + WO - 0.09), iF1 = addXYZ(WX1 - WO - 0.09, WYT + PH,  WZ + WO - 0.09);
+    var jN1 = addXYZ(WX1 - WO - 0.09, WYT, -WZ - WO + 0.09);
+    var jF1 = addXYZ(WX1 - WO - 0.09, WYT,  WZ + WO - 0.09);
+
+    var rlN = face('wingRail', stN0, stN1, pN1, pN0, 0, 0, -1);
+    var rlF = face('wingRail', stF1, stF0, pF0, pF1, 0, 0,  1);
+    var rlW = face('wingRail', stN1, stF1, pF1, pN1, -1, 0, 0);
+    var rtN = face('wingRail', pN0, pN1, iN1, iN0, 0, 1, 0);
+    var rtF = face('wingRail', pF0, pF1, iF1, iF0, 0, 1, 0);
+    var rtW = face('wingRail', pN1, pF1, iF1, iN1, 0, 1, 0);
+    face('wingRail', iN1, iF1, jF1, jN1, 1, 0, 0);   // внутренняя сторона торца
+
+    line(pN0, pN1, MED,  rlN, rtN);
+    line(pF0, pF1, MED,  rlF, rtF);
+    line(pN1, pF1, MED,  rlW, rtW);
+    line(iN0, iN1, THIN, rtN, rtN);
+    line(iF0, iF1, THIN, rtF, rtF);
+    line(stN1, pN1, THIN, rlN, rlW);
+    line(stF1, pF1, THIN, rlF, rlW);
+
+    // швы мощения на террасе: большая ровная плоскость без них мертва
+    var PJ = 5;
+    for (var i = 1; i < PJ; i++) {
+      var jx = WX0 + (WX1 - WO - WX0) * (i / PJ);
+      line(addXYZ(jx, WYT, -WZ - WO + 0.09), addXYZ(jx, WYT, WZ + WO - 0.09),
+           THIN, slabT, slabT);
+    }
+
     outline.push(wgN1, wtN1, wallN, wallW);
+    outline.push(pN1, pF1, rlW, rlW);
     outline.push(wgF1, wtF1, wallF, wallW);
 
     /* Сами арки. Это те же «чешуйки», что и лоджии на стволе, только

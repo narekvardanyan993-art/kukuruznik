@@ -21,8 +21,8 @@
   var C_GROUND_FAR = 'rgb(214, 214, 180)';  // она же вдали, съеденная воздухом
   var C_PODIUM  = 'rgb(152, 152, 157)';   // базальт стилобата
   var C_HALL    = 'rgb(126, 128, 132)';   // стены нижнего корпуса, тёмный туф
-  var C_SLAB    = 'rgb(216, 208, 187)';   // торец волнистой плиты
-  var C_SLABTOP = 'rgb(228, 221, 200)';   // её верх, смотрит в небо
+  var C_SLAB    = 'rgb(198, 191, 171)';   // торец волнистой плиты
+  var C_SLABTOP = 'rgb(215, 208, 187)';   // её верх, смотрит в небо
   var C_DECK    = 'rgb(186, 184, 177)';   // площадки террас
   var C_SHAFT   = 'rgb(242, 227, 188)';   // травертин ствола
   var C_NECK    = 'rgb(193, 184, 162)';
@@ -300,6 +300,7 @@
     this.drawCells(5);
     this.fillShells('wingSlab', C_SLAB);
     this.fillShells('wingTop',  C_DECK);
+    this.fillShells('wingRail', C_SLAB);
     this.strokeBody(5);
   };
 
