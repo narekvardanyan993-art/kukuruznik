@@ -14,6 +14,13 @@
      (там был ресторан), скошенный колпак и плоская макушка;
    — сбоку длинный корпус с волнистой плитой кровли.
 
+   ГЛАВНОЕ ПРО ОБЪЁМЫ. Каждый объём должен быть ЗАКРЫТ: у коробки шесть
+   граней, у кольца — верх, низ и обе стенки. Движок рисует только те
+   грани, что повёрнуты к камере, и это честно ровно до тех пор, пока
+   объём замкнут. Стоит забыть один торец — и с этой стороны зритель
+   смотрит внутрь пустоты: сквозь здание видно небо и повисшие линии.
+   Соблазн «эту грань всё равно не видно» почти всегда ошибка.
+
    ГЛАВНОЕ ПРО ЛИНИИ. У каждой линии записаны две грани, которые в ней
    сходятся. Линия рисуется тогда, и только тогда, когда хотя бы одна
    из них смотрит на камеру. Это и есть честное правило видимого ребра:
@@ -38,7 +45,7 @@
   function build(options) {
     var opt = options || {};
     var N = opt.ribs || 16;        // вертикальных рёбер по кругу
-    var F = opt.floors || 15;      // этажей в стволе
+    var F = opt.floors || 14;      // этажей в стволе: башня была 14-этажной гостиницей
     var M = 32;                    // граней у стилобата
     var NS = 32;                   // граней у тарелки: она круглая, не гранёная
 
@@ -83,6 +90,7 @@
     var shells = [];          // четырёхугольники для заливки «краской»
     var cells = [];           // чешуйки-лоджии
     var outline = [];         // рёбра-кандидаты на контур
+    var outlineParts = [];    // слой каждого ребра — чтобы контур шёл вместе со своим объектом
 
     function addPt(ang, r, y) {
       var i = pos.length / 3;
@@ -159,6 +167,7 @@
       if (!skipOutline && Math.abs(ny) < 0.3) {
         for (var i = 0; i < n; i++) {
           outline.push(lo[i], hi[i], ids[(i + n - 1) % n], ids[i]);
+          outlineParts.push(curPart);
         }
       }
       return ids;
@@ -423,7 +432,18 @@
       }
     }
 
-    // ======== тарелка ========
+    /* ======== тарелка ========
+       ВРАЩАЕТСЯ. Наверху было вращающееся кафе, и крутился весь верхний
+       объём целиком: барабан остекления, колпак, макушка. Люди внутри
+       ехали вместе с ним.
+
+       Поэтому все точки и грани этого куска помечаются как «вертушка»,
+       а движок перед проекцией доворачивает их вокруг оси на угол,
+       зависящий от времени. Пересчитывать саму модель каждый кадр не
+       нужно — достаточно одного лишнего поворота на точку. */
+    var spin0 = pos.length / 3;
+    var spinShell0 = shells.length;
+
     curPart = 1;
     var neckBase  = ring(NS, rNeck, shaftY1);
     var neckRing  = ring(NS, rNeck, neckY);
@@ -437,6 +457,10 @@
     band('neck', neckBase, neckRing, 0, true);
     var flareIds = band('flare', neckRing, rimRing, -1.2);
     var glassIds = band('glass', rimRing, glassRing, 0);
+    /* Каждой панели остекления — свой номер. По нему движок красит их
+       чуть по-разному: без этого барабан выглядит однотонным кольцом и
+       понять, что он поворачивается, невозможно. */
+    for (var gj = 0; gj < glassIds.length; gj++) shells[glassIds[gj]].idx = gj;
     var coneIds  = band('parapet', glassRing, capRing, 0.8);
     var crestIds = band('rail', capRing, railTop, 0, true);
     var roofIds  = cap('roof', railTop, addAxis(mastY));
@@ -450,6 +474,22 @@
       var j = (i + NS - 1) % NS;
       line(rimRing[i], glassRing[i], THIN, glassIds[j], glassIds[i]);  // импосты
     }
+
+    /* Табличка кафе висит на самом барабане, поэтому её точки создаются
+       здесь же — чтобы уехать вместе с ним. */
+    var cafeSign = {
+      a: addPt(FRONT_A + 0.32, rRim * 1.01, glassY + 0.02),
+      b: addPt(FRONT_A - 0.32, rRim * 1.01, glassY + 0.02),
+      d: addPt(FRONT_A + 0.32, rRim * 1.01, glassY + 0.14),
+      text: 'ԿԱՖԵ',
+      /* Куда смотрит табличка. Без этого она рисовалась и тогда, когда
+         уезжала на обратную сторону барабана — и читалась зеркально
+         поверх стекла. */
+      nx: Math.cos(FRONT_A), nz: Math.sin(FRONT_A), spin: true
+    };
+
+    var spin1 = pos.length / 3;
+    for (var sp2 = spinShell0; sp2 < shells.length; sp2++) shells[sp2].spin = true;
 
     // ======== нижний корпус с волнистой крышей ========
     curPart = 4;
@@ -553,6 +593,13 @@
     var wallN = face('wing', wgN0, wgN1, wtN1, wtN0,  0, 0, -1);
     var wallF = face('wing', wgF1, wgF0, wtF0, wtF1,  0, 0,  1);
     var wallW = face('wing', wgN1, wgF1, wtF1, wtN1, -1, 0,  0);
+    /* ПРАВИЛО: объём должен быть ЗАКРЫТ со всех сторон.
+       Восточного торца у крыла не было — я считал, что он спрятан в
+       стилобате. Но стилобат высотой 0.5, а крыло выше втрое, и с той
+       стороны зритель смотрел ВНУТРЬ пустой коробки: стена отвёрнута,
+       изнанки нет, сквозь объём видно небо и линии кровли. Это и есть
+       «пустые полоски» при повороте. */
+    face('wing', wgF0, wgN0, wtN0, wtF0, 1, 0, 0);
 
     // плита кровли: короб с выносом на три стороны
     var sbN0 = addXYZ(WX0, WY,  -WZ - WO), sbN1 = addXYZ(WX1 - WO, WY,  -WZ - WO);
@@ -564,6 +611,7 @@
     var slabF = face('wingSlab', sbF1, sbF0, stF0, stF1,  0, 0,  1);
     var slabW = face('wingSlab', sbN1, sbF1, stF1, stN1, -1, 0,  0);
     var slabT = face('wingTop',  stN0, stN1, stF1, stF0,  0, 1,  0);
+    face('wingSlab', sbF0, sbN0, stN0, stF0, 1, 0, 0);      // торец плиты
 
     line(wl(yGround, -WZ), wgN1, MED,  wallN, wallN);
     line(wl(yGround,  WZ), wgF1, MED,  wallF, wallF);
@@ -595,6 +643,7 @@
     var bFront = face('wingUp', bN0, bN1, bT1, bT0, 0, 0, -1);
     var bBack  = face('wingUp', bF1, bF0, bG0, bG1, 0, 0,  1);
     var bWest  = face('wingUp', bN1, bF1, bG1, bT1, -1, 0, 0);
+    face('wingUp', bF0, bN0, bT0, bG0, 1, 0, 0);            // торец этажа
 
     // окна заднего этажа — то же лекарство, что подействовало на корпус
     var wg0 = WY2 - 0.34, wg1 = WY2 - 0.08;
@@ -619,6 +668,7 @@
     var kB = face('wingUpCorn', kF1, kF0, kTF0, kTF1, 0, 0,  1);
     var kC = face('wingUpCorn', kN1, kF1, kTF1, kTN1, -1, 0, 0);
     var kT = face('wingUpTop', kTN0, kTN1, kTF1, kTF0, 0, 1,  0);
+    face('wingUpCorn', kF0, kN0, kTN0, kTF0, 1, 0, 0);      // торец карниза
 
     line(wl(WYT, WZB), bN1, MED, bFront, bFront);
     line(bN1, bT1, MED, bFront, bWest);
@@ -629,8 +679,8 @@
     line(kTN1, kTF1, MED, kC, kT);
     line(kN1, kTN1, MED, kA, kC);
 
-    outline.push(bN1, bT1, bFront, bWest);
-    outline.push(kN1, kTN1, kA, kC);
+    outline.push(bN1, bT1, bFront, bWest); outlineParts.push(curPart);
+    outline.push(kN1, kTN1, kA, kC); outlineParts.push(curPart);
 
     /* Карниз над аркадой. Стена, у которой нет ни низа, ни верха,
        выглядит плоской покраской. */
@@ -642,6 +692,7 @@
     var cnA = face('wingCorn', cnN0, cnN1, ctN1, ctN0, 0, 0, -1);
     var cnB = face('wingCorn', cnF1, cnF0, ctF0, ctF1, 0, 0,  1);
     var cnC = face('wingCorn', cnN1, cnF1, ctF1, ctN1, -1, 0, 0);
+    face('wingCorn', cnF0, cnN0, ctN0, ctF0, 1, 0, 0);      // торец карниза аркады
     line(wl(CY0, -WZ - 0.05), cnN1, THIN, cnA, cnA);
     line(wl(CY0,  WZ + 0.05), cnF1, THIN, cnB, cnB);
     line(wl(CY1, -WZ - 0.05), ctN1, MED,  cnA, cnA);
@@ -662,6 +713,7 @@
     var rlN = face('wingRail', stN0, stN1, pN1, pN0, 0, 0, -1);
     var rlF = face('wingRail', stF1, stF0, pF0, pF1, 0, 0,  1);
     var rlW = face('wingRail', stN1, stF1, pF1, pN1, -1, 0, 0);
+    face('wingRail', stF0, stN0, pN0, pF0, 1, 0, 0);        // торец бортика
     var rtN = face('wingRail', pN0, pN1, iN1, iN0, 0, 1, 0);
     var rtF = face('wingRail', pF0, pF1, iF1, iF0, 0, 1, 0);
     var rtW = face('wingRail', pN1, pF1, iF1, iN1, 0, 1, 0);
@@ -683,9 +735,9 @@
            THIN, slabT, slabT);
     }
 
-    outline.push(wgN1, wtN1, wallN, wallW);
-    outline.push(pN1, pF1, rlW, rlW);
-    outline.push(wgF1, wtF1, wallF, wallW);
+    outline.push(wgN1, wtN1, wallN, wallW); outlineParts.push(curPart);
+    outline.push(pN1, pF1, rlW, rlW); outlineParts.push(curPart);
+    outline.push(wgF1, wtF1, wallF, wallW); outlineParts.push(curPart);
 
     /* Сами арки. Это те же «чешуйки», что и лоджии на стволе, только
        без балкона: узкий проём с полуовальным верхом, внутри тень. */
@@ -762,6 +814,7 @@
       /* Дома стоят на склоне, а не на уровне площадки: основание
          опущено по рельефу. Именно это и читается как «город внизу». */
       var cby = groundY(crad);
+      var shellStart = shells.length;
       var bb = [], bt = [];
       for (var k = 0; k < 4; k++) {
         bb.push(bpt(lxs[k], lzs[k], cby));
@@ -777,12 +830,65 @@
       }
       var rf = shellRaw('cityTop', bt[0], bt[1], bt[2], bt[3], 0, 1, 0);
 
+      /* КРЫШИ. Сцену часто смотрят сверху, а плоский четырёхугольник
+         сверху — это просто серое пятно. Поэтому у каждого дома есть
+         парапет по краю и один служебный домик на кровле: выход с
+         лестницы или бак. Два простых объёма, а крыша сразу читается
+         как крыша. */
+      /* ВНИМАНИЕ на высоту. Дома стоят на склоне, их основание опущено
+         на cby. Стены строятся как (cby + bh), и парапет обязан считаться
+         так же. В первом заходе я написал просто bh — и парапет повис
+         на этаж выше крыши пустой рамой, будто футбольные ворота. */
+      var PARA = 0.075, INS = 0.10;
+      var yRoof = cby + bh;
+      var pb = [], pt = [];
+      for (var k2 = 0; k2 < 4; k2++) {
+        pb.push(bpt(lxs[k2] * (1 - INS / bw), lzs[k2] * (1 - INS / bd), yRoof));
+        pt.push(bpt(lxs[k2] * (1 - INS / bw), lzs[k2] * (1 - INS / bd), yRoof + PARA));
+      }
+      var tb = [], tt = [];
+      for (var k3 = 0; k3 < 4; k3++) {
+        tb.push(bpt(lxs[k3], lzs[k3], yRoof));
+        tt.push(bpt(lxs[k3], lzs[k3], yRoof + PARA));
+      }
+      for (var k4 = 0; k4 < 4; k4++) {
+        var k5 = (k4 + 1) % 4;
+        var nxp = nrm[k4][0] * ca2 - nrm[k4][1] * sa2;
+        var nzp = nrm[k4][0] * sa2 + nrm[k4][1] * ca2;
+        shellRaw('cityPara', tb[k4], tb[k5], tt[k5], tt[k4], nxp, 0, nzp);   // наружная стенка
+        shellRaw('cityPara', pt[k4], pt[k5], tt[k5], tt[k4], 0, 1, 0);       // верх парапета
+        shellRaw('cityPara', pb[k4], pb[k5], pt[k5], pt[k4], -nxp, 0, -nzp); // изнанка
+        line(tt[k4], tt[k5], THIN, rf, rf);
+      }
+
+      // служебный домик на кровле
+      var hx0 = bw * (0.12 + crnd() * 0.30), hz0 = bd * (0.10 + crnd() * 0.30);
+      var hw = bw * 0.26, hd = bd * 0.30, hh2 = 0.10 + crnd() * 0.09;
+      var ub = [], ut = [];
+      var uxs = [hx0 - hw, hx0 + hw, hx0 + hw, hx0 - hw];
+      var uzs = [hz0 - hd, hz0 - hd, hz0 + hd, hz0 + hd];
+      for (var k6 = 0; k6 < 4; k6++) {
+        ub.push(bpt(uxs[k6], uzs[k6], yRoof));
+        ut.push(bpt(uxs[k6], uzs[k6], yRoof + hh2));
+      }
+      for (var k7 = 0; k7 < 4; k7++) {
+        var k8 = (k7 + 1) % 4;
+        var nxu = nrm[k7][0] * ca2 - nrm[k7][1] * sa2;
+        var nzu = nrm[k7][0] * sa2 + nrm[k7][1] * ca2;
+        shellRaw('city', ub[k7], ub[k8], ut[k8], ut[k7], nxu, 0, nzu);
+        line(ut[k7], ut[k8], THIN, rf, rf);
+      }
+      shellRaw('cityTop', ut[0], ut[1], ut[2], ut[3], 0, 1, 0);
+
       for (var k = 0; k < 4; k++) {
         var k1 = (k + 1) % 4;
         line(bb[k], bb[k1], MED,  wf[k], wf[k]);
         line(bt[k], bt[k1], MED,  wf[k], rf);
         line(bb[k], bt[k], MED,   wf[(k + 3) % 4], wf[k]);
-        outline.push(bb[k], bt[k], wf[(k + 3) % 4], wf[k]);
+        /* Жирный контур силуэта дальним домам НЕ даём. Их заливка съедена
+           воздухом и почти сливается со склоном, а тяжёлая обводка
+           поверх превращала дом в пустой каркас — «недорисованное».
+           Обычных линий рёбер им достаточно. */
       }
 
       // пояс окон: одна лента на стену, дальше глаз всё равно не читает
@@ -808,7 +914,8 @@
       }
 
       // всем граням дома ставим его номер — по нему движок их и соберёт
-      for (var q2 = shells.length - 9; q2 < shells.length; q2++) shells[q2].bld = bi;
+      // номер дома ставим ВСЕМ его граням, сколько бы их ни стало
+      for (var q2 = shellStart; q2 < shells.length; q2++) shells[q2].bld = bi;
       city.push0 = 0;
 
       city.push({ x: ccx, z: ccz, h: bh });
@@ -902,8 +1009,24 @@
       b: addXYZ(-4.05, WY2 - 0.40, sgz),   // правый низ
       d: addXYZ(-2.35, WY2 - 0.14, sgz),   // левый верх
       face: bFront,
-      text: 'ДОМ МОЛОДЁЖИ'
+      text: 'ԵՐԻՏԱՍԱՐԴՈՒԹՅԱՆ ՊԱԼԱՏ'
     };
+
+    /* ======== огни города внизу ========
+       Ночью нижняя половина кадра проваливалась в черноту: светилась
+       только башня и висела в пустоте. Внизу под холмом должен лежать
+       город — россыпь тёплых окон и цепочки уличных фонарей по склону.
+       Это не объёмы, а просто точки на земле: объёмы там всё равно не
+       разглядеть, а свет виден. */
+    var glow = [];
+    var grnd2 = seeded(20260913);
+    for (var gi = 0; gi < 240; gi++) {
+      var ga = grnd2() * Math.PI * 2;
+      var gr = 5.4 + grnd2() * 7.4;
+      var gx = Math.cos(ga) * gr, gz = Math.sin(ga) * gr;
+      if (gx * gx + gz * gz < 5.2 * 5.2) continue;
+      glow.push(addXYZ(gx, groundY(gr) + 0.02, gz));
+    }
 
     /* ======== фонари ========
        На фотографии у входа стоят фонари на тонких мачтах. Ночью они
@@ -965,7 +1088,42 @@
       });
     }
 
+    /* Указатель «какие линии принадлежат какому слою». Без него движок
+       при рисовании каждого предмета пробегал ВЕСЬ список линий: у
+       четырнадцати соседних домов это четырнадцать проходов по полутора
+       тысячам линий на каждый из шести штрихов. Отсюда и просадка до
+       тридцати кадров на телефоне. */
+    /* То же самое для заливок: у каждого сорта поверхности свой список
+       граней. Иначе каждая заливка (а их за кадр под сотню) пробегает
+       все полторы тысячи граней сцены. */
+    var shellIndex = {};
+    for (var si2 = 0; si2 < shells.length; si2++) {
+      var kk = shells[si2].kind;
+      (shellIndex[kk] || (shellIndex[kk] = [])).push(si2);
+    }
+    for (var sk in shellIndex) shellIndex[sk] = new Uint32Array(shellIndex[sk]);
+
+    var partIndex = {};
+    for (var pi = 0; pi < parts.length; pi++) {
+      (partIndex[parts[pi]] || (partIndex[parts[pi]] = [])).push(pi);
+    }
+    for (var pk in partIndex) partIndex[pk] = new Uint32Array(partIndex[pk]);
+
     return {
+      /* Вращающееся кафе под колпаком: наружу отдаём только кольцо, по
+         которому движок рассадит силуэты. Столики в модели не нужны —
+         они живут на экране. */
+      cafe: {
+        r: rRim * 0.90,
+        y: (rimY + glassY) * 0.5 - yCenter
+      },
+      /* Табличка кафе на бортике над остеклением. Настоящее название
+         подставится одной строкой, когда владелец его узнает. */
+      cafeSign: cafeSign,
+      spinRange: [spin0, spin1],
+      glow: new Uint16Array(glow),
+      shellIndex: shellIndex,
+      partIndex: partIndex,
       flags: flags,
       sign: sign,
       benches: benches,
@@ -986,6 +1144,7 @@
       shells: shells,
       cells: cells,
       outline: new Int32Array(outline),
+      outlineParts: new Int32Array(outlineParts),
       ground: { ring: new Uint16Array(groundRing), y: yGround - yCenter },
       groundCount: GN,
       hallCenter: [(HX0 + HX1) * 0.5, 0.6 - yCenter, 0],

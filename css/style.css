@@ -1,26 +1,41 @@
-/* Тёплая бумага, тушь. Рисунок целиком на canvas.
-   Панель — стекло: размытый фон, тонкая светлая кромка, мягкая тень.
-   Ночью стекло темнеет вместе со сценой (класс .night на body). */
+/* Кукурузник — интерфейс.
+
+   Стекло сделано по рецепту Liquid Glass, а не «размытый прямоугольник»:
+   главное в нём — ЯРКИЙ ВНУТРЕННИЙ БЛИК по верхней кромке. Именно он
+   читается глазом как стекло; без него получается тонированная плёнка.
+   Дальше — насыщение фона под панелью, мягкая тень снизу, слабый отблеск
+   по нижней кромке и медленно проходящий по стеклу свет.
+
+   Настоящего преломления CSS не умеет: backdrop-filter только меняет
+   цвет, но не сдвигает пиксели. Поэтому преломление заменено бликом и
+   насыщением — на глаз разница почти не читается. */
 
 :root {
   --paper: #f4ead7;
   --ink: #2f2a25;
-  --ink-soft: rgba(47, 42, 37, 0.72);
 
-  --glass: rgba(255, 255, 255, 0.46);
-  --glass-line: rgba(255, 255, 255, 0.70);
-  --glass-text: #2f2a25;
-  --glass-shadow: 0 10px 30px rgba(60, 48, 30, 0.18);
-  --accent: #d98a3c;
+  --g-bg: rgba(255, 255, 255, 0.20);
+  --g-line: rgba(255, 255, 255, 0.44);
+  --g-top: rgba(255, 255, 255, 0.90);
+  --g-bot: rgba(255, 255, 255, 0.16);
+  --g-drop: 0 10px 30px rgba(66, 54, 38, 0.22);
+  --g-text: #2b2621;
+  --g-on-bg: rgba(255, 255, 255, 0.62);
+  --g-on-text: #1d1a16;
+  --cap-sh: 0 1px 3px rgba(255, 255, 255, 0.65);
+  --track: linear-gradient(90deg, #f3c274, #9ec3e2 52%, #2b3565);
 }
 
 body.night {
-  --glass: rgba(22, 28, 52, 0.52);
-  --glass-line: rgba(190, 205, 240, 0.24);
-  --glass-text: #e8eaf2;
-  --glass-shadow: 0 12px 34px rgba(0, 0, 0, 0.45);
-  --ink-soft: rgba(226, 232, 245, 0.62);
-  --accent: #e8b06a;
+  --g-bg: rgba(18, 24, 46, 0.34);
+  --g-line: rgba(186, 204, 246, 0.22);
+  --g-top: rgba(226, 238, 255, 0.52);
+  --g-bot: rgba(150, 176, 230, 0.10);
+  --g-drop: 0 14px 36px rgba(0, 0, 0, 0.50);
+  --g-text: #e9edf7;
+  --g-on-bg: rgba(150, 178, 240, 0.30);
+  --g-on-text: #ffffff;
+  --cap-sh: 0 1px 4px rgba(0, 0, 0, 0.75);
 }
 
 * { box-sizing: border-box; }
@@ -32,17 +47,16 @@ html, body {
   overflow: hidden;
   background: var(--paper);
   color: var(--ink);
-  font: 15px/1.3 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  font: 15px/1.3 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
-  transition: background 400ms ease;
+  transition: background 500ms ease;
 }
 
 body.night { background: #0d1230; }
 
-/* Сцена на весь экран. touch-action: none — иначе iOS перехватит жесты себе. */
 #stage {
   position: fixed;
   inset: 0;
@@ -62,140 +76,410 @@ body.night { background: #0d1230; }
 #paper { z-index: 0; }
 #scene { z-index: 1; }
 
-#fps {
-  position: fixed;
-  top: calc(env(safe-area-inset-top, 0px) + 10px);
-  right: 12px;
-  z-index: 10;
-  font: 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-  letter-spacing: 0.04em;
-  color: var(--ink-soft);
-  pointer-events: none;
-}
-
 /* ---------- стекло ---------- */
 
-.glass {
-  background: var(--glass);
-  border: 1px solid var(--glass-line);
-  border-radius: 999px;
-  box-shadow: var(--glass-shadow);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
-  backdrop-filter: blur(18px) saturate(160%);
-  color: var(--glass-text);
-  transition: background 400ms ease, border-color 400ms ease, color 400ms ease;
+.lg {
+  position: relative;
+  isolation: isolate;
+  background: var(--g-bg);
+  border: 1px solid var(--g-line);
+  color: var(--g-text);
+  box-shadow:
+    inset 0 1.5px 0 var(--g-top),     /* верхний блик — это и есть стекло */
+    inset 0 -1px 0 var(--g-bot),      /* слабый отблеск снизу */
+    var(--g-drop);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  transition: background 450ms ease, border-color 450ms ease,
+              color 450ms ease, box-shadow 450ms ease, opacity 320ms ease;
+  overflow: hidden;
 }
 
-#dock {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 9px;
-  padding: 0 14px;
+/* Свет, медленно проходящий по стеклу. */
+.lg::after {
+  content: "";
+  position: absolute;
+  inset: -40% -60%;
+  pointer-events: none;
+  background: linear-gradient(72deg,
+    transparent 38%,
+    rgba(255, 255, 255, 0.16) 48%,
+    rgba(255, 255, 255, 0.02) 56%,
+    transparent 64%);
+  transform: translateX(-38%);
+  animation: sheen 9s ease-in-out infinite;
 }
+
+@keyframes sheen {
+  0%, 62% { transform: translateX(-38%); }
+  100%    { transform: translateX(38%); }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .lg { background: rgba(244, 238, 226, 0.96); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  body.night .lg { background: rgba(20, 26, 48, 0.96); }
+  .lg::after { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lg::after { animation: none; }
+  .spin-slow, .orbit { animation: none !important; }
+}
+
+/* ---------- РАДИАЛЬНОЕ МЕНЮ ----------
+
+   Одна кнопка внизу СЛЕВА — под большой палец. Нажатие рассыпает вокруг
+   неё иконки по дуге: они вылетают из-под кнопки, каждая со своей
+   задержкой, поэтому читается как одно движение, а не как появление
+   панели. Радиус дуги ≈ 148px — это естественный размах большого пальца,
+   а не произвольное число.
+
+   Каждая иконка нажимается отдельно. Иконка «Погода» — не переключатель,
+   а вход в свою маленькую панель: кольцо втягивается обратно в кнопку,
+   а из кнопки вырастает стекло с ползунком. Кнопка при этом становится
+   стрелкой «назад». Уровней всегда видно ровно один — на телефоне это
+   единственный способ не потеряться.
+
+   Позиции иконок заданы через --x/--y прямо в разметке: считать синусы
+   в CSS негде, а так их видно глазом и легко поправить. */
+
+#hud {
+  position: fixed;
+  left: 16px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
+  z-index: 10;
+  width: 62px;
+  height: 62px;
+}
+
+/* --- кнопка-звезда --- */
+
+#hudBtn {
+  position: absolute;
+  inset: 0;
+  width: 62px;
+  height: 62px;
+  border: 1px solid var(--g-line);
+  margin: 0;
+  padding: 0;
+  border-radius: 31px;
+  color: var(--g-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  z-index: 3;
+  transition:
+    transform 560ms cubic-bezier(0.22, 1.25, 0.36, 1),
+    background 300ms ease, border-color 450ms ease,
+    color 450ms ease, box-shadow 450ms ease;
+}
+
+#hudBtn svg { width: 26px; height: 26px; display: block; }
+#hudBtn .close-i, #hudBtn .back-i { display: none; }
+
+/* закрытая кнопка тихо дышит — это приглашение нажать */
+#hud:not(.ring):not(.sub) #hudBtn { animation: breathe 3.6s ease-in-out infinite; }
+
+@keyframes breathe {
+  0%, 100% { box-shadow: inset 0 1.5px 0 var(--g-top), inset 0 -1px 0 var(--g-bot), var(--g-drop); }
+  50%      { box-shadow: inset 0 1.5px 0 var(--g-top), inset 0 -1px 0 var(--g-bot), var(--g-drop),
+                         0 0 0 8px rgba(255, 255, 255, 0.055); }
+}
+
+#hud.ring #hudBtn,
+#hud.sub  #hudBtn { background: var(--g-on-bg); color: var(--g-on-text); }
+
+#hud.ring #hudBtn { transform: rotate(180deg) scale(0.94); }
+#hud.ring #hudBtn .open-i { display: none; }
+#hud.ring #hudBtn .close-i { display: block; }
+
+#hud.sub #hudBtn .open-i { display: none; }
+#hud.sub #hudBtn .back-i { display: block; }
+
+/* --- лучи звезды --- */
+
+.rs {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 46px;
+  height: 46px;
+  margin: -23px 0 0 -23px;
+  z-index: 2;
+  transform: translate(0, 0) scale(0.28);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 520ms cubic-bezier(0.22, 1.32, 0.36, 1),
+    opacity 220ms ease;
+}
+
+#hud.ring .rs {
+  transform: translate(var(--x), var(--y)) scale(1);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Разлетаются по очереди, снизу вверх; складываются все разом —
+   так открытие выглядит щедро, а закрытие быстро. */
+#hud.ring .rs:nth-child(1) { transition-delay: 0ms; }
+#hud.ring .rs:nth-child(2) { transition-delay: 34ms; }
+#hud.ring .rs:nth-child(3) { transition-delay: 68ms; }
+#hud.ring .rs:nth-child(4) { transition-delay: 102ms; }
+#hud.ring .rs:nth-child(5) { transition-delay: 136ms; }
+
+.ri {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 46px;
+  height: 46px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--g-line);
+  border-radius: 50%;
+  color: var(--g-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 220ms ease, color 220ms ease,
+              transform 160ms ease, box-shadow 450ms ease;
+}
+
+.ri:active { transform: scale(0.88); }
+.ri svg { width: 22px; height: 22px; display: block; }
+
+.ri[aria-pressed="true"] {
+  background: var(--g-on-bg);
+  color: var(--g-on-text);
+}
+
+/* Подписей под иконками нет намеренно: на дуге они налезают на соседние
+   кружки — проверено, шрифт пришлось бы делать нечитаемым. Вместо них
+   после нажатия коротко всплывает пилюля с названием. Заодно она
+   показывает, ЧТО именно включилось, — подпись так не умеет. */
+
+#toast {
+  position: absolute;
+  left: 0;
+  bottom: 78px;
+  z-index: 5;
+  max-width: 148px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  transform: translateY(8px) scale(0.9);
+  transform-origin: 24px 120%;
+  pointer-events: none;
+  transition: transform 380ms cubic-bezier(0.22, 1.25, 0.36, 1), opacity 200ms ease,
+              background 450ms ease, border-color 450ms ease, color 450ms ease;
+}
+
+#toast.on { opacity: 1; transform: none; }
+
+/* --- своя панель у «Погоды» --- */
+
+#sub {
+  position: absolute;
+  left: -2px;
+  bottom: 76px;
+  z-index: 4;
+  width: min(300px, calc(100vw - 30px));
+  padding: 11px 14px 12px;
+  border-radius: 24px;
+  transform-origin: 22px calc(100% + 46px);   /* растёт из кнопки */
+  transform: translateY(10px) scale(0.72);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 500ms cubic-bezier(0.22, 1.25, 0.36, 1),
+    opacity 240ms ease,
+    background 450ms ease, border-color 450ms ease,
+    color 450ms ease, box-shadow 450ms ease;
+}
+
+#hud.sub #sub {
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#sub > * {
+  transform: translateY(8px);
+  opacity: 0;
+  transition: transform 420ms cubic-bezier(0.22, 1.2, 0.36, 1), opacity 260ms ease;
+}
+#hud.sub #sub > * { transform: none; opacity: 1; }
+#hud.sub #sub > :nth-child(1) { transition-delay: 90ms; }
+#hud.sub #sub > :nth-child(2) { transition-delay: 140ms; }
+#hud.sub #sub > :nth-child(3) { transition-delay: 190ms; }
+
+.sub-head {
+  font-size: 11px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  opacity: 0.6;
+  margin: 0 2px 7px;
+}
+
+#tod-row { display: flex; align-items: center; gap: 9px; }
+
+.chips {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.chip {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 1 1 0;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--g-line);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.10);
+  color: inherit;
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 200ms ease, color 200ms ease, transform 160ms ease;
+}
+
+.chip:active { transform: scale(0.93); }
+
+.chip[aria-pressed="true"] {
+  background: var(--g-on-bg);
+  color: var(--g-on-text);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+/* --- анимации внутри иконок --- */
+
+.ri[aria-pressed="true"] .spin-slow { animation: turn 3.4s linear infinite; transform-origin: 12px 12px; }
+.ri[aria-pressed="true"] .orbit     { animation: turn 2.6s linear infinite; transform-origin: 12px 12px; }
+.ri.tapped .snap                    { animation: snap 520ms cubic-bezier(0.3, 1.4, 0.4, 1); transform-origin: 12px 12px; }
+#weatherBtn .sun-g                  { animation: turn 30s linear infinite; transform-origin: 9.3px 15px; }
+
+@keyframes turn { to { transform: rotate(360deg); } }
+@keyframes snap { from { transform: rotate(-300deg); } to { transform: rotate(0deg); } }
+
+body.ui-off #hud,
+body.ui-off #fps,
+body.ui-off #hint { opacity: 0; pointer-events: none; }
 
 /* ---------- ползунок дня и ночи ---------- */
 
-#todWrap {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 9px 16px;
-  width: min(330px, 100%);
-}
-
-#todWrap .ic {
-  font-size: 14px;
-  line-height: 1;
-  opacity: 0.75;
-  flex: none;
-}
+.edge { flex: none; width: 22px; height: 22px; opacity: 0.72; }
+.edge svg { width: 22px; height: 22px; display: block; }
+#sun-edge svg { animation: turn 26s linear infinite; transform-origin: 12px 12px; }
 
 #tod {
   appearance: none;
   -webkit-appearance: none;
   flex: 1;
-  height: 22px;
+  height: 26px;
   margin: 0;
   background: transparent;
   touch-action: manipulation;
 }
 
 #tod::-webkit-slider-runnable-track {
-  height: 4px;
+  height: 5px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #f0c37a, #8fb4d6 55%, #26305e);
+  background: var(--track);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.22);
 }
 
 #tod::-moz-range-track {
-  height: 4px;
+  height: 5px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #f0c37a, #8fb4d6 55%, #26305e);
+  background: var(--track);
 }
 
 #tod::-webkit-slider-thumb {
   appearance: none;
   -webkit-appearance: none;
-  width: 20px;
-  height: 20px;
-  margin-top: -8px;
+  width: 22px;
+  height: 22px;
+  margin-top: -8.5px;
   border-radius: 50%;
-  background: #fff;
-  border: 1px solid rgba(0, 0, 0, 0.16);
-  box-shadow: 0 2px 7px rgba(0, 0, 0, 0.28);
+  background:
+    radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.25) 42%, transparent 60%),
+    var(--thumb, #fdf3dd);
+  border: 0.5px solid rgba(0, 0, 0, 0.18);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.32), inset 0 -2px 4px rgba(0, 0, 0, 0.10);
+  transition: background 300ms ease;
 }
 
 #tod::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #fff;
-  border: 1px solid rgba(0, 0, 0, 0.16);
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--thumb, #fdf3dd);
+  border: 0.5px solid rgba(0, 0, 0, 0.18);
 }
 
-/* ---------- кнопки ---------- */
+/* ---------- мелочи ---------- */
 
-#panel {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-}
-
-#panel button {
-  appearance: none;
-  -webkit-appearance: none;
-  margin: 0;
-  padding: 10px 18px;
-  font: inherit;
-  font-size: 14px;
-  cursor: pointer;
-  touch-action: manipulation;
-}
-
-#panel button:active { transform: scale(0.97); }
-
-#panel button[aria-pressed="true"] {
-  background: var(--accent);
-  border-color: rgba(255, 255, 255, 0.5);
-  color: #fff;
+#fps {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 10px);
+  right: 14px;
+  z-index: 10;
+  font: 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.04em;
+  color: var(--g-text);
+  opacity: 0.45;
+  pointer-events: none;
+  transition: opacity 320ms ease;
 }
 
 #hint {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 124px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 92px);
   z-index: 10;
   text-align: center;
   font-size: 12px;
-  color: var(--ink-soft);
+  color: var(--g-text);
+  opacity: 0.5;
   pointer-events: none;
-  transition: opacity 500ms ease, color 400ms ease;
+  transition: opacity 500ms ease, color 450ms ease;
 }
 
 #hint.gone { opacity: 0; }
+
+/* Меню открыто — подсказка уходит, чтобы не спорить с иконками. */
+body.menu #hint { opacity: 0; }
+
+/* Подсказка, как вернуть интерфейс. Живёт пару секунд после скрытия. */
+#back-tip {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 26px);
+  z-index: 11;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.ui-off #back-tip { animation: tip 3.4s ease forwards; }
+
+@keyframes tip {
+  0% { opacity: 0; }
+  12% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}

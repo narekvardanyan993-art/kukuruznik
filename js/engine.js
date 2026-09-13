@@ -7,7 +7,7 @@
 (function (global) {
   'use strict';
 
-  var BUILD = '23';     // видно на самой странице — чтобы не гадать, свежая ли версия
+  var BUILD = '39';     // видно на самой странице — чтобы не гадать, свежая ли версия
 
   var PAPER = '#f5ecda';
   var INK   = '#2f2a25';
@@ -22,8 +22,8 @@
   var C_TERR     = 'rgb(124, 122, 116)';   // камень подпорных стен
   var C_TERRTOP  = 'rgb(150, 176, 114)';   // трава на террасе
   var C_PAVE     = 'rgb(138, 136, 132)';   // асфальт площади
-  var C_CITY     = 'rgb(188, 184, 174)';   // соседние дома: вдали цвет светлее
-  var C_CITY_TOP = 'rgb(203, 199, 187)';
+  var C_CITY     = 'rgb(176, 174, 168)';   // соседние дома: вдали цвет светлее
+  var C_CITY_TOP = 'rgb(192, 190, 180)';
   var C_CITY_BND = 'rgb(126, 136, 138)';
   var C_TREE_A   = 'rgb(146, 166, 108)';   // крона на свету
   var C_TREE_B   = 'rgb(126, 150, 100)';   // второй оттенок, чтобы не было ковра
@@ -182,7 +182,16 @@
 
   var CAM_DIST = 14;    // камера стоит на этом расстоянии
   var FOCAL    = 10;    // «фокусное»: больше — меньше перспективы
-  var MAX_DPR  = 2;     // выше 2 нет смысла, только жрёт пиксели
+  /* ПЛОТНОСТЬ ПИКСЕЛЕЙ.
+
+     Раньше стояла жёсткая двойка «выше нет смысла». Смысл есть: у
+     айфона плотность тройная, и при двойке тонкая линия туши ложится
+     между пикселями — получается лесенка и грязь. Весь рисунок held на
+     линиях, поэтому для него плотность важнее, чем для заливок.
+
+     Берём тройку, но с подстраховкой: если устройство не тянет,
+     движок сам опускается до двойки (см. setLod). */
+  var MAX_DPR  = 3;
 
   // Свет. Задаётся временем суток (см. applyTime выше).
   var LX = -0.46, LY = 0.58, LZ = 0.67;
@@ -246,7 +255,7 @@
   }
 
   Engine.prototype.resize = function () {
-    var dpr = Math.min(global.devicePixelRatio || 1, MAX_DPR);
+    var dpr = Math.min(global.devicePixelRatio || 1, this.maxDpr || MAX_DPR);
     var w = global.innerWidth;
     var h = global.innerHeight;
     this.w = w; this.h = h; this.dpr = dpr;
@@ -373,6 +382,11 @@
     var ctx = this.ctx, m = this.model;
     ctx.clearRect(0, 0, this.w, this.h);
     this.time = state.time || 0;
+    this._yaw = state.yaw; this._pitch = state.pitch;
+    /* Угол вращения кафе. Оборот примерно за семьдесят секунд: в жизни
+       зал поворачивался куда медленнее, но на экране движение должно
+       читаться за те несколько секунд, что человек смотрит. */
+    this.spin = (state.time || 0) * 0.055;   // оборот примерно за две минуты
     this.drawSky();
 
     var r = this.rot;
@@ -399,159 +413,84 @@
        конце, и сквозь тарелку проступали кольца ствола, а край земли
        чертил полосу поперёк башни. */
 
-    // земля
-    this.drawGround();     // заливка и контур земли — одной гладкой кривой
-    this.drawShadows(0);   // тень здания на земле
-    this.drawCity(false);  // дальние соседи — ещё до рощи
-    this.drawTrees(false); // дальняя роща — за зданием
+    /* ПОРЯДОК КАДРА.
 
-    // подпорные террасы склона — уже после дальнего плана
+       Земля и склон — это поверхность, на которой всё стоит, поэтому
+       они идут первыми, ДО всех предметов. Раньше террасы рисовались
+       после дальних деревьев и закрашивали их — дерево на склоне
+       просто исчезало.
+
+       Дальше очередь по глубине. Башня со стилобатом стоит в центре
+       и делит её надвое: сначала всё, что дальше неё, потом она сама,
+       потом всё, что ближе. Фонари, скамейки и флаги стоят вплотную к
+       стилобату, поэтому идут вместе с ним. */
+
+    // 1. поверхность: земля и склон — то, на чём всё стоит
+    this.drawGround();
+    this.drawShadows(0);
     this.fillShells('terrTop', C_TERRTOP);
     this.fillShells('terr',    C_TERR);
     this.fillShells('pave',    C_PAVE);
     this.strokeBody(2);
+    this.drawOutline(2);
 
-    // стилобат и лестница
-    this.fillShells('podium',  C_PODIUM);
-    this.fillShells('deck',    C_DECK);
-    this.drawCells(3);     // арочный портал в стене стилобата
-    this.hatch();
-    this.strokeBody(3);
-    this.drawShadows(1);   // тень башни на террасе — уже поверх террасы
-    this.drawLamps();
-    this.drawBenches();
-    this.drawFlags();
+    this.drawCityGlow();   // огни города внизу — лежат на земле, до предметов
 
-    /* Нижний корпус стоит сбоку, а не сверху, поэтому очередь у него
-       плавающая: если он дальше башни — рисуем до неё, если ближе —
-       после. Глубину берём по его центру. */
-    var hc = m.hallCenter;
-    var hz = (-hc[0] * r.sy + hc[2] * r.cy) * r.cp + hc[1] * r.sp;
-    if (hz < 0) this.drawHall();
+    // 2. все предметы — строго по глубине, от дальнего к ближнему
+    this.buildQueue();
+    this.drawQueue();
 
-    var wc = m.wingCenter;
-    var wz = (-wc[0] * r.sy + wc[2] * r.cy) * r.cp + wc[1] * r.sp;
-    if (wz < 0) this.drawWing();
-
-    /* У ствола дальних линий нет вовсе: стена непрозрачная, изнанку
-       башни видеть неоткуда, а рисовались они как мусор на фасаде. */
-    this.fillShells('shaft',   C_SHAFT);
-    this.fillShaftShade();
-    this.drawCells();
-    this.fillShells('rail',    C_RAIL);
-    this.strokeBody(0);
-
-    // тарелка
-    this.fillShells('neck',    C_NECK);
-    this.fillShells('flare',   C_FLARE);
-    this.fillShells('glass',   C_GLASS);
-    this.fillShells('parapet', C_PARAPET);
-    this.fillShells('roof',    C_ROOF);
-    this.strokeBody(1);
-
-    if (hz >= 0) this.drawHall();   // корпус ближе башни — ложится поверх
-    if (wz >= 0) this.drawWing();
-
-    this.drawCity(true);   // ближние соседи
-    this.drawTrees(true);  // ближняя роща — перед зданием
-    this.drawSign();      // надпись ложится на фасад, но до воздуха
+    this.drawSign();                              // название на крыле
+    this.drawSign(m.cafeSign, false);             // табличка кафе на бортике
     this.drawAir();       // воздух поверх массы — он касается и линий
-    this.drawOutline();   // жирный край — последним, поверх всего
     ctx.globalAlpha = 1;
   };
 
   /* Соседние дома. Как и роща: сортируются по глубине и рисуются по
      одному от дальнего к ближнему, дальние до главного здания,
      ближние после. Каждый дом — свой слой линий (part 20 + номер). */
-  Engine.prototype.drawCity = function (near) {
-    var m = this.model, r = this.rot;
-    var cc = m.cityCenters;
-    if (!cc || !cc.length) return;
-
-    var order = this.cityBuf || (this.cityBuf = []);
-    order.length = 0;
-    for (var i = 0; i < m.city.length; i++) {
-      var x = cc[i * 3], y = cc[i * 3 + 1], z = cc[i * 3 + 2];
-      var z1 = -x * r.sy + z * r.cy;
-      var z2 = y * r.sp + z1 * r.cp;
-      if ((z2 > 0) !== !!near) continue;
-      order.push(i, z2);
-    }
-    if (!order.length) return;
-
-    for (var a = 0; a < order.length; a += 2) {
-      for (var b = a + 2; b < order.length; b += 2) {
-        if (order[b + 1] < order[a + 1]) {
-          var ti = order[a], tz = order[a + 1];
-          order[a] = order[b]; order[a + 1] = order[b + 1];
-          order[b] = ti; order[b + 1] = tz;
-        }
-      }
-    }
-
-    for (var a = 0; a < order.length; a += 2) {
-      var bi = order[a];
-      this.fillShells('city',     C_CITY,     bi);
-      this.fillShells('cityBand', C_CITY_BND, bi);
-      this.fillShells('cityTop',  C_CITY_TOP, bi);
-      this.strokeBody(m.cityParts[bi]);
-    }
+  /* Один соседний дом. */
+  Engine.prototype.drawOneCity = function (bi) {
+    this.fillShells('city',     C_CITY,     bi);
+    this.fillShells('cityBand', C_CITY_BND, bi);
+    this.fillShells('cityTop',  C_CITY_TOP, bi);
+    this.fillShells('cityPara', C_CITY,     bi);
+    this.strokeBody(this.model.cityParts[bi]);
   };
 
   /* Деревья. Два захода: дальние ложатся до здания, ближние — после.
      Всё сводится к пяти заливкам на всю рощу, а не к пяти на дерево. */
-  Engine.prototype.drawTrees = function (near) {
-    var ctx = this.ctx, T = this.model.trees;
-    var px = this.px, py = this.py, pz = this.pz, S = this.S;
-    if (!T || !T.length) return;
-
-    var list = this.treeBuf || (this.treeBuf = []);
-    list.length = 0;
-    for (var i = 0; i < T.length; i++) {
-      var f = T[i];
-      if ((pz[f.p] > 0) !== !!near) continue;
-      list.push(f);
-    }
-    if (!list.length) return;
-
-    /* Кроны перекрывают друг друга, поэтому роща рисуется по одному
-       дереву от дальнего к ближнему. Пакетная заливка была дешевле, но
-       обводки дальних крон просвечивали сквозь ближние и роща
-       превращалась в клубок линий. */
-    list.sort(function (a, b) { return pz[a.p] - pz[b.p]; });
+  /* Одно дерево: ствол, крона, теневая долька, обводка. */
+  Engine.prototype.drawOneTree = function (f) {
+    var ctx = this.ctx, pz = this.pz, px = this.px, py = this.py;
+    var b = f.p;
+    var k = FOCAL / Math.max(1, CAM_DIST - pz[b]) * this.S;
+    var x = px[b], y = py[b];
 
     ctx.lineJoin = 'round';
-    for (var i = 0; i < list.length; i++) {
-      var f = list[i], b = f.p;
-      var k = FOCAL / Math.max(1, CAM_DIST - pz[b]) * S;
-      var x = px[b], y = py[b];
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + f.lean * k * 0.5, y - f.h * k * 0.62);
+    ctx.strokeStyle = C_TRUNK;
+    ctx.lineWidth = Math.max(1, k * 0.020);
+    ctx.stroke();
 
-      // ствол
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.lineTo(x + f.lean * k * 0.5, y - f.h * k * 0.62);
-      ctx.strokeStyle = C_TRUNK;
-      ctx.lineWidth = Math.max(1, k * 0.020);
-      ctx.stroke();
+    ctx.beginPath(); this.crownPath(f, 1);
+    ctx.fillStyle = f.tone ? C_TREE_B : C_TREE_A;
+    ctx.fill();
 
-      // крона: заливка, теневая долька, обводка тушью
-      ctx.beginPath(); this.crownPath(f, 1);
-      ctx.fillStyle = f.tone ? C_TREE_B : C_TREE_A;
-      ctx.fill();
+    ctx.beginPath(); this.crownPath(f, 2);
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = C_TREE_DRK;
+    ctx.fill();
+    ctx.globalAlpha = 1;
 
-      ctx.beginPath(); this.crownPath(f, 2);
-      ctx.globalAlpha = 0.55;
-      ctx.fillStyle = C_TREE_DRK;
-      ctx.fill();
-      ctx.globalAlpha = 1;
-
-      ctx.beginPath(); this.crownPath(f, 1);
-      ctx.strokeStyle = INK;
-      ctx.lineWidth = Math.max(0.8, k * 0.013);
-      ctx.globalAlpha = 0.70;
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-    }
+    ctx.beginPath(); this.crownPath(f, 1);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = Math.max(0.8, k * 0.013);
+    ctx.globalAlpha = 0.70;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
   };
 
   /* Контур кроны: десятиугольник с заранее заданной неровностью.
@@ -598,6 +537,7 @@
     this.fillShells('slab',    C_SLAB);
     this.fillShells('slabTop', C_SLABTOP);
     this.strokeBody(4);
+    this.drawOutline(4);
   };
 
   /* Длинное низкое крыло с аркадой. Своя очередь, как и у корпуса:
@@ -615,7 +555,7 @@
 
   // Ближние линии одного этажа: два прохода — отсюда «двойная обводка»
   Engine.prototype.strokeBody = function (part) {
-    var widths = [0.75, 1.25, 1.9];
+    var widths = [0.85, 1.35, 2.05];   // на плотном экране тонкая линия истончалась в волос
     for (var s = 0; s < 3; s++) {
       this.strokeGroup(s, 0, widths[s], 0.85, part);
       this.strokeGroup(s, 1, widths[s] * 0.8, 0.38, part);
@@ -630,9 +570,19 @@
     var S = this.S, ox = this.ox, oy = this.oy;
     var n = px.length;
 
+    var sr = m.spinRange, s0 = sr ? sr[0] : -1, s1 = sr ? sr[1] : -1;
+    var cs = Math.cos(this.spin || 0), ss = Math.sin(this.spin || 0);
+
     for (var i = 0; i < n; i++) {
       var j = i * 3;
       var x = pos[j], y = pos[j + 1], z = pos[j + 2];
+
+      // вертушка кафе: свой поворот вокруг оси, до камеры
+      if (i >= s0 && i < s1) {
+        var xr = x * cs - z * ss;
+        z = x * ss + z * cs;
+        x = xr;
+      }
 
       var x1 = x * cy + z * sy;
       var z1 = -x * sy + z * cy;
@@ -673,31 +623,174 @@
      затемнение, потому что к земле света доходит меньше и в стык
      с землёй он почти не попадает. Это самый дешёвый приём объёма:
      один путь и одна заливка на всё здание. */
+  /* Воздух поверх массы.
+
+     Раньше дымка заливалась ПО СИЛУЭТАМ: путь собирался из всех видимых
+     граней сцены — под тысячу четырёхугольников — и заливался одним
+     градиентом. Замер показал, что на это уходило 3.1 мс из 5.7, то есть
+     больше половины кадра. Всё остальное вместе стоило меньше.
+
+     Разницы на глаз почти нет: дымка полупрозрачная, и лечь она может
+     просто на весь экран. Небо и земля от этого тоже чуть холодеют
+     книзу — что для воздушной перспективы даже честнее. Одна заливка
+     вместо тысячи фигур. */
   Engine.prototype.drawAir = function () {
-    var ctx = this.ctx, shells = this.model.shells;
-    var px = this.px, py = this.py;
-    var top = this.topPy, bot = this.botPy;
-    if (!(bot > top + 1)) return;
+    var ctx = this.ctx, h = this.h;
+    if (h < 2) return;
 
-    var g = ctx.createLinearGradient(0, top, 0, bot);
-    g.addColorStop(0.00, 'rgba(148, 178, 210, 0.08)');
-    g.addColorStop(0.34, 'rgba(148, 178, 210, 0.00)');
-    g.addColorStop(0.74, 'rgba(56, 66, 104, 0.05)');
-    g.addColorStop(1.00, 'rgba(46, 55, 92, 0.13)');
+    /* Заливка идёт на ВЕСЬ кадр и начинается с полной прозрачности.
+       Раньше прямоугольник дымки начинался с верхней точки сцены и имел
+       там ненулевую прозрачность — его кромка читалась чёткой
+       горизонтальной полосой через всё небо: выше линии темнее, ниже
+       светлее. Градиент, у которого на макушке ноль, шва не даёт. */
+    var g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0.00, 'rgba(148, 178, 210, 0.00)');
+    g.addColorStop(0.30, 'rgba(148, 178, 210, 0.045)');
+    g.addColorStop(0.62, 'rgba(120, 150, 190, 0.02)');
+    g.addColorStop(0.82, 'rgba(56, 66, 104, 0.05)');
+    g.addColorStop(1.00, 'rgba(46, 55, 92, 0.11)');
 
-    ctx.beginPath();
-    var any = false;
-    for (var i = 0; i < shells.length; i++) {
-      var f = shells[i];
-      if (!f.vis) continue;
-      ctx.moveTo(px[f.a], py[f.a]);
-      ctx.lineTo(px[f.b], py[f.b]);
-      ctx.lineTo(px[f.c], py[f.c]);
-      ctx.lineTo(px[f.d], py[f.d]);
-      ctx.closePath();
-      any = true;
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, this.w, h);
+  };
+
+  /* ОЧЕРЕДЬ ПО ГЛУБИНЕ.
+
+     Движок рисует «маляром»: кто позже, тот поверх. Раньше деревья,
+     корпуса и соседние дома лежали в ФИКСИРОВАННЫХ слоях — сначала все
+     дальние деревья, потом корпус, потом ближние деревья. Из-за этого
+     дерево, стоящее перед корпусом, но попавшее в «дальнюю» группу,
+     закрашивалось этим корпусом и пропадало. Ровно это и выглядело как
+     «объекты исчезают под разными углами».
+
+     Теперь все отдельно стоящие предметы складываются в один список с
+     глубиной своего центра, сортируются от дальнего к ближнему и
+     рисуются в этом порядке. Башня стоит в центре сцены и делит список
+     надвое: что дальше неё — до, что ближе — после. */
+  /* ДЕТАЛИЗАЦИЯ ПО СИЛАМ УСТРОЙСТВА.
+
+     Считать сцену дешевле, чем её рисовать: индексы граней и линий дали
+     всего двенадцать процентов, потому что время уходит не на перебор,
+     а на сами заливки. Значит, единственный честный рычаг — рисовать
+     меньше предметов.
+
+     Движок сам следит за кадрами: просело — прореживает рощу и дальние
+     дома, отпустило — возвращает. Здание, стилобат и корпуса не трогаем
+     никогда: это сам предмет, а не окружение. */
+  Engine.prototype.setLod = function (fps) {
+    /* Порог намеренно низкий. После того как дымка перестала заливаться
+       по силуэтам, кадр стоит 1.4 мс вместо 5.7 — прореживать больше
+       нечего. Вырезанная роща выглядит хуже, чем сорок кадров вместо
+       шестидесяти, поэтому страховка включается только на совсем
+       слабом устройстве. */
+    /* Сначала снижаем плотность пикселей: это дешевле всего и почти не
+       видно. Прореживание рощи — только если и это не помогло. */
+    if (fps < 40 && (this.maxDpr || MAX_DPR) > 2) {
+      this.maxDpr = 2;
+      this.resize();
+      return;
     }
-    if (any) { ctx.fillStyle = g; ctx.fill(); }
+    var want = this.lod === undefined ? 1 : this.lod;
+    if (fps < 22) want = 0.6;
+    else if (fps > 34) want = 1;
+    this.lod = want;
+  };
+
+  Engine.prototype.buildQueue = function () {
+    var m = this.model, r = this.rot, pz = this.pz;
+    var lod = this.lod === undefined ? 1 : this.lod;
+    var Q = this.queue || (this.queue = []);
+    Q.length = 0;
+
+    function depth(x, y, z) {
+      var z1 = -x * r.sy + z * r.cy;
+      return y * r.sp + z1 * r.cp;
+    }
+    function add(z, t, i) { Q.push({ z: z, t: t, i: i }); }
+
+    /* Стилобат и башня стоят в центре сцены, их глубина нулевая.
+       Башня всегда после стилобата — она на нём стоит. */
+    add(0, 4);          // стилобат с лестницами и порталом
+    add(0.0001, 5);     // ствол и тарелка
+
+    var hc = m.hallCenter; add(depth(hc[0], hc[1], hc[2]), 0);
+    var wc = m.wingCenter; add(depth(wc[0], wc[1], wc[2]), 1);
+
+    var cc = m.cityCenters;
+    var nCity = cc ? Math.max(4, Math.round(m.city.length * lod)) : 0;
+    for (var i = 0; i < nCity; i++) {
+      add(depth(cc[i * 3], cc[i * 3 + 1], cc[i * 3 + 2]), 2, i);
+    }
+    var T = m.trees;
+    var nTree = T ? Math.max(10, Math.round(T.length * lod)) : 0;
+    for (var j = 0; j < nTree; j++) add(pz[T[j].p], 3, j);
+
+    var LP = m.lamps;
+    var nLamp = LP ? (lod < 0.7 ? Math.round(LP.length * 0.6) : LP.length) : 0;
+    for (var l = 0; l < nLamp; l++) add(pz[LP[l].b], 6, l);
+    var BN = m.benches;
+    if (BN) for (var n = 0; n < BN.length; n++) add(pz[BN[n].a], 7, n);
+    var FL = m.flags;
+    if (FL) for (var f = 0; f < FL.length; f++) add(pz[FL[f].b], 8, f);
+
+    Q.sort(function (a, b) { return a.z - b.z; });
+  };
+
+  /* Рисует ВСЮ очередь от дальнего к ближнему.
+
+     Чтобы добавить новый предмет, достаточно двух строк: положить его
+     в buildQueue со своей глубиной и добавить сюда ветку. Никаких
+     «слоёв» больше нет — порядок считается каждый кадр. */
+  Engine.prototype.drawQueue = function () {
+    var Q = this.queue, m = this.model;
+    for (var q = 0; q < Q.length; q++) {
+      var e = Q[q];
+      switch (e.t) {
+        case 0: this.drawHall(); break;
+        case 1: this.drawWing(); break;
+        case 2: this.drawOneCity(e.i); break;
+        case 3: this.drawOneTree(m.trees[e.i]); break;
+        case 4: this.drawPodium(); break;
+        case 5: this.drawTower(); break;
+        case 6: this.drawOneLamp(e.i); break;
+        case 7: this.drawOneBench(e.i); break;
+        case 8: this.drawOneFlag(e.i); break;
+      }
+    }
+  };
+
+  // Стилобат с лестницами, порталом и штриховкой
+  Engine.prototype.drawPodium = function () {
+    this.fillShells('podium', C_PODIUM);
+    this.fillShells('deck',   C_DECK);
+    this.drawCells(3);
+    this.hatch();
+    this.strokeBody(3);
+    this.drawOutline(3);
+    this.drawShadows(1);
+  };
+
+  // Ствол и тарелка
+  Engine.prototype.drawTower = function () {
+    this.fillShells('shaft',   C_SHAFT);
+    this.fillShaftShade();
+    this.drawCells();
+    this.fillShells('rail',    C_RAIL);
+    this.strokeBody(0);
+
+    this.fillShells('neck',    C_NECK);
+    this.fillShells('flare',   C_FLARE);
+    this.drawGlassBand();
+    /* Силуэты сидящих сняты по просьбе владельца: на телефоне головы
+       читались пятнами, а не людьми. Сама функция drawCafe оставлена —
+       вернуть её можно одной строкой, когда придумаем, как их рисовать.
+       Вращение барабана от этого не зависит: его держит цветной узор
+       панелей. */
+    this.fillShells('parapet', C_PARAPET);
+    this.fillShells('roof',    C_ROOF);
+    this.strokeBody(1);
+    this.drawOutline(0);
+    this.drawOutline(1);
   };
 
   /* Проекция одной точки на лету. Нужна тем, кто двигается: массив
@@ -718,64 +811,332 @@
 
   /* Флаги. Полотнище — волна от времени: живое движение, которое не
      выглядит зациклённым, потому что у каждого флага своя фаза. */
-  Engine.prototype.drawFlags = function () {
-    var F = this.model.flags;
-    if (!F || !F.length) return;
-    var ctx = this.ctx, px = this.px, py = this.py, pz = this.pz, t = this.time;
 
-    ctx.beginPath();
-    for (var i = 0; i < F.length; i++) {
-      ctx.moveTo(px[F[i].b], py[F[i].b]);
-      ctx.lineTo(px[F[i].t], py[F[i].t]);
-    }
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = Math.max(1, this.S * 0.008);
-    ctx.globalAlpha = 0.8;
-    ctx.stroke();
-    ctx.globalAlpha = 1;
+  /* ОСТЕКЛЕНИЕ КАФЕ — ПАНЕЛЬ ЗА ПАНЕЛЬЮ.
 
-    for (var j = 0; j < F.length; j++) {
-      var f = F[j], tp = f.t;
-      var k = FOCAL / Math.max(1, CAM_DIST - pz[tp]) * this.S;
-      var x0 = px[tp], y0 = py[tp];
-      var wdt = k * 0.30, hgt = k * 0.16;
+     Однотонное кольцо стекла не даёт понять, что барабан вращается:
+     глазу не за что зацепиться. Поэтому каждая панель красится своим
+     оттенком — чередование тёмного и светлого плюс несколько «тёплых»,
+     где горит свет. Узор едет вместе с барабаном, и вращение читается
+     сразу, даже на неподвижном кадре в ленте.
+
+     Днём это блики на стекле, ночью — залы с разным светом. */
+  Engine.prototype.drawGlassBand = function () {
+    var ctx = this.ctx, m = this.model;
+    var idx = m.shellIndex && m.shellIndex['glass'];
+    if (!idx) return;
+    var px = this.px, py = this.py, shells = m.shells;
+    var base = parseCol(C_GLASS);
+
+    for (var q = 0; q < idx.length; q++) {
+      var f = shells[idx[q]];
+      if (!f.vis) continue;
+      var i = f.idx || 0;
+
+      /* Узор. Ночью весь барабан уходит в тёплый, и однотонное кольцо
+         снова не даёт понять, что оно едет. Поэтому часть залов гасим:
+         две панели из трёх горят, третья тёмная. Бегущая цепочка
+         «свет-свет-темно» читается мгновенно. */
+      var dark = (i % 3) === 1;
+      var light = (i % 2) === 0 ? 1.13 : 0.89;
+      var r = base[0] * light, g = base[1] * light, b = base[2] * light;
+
+      if (dark) {
+        var d = 0.34 + 0.42 * NIGHT;                 // ночью контраст резче
+        r += (34 - r) * d; g += (40 - g) * d; b += (58 - b) * d;
+      } else if ((i % 5) === 2) {
+        var w = 0.30 + 0.30 * NIGHT;                 // особенно яркий зал
+        r += (250 - r) * w; g += (222 - g) * w; b += (150 - b) * w;
+      }
+      // блик от солнца: панель, повёрнутая к свету, ярче
+      var sh = 0.86 + 0.30 * Math.max(0, f.lit);
       ctx.beginPath();
-      ctx.moveTo(x0, y0);
-      for (var q = 1; q <= 6; q++) {
-        var u = q / 6;
-        ctx.lineTo(x0 + wdt * u, y0 + Math.sin(t * 2.4 + f.ph + u * 4.2) * hgt * 0.30 * u);
-      }
-      for (var q2 = 6; q2 >= 0; q2--) {
-        var u2 = q2 / 6;
-        ctx.lineTo(x0 + wdt * u2,
-                   y0 + hgt + Math.sin(t * 2.4 + f.ph + u2 * 4.2) * hgt * 0.30 * u2);
-      }
+      ctx.moveTo(px[f.a], py[f.a]);
+      ctx.lineTo(px[f.b], py[f.b]);
+      ctx.lineTo(px[f.c], py[f.c]);
+      ctx.lineTo(px[f.d], py[f.d]);
       ctx.closePath();
-      ctx.fillStyle = j === 1 ? 'rgba(208, 84, 66, 0.92)' : 'rgba(232, 226, 208, 0.92)';
+      ctx.fillStyle = 'rgb(' + ((r * sh) | 0) + ',' + ((g * sh) | 0) + ',' + ((b * sh) | 0) + ')';
       ctx.fill();
-      ctx.strokeStyle = INK;
-      ctx.lineWidth = 0.9;
-      ctx.globalAlpha = 0.55;
-      ctx.stroke();
-      ctx.globalAlpha = 1;
     }
+  };
+
+  /* ВРАЩАЮЩЕЕСЯ КАФЕ.
+
+     Наверху башни было вращающееся кафе — оно и делало здание тем, чем
+     оно было: люди поднимались туда смотреть на Арарат, и зал медленно
+     поворачивался. Значит, крутиться должен не колпак, а то, что внутри.
+
+     Силуэты сидящих идут по кольцу за остеклением. Каждый виден ровно
+     тогда, когда его место повёрнуто к нам — та же проверка, что и у
+     граней. Оборот примерно за минуту: в жизни медленнее, но на экране
+     нужно, чтобы движение читалось. */
+  Engine.prototype.drawCafe = function () {
+    var cf = this.model.cafe;
+    if (!cf) return;
+    var ctx = this.ctx, r = this.rot, t = this.time;
+    var o = this._co || (this._co = {});
+    var N = 18, spin = this.spin || 0;   // тот же угол, что и у самого барабана
+
+    var shapes = 0;
+    ctx.beginPath();
+    for (var i = 0; i < N; i++) {
+      var a = spin + (i / N) * Math.PI * 2;
+      var nx = Math.cos(a), nz = Math.sin(a);
+      // повёрнуто ли место к нам
+      var nx1 = nx * r.cy + nz * r.sy;
+      var nz1 = -nx * r.sy + nz * r.cy;
+      var nz2 = nz1 * r.cp;
+      /* Порог выше, чем у граней: у самого края барабана силуэт виден
+         под таким углом, что в жизни его закрывает стойка остекления,
+         а на экране он выглядел приклеенным сбоку. */
+      if (nz2 < 0.34) continue;
+
+      this.proj(nx * cf.r, cf.y, nz * cf.r, o);
+      var k = o.k;
+      var hh = k * 0.085;
+      var wd = k * 0.040;
+
+      // плечи
+      ctx.moveTo(o.x - wd, o.y + hh * 0.30);
+      ctx.quadraticCurveTo(o.x, o.y - hh * 0.20, o.x + wd, o.y + hh * 0.30);
+      ctx.lineTo(o.x - wd, o.y + hh * 0.30);
+      // голова
+      ctx.moveTo(o.x + wd * 0.52, o.y - hh * 0.38);
+      ctx.arc(o.x, o.y - hh * 0.38, wd * 0.52, 0, Math.PI * 2);
+      shapes++;
+    }
+    if (!shapes) return;
+    ctx.fillStyle = NIGHT > 0.35 ? 'rgba(74, 52, 30, 0.80)' : 'rgba(38, 42, 48, 0.55)';
+    ctx.fill();
   };
 
   /* Надпись на фасаде. Текст раскладывается по четырём точкам плиты,
      поэтому он поворачивается вместе со зданием, а не висит наклейкой
      поверх экрана. */
-  Engine.prototype.drawSign = function () {
-    var sg = this.model.sign;
+  Engine.prototype.drawSign = function (sg, faceCheck) {
+    sg = sg || this.model.sign;
     if (!sg) return;
-    var sh = this.model.shells[sg.face];
-    if (!sh || !sh.vis) return;
+    if (faceCheck !== false) {
+      var sh = this.model.shells[sg.face];
+      if (!sh || !sh.vis) return;
+    } else if (sg.nx !== undefined) {
+      // табличка на вертушке: показываем, только когда повёрнута к нам
+      var r2 = this.rot, sx = sg.nx, sz = sg.nz;
+      if (sg.spin) {
+        var cs3 = Math.cos(this.spin || 0), ss3 = Math.sin(this.spin || 0);
+        var tx = sx * cs3 - sz * ss3;
+        sz = sx * ss3 + sz * cs3;
+        sx = tx;
+      }
+      var z1s = -sx * r2.sy + sz * r2.cy;
+      var face2 = z1s * r2.cp;
+      if (face2 < 0.30) return;
+      /* Гаснет плавно к краю барабана. Резкое отключение давало
+         «сплющенную» надпись, которая исчезала скачком. */
+      this._signFade = Math.min(1, (face2 - 0.30) / 0.30);
+    }
 
     var ctx = this.ctx, px = this.px, py = this.py;
     var ax = px[sg.a], ay = py[sg.a];
     var ux = px[sg.b] - ax, uy = py[sg.b] - ay;     // вдоль строки
     var vx = px[sg.d] - ax, vy = py[sg.d] - ay;     // вверх по высоте
     var len = Math.sqrt(ux * ux + uy * uy);
-    if (len < 26) return;                            // мелко — не мельтешим
+    if (len < 22) return;                            // мелко — не мельтешим
+
+    ctx.save();
+    ctx.transform(ux / 100, uy / 100, vx / 100, vy / 100, ax, ay);
+    ctx.scale(1, -1);                                // экранный Y смотрит вниз
+    ctx.font = '600 62px -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif';
+    ctx.textBaseline = 'alphabetic';
+    var w = ctx.measureText(sg.text).width;
+    ctx.scale(96 / w, 96 / w);
+    var fade = (faceCheck === false && this._signFade !== undefined)
+      ? this._signFade : 1;
+    ctx.globalAlpha = fade;
+    ctx.fillStyle = NIGHT > 0.35 ? 'rgba(250, 226, 170, 0.95)' : 'rgba(58, 52, 46, 0.85)';
+    ctx.fillText(sg.text, 2, -18);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  };
+
+  /* Огни города внизу. Ночью нижняя половина кадра проваливалась в
+     черноту — светилась одна башня и висела в пустоте. Теперь под
+     холмом лежит россыпь тёплых точек: дальние окна и уличный свет.
+     Всё сводится к двум заливкам на весь город. */
+  Engine.prototype.drawCityGlow = function () {
+    if (NIGHT < 0.12) return;
+    var G = this.model.glow;
+    if (!G || !G.length) return;
+    var ctx = this.ctx, px = this.px, py = this.py, pz = this.pz, t = this.time;
+    var S = this.S, a = Math.min(1, (NIGHT - 0.12) / 0.3);
+
+    // мягкое свечение
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.beginPath();
+    for (var i = 0; i < G.length; i++) {
+      var b = G[i];
+      var k = FOCAL / Math.max(1, CAM_DIST - pz[b]) * S;
+      var r = k * 0.018;
+      if (r < 0.4) continue;
+      ctx.moveTo(px[b] + r * 2.4, py[b]);
+      ctx.arc(px[b], py[b], r * 2.4, 0, Math.PI * 2);
+    }
+    ctx.fillStyle = 'rgba(255, 186, 96, ' + (0.085 * a).toFixed(3) + ')';
+    ctx.fill();
+
+    // сами огоньки, с лёгким мерцанием
+    ctx.beginPath();
+    for (var j = 0; j < G.length; j++) {
+      var b2 = G[j];
+      var k2 = FOCAL / Math.max(1, CAM_DIST - pz[b2]) * S;
+      var r2 = k2 * 0.0115 * (0.75 + 0.25 * Math.sin(t * 1.3 + j * 2.1));
+      if (r2 < 0.25) continue;
+      ctx.moveTo(px[b2] + r2, py[b2]);
+      ctx.arc(px[b2], py[b2], r2, 0, Math.PI * 2);
+    }
+    ctx.fillStyle = 'rgba(255, 214, 150, ' + (0.85 * a).toFixed(3) + ')';
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  };
+
+  /* Скамейки. Сиденье и две ножки, все разом одним путём. */
+
+  /* Фонари. Днём — тонкая мачта с головкой, ночью ещё и тёплое пятно
+     света: без него площадка остаётся чёрной, сколько ни зажигай окон. */
+  Engine.prototype.drawOneLamp = function (i) {
+    var L = this.model.lamps[i];
+    var ctx = this.ctx, px = this.px, py = this.py, pz = this.pz;
+    var tp = L.t;
+    var k = FOCAL / Math.max(1, CAM_DIST - pz[tp]) * this.S;
+
+    // свет кладём ПОД мачту, иначе он ложится поверх неё молочным пятном
+    if (NIGHT > 0.15) {
+      var al = Math.min(1, (NIGHT - 0.15) / 0.35);
+      var rr = k * 0.42 * (this.lod < 0.7 ? 0.7 : 1);
+      var g = ctx.createRadialGradient(px[tp], py[tp], 0, px[tp], py[tp], rr);
+      g.addColorStop(0, 'rgba(255, 214, 140, ' + (0.55 * al).toFixed(3) + ')');
+      g.addColorStop(0.45, 'rgba(255, 200, 120, ' + (0.16 * al).toFixed(3) + ')');
+      g.addColorStop(1, 'rgba(255, 190, 110, 0)');
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(px[tp], py[tp], rr, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(px[L.b], py[L.b]);
+    ctx.lineTo(px[tp], py[tp]);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = Math.max(0.9, this.S * 0.010);
+    ctx.globalAlpha = 0.78;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    ctx.beginPath();
+    ctx.arc(px[tp], py[tp], k * 0.022, 0, Math.PI * 2);
+    ctx.fillStyle = NIGHT > 0.2 ? 'rgb(255, 226, 164)' : C_RAIL;
+    ctx.fill();
+  };
+
+  Engine.prototype.drawOneBench = function (i) {
+    var f = this.model.benches[i];
+    var ctx = this.ctx, px = this.px, py = this.py;
+    ctx.beginPath();
+    ctx.moveTo(px[f.a], py[f.a]); ctx.lineTo(px[f.b], py[f.b]);
+    ctx.moveTo(px[f.a], py[f.a]); ctx.lineTo(px[f.c], py[f.c]);
+    ctx.moveTo(px[f.b], py[f.b]); ctx.lineTo(px[f.d], py[f.d]);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = Math.max(1.1, this.S * 0.013);
+    ctx.globalAlpha = 0.72;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  };
+
+  Engine.prototype.drawOneFlag = function (i) {
+    var f = this.model.flags[i];
+    var ctx = this.ctx, px = this.px, py = this.py, pz = this.pz, t = this.time;
+
+    ctx.beginPath();
+    ctx.moveTo(px[f.b], py[f.b]);
+    ctx.lineTo(px[f.t], py[f.t]);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = Math.max(1, this.S * 0.008);
+    ctx.globalAlpha = 0.8;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    var k = FOCAL / Math.max(1, CAM_DIST - pz[f.t]) * this.S;
+    var x0 = px[f.t], y0 = py[f.t];
+    var wdt = k * 0.30, hgt = k * 0.16;
+
+    /* Флаг армянский: красный, синий, абрикосовый. Полотнище идёт
+       волной, поэтому каждая полоса рисуется своей кривой — иначе
+       полосы разъедутся между собой. */
+    var BAND = [['rgba(217, 0, 18, 0.94)', 0, 1 / 3],
+                ['rgba(0, 51, 160, 0.94)', 1 / 3, 2 / 3],
+                ['rgba(242, 168, 0, 0.94)', 2 / 3, 1]];
+    for (var s3 = 0; s3 < 3; s3++) {
+      var y1b = y0 + hgt * BAND[s3][1], y2b = y0 + hgt * BAND[s3][2];
+      ctx.beginPath();
+      for (var q3 = 0; q3 <= 6; q3++) {
+        var u3 = q3 / 6;
+        var wv = Math.sin(t * 2.4 + f.ph + u3 * 4.2) * hgt * 0.30 * u3;
+        if (q3 === 0) ctx.moveTo(x0, y1b + wv);
+        else ctx.lineTo(x0 + wdt * u3, y1b + wv);
+      }
+      for (var q4 = 6; q4 >= 0; q4--) {
+        var u4 = q4 / 6;
+        var wv2 = Math.sin(t * 2.4 + f.ph + u4 * 4.2) * hgt * 0.30 * u4;
+        ctx.lineTo(x0 + wdt * u4, y2b + wv2);
+      }
+      ctx.closePath();
+      ctx.fillStyle = BAND[s3][0];
+      ctx.fill();
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    for (var q = 1; q <= 6; q++) {
+      var u = q / 6;
+      ctx.lineTo(x0 + wdt * u, y0 + Math.sin(t * 2.4 + f.ph + u * 4.2) * hgt * 0.30 * u);
+    }
+    for (var q2 = 6; q2 >= 0; q2--) {
+      var u2 = q2 / 6;
+      ctx.lineTo(x0 + wdt * u2,
+                 y0 + hgt + Math.sin(t * 2.4 + f.ph + u2 * 4.2) * hgt * 0.30 * u2);
+    }
+    ctx.closePath();
+    /* Заливки тут нет: полотнище уже покрашено тремя полосами выше.
+       Раньше здесь стояла одноцветная заливка, и она закрашивала
+       триколор — флаги выходили просто синими. */
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 0.9;
+    ctx.globalAlpha = 0.55;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  };
+
+
+  /* Надпись на фасаде. Текст раскладывается по четырём точкам плиты,
+     поэтому он поворачивается вместе со зданием, а не висит наклейкой
+     поверх экрана. */
+  Engine.prototype.drawSign = function (sg, faceCheck) {
+    sg = sg || this.model.sign;
+    if (!sg) return;
+    if (faceCheck !== false) {
+      var sh = this.model.shells[sg.face];
+      if (!sh || !sh.vis) return;
+    }
+
+    var ctx = this.ctx, px = this.px, py = this.py;
+    var ax = px[sg.a], ay = py[sg.a];
+    var ux = px[sg.b] - ax, uy = py[sg.b] - ay;     // вдоль строки
+    var vx = px[sg.d] - ax, vy = py[sg.d] - ay;     // вверх по высоте
+    var len = Math.sqrt(ux * ux + uy * uy);
+    if (len < 22) return;                            // мелко — не мельтешим
 
     ctx.save();
     ctx.transform(ux / 100, uy / 100, vx / 100, vy / 100, ax, ay);
@@ -787,6 +1148,46 @@
     ctx.fillStyle = NIGHT > 0.35 ? 'rgba(250, 226, 170, 0.95)' : 'rgba(58, 52, 46, 0.85)';
     ctx.fillText(sg.text, 2, -18);
     ctx.restore();
+  };
+
+  /* Огни города внизу. Ночью нижняя половина кадра проваливалась в
+     черноту — светилась одна башня и висела в пустоте. Теперь под
+     холмом лежит россыпь тёплых точек: дальние окна и уличный свет.
+     Всё сводится к двум заливкам на весь город. */
+  Engine.prototype.drawCityGlow = function () {
+    if (NIGHT < 0.12) return;
+    var G = this.model.glow;
+    if (!G || !G.length) return;
+    var ctx = this.ctx, px = this.px, py = this.py, pz = this.pz, t = this.time;
+    var S = this.S, a = Math.min(1, (NIGHT - 0.12) / 0.3);
+
+    // мягкое свечение
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.beginPath();
+    for (var i = 0; i < G.length; i++) {
+      var b = G[i];
+      var k = FOCAL / Math.max(1, CAM_DIST - pz[b]) * S;
+      var r = k * 0.018;
+      if (r < 0.4) continue;
+      ctx.moveTo(px[b] + r * 2.4, py[b]);
+      ctx.arc(px[b], py[b], r * 2.4, 0, Math.PI * 2);
+    }
+    ctx.fillStyle = 'rgba(255, 186, 96, ' + (0.085 * a).toFixed(3) + ')';
+    ctx.fill();
+
+    // сами огоньки, с лёгким мерцанием
+    ctx.beginPath();
+    for (var j = 0; j < G.length; j++) {
+      var b2 = G[j];
+      var k2 = FOCAL / Math.max(1, CAM_DIST - pz[b2]) * S;
+      var r2 = k2 * 0.0115 * (0.75 + 0.25 * Math.sin(t * 1.3 + j * 2.1));
+      if (r2 < 0.25) continue;
+      ctx.moveTo(px[b2] + r2, py[b2]);
+      ctx.arc(px[b2], py[b2], r2, 0, Math.PI * 2);
+    }
+    ctx.fillStyle = 'rgba(255, 214, 150, ' + (0.85 * a).toFixed(3) + ')';
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
   };
 
   /* Скамейки. Сиденье и две ножки, все разом одним путём. */
@@ -857,46 +1258,278 @@
     ctx.fill();
   };
 
+  /* АРАРАТ.
+
+     Гора бесконечно далека, поэтому её нельзя считать обычной точкой:
+     при удалении в шестьдесят километров формула проекции вырождается.
+     Считаем её как небо: положение зависит ТОЛЬКО от направления
+     взгляда, а не от того, где стоит камера. Отсюда и правильное
+     ощущение — при повороте гора уходит за край, при наклоне поднимается
+     вместе с горизонтом, но не «объезжает» здание.
+
+     Линия горизонта в нашей проекции: oy − tg(наклон) · FOCAL · S.
+     Видимая высота горы — её угловой размер, то есть высота, делённая
+     на расстояние. У Арарата это примерно 5 км на 60 — но с натуры он
+     кажется больше, и мы берём крупнее: рисунок, а не топография. */
+  var SKY_K = 0.42;     // во сколько раз медленнее разворачивается дальний план
+
+  Engine.prototype.drawArarat = function () {
+    var ctx = this.ctx, w = this.w;
+    var st2 = this.state || {};
+    var yaw = this._yaw || 0, pitch = this._pitch || 0;
+
+    var AZ = -Math.PI / 2 + 1.15;        // куда смотрит гора от здания
+    var th = AZ - yaw + Math.PI / 2;
+    while (th > Math.PI) th -= Math.PI * 2;
+    while (th < -Math.PI) th += Math.PI * 2;
+    if (Math.cos(th) <= 0.08) return;    // за спиной
+
+    /* СЖАТИЕ ДАЛЬНЕГО ПЛАНА.
+       У нашей камеры узкий угол зрения — около двадцати градусов. При
+       честной развёртке гора влезала в кадр лишь в узком окне поворота
+       и мгновенно улетала за край. А из Еревана Арарат занимает полнеба
+       и никуда не девается.
+
+       Поэтому дальний план разворачивается вчетверо медленнее: угол до
+       горы умножается на 0.42. Физически это враньё, на глаз —
+       единственный способ получить правду ощущения. */
+    var tt = th * SKY_K;
+
+    var F = FOCAL * this.S;
+    /* Подошву сажаем не на математический горизонт, а на дальний край
+       земли: у нас земля — конечный диск, и её край на экране ниже
+       горизонта. Иначе гора висела бы в небе с просветом над травой. */
+    var hy = this.groundTopPy;
+    if (hy === undefined) hy = this.oy - Math.tan(pitch) * F;
+    var cx = this.ox + Math.tan(tt) * F / Math.cos(pitch);
+    /* Угловой размер. По-честному 4385 м на 60 км — это 0.073 радиана.
+       Берём 0.105: чуть крупнее правды, как его и рисуют, но так, чтобы
+       оба брата помещались в кадр телефона. При 0.175 массив выходил
+       шире экрана и Малый Арарат срезался. */
+    var H = 0.150 * F / Math.cos(tt);                // высота над горизонтом
+
+    if (hy < -H * 1.2 || hy > this.h + H) return;
+    if (cx < -H * 5 || cx > w + H * 5) return;
+
+    // цвет: днём выцветает в дымке, на закате розовеет, ночью силуэт
+    function mix(a, b, k) {
+      return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+    }
+    var body = mix([150, 166, 186], [38, 44, 74], NIGHT);
+    body = mix(body, [176, 138, 140], DUSK * 0.7);
+    var snow = mix([242, 244, 248], [150, 160, 196], NIGHT);
+    snow = mix(snow, [246, 206, 198], DUSK * 0.7);
+    function rgb(c, a) {
+      return 'rgba(' + (c[0] | 0) + ',' + (c[1] | 0) + ',' + (c[2] | 0) + ',' + a + ')';
+    }
+
+    /* СИЛУЭТ ПО ЧИСЛАМ, а не на глаз.
+       Большой Арарат поднимается над равниной на 4385 м — это наша H.
+       Малый — 3127, то есть 0.71 H, а не половина: именно поэтому он
+       узнаётся как «второй брат», а не как холмик.
+       Между вершинами 11 км = 2.5 H. Основание массива огромное:
+       полуширина большого конуса около 3.2 H.
+       Седловина Сардар-Булак между ними остаётся высоко — 0.41 H.
+       Постоянный снег лежит выше 4250 м, то есть только на верхних
+       20 процентах Большого. На Малом постоянного снега нет — и это
+       различие делает пару сразу узнаваемой. */
+    var gx = cx, S1 = H;
+    function P(dx, dy) { return [gx + dx * H, hy - dy * S1]; }
+
+    var pBaseL = P(-3.20, 0),  pTop = P(0, 1.00);
+    var pSad   = P(1.45, 0.41), pLit = P(2.50, 0.71), pBaseR = P(3.62, 0);
+
+    var g = ctx.createLinearGradient(0, hy - H, 0, hy);
+    g.addColorStop(0, rgb(body, 0.97));
+    g.addColorStop(0.62, rgb(body, 0.80));
+    g.addColorStop(1, rgb(body, 0.34));       // подошва тает в дымке
+    ctx.fillStyle = g;
+
+    ctx.beginPath();
+    ctx.moveTo(pBaseL[0], pBaseL[1]);
+    // левый склон большого: сначала пологий, у вершины круче
+    ctx.bezierCurveTo(gx - H * 1.90, hy - H * 0.30,
+                      gx - H * 0.72, hy - H * 0.80,
+                      pTop[0], pTop[1]);
+    // правое плечо вниз к седловине
+    ctx.bezierCurveTo(gx + H * 0.55, hy - H * 0.82,
+                      gx + H * 1.05, hy - H * 0.52,
+                      pSad[0], pSad[1]);
+    // подъём на малый — он заметно острее
+    ctx.quadraticCurveTo(gx + H * 2.10, hy - H * 0.56, pLit[0], pLit[1]);
+    ctx.quadraticCurveTo(gx + H * 3.00, hy - H * 0.40, pBaseR[0], pBaseR[1]);
+    ctx.closePath();
+    ctx.fill();
+
+    // снежная шапка — только верхние 20 процентов большого конуса
+    var snowY = hy - H * 0.795;
+    ctx.beginPath();
+    ctx.moveTo(gx - H * 0.46, snowY);
+    ctx.lineTo(gx - H * 0.30, snowY - H * 0.045);
+    ctx.lineTo(gx - H * 0.16, snowY + H * 0.020);
+    ctx.lineTo(gx - H * 0.02, snowY - H * 0.055);
+    ctx.lineTo(gx + H * 0.14, snowY + H * 0.012);
+    ctx.lineTo(gx + H * 0.30, snowY - H * 0.030);
+    ctx.lineTo(gx + H * 0.44, snowY + H * 0.018);
+    ctx.bezierCurveTo(gx + H * 0.30, hy - H * 0.90, gx + H * 0.12, hy - H * 0.98,
+                      pTop[0], pTop[1]);
+    ctx.bezierCurveTo(gx - H * 0.16, hy - H * 0.96, gx - H * 0.32, hy - H * 0.88,
+                      gx - H * 0.46, snowY);
+    ctx.closePath();
+    ctx.fillStyle = rgb(snow, 0.92 - 0.25 * NIGHT);
+    ctx.fill();
+
+    // тонкая линия гребня — та же тушь, что и у здания
+    ctx.beginPath();
+    ctx.moveTo(pBaseL[0], pBaseL[1]);
+    ctx.bezierCurveTo(gx - H * 1.90, hy - H * 0.30, gx - H * 0.72, hy - H * 0.80, pTop[0], pTop[1]);
+    ctx.bezierCurveTo(gx + H * 0.55, hy - H * 0.82, gx + H * 1.05, hy - H * 0.52, pSad[0], pSad[1]);
+    ctx.quadraticCurveTo(gx + H * 2.10, hy - H * 0.56, pLit[0], pLit[1]);
+    ctx.quadraticCurveTo(gx + H * 3.00, hy - H * 0.40, pBaseR[0], pBaseR[1]);
+    ctx.strokeStyle = rgb(mix(body, [40, 40, 52], 0.45), 0.35);
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  };
+
+  /* ДАЛЬНИЙ ЕРЕВАН.
+
+     Между краем холма и Араратом лежала пустота. На деле оттуда видно
+     город: сплошная полоса плоских кровель, из которой кое-где торчат
+     башни повыше. Полоса идёт по всему кругу, поэтому задаётся как
+     функция от направления: у каждого квартала свой азимут, а на экран
+     он попадает по тому же правилу, что и гора.
+
+     Это не объёмы. С такого расстояния объём не читается — читается
+     только зубчатый край и цвет, съеденный воздухом. */
+  Engine.prototype.drawSkyline = function () {
+    var ctx = this.ctx, w = this.w;
+    var yaw = this._yaw || 0, pitch = this._pitch || 0;
+    var F = FOCAL * this.S;
+    var hy = this.groundTopPy;
+    if (hy === undefined) return;
+
+    if (!this.skyline) {
+      var rs = seeded(777001);
+      var N = 150, sl = [];
+      for (var i = 0; i < N; i++) {
+        var tall = rs() < 0.10;
+        sl.push({
+          az: (i / N) * Math.PI * 2 + rs() * 0.02,
+          h: tall ? 0.034 + rs() * 0.034 : 0.011 + rs() * 0.015,
+          wq: 0.6 + rs() * 0.9
+        });
+      }
+      this.skyline = sl;
+    }
+
+    var base = [176, 184, 196];
+    var c = [
+      base[0] + (54 - base[0]) * NIGHT,
+      base[1] + (60 - base[1]) * NIGHT,
+      base[2] + (86 - base[2]) * NIGHT
+    ];
+    var col = 'rgba(' + (c[0] | 0) + ',' + (c[1] | 0) + ',' + (c[2] | 0) + ',' +
+              (0.68 - 0.16 * NIGHT).toFixed(2) + ')';
+
+    /* Два ряда вместо одного: дальний бледнее и ниже, ближний темнее и
+       выше. Один ряд читался полоской тумана, два дают глубину. */
+    var SL = this.skyline, dz = Math.PI * 2 / SL.length;
+    for (var row = 0; row < 2; row++) {
+    ctx.beginPath();
+    var any = false;
+    for (var k = row; k < SL.length; k += 1) {
+      if ((k % 2) !== row) continue;
+      var b = SL[k];
+      var th = b.az - yaw + Math.PI / 2;
+      while (th > Math.PI) th -= Math.PI * 2;
+      while (th < -Math.PI) th += Math.PI * 2;
+      if (Math.cos(th) <= 0.12) continue;
+
+      var f = F / Math.cos(pitch);
+      var x0 = this.ox + Math.tan((th - dz * b.wq * 0.5) * SKY_K) * f;
+      var x1 = this.ox + Math.tan((th + dz * b.wq * 0.5) * SKY_K) * f;
+      if (x1 < -40 || x0 > w + 40) continue;
+      var hgt = b.h * F / Math.cos(th * SKY_K) * (row ? 1.35 : 0.8);
+      ctx.rect(x0, hy - hgt, x1 - x0, hgt + 2);
+      any = true;
+    }
+    if (any) {
+      ctx.fillStyle = row
+        ? 'rgba(' + ((c[0] * 0.86) | 0) + ',' + ((c[1] * 0.86) | 0) + ',' +
+          ((c[2] * 0.9) | 0) + ',' + (0.72 - 0.18 * NIGHT).toFixed(2) + ')'
+        : col;
+      ctx.fill();
+    }
+    }
+  };
+
   /* Небо. Рисуется каждый кадр — иначе не сменить время суток и не
      двинуть облака. Стоит дёшево: одна заливка с градиентом, четыре
      облака по восемь дуг и горсть звёзд. */
   Engine.prototype.drawSky = function () {
     var ctx = this.ctx, w = this.w, h = this.h, t = this.time;
     var horizon = h * 0.72;
+    var yaw = this._yaw || 0, pitch = this._pitch || 0;
 
-    /* Светило. Идёт по дуге вместе с ползунком: днём мягкое солнце,
-       ночью холодная луна. Оно же объясняет, откуда падают тени. */
-    var sa = Math.PI * (0.14 + TOD * 0.74);
-    var sx = w * (0.50 - Math.cos(sa) * 0.46);
-    var sy = horizon * (1.02 - Math.sin(sa) * 0.92);
-    var sr = Math.min(w, h) * 0.042;
-    var gs = ctx.createRadialGradient(sx, sy, sr * 0.2, sx, sy, sr * 3.4);
-    if (NIGHT > 0.55) {
-      gs.addColorStop(0, 'rgba(226, 232, 250, 0.90)');
-      gs.addColorStop(0.14, 'rgba(210, 220, 245, 0.30)');
-      gs.addColorStop(1, 'rgba(190, 205, 240, 0)');
-    } else {
-      gs.addColorStop(0, 'rgba(255, 244, 206, ' + (0.85 - 0.4 * NIGHT).toFixed(2) + ')');
-      gs.addColorStop(0.13, 'rgba(255, 226, 160, 0.28)');
-      gs.addColorStop(1, 'rgba(255, 210, 140, 0)');
-    }
-    ctx.fillStyle = gs;
-    ctx.beginPath();
-    ctx.arc(sx, sy, sr * 3.4, 0, Math.PI * 2);
-    ctx.fill();
-
-    // 3. звёзды
+    /* Звёзды рисуем раньше горы: она должна их закрывать. */
     if (NIGHT > 0.12) {
-      var stars = this.stars;
+      var stars0 = this.stars;
       ctx.fillStyle = 'rgba(255, 252, 236, ' + (0.85 * NIGHT).toFixed(3) + ')';
-      for (var i = 0; i < stars.length; i += 3) {
-        var tw = 0.65 + 0.35 * Math.sin(t * 1.7 + stars[i + 2]);
-        var rr = stars[i + 2] % 1 * 0.9 + 0.5;
-        ctx.globalAlpha = tw;
-        ctx.fillRect(stars[i] * w, stars[i + 1] * horizon, rr, rr);
+      for (var s0 = 0; s0 < stars0.length; s0 += 3) {
+        var tw0 = 0.65 + 0.35 * Math.sin(t * 1.7 + stars0[s0 + 2]);
+        var rr0 = stars0[s0 + 2] % 1 * 0.9 + 0.5;
+        ctx.globalAlpha = tw0;
+        ctx.fillRect(stars0[s0] * w, stars0[s0 + 1] * horizon, rr0, rr0);
       }
       ctx.globalAlpha = 1;
     }
+
+    /* СВЕТИЛО.
+
+       Раньше солнце ставилось в экранных координатах от времени суток —
+       и висело в одной точке экрана, куда бы ты ни повернулся. Видно
+       его было со всех сторон сразу.
+
+       Теперь оно стоит В МИРЕ: его направление берётся из вектора
+       света, того самого, по которому кладутся тени. Поэтому солнце
+       всегда там, откуда светит, при повороте уходит за край, а со
+       спины его не видно вовсе. По вертикали — по высоте света над
+       горизонтом.
+
+       Разворачивается оно тем же сжатым дальним планом, что гора: иначе
+       при узком угле зрения проскакивало бы мимо экрана. */
+    var sAz = Math.atan2(LZ, LX);
+    var sTh = sAz - yaw + Math.PI / 2;
+    while (sTh > Math.PI) sTh -= Math.PI * 2;
+    while (sTh < -Math.PI) sTh += Math.PI * 2;
+
+    if (Math.cos(sTh) > 0.06) {
+      var Fs = FOCAL * this.S;
+      var hyS = this.oy - Math.tan(pitch) * Fs;
+      var sx = this.ox + Math.tan(sTh * SKY_K) * Fs / Math.cos(pitch);
+      var sy = hyS - LY * h * 0.34;   // выше — уходит за верх кадра
+      var sr = Math.min(w, h) * 0.042;
+
+      if (sx > -sr * 4 && sx < w + sr * 4 && sy > -sr * 4 && sy < h + sr * 2) {
+        var gs = ctx.createRadialGradient(sx, sy, sr * 0.2, sx, sy, sr * 3.4);
+        if (NIGHT > 0.55) {
+          gs.addColorStop(0, 'rgba(226, 232, 250, 0.90)');
+          gs.addColorStop(0.14, 'rgba(210, 220, 245, 0.30)');
+          gs.addColorStop(1, 'rgba(190, 205, 240, 0)');
+        } else {
+          gs.addColorStop(0, 'rgba(255, 244, 206, ' + (0.85 - 0.4 * NIGHT).toFixed(2) + ')');
+          gs.addColorStop(0.13, 'rgba(255, 226, 160, 0.28)');
+          gs.addColorStop(1, 'rgba(255, 210, 140, 0)');
+        }
+        ctx.fillStyle = gs;
+        ctx.beginPath();
+        ctx.arc(sx, sy, sr * 3.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    this.drawArarat();
+    this.drawSkyline();
 
     /* Птицы. Три галочки, скользящие поперёк неба; взмах — изменение
        угла галочки. Дёшево, а небо перестаёт быть неподвижным. */
@@ -948,19 +1581,30 @@
        Для стен хватает почти нуля. Для лоджий порог выше: у самого края
        башни они видны под таким углом, что в жизни их закрывает ребро,
        а на экране от них остаётся вытянутая клякса. */
+    var cs2 = Math.cos(this.spin || 0), ss2 = Math.sin(this.spin || 0);
+
     function pass(list, thr) {
       for (var i = 0; i < list.length; i++) {
         var f = list[i];
-        var nx1 = f.nx * cy + f.nz * sy;
-        var nz1 = -f.nx * sy + f.nz * cy;
+        var fnx = f.nx, fnz = f.nz;
+        if (f.spin) {                       // грань уехала вместе с барабаном
+          var t2 = fnx * cs2 - fnz * ss2;
+          fnz = fnx * ss2 + fnz * cs2;
+          fnx = t2;
+        }
+        var nx1 = fnx * cy + fnz * sy;
+        var nz1 = -fnx * sy + fnz * cy;
         var ny2 = f.ny * cp - nz1 * sp;
         var nz2 = f.ny * sp + nz1 * cp;
         f.vis = nz2 > thr;
+        f.face = nz2;          // насколько повёрнута к нам: нужно для плавного гашения
         f.lit = nx1 * LX + ny2 * LY + nz2 * LZ;
       }
     }
     pass(this.model.shells, 0.015);
-    pass(this.model.cells, 0.13);
+    pass(this.model.cells, 0.15);   /* Ниже этого лоджия у края ствола
+       ложится почти плашмя, и башня начинает просвечивать решёткой.
+       Пробовал 0.07 — стало хуже, вернул. */
   };
 
   /* Земля. Вдали она светлее и холоднее, вблизи — гуще и зеленее.
@@ -1018,14 +1662,20 @@
   /* Все ближние грани одного типа — в один путь и одна заливка:
      тогда прозрачность ложится ровно, без швов на стыках. */
   Engine.prototype.fillShells = function (kind, color, bld) {
-    var ctx = this.ctx, shells = this.model.shells;
+    var ctx = this.ctx, m = this.model, shells = m.shells;
     var px = this.px, py = this.py;
     var any = false;
 
+    // только грани своего сорта, а не вся сцена
+    var idx = m.shellIndex && m.shellIndex[kind];
+    if (!idx) return;
+    var n = idx.length;
+
     ctx.beginPath();
-    for (var i = 0; i < shells.length; i++) {
+    for (var q = 0; q < n; q++) {
+      var i = idx[q];
       var f = shells[i];
-      if (f.kind !== kind || !f.vis) continue;
+      if (!f.vis) continue;
       if (bld !== undefined && f.bld !== bld) continue;
       ctx.moveTo(px[f.a], py[f.a]);
       ctx.lineTo(px[f.b], py[f.b]);
@@ -1156,6 +1806,13 @@
           var f = cells[i];
           if (!f.vis || (f.grp || 0) !== grp) continue;
           if (f.arch && L > 0) continue;      // у арки нет окна в глубине
+          /* У края ствола лоджия повёрнута почти ребром. Раньше её всё
+             равно рисовали целиком — окно и балкон сминались в щепки и
+             тёмные чёрточки вдоль силуэта. Теперь слои гаснут по
+             очереди: сначала пропадает окно в глубине, потом балкон, и
+             последним остаётся сам проём. Обрубать всю чешуйку разом
+             нельзя — на её месте появлялась тёмная полоса. */
+          if (L > 0 && f.face < 0.30) continue;
           if ((pass === 1) !== (f.lit <= 0.05)) continue;
           this.archPath(f, layers[L].inset);
           any = true;
@@ -1177,6 +1834,7 @@
         var f = cells[i];
         if (!f.vis || (f.grp || 0) !== grp || f.arch) continue;
         if (f.lamp === undefined || f.lamp > 0.45) continue;
+        if (f.face < 0.30) continue;
         this.archPath(f, 0.66);
         anyL = true;
       }
@@ -1195,6 +1853,7 @@
       for (var i = 0; i < n; i++) {
         var f = cells[i];
         if (!f.vis || (f.grp || 0) !== grp || f.arch) continue;
+        if (f.face < 0.34) continue;          // балкон у края — белая щепка
         if ((pass === 1) !== (f.lit <= 0.05)) continue;
         this.balconyPath(f);
         any2 = true;
@@ -1211,6 +1870,7 @@
     for (var i = 0; i < n; i++) {
       var f = cells[i];
       if (!f.vis || (f.grp || 0) !== grp || f.arch) continue;
+      if (f.face < 0.34) continue;
       this.balconyPath(f);
       any3 = true;
     }
@@ -1264,14 +1924,22 @@
      соседних граней смотрит на камеру, а вторая уже отвернулась.
      Проверка дешёвая, а край получается настоящий: он сам переезжает
      по зданию, пока оно крутится. */
-  Engine.prototype.drawOutline = function () {
-    var ctx = this.ctx, o = this.model.outline, shells = this.model.shells;
+  /* Жирный край силуэта. РИСУЕТСЯ ПО СЛОЮ, вместе со своим объектом.
+
+     Раньше весь контур клался одним махом в самом конце кадра, поверх
+     всего. Из-за этого обводка дома, который движок уже не рисовал,
+     висела в воздухе чёрными палками, а контур башни ложился поверх
+     ближних деревьев. Контур — часть предмета, а не наклейка сверху. */
+  Engine.prototype.drawOutline = function (part) {
+    var ctx = this.ctx, m = this.model;
+    var o = m.outline, op = m.outlineParts, shells = m.shells;
     var px = this.px, py = this.py, jit = this.outJit;
     var n = o.length / 4, any = false;
 
     ctx.beginPath();
     for (var i = 0; i < n; i++) {
       var k = i * 4;
+      if (part !== undefined && op && op[i] !== part) continue;
       if (shells[o[k + 2]].vis === shells[o[k + 3]].vis) continue;
 
       var a = o[k], b = o[k + 1];
@@ -1419,14 +2087,18 @@
     var shells = m.shells;
     var px = this.px, py = this.py;
     var cosY = this.rot.cy, sinY = this.rot.sy;
-    var count = styles.length;
     var off = pass * 4;
+
+    /* Идём только по линиям своего слоя, а не по всему списку. */
+    var idx = (part >= 0 && m.partIndex) ? m.partIndex[part] : null;
+    var count = idx ? idx.length : styles.length;
 
     ctx.beginPath();
     var any = false;
-    for (var i = 0; i < count; i++) {
+    for (var n = 0; n < count; n++) {
+      var i = idx ? idx[n] : n;
       if (style >= 0 && styles[i] !== style) continue;
-      if (part >= 0 && parts[i] !== part) continue;
+      if (!idx && part >= 0 && parts[i] !== part) continue;
 
       var fa = lfa[i], fb = lfb[i], vis;
       if (fa < 0 && fb < 0) {
@@ -1482,9 +2154,18 @@
     var model = global.Model.build({ ribs: 16, floors: 15 });
     var engine = new Engine(sceneCanvas, paperCanvas, model);
 
-    var state = {};
+    /* ОТКРЫВАЮЩИЙ КАДР.
+
+       Первое, что видит человек, должно быть готовым кадром, а не
+       случайным ракурсом. Вечер, здание сбоку, площадка горит,
+       Арарат в стороне — и камера сама медленно идёт вокруг, пока
+       её не тронули. Достаточно нажать запись и не касаться экрана. */
+    var state = { yaw: 1.42, pitch: 0.27, zoom: 1.02, idle: true };
     var controls = global.Controls.create(stage, state);
-    controls.onFirstTouch(function () { hint.classList.add('gone'); });
+    controls.onFirstTouch(function () {
+      hint.classList.add('gone');
+      state.idle = false;          // человек взял управление — не мешаем
+    });
 
     /* Дрон: медленный облёт с плавным подъёмом и наездом. Не «камера
        летит по маршруту», а спокойный круг — из такого кадра получается
@@ -1494,6 +2175,7 @@
     droneBtn.addEventListener('click', function () {
       state.drone = !state.drone;
       droneBtn.setAttribute('aria-pressed', state.drone ? 'true' : 'false');
+      toast(state.drone ? 'Облёт включён' : 'Облёт выключен');
       if (state.drone) {
         state.auto = false;
         autoBtn.setAttribute('aria-pressed', 'false');
@@ -1503,13 +2185,19 @@
     autoBtn.addEventListener('click', function () {
       state.auto = !state.auto;
       autoBtn.setAttribute('aria-pressed', state.auto ? 'true' : 'false');
+      toast(state.auto ? 'Поворот включён' : 'Поворот выключен');
       if (state.auto) {
         state.drone = false;
         droneBtn.setAttribute('aria-pressed', 'false');
       }
     });
     resetBtn.addEventListener('click', function () {
+      resetBtn.classList.remove('tapped');
+      void resetBtn.offsetWidth;          // перезапуск анимации
+      resetBtn.classList.add('tapped');
       controls.reset();
+      toast('Вид сброшен');
+      state.idle = false;
       state.auto = false;
       state.drone = false;
       autoBtn.setAttribute('aria-pressed', 'false');
@@ -1545,6 +2233,12 @@
         refreshTime(false);
       }
 
+      /* Пока экран не тронули, камера едет сама — очень медленно, чтобы
+         это читалось как дыхание, а не как карусель. */
+      if (state.idle && !state.auto && !state.drone) {
+        state.yaw += 0.018 * dt * 0.001;
+      }
+
       if (state.drone) {
         droneT += dt * 0.001;
         state.yaw += 0.085 * dt * 0.001;
@@ -1557,6 +2251,7 @@
       if (now - fpsClock > 250) {
         fpsClock = now;
         fpsEl.textContent = Math.round(fpsAvg) + ' fps';
+        engine.setLod(fpsAvg);      // не тянет — рисуем меньше
       }
     }
 
@@ -1571,6 +2266,80 @@
        Небо при этом пересобирается не каждый кадр, а когда время
        уехало заметно: в нижнем слое лежит зерно бумаги, и перерисовка
        его 60 раз в секунду была бы расточительством. */
+    /* ПОЛНОЭКРАННЫЙ РЕЖИМ.
+
+       Кнопка прячет всю панель — кадр остаётся чистым, можно снимать.
+       Возврат: короткое касание экрана. Именно короткое: если считать
+       любое касание, интерфейс будет выскакивать при каждом повороте
+       здания пальцем. Поэтому смотрим, сдвинулся ли палец и сколько
+       держали. */
+    /* РАДИАЛЬНОЕ МЕНЮ.
+
+       Три состояния, и всегда видно ровно одно: закрыто — кольцо —
+       своя панель у пункта. Одна и та же кнопка ведёт назад на шаг:
+       из панели в кольцо, из кольца в закрытое. Так на телефоне
+       не нужно объяснять, как выйти, — выход всегда в одном месте,
+       под большим пальцем.
+
+       Касание сцены закрывает всё: меню не должно мешать смотреть. */
+    var hud = document.getElementById('hud');
+    var hudBtn = document.getElementById('hudBtn');
+    var toastEl = document.getElementById('toast');
+    var toastT = 0;
+    var mode = '';                       // '' | 'ring' | 'sub'
+
+    /* Пилюля вместо подписей под иконками: говорит, что именно
+       включилось, и сама уходит через полторы секунды. */
+    function toast(text) {
+      toastEl.textContent = text;
+      toastEl.classList.add('on');
+      clearTimeout(toastT);
+      toastT = setTimeout(function () { toastEl.classList.remove('on'); }, 1600);
+    }
+
+    function setMenu(m) {
+      mode = m;
+      if (m !== 'ring') { clearTimeout(toastT); toastEl.classList.remove('on'); }
+      hud.classList.toggle('ring', m === 'ring');
+      hud.classList.toggle('sub', m === 'sub');
+      document.body.classList.toggle('menu', m !== '');
+      hudBtn.setAttribute('aria-expanded', m === '' ? 'false' : 'true');
+    }
+
+    hudBtn.addEventListener('click', function () {
+      setMenu(mode === 'sub' ? 'ring' : (mode === '' ? 'ring' : ''));
+    });
+
+    var weatherBtn = document.getElementById('weatherBtn');
+    weatherBtn.addEventListener('click', function () {
+      setMenu(mode === 'sub' ? 'ring' : 'sub');
+    });
+
+    var hideBtn = document.getElementById('hideBtn');
+    var uiOff = false;
+
+    function setUI(off) {
+      uiOff = off;
+      document.body.classList.toggle('ui-off', off);
+      if (off && stage.requestFullscreen) {
+        try { stage.requestFullscreen({ navigationUI: 'hide' }); } catch (e) {}
+      } else if (!off && document.fullscreenElement && document.exitFullscreen) {
+        try { document.exitFullscreen(); } catch (e) {}
+      }
+    }
+    hideBtn.addEventListener('click', function () { setMenu(''); setUI(true); });
+
+    var tapX = 0, tapY = 0, tapT = 0;
+    stage.addEventListener('pointerdown', function (e) {
+      tapX = e.clientX; tapY = e.clientY; tapT = Date.now();
+      if (mode !== '') setMenu('');
+    });
+    stage.addEventListener('pointerup', function (e) {
+      if (!uiOff) return;
+      var moved = Math.abs(e.clientX - tapX) + Math.abs(e.clientY - tapY);
+      if (moved < 12 && Date.now() - tapT < 400) setUI(false);
+    });
+
     var timeEl = document.getElementById('tod');
     var todTarget = TOD, lastBaked = -1;
 
@@ -1581,13 +2350,50 @@
         lastBaked = TOD;
       }
       document.body.classList.toggle('night', NIGHT > 0.45);
+
+      /* Шарик ползунка — само светило: тёплый днём, холодный ночью. */
+      var w1 = [253, 226, 150], w2 = [214, 226, 250];
+      var kk = Math.min(1, Math.max(0, (TOD - 0.25) / 0.55));
+      document.documentElement.style.setProperty('--thumb',
+        'rgb(' + ((w1[0] + (w2[0] - w1[0]) * kk) | 0) + ',' +
+                 ((w1[1] + (w2[1] - w1[1]) * kk) | 0) + ',' +
+                 ((w1[2] + (w2[2] - w1[2]) * kk) | 0) + ')');
+      var me = document.getElementById('moon-edge');
+      var se = document.getElementById('sun-edge');
+      if (me) me.style.opacity = (0.32 + 0.55 * kk).toFixed(2);
+      if (se) se.style.opacity = (0.92 - 0.55 * kk).toFixed(2);
+    }
+
+    /* Четыре готовых времени суток. Ползунок — для точной настройки,
+       а кнопки — для показа: одно нажатие, и картинка уезжает из утра
+       в ночь на глазах, потому что TOD догоняет цель плавно. */
+    var chips = document.querySelectorAll('#sub .chip');
+
+    function markChips(v) {
+      for (var i = 0; i < chips.length; i++) {
+        var d = Math.abs(+chips[i].getAttribute('data-v') - v);
+        chips[i].setAttribute('aria-pressed', d < 3 ? 'true' : 'false');
+      }
+    }
+
+    for (var ci = 0; ci < chips.length; ci++) {
+      (function (btn) {
+        btn.addEventListener('click', function () {
+          var v = +btn.getAttribute('data-v');
+          if (timeEl) timeEl.value = v;
+          todTarget = v / 100;
+          markChips(v);
+        });
+      })(chips[ci]);
     }
 
     if (timeEl) {
       todTarget = timeEl.value / 100;
       TOD = todTarget;
+      markChips(+timeEl.value);
       timeEl.addEventListener('input', function () {
         todTarget = timeEl.value / 100;
+        markChips(+timeEl.value);
       });
     }
     refreshTime(true);
