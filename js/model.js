@@ -382,6 +382,7 @@
 
     var hGndN = [], hGndF = [], hBotN = [], hBotF = [], hTopN = [], hTopF = [];
     var hCrsN = [], hCrsF = [];
+    var hGtN = [], hGtF = [], hGbN = [], hGbF = [];   // лента остекления
     var hCourse = 0.42;             // ряд кладки по стене
     for (var i = 0; i <= HK; i++) {
       var u = i / HK;
@@ -391,6 +392,13 @@
       hCrsN.push(addXYZ(hx, hCourse, -HZ));  hCrsF.push(addXYZ(hx, hCourse, HZ));
       hBotN.push(addXYZ(hx, yb, -HZ));       hBotF.push(addXYZ(hx, yb, HZ));
       hTopN.push(addXYZ(hx, yt, -HZ));       hTopF.push(addXYZ(hx, yt, HZ));
+
+      /* Лента остекления идёт под самой кровлей и повторяет волну.
+         Глухая стена без единого окна читается как забор, а не как
+         здание — это и был главный источник «картонности». */
+      var gt = yb - 0.06, gb = yb - 0.40;
+      hGtN.push(addXYZ(hx, gt, -HZ));        hGtF.push(addXYZ(hx, gt, HZ));
+      hGbN.push(addXYZ(hx, gb, -HZ));        hGbF.push(addXYZ(hx, gb, HZ));
     }
 
     for (var i = 0; i < HK; i++) {
@@ -399,6 +407,17 @@
       var sN = face('slab', hBotN[i], hBotN[i + 1], hTopN[i + 1], hTopN[i], 0, 0, -1);
       var sF = face('slab', hBotF[i + 1], hBotF[i], hTopF[i], hTopF[i + 1], 0, 0, 1);
       var rT = face('slabTop', hTopN[i], hTopN[i + 1], hTopF[i + 1], hTopF[i], 0, 1, 0);
+
+      var gN = face('hallGlass', hGbN[i], hGbN[i + 1], hGtN[i + 1], hGtN[i], 0, 0, -1);
+      var gF = face('hallGlass', hGbF[i + 1], hGbF[i], hGtF[i], hGtF[i + 1], 0, 0, 1);
+      line(hGtN[i], hGtN[i + 1], THIN, gN, gN);
+      line(hGbN[i], hGbN[i + 1], THIN, gN, gN);
+      line(hGtF[i], hGtF[i + 1], THIN, gF, gF);
+      line(hGbF[i], hGbF[i + 1], THIN, gF, gF);
+      if (i % 2 === 0) {                       // импосты остекления
+        line(hGbN[i], hGtN[i], THIN, gN, gN);
+        line(hGbF[i], hGtF[i], THIN, gF, gF);
+      }
 
       line(hTopN[i], hTopN[i + 1], MED,  sN, rT);   // волна, ближняя сторона
       line(hTopF[i], hTopF[i + 1], MED,  sF, rT);   // волна, дальняя сторона
@@ -472,6 +491,23 @@
     line(sbN1, stN1, MED,  slabN, slabW);
     line(sbF1, stF1, MED,  slabF, slabW);
 
+    /* Карниз над аркадой. Стена, у которой нет ни низа, ни верха,
+       выглядит плоской покраской. */
+    var CY0 = 0.78, CY1 = WY;
+    var cnN0 = addXYZ(WX0, CY0, -WZ - 0.05), cnN1 = addXYZ(WX1, CY0, -WZ - 0.05);
+    var cnF0 = addXYZ(WX0, CY0,  WZ + 0.05), cnF1 = addXYZ(WX1, CY0,  WZ + 0.05);
+    var ctN0 = addXYZ(WX0, CY1, -WZ - 0.05), ctN1 = addXYZ(WX1, CY1, -WZ - 0.05);
+    var ctF0 = addXYZ(WX0, CY1,  WZ + 0.05), ctF1 = addXYZ(WX1, CY1,  WZ + 0.05);
+    var cnA = face('wingCorn', cnN0, cnN1, ctN1, ctN0, 0, 0, -1);
+    var cnB = face('wingCorn', cnF1, cnF0, ctF0, ctF1, 0, 0,  1);
+    var cnC = face('wingCorn', cnN1, cnF1, ctF1, ctN1, -1, 0, 0);
+    line(cnN0, cnN1, THIN, cnA, cnA);
+    line(cnF0, cnF1, THIN, cnB, cnB);
+    line(ctN0, ctN1, MED,  cnA, cnA);
+    line(ctF0, ctF1, MED,  cnB, cnB);
+    line(cnN1, ctN1, MED,  cnA, cnC);
+    line(cnF1, ctF1, MED,  cnB, cnC);
+
     /* Бортик по краю кровли. Плоская плита без бортика читается как
        лист картона: у неё нет ни толщины, ни границы. */
     var PH = 0.085;
@@ -533,17 +569,17 @@
     }
 
     var wingShadow = [
-      addXYZ(WX1 - WO - 0.10 + 0.60, yGround, -WZ - WO - 0.10 + -0.27),
-      addXYZ(WX0 + 0.60,             yGround, -WZ - WO - 0.10 + -0.27),
-      addXYZ(WX0 + 0.60,             yGround,  WZ + WO + 0.10 + -0.27),
-      addXYZ(WX1 - WO - 0.10 + 0.60, yGround,  WZ + WO + 0.10 + -0.27)
+      addXYZ(WX1 - WO - 0.06 + 0.30, yGround, -WZ - WO - 0.06 + -0.14),
+      addXYZ(WX0 + 0.30,             yGround, -WZ - WO - 0.06 + -0.14),
+      addXYZ(WX0 + 0.30,             yGround,  WZ + WO + 0.06 + -0.14),
+      addXYZ(WX1 - WO - 0.06 + 0.30, yGround,  WZ + WO + 0.06 + -0.14)
     ];
 
     curPart = 0;
 
     /* Тень нижнего корпуса на земле. Сдвиг вбит теми же числами, что
        и у круглых теней в движке: свет один на всю сцену. */
-    var SHX = 0.60, SHZ = -0.27, gp = 0.14;
+    var SHX = 0.30, SHZ = -0.14, gp = 0.10;
     var hallShadow = [
       addXYZ(HX0 - gp + SHX, yGround, -HZ - gp + SHZ),
       addXYZ(HX1 + gp + SHX, yGround, -HZ - gp + SHZ),

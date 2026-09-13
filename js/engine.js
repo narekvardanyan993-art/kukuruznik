@@ -288,6 +288,7 @@
      или дальше. */
   Engine.prototype.drawHall = function () {
     this.fillShells('hall',    C_HALL);
+    this.fillShells('hallGlass', C_GLASS);
     this.fillShells('slab',    C_SLAB);
     this.fillShells('slabTop', C_SLABTOP);
     this.strokeBody(4);
@@ -298,6 +299,7 @@
   Engine.prototype.drawWing = function () {
     this.fillShells('wing',     C_HALL);
     this.drawCells(5);
+    this.fillShells('wingCorn', C_SLAB);
     this.fillShells('wingSlab', C_SLAB);
     this.fillShells('wingTop',  C_DECK);
     this.fillShells('wingRail', C_SLAB);
@@ -485,7 +487,20 @@
       ctx.closePath();
       any = true;
     }
-    if (any) { ctx.fillStyle = color; ctx.fill(); }
+    if (any) {
+      ctx.fillStyle = color;
+      ctx.fill();
+      /* Шов между соседними гранями. На маке его не видно, на айфоне
+         Safari оставляет между ними волосяную светлую полоску. Обводка
+         тем же цветом закрывает шов и ничего не стоит. */
+      var prevS = ctx.strokeStyle, prevW = ctx.lineWidth;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+      ctx.strokeStyle = prevS;   // перо принадлежит рисунку, а не заливке
+      ctx.lineWidth = prevW;
+    }
   };
 
   /* Теневая половина ствола — ещё один полупрозрачный слой поверх */
