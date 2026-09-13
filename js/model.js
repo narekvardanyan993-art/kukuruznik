@@ -179,7 +179,7 @@
     /* Край слегка неровный, но не рваный: движок обводит его гладкой
        кривой. Линии земли в общий список не идут — их рисует движок
        вместе с заливкой, тем же самым путём. */
-    var GN = 40, rGround = 7.0;
+    var GN = 48, rGround = 13.0;
     var groundRing = new Array(GN);
     for (var i = 0; i < GN; i++) {
       groundRing[i] = addPt((i / GN) * Math.PI * 2, rGround * (0.94 + rnd() * 0.12), yGround);
@@ -646,7 +646,47 @@
       addXYZ(HX0 - gp + SHX, yGround,  HZ + gp + SHZ)
     ];
 
+    /* ======== деревья вокруг ========
+       Здание стояло на голой лужайке, и от этого вся сцена читалась
+       макетом. Деревья — не украшение: они дают масштаб (глаз меряет
+       высоту башни деревьями) и глубину.
+
+       Каждое дерево — не объём, а «билборд»: точка основания в мире,
+       а крона рисуется на экране всегда лицом к нам. Настоящая крона
+       из граней стоила бы дороже всего остального вместе взятого.
+       Форма кроны задана один раз при старте, иначе она мерцает. */
+    var trees = [];
+    var trnd = seeded(9091);
+
+    function freeSpot(x, z) {
+      if (x * x + z * z < 3.3 * 3.3) return false;              // стилобат
+      if (x > 0.9 && x < 5.3 && Math.abs(z) < 1.9) return false;  // корпус
+      if (x < -1.0 && x > -5.1 && Math.abs(z) < 1.5) return false; // крыло
+      return true;
+    }
+
+    for (var t2 = 0; t2 < 200 && trees.length < 60; t2++) {
+      var ang = trnd() * Math.PI * 2;
+      var rad = 3.4 + trnd() * 7.2;
+      var tx = Math.cos(ang) * rad, tz = Math.sin(ang) * rad;
+      if (!freeSpot(tx, tz)) continue;
+
+      var poplar = trnd() < 0.42;                 // тополь — местная примета
+      var hh = poplar ? 1.5 + trnd() * 0.9 : 0.85 + trnd() * 0.5;
+      var ww = poplar ? 0.16 + trnd() * 0.06 : 0.34 + trnd() * 0.16;
+      var wob = new Float32Array(10);
+      for (var w2 = 0; w2 < 10; w2++) wob[w2] = 0.82 + trnd() * 0.30;
+
+      trees.push({
+        p: addXYZ(tx, yGround, tz),
+        h: hh, w: ww, wob: wob,
+        tone: trnd() < 0.5 ? 0 : 1,               // два оттенка зелени
+        lean: (trnd() - 0.5) * 0.16
+      });
+    }
+
     return {
+      trees: trees,
       ribs: N,
       floors: F,
       positions: new Float32Array(pos),

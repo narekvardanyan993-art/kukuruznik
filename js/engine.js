@@ -17,6 +17,10 @@
      Наружные поверхности намеренно НЕПРОЗРАЧНЫЕ. Полупрозрачные
      стены давали рентген: сквозь башню просвечивала её же изнанка,
      и сверху казалось, что здание пустое. */
+  var C_TREE_A   = 'rgb(146, 166, 108)';   // крона на свету
+  var C_TREE_B   = 'rgb(126, 150, 100)';   // второй оттенок, чтобы не было ковра
+  var C_TREE_DRK = 'rgb(96, 116, 78)';     // теневая половина кроны
+  var C_TRUNK    = 'rgb(104, 90, 72)';
   var C_GROUND     = 'rgb(190, 200, 148)';  // трава вблизи
   var C_GROUND_FAR = 'rgb(214, 214, 180)';  // она же вдали, съеденная воздухом
   var C_PODIUM  = 'rgb(152, 152, 157)';   // базальт стилобата
@@ -240,6 +244,7 @@
     // земля
     this.drawGround();     // заливка и контур земли — одной гладкой кривой
     this.drawShadows(0);   // тень здания на земле
+    this.drawTrees(false); // дальняя роща — за зданием
 
     // стилобат и лестница
     this.fillShells('podium',  C_PODIUM);
@@ -278,9 +283,95 @@
     if (hz >= 0) this.drawHall();   // корпус ближе башни — ложится поверх
     if (wz >= 0) this.drawWing();
 
+    this.drawTrees(true);  // ближняя роща — перед зданием
     this.drawAir();       // воздух поверх массы — он касается и линий
     this.drawOutline();   // жирный край — последним, поверх всего
     ctx.globalAlpha = 1;
+  };
+
+  /* Деревья. Два захода: дальние ложатся до здания, ближние — после.
+     Всё сводится к пяти заливкам на всю рощу, а не к пяти на дерево. */
+  Engine.prototype.drawTrees = function (near) {
+    var ctx = this.ctx, T = this.model.trees;
+    var px = this.px, py = this.py, pz = this.pz, S = this.S;
+    if (!T || !T.length) return;
+
+    var list = this.treeBuf || (this.treeBuf = []);
+    list.length = 0;
+    for (var i = 0; i < T.length; i++) {
+      var f = T[i];
+      if ((pz[f.p] > 0) !== !!near) continue;
+      list.push(f);
+    }
+    if (!list.length) return;
+
+    /* Кроны перекрывают друг друга, поэтому роща рисуется по одному
+       дереву от дальнего к ближнему. Пакетная заливка была дешевле, но
+       обводки дальних крон просвечивали сквозь ближние и роща
+       превращалась в клубок линий. */
+    list.sort(function (a, b) { return pz[a.p] - pz[b.p]; });
+
+    ctx.lineJoin = 'round';
+    for (var i = 0; i < list.length; i++) {
+      var f = list[i], b = f.p;
+      var k = FOCAL / Math.max(1, CAM_DIST - pz[b]) * S;
+      var x = px[b], y = py[b];
+
+      // ствол
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + f.lean * k * 0.5, y - f.h * k * 0.62);
+      ctx.strokeStyle = C_TRUNK;
+      ctx.lineWidth = Math.max(1, k * 0.020);
+      ctx.stroke();
+
+      // крона: заливка, теневая долька, обводка тушью
+      ctx.beginPath(); this.crownPath(f, 1);
+      ctx.fillStyle = f.tone ? C_TREE_B : C_TREE_A;
+      ctx.fill();
+
+      ctx.beginPath(); this.crownPath(f, 2);
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = C_TREE_DRK;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      ctx.beginPath(); this.crownPath(f, 1);
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = Math.max(0.8, k * 0.013);
+      ctx.globalAlpha = 0.70;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  };
+
+  /* Контур кроны: десятиугольник с заранее заданной неровностью.
+     mode 2 — теневая долька: та же форма, сдвинутая от света. */
+  Engine.prototype.crownPath = function (f, mode) {
+    var ctx = this.ctx, px = this.px, py = this.py, pz = this.pz;
+    var b = f.p;
+    var k = FOCAL / Math.max(1, CAM_DIST - pz[b]) * this.S;
+    var cx = px[b] + f.lean * k;
+    var cy = py[b] - f.h * k * 0.74;
+    var rx = f.w * k, ry = f.h * k * 0.40;
+    if (mode === 2) { cx += rx * 0.30; cy += ry * 0.18; rx *= 0.80; ry *= 0.80; }
+
+    /* Ведём кривую через середины отрезков: каждая вершина становится
+       изгибом, и крона перестаёт быть десятиугольником. */
+    var X = this.crX || (this.crX = new Float32Array(10));
+    var Y = this.crY || (this.crY = new Float32Array(10));
+    for (var i = 0; i < 10; i++) {
+      var a = i / 10 * Math.PI * 2;
+      var w = f.wob[i];
+      X[i] = cx + Math.cos(a) * rx * w;
+      Y[i] = cy + Math.sin(a) * ry * w;
+    }
+    ctx.moveTo((X[9] + X[0]) * 0.5, (Y[9] + Y[0]) * 0.5);
+    for (var i = 0; i < 10; i++) {
+      var j = (i + 1) % 10;
+      ctx.quadraticCurveTo(X[i], Y[i], (X[i] + X[j]) * 0.5, (Y[i] + Y[j]) * 0.5);
+    }
+    ctx.closePath();
   };
 
   /* Нижний корпус. Рисуется целиком за один заход: он отдельный объём,
@@ -755,6 +846,23 @@
       for (var q2 = 1; q2 < ws.length; q2++) ctx.lineTo(px[ws[q2]], py[ws[q2]]);
       ctx.closePath();
       ctx.globalAlpha = 0.17;
+      ctx.fillStyle = C_SHADOW;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    if (layer === 0 && this.model.trees) {
+      var TT = this.model.trees, pxx = this.px, pyy = this.py, pzz = this.pz;
+      ctx.beginPath();
+      for (var ti = 0; ti < TT.length; ti++) {
+        var tf = TT[ti], tb = tf.p;
+        var tk = FOCAL / Math.max(1, CAM_DIST - pzz[tb]) * this.S;
+        var trx = tf.w * tk * 1.05;
+        ctx.moveTo(pxx[tb] + trx, pyy[tb]);
+        ctx.ellipse(pxx[tb] - trx * 0.35, pyy[tb] + trx * 0.10,
+                    trx, trx * 0.34, 0, 0, Math.PI * 2);
+      }
+      ctx.globalAlpha = 0.15;
       ctx.fillStyle = C_SHADOW;
       ctx.fill();
       ctx.globalAlpha = 1;
