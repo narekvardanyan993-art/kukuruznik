@@ -646,6 +646,92 @@
       addXYZ(HX0 - gp + SHX, yGround,  HZ + gp + SHZ)
     ];
 
+    /* ======== соседние дома ========
+       Башня стояла одна посреди поля. В жизни она стоит в районе, и
+       именно соседи объясняют глазу, что это город, а не памятник в
+       чистом поле. Дома простые: коробка, плоская кровля, пояс окон.
+       Вдали цвет светлее и холоднее — та же воздушная перспектива,
+       что и у земли. */
+    var city = [], cityCenters = [], cityParts = [];
+    var crnd = seeded(31337);
+
+    for (var c2 = 0; c2 < 90 && city.length < 13; c2++) {
+      var cang = crnd() * Math.PI * 2;
+      var crad = 8.2 + crnd() * 3.8;
+      var ccx = Math.cos(cang) * crad, ccz = Math.sin(cang) * crad;
+      if (ccx > 0.5 && ccx < 6.4 && Math.abs(ccz) < 2.6) continue;   // за корпусом
+      if (ccx < -0.5 && ccx > -6.2 && Math.abs(ccz) < 2.4) continue; // за крылом
+
+      var bi = city.length;
+      curPart = 20 + bi;
+
+      var bw = 0.62 + crnd() * 0.85;      // половина длины
+      var bd = 0.52 + crnd() * 0.55;      // половина ширины
+      var bh = 0.80 + crnd() * 1.45;
+      var brot = crnd() * Math.PI;
+      var ca2 = Math.cos(brot), sa2 = Math.sin(brot);
+
+      function bpt(lx, lz, y) {
+        return addXYZ(ccx + lx * ca2 - lz * sa2, y, ccz + lx * sa2 + lz * ca2);
+      }
+      var lxs = [-bw, bw, bw, -bw], lzs = [-bd, -bd, bd, bd];
+      var nrm = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+
+      var bb = [], bt = [];
+      for (var k = 0; k < 4; k++) {
+        bb.push(bpt(lxs[k], lzs[k], yGround));
+        bt.push(bpt(lxs[k], lzs[k], bh));
+      }
+
+      var wf = [];
+      for (var k = 0; k < 4; k++) {
+        var k1 = (k + 1) % 4;
+        var nx2 = nrm[k][0] * ca2 - nrm[k][1] * sa2;
+        var nz2 = nrm[k][0] * sa2 + nrm[k][1] * ca2;
+        wf.push(shellRaw('city', bb[k], bb[k1], bt[k1], bt[k], nx2, 0, nz2));
+      }
+      var rf = shellRaw('cityTop', bt[0], bt[1], bt[2], bt[3], 0, 1, 0);
+
+      for (var k = 0; k < 4; k++) {
+        var k1 = (k + 1) % 4;
+        line(bb[k], bb[k1], MED,  wf[k], wf[k]);
+        line(bt[k], bt[k1], MED,  wf[k], rf);
+        line(bb[k], bt[k], MED,   wf[(k + 3) % 4], wf[k]);
+        outline.push(bb[k], bt[k], wf[(k + 3) % 4], wf[k]);
+      }
+
+      // пояс окон: одна лента на стену, дальше глаз всё равно не читает
+      var gy0 = bh * 0.40, gy1 = bh * 0.66;
+      for (var k = 0; k < 4; k++) {
+        var k1 = (k + 1) % 4;
+        var ix0 = lxs[k] + (lxs[k1] - lxs[k]) * 0.14;
+        var iz0 = lzs[k] + (lzs[k1] - lzs[k]) * 0.14;
+        var ix1 = lxs[k] + (lxs[k1] - lxs[k]) * 0.86;
+        var iz1 = lzs[k] + (lzs[k1] - lzs[k]) * 0.86;
+        var nx2 = nrm[k][0] * ca2 - nrm[k][1] * sa2;
+        var nz2 = nrm[k][0] * sa2 + nrm[k][1] * ca2;
+        var bandId = shellRaw('cityBand',
+                 bpt(ix0, iz0, gy0), bpt(ix1, iz1, gy0),
+                 bpt(ix1, iz1, gy1), bpt(ix0, iz0, gy1), nx2, 0, nz2);
+        var NW = 5;
+        for (var w3 = 1; w3 < NW; w3++) {
+          var tt = w3 / NW;
+          line(bpt(ix0 + (ix1 - ix0) * tt, iz0 + (iz1 - iz0) * tt, gy0),
+               bpt(ix0 + (ix1 - ix0) * tt, iz0 + (iz1 - iz0) * tt, gy1),
+               THIN, bandId, bandId);
+        }
+      }
+
+      // всем граням дома ставим его номер — по нему движок их и соберёт
+      for (var q2 = shells.length - 9; q2 < shells.length; q2++) shells[q2].bld = bi;
+      city.push0 = 0;
+
+      city.push({ x: ccx, z: ccz, h: bh });
+      cityCenters.push(ccx, bh * 0.5 - yCenter, ccz);
+      cityParts.push(20 + bi);
+    }
+    curPart = 0;
+
     /* ======== деревья вокруг ========
        Здание стояло на голой лужайке, и от этого вся сцена читалась
        макетом. Деревья — не украшение: они дают масштаб (глаз меряет
@@ -686,6 +772,9 @@
     }
 
     return {
+      city: city,
+      cityCenters: new Float32Array(cityCenters),
+      cityParts: cityParts,
       trees: trees,
       ribs: N,
       floors: F,

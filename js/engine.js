@@ -17,6 +17,9 @@
      Наружные поверхности намеренно НЕПРОЗРАЧНЫЕ. Полупрозрачные
      стены давали рентген: сквозь башню просвечивала её же изнанка,
      и сверху казалось, что здание пустое. */
+  var C_CITY     = 'rgb(188, 184, 174)';   // соседние дома: вдали цвет светлее
+  var C_CITY_TOP = 'rgb(203, 199, 187)';
+  var C_CITY_BND = 'rgb(126, 136, 138)';
   var C_TREE_A   = 'rgb(146, 166, 108)';   // крона на свету
   var C_TREE_B   = 'rgb(126, 150, 100)';   // второй оттенок, чтобы не было ковра
   var C_TREE_DRK = 'rgb(96, 116, 78)';     // теневая половина кроны
@@ -244,6 +247,7 @@
     // земля
     this.drawGround();     // заливка и контур земли — одной гладкой кривой
     this.drawShadows(0);   // тень здания на земле
+    this.drawCity(false);  // дальние соседи — ещё до рощи
     this.drawTrees(false); // дальняя роща — за зданием
 
     // стилобат и лестница
@@ -283,10 +287,49 @@
     if (hz >= 0) this.drawHall();   // корпус ближе башни — ложится поверх
     if (wz >= 0) this.drawWing();
 
+    this.drawCity(true);   // ближние соседи
     this.drawTrees(true);  // ближняя роща — перед зданием
     this.drawAir();       // воздух поверх массы — он касается и линий
     this.drawOutline();   // жирный край — последним, поверх всего
     ctx.globalAlpha = 1;
+  };
+
+  /* Соседние дома. Как и роща: сортируются по глубине и рисуются по
+     одному от дальнего к ближнему, дальние до главного здания,
+     ближние после. Каждый дом — свой слой линий (part 20 + номер). */
+  Engine.prototype.drawCity = function (near) {
+    var m = this.model, r = this.rot;
+    var cc = m.cityCenters;
+    if (!cc || !cc.length) return;
+
+    var order = this.cityBuf || (this.cityBuf = []);
+    order.length = 0;
+    for (var i = 0; i < m.city.length; i++) {
+      var x = cc[i * 3], y = cc[i * 3 + 1], z = cc[i * 3 + 2];
+      var z1 = -x * r.sy + z * r.cy;
+      var z2 = y * r.sp + z1 * r.cp;
+      if ((z2 > 0) !== !!near) continue;
+      order.push(i, z2);
+    }
+    if (!order.length) return;
+
+    for (var a = 0; a < order.length; a += 2) {
+      for (var b = a + 2; b < order.length; b += 2) {
+        if (order[b + 1] < order[a + 1]) {
+          var ti = order[a], tz = order[a + 1];
+          order[a] = order[b]; order[a + 1] = order[b + 1];
+          order[b] = ti; order[b + 1] = tz;
+        }
+      }
+    }
+
+    for (var a = 0; a < order.length; a += 2) {
+      var bi = order[a];
+      this.fillShells('city',     C_CITY,     bi);
+      this.fillShells('cityBand', C_CITY_BND, bi);
+      this.fillShells('cityTop',  C_CITY_TOP, bi);
+      this.strokeBody(m.cityParts[bi]);
+    }
   };
 
   /* Деревья. Два захода: дальние ложатся до здания, ближние — после.
@@ -563,7 +606,7 @@
 
   /* Все ближние грани одного типа — в один путь и одна заливка:
      тогда прозрачность ложится ровно, без швов на стыках. */
-  Engine.prototype.fillShells = function (kind, color) {
+  Engine.prototype.fillShells = function (kind, color, bld) {
     var ctx = this.ctx, shells = this.model.shells;
     var px = this.px, py = this.py;
     var any = false;
@@ -572,6 +615,7 @@
     for (var i = 0; i < shells.length; i++) {
       var f = shells[i];
       if (f.kind !== kind || !f.vis) continue;
+      if (bld !== undefined && f.bld !== bld) continue;
       ctx.moveTo(px[f.a], py[f.a]);
       ctx.lineTo(px[f.b], py[f.b]);
       ctx.lineTo(px[f.c], py[f.c]);
@@ -846,6 +890,33 @@
       for (var q2 = 1; q2 < ws.length; q2++) ctx.lineTo(px[ws[q2]], py[ws[q2]]);
       ctx.closePath();
       ctx.globalAlpha = 0.17;
+      ctx.fillStyle = C_SHADOW;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    if (layer === 0 && this.model.city && this.model.city.length) {
+      var CB = this.model.city, cc2 = this.model.cityCenters;
+      var cy2 = r.cy, sy2 = r.sy, cp2 = r.cp, sp2 = r.sp;
+      ctx.beginPath();
+      for (var ci = 0; ci < CB.length; ci++) {
+        var bx = cc2[ci * 3], bz = cc2[ci * 3 + 2];
+        var byy = this.model.ground.y;
+        var rr = 0.95;
+        for (var q3 = 0; q3 <= 12; q3++) {
+          var aa = q3 / 12 * Math.PI * 2;
+          var sx = bx + Math.cos(aa) * rr * 1.15 + offX * 0.6;
+          var sz = bz + Math.sin(aa) * rr * 0.95 + offZ * 0.6;
+          var x1b = sx * cy2 + sz * sy2, z1b = -sx * sy2 + sz * cy2;
+          var y2b = byy * cp2 - z1b * sp2, z2b = byy * sp2 + z1b * cp2;
+          var db = CAM_DIST - z2b; if (db < 1) db = 1;
+          var kb = FOCAL / db * S;
+          var Xb = ox + x1b * kb, Yb = oy - y2b * kb;
+          if (q3 === 0) ctx.moveTo(Xb, Yb); else ctx.lineTo(Xb, Yb);
+        }
+        ctx.closePath();
+      }
+      ctx.globalAlpha = 0.13;
       ctx.fillStyle = C_SHADOW;
       ctx.fill();
       ctx.globalAlpha = 1;
