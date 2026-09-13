@@ -44,9 +44,13 @@
        сцене или по любой кнопке) и один раз включаем звуковой движок. */
     function unlockSound() {
       document.removeEventListener('pointerdown', unlockSound);
+      document.removeEventListener('touchend', unlockSound);
+      document.removeEventListener('click', unlockSound);
       if (Snd.ensure()) Snd.startAmbient();
     }
     document.addEventListener('pointerdown', unlockSound, { passive: true });
+    document.addEventListener('touchend', unlockSound, { passive: true });
+    document.addEventListener('click', unlockSound, { passive: true });
 
     /* Дрон: медленный облёт с плавным подъёмом и наездом. Не «камера
        летит по маршруту», а спокойный круг — из такого кадра получается
@@ -116,6 +120,7 @@
         TOD += (todTarget - TOD) * Math.min(1, dt * 0.0028);
         refreshTime(false);
       }
+      Snd.updateAmbient();
 
       /* Пока экран не тронули, камера едет сама — очень медленно, чтобы
          это читалось как дыхание, а не как карусель. */
