@@ -122,24 +122,41 @@
       }
     }
 
-    /* Свет в окнах. Ночью часть лоджий горит тёплым — это сильнее
-       всего говорит «здание живое», и стоит одну заливку. */
-    if (NIGHT > 0.2) {
-      var anyL = false;
-      ctx.beginPath();
-      for (var i = 0; i < n; i++) {
-        var f = cells[i];
-        if (!f.vis || (f.grp || 0) !== grp || f.arch) continue;
-        if (f.lamp === undefined || f.lamp > 0.45) continue;
-        if (f.face < 0.30) continue;
-        this.archPath(f, 0.66);
-        anyL = true;
-      }
-      if (anyL) {
-        ctx.globalAlpha = Math.min(1, (NIGHT - 0.2) / 0.4);
-        ctx.fillStyle = C_LAMP;
-        ctx.fill();
-        ctx.globalAlpha = 1;
+    /* Свет в окнах. Раньше все окна разом загорались одной заливкой
+       по одному порогу NIGHT — будто во всём доме щёлкнул один
+       рубильник. Теперь то же случайное f.lamp, что решает, ЧТО
+       горит, ещё делит окна на четыре корзины с разным порогом
+       включения — свет приходит в дом не сразу, а постепенно, окно за
+       окном, как в жизни. Дёшево: четыре fill() вместо одного, а не
+       сотни отдельных вызовов на каждое окно. У каждой корзины ещё и
+       свой медленный пульс яркости — без этого статичный кадр вечером
+       выглядит как одна и та же фотография. */
+    if (NIGHT > 0.15) {
+      var LB = 4, LAMP_ONSET = 0.16, LAMP_SPAN = 0.30, LAMP_FADE = 0.13;
+      for (var lb = 0; lb < LB; lb++) {
+        var onset = LAMP_ONSET + (lb / (LB - 1)) * LAMP_SPAN;
+        var base = Math.min(1, Math.max(0, (NIGHT - onset) / LAMP_FADE));
+        if (base <= 0) continue;
+        var lo = lb / LB, hi = (lb + 1) / LB;
+        var anyL = false;
+        ctx.beginPath();
+        for (var i = 0; i < n; i++) {
+          var f = cells[i];
+          if (!f.vis || (f.grp || 0) !== grp || f.arch) continue;
+          if (f.lamp === undefined || f.lamp > 0.45) continue;
+          var q = f.lamp / 0.45;
+          if (q < lo || q >= hi) continue;
+          if (f.face < 0.30) continue;
+          this.archPath(f, 0.66);
+          anyL = true;
+        }
+        if (anyL) {
+          var pulse = 1 + 0.07 * Math.sin(this.time * 0.6 + lb * 1.7);
+          ctx.globalAlpha = Math.min(1, base * pulse);
+          ctx.fillStyle = C_LAMP;
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
       }
     }
 

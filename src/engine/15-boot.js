@@ -58,7 +58,7 @@
     var droneBtn = document.getElementById('droneBtn');
     var droneT = 0;
     droneBtn.addEventListener('click', function () {
-      Snd.tap(1.08);
+      Snd.tap('drone');
       state.drone = !state.drone;
       droneBtn.setAttribute('aria-pressed', state.drone ? 'true' : 'false');
       toast(state.drone ? 'Облёт включён' : 'Облёт выключен');
@@ -69,7 +69,7 @@
     });
 
     autoBtn.addEventListener('click', function () {
-      Snd.tap(1.08);
+      Snd.tap('auto');
       state.auto = !state.auto;
       autoBtn.setAttribute('aria-pressed', state.auto ? 'true' : 'false');
       toast(state.auto ? 'Поворот включён' : 'Поворот выключен');
@@ -79,7 +79,7 @@
       }
     });
     resetBtn.addEventListener('click', function () {
-      Snd.tap(0.92);
+      Snd.tap('reset');
       resetBtn.classList.remove('tapped');
       void resetBtn.offsetWidth;          // перезапуск анимации
       resetBtn.classList.add('tapped');
@@ -220,13 +220,13 @@
 
     hudBtn.addEventListener('click', function () {
       var next = mode === 'sub' ? 'ring' : (mode === '' ? 'ring' : '');
-      Snd.tap(next === '' ? 0.85 : 1.15);
+      Snd.tap('menu', next === '' ? 0.85 : 1.15);
       setMenu(next);
     });
 
     var weatherBtn = document.getElementById('weatherBtn');
     weatherBtn.addEventListener('click', function () {
-      Snd.tap(1.0);
+      Snd.tap('weather');
       setMenu(mode === 'sub' ? 'ring' : 'sub');
     });
 
@@ -243,7 +243,7 @@
       }
     }
     hideBtn.addEventListener('click', function () {
-      Snd.tap(0.85);
+      Snd.tap('hide');
       setMenu('');
       toast('Полный экран');
       setUI(true);
@@ -259,7 +259,7 @@
       var willUnmute = Snd.isMuted();
       Snd.setMuted(!willUnmute);
       paintSoundBtn();
-      if (willUnmute) Snd.tap(1.0);
+      if (willUnmute) Snd.tap('sound', 1.15);
     });
     paintSoundBtn();
 
@@ -313,8 +313,9 @@
     for (var ci = 0; ci < chips.length; ci++) {
       (function (btn) {
         btn.addEventListener('click', function () {
-          Snd.tap(1.0);
           var v = +btn.getAttribute('data-v');
+          var kMap = { 12: 'morning', 30: 'day', 50: 'dusk', 92: 'night' };
+          Snd.tap(kMap[v] || 'day');
           if (timeEl) timeEl.value = v;
           todTarget = v / 100;
           markChips(v);

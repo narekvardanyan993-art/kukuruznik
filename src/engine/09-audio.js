@@ -1,23 +1,14 @@
   /* ================== ЗВУК ==================
 
-     Тактильные щелчки по кнопкам и живая подложка, которая меняется
-     вместе со временем суток. Всё — чистый Web Audio, без единого
-     аудиофайла: не грузится по сети, нечему подвиснуть на плохом
-     интернете.
+     Тактильные щелчки — у каждой кнопки свой голос, не просто своя
+     высота, — и живая подложка, которая меняется вместе со временем
+     суток. Всё чистый Web Audio, без единого аудиофайла.
 
-     Первая версия иногда молчала на телефоне: звук пытался
-     стартовать только по одному конкретному жесту (pointerdown по
-     сцене), а если человек первым делом нажимал кнопку меню — жеста
-     в нужном месте не случалось. Теперь ensure()/tap() сами создают
-     и будят AudioContext при первом же вызове, из какого угодно
-     обработчика клика, и вдобавок слушаем сразу три типа жеста
-     (pointerdown, touchend, click) — так надёжнее на iOS.
-
-     Если звука всё равно не слышно — стоит проверить обычные вещи:
-     боковой бегунок беззвучного режима на iPhone и громкость самого
-     телефона. Safari по умолчанию слушается беззвучного бегунка для
-     Web Audio, и это ограничение браузера, а не то, что можно
-     обойти из кода страницы. */
+     tap(kind, mul) вызывается из каждой кнопки со своим kind: у
+     каждой — свой базовый тон, свой фильтр, своя длина затухания
+     (см. VOICES ниже), а не просто общий щелчок на разной высоте.
+     mul по-прежнему сдвигает высоту для состояний вкл/выкл одной и
+     той же кнопки. */
   var Snd = (function () {
     var ctx = null, master = null, muted = false, ambientOn = false;
     var chirpTimer = 0, trafficGain = null;
@@ -39,48 +30,10 @@
       return ctx;
     }
 
-    // Создаёт контекст, если его ещё нет, и сразу будит, если уснул —
-    // вызывается и из общего "разлочивателя", и из каждого tap().
     function unlock() {
       var c = ensureCtx();
       if (c && c.state === 'suspended') { try { c.resume(); } catch (e) {} }
       return c;
-    }
-
-    /* Мягкий "тук": два синусa — основной и на октаву ниже, тише —
-       вместо треугольника или пилы. Звук ровный и округлый, ближе к
-       системному тапу iOS, чем к щелчку мыши. mul сдвигает высоту —
-       чуть выше для "включил", чуть ниже для "выключил". */
-    function tap(mul) {
-      var c = unlock();
-      if (!c) return;
-      var t = c.currentTime;
-      var base = 560 * (mul || 1);
-
-      var g = c.createGain();
-      var f = c.createBiquadFilter();
-      f.type = 'lowpass';
-      f.frequency.value = 2600;
-      f.connect(g); g.connect(master);
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.48, t + 0.010);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.120);
-
-      var o1 = c.createOscillator();
-      o1.type = 'sine';
-      o1.frequency.setValueAtTime(base, t);
-      o1.frequency.exponentialRampToValueAtTime(base * 0.8, t + 0.09);
-      o1.connect(f);
-
-      var o2 = c.createOscillator();
-      var g2 = c.createGain();
-      g2.gain.value = 0.45;
-      o2.type = 'sine';
-      o2.frequency.value = base * 0.5;
-      o2.connect(g2); g2.connect(f);
-
-      o1.start(t); o1.stop(t + 0.14);
-      o2.start(t); o2.stop(t + 0.14);
     }
 
     function noiseBuffer(c, seconds) {
@@ -91,11 +44,93 @@
       return buf;
     }
 
+    /* Голос каждой кнопки: базовый тон, частота фильтра, длина
+       затухания, вес нижней "подоктавной" примеси (sub — она и даёт
+       ощущение мягкости/веса). sweepTo — во что соскальзывает высота
+       к концу ноты (по умолчанию 0.8). double/whoosh — редкие
+       дополнительные краски у двух самых "механических" кнопок. */
+    var VOICES = {
+      menu:    { base: 640, filt: 2600, decay: 0.120, sub: 0.45 },
+      weather: { base: 800, filt: 3600, decay: 0.100, sub: 0.28 },
+      drone:   { base: 480, filt: 2000, decay: 0.170, sub: 0.55, sweepTo: 0.62 },
+      auto:    { base: 700, filt: 3000, decay: 0.090, sub: 0.32, double: true },
+      reset:   { base: 400, filt: 1600, decay: 0.180, sub: 0.62 },
+      hide:    { base: 560, filt: 2200, decay: 0.140, sub: 0.38, whoosh: true },
+      sound:   { base: 880, filt: 4200, decay: 0.160, sub: 0.22 },
+      morning: { base: 920, filt: 3800, decay: 0.110, sub: 0.25 },
+      day:     { base: 700, filt: 3000, decay: 0.110, sub: 0.35 },
+      dusk:    { base: 560, filt: 2300, decay: 0.120, sub: 0.42 },
+      night:   { base: 420, filt: 1700, decay: 0.150, sub: 0.55 }
+    };
+
+    // Один и тот же "мягкий тук" (два синуса), но с параметрами голоса.
+    function playVoice(c, v, mul) {
+      var t = c.currentTime;
+      var base = v.base * mul;
+      var g = c.createGain();
+      var f = c.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.value = v.filt;
+      f.connect(g); g.connect(master);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.48, t + 0.010);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + v.decay);
+
+      var o1 = c.createOscillator();
+      o1.type = 'sine';
+      o1.frequency.setValueAtTime(base, t);
+      o1.frequency.exponentialRampToValueAtTime(base * (v.sweepTo || 0.8), t + v.decay * 0.7);
+      o1.connect(f);
+
+      var o2 = c.createOscillator();
+      var g2 = c.createGain();
+      g2.gain.value = v.sub;
+      o2.type = 'sine';
+      o2.frequency.value = base * 0.5;
+      o2.connect(g2); g2.connect(f);
+
+      var stopAt = t + v.decay + 0.02;
+      o1.start(t); o1.stop(stopAt);
+      o2.start(t); o2.stop(stopAt);
+    }
+
+    // Короткий шорох с падающей частотой — для кнопки полного экрана,
+    // будто что-то плавно "задвигается".
+    function playWhoosh(c) {
+      var t = c.currentTime;
+      var src = c.createBufferSource();
+      src.buffer = noiseBuffer(c, 0.25);
+      var bp = c.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.setValueAtTime(1200, t);
+      bp.frequency.exponentialRampToValueAtTime(300, t + 0.22);
+      bp.Q.value = 0.9;
+      var g = c.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.22, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.24);
+      src.connect(bp); bp.connect(g); g.connect(master);
+      src.start(t); src.stop(t + 0.25);
+    }
+
+    function tap(kind, mul) {
+      var c = unlock();
+      if (!c) return;
+      var v = VOICES[kind] || VOICES.menu;
+      playVoice(c, v, mul || 1);
+      if (v.double) {
+        setTimeout(function () {
+          var c2 = unlock();
+          if (c2) playVoice(c2, v, (mul || 1) * 1.12);
+        }, 70);
+      }
+      if (v.whoosh) playWhoosh(c);
+    }
+
     /* Птицы утром и днём, сверчки ночью — выбор не жёстким порогом на
-       NIGHT=0.5, а вероятностью от текущего NIGHT: у самой границы
-       часть трелей ещё птичьи, часть уже сверчки, и смена звучит как
-       переход, а не щелчок тумблера. Частота трелей тоже плывёт:
-       утром живее, к дню реже. */
+       NIGHT=0.5, а вероятностью от текущего NIGHT: переходная зона
+       звучит как смесь, а не щелчок тумблера. Иногда добавляем вторую
+       трель следом — "перекличка", а не одна и та же птица по таймеру. */
     function scheduleChirp() {
       clearTimeout(chirpTimer);
       var night = (typeof NIGHT === 'number') ? NIGHT : 0;
@@ -104,7 +139,12 @@
       var activity = Math.max(0.3, morn) * (1 - Math.min(0.65, night * 0.55));
       var wait = (3500 + Math.random() * 6500) / (0.45 + activity);
       chirpTimer = setTimeout(function () {
-        if (ctx && !muted) chirp();
+        if (ctx && !muted) {
+          chirp();
+          if (Math.random() < 0.3) {
+            setTimeout(function () { if (ctx && !muted) chirp(); }, 320 + Math.random() * 480);
+          }
+        }
         scheduleChirp();
       }, wait);
     }
@@ -146,12 +186,12 @@
       }
     }
 
-    /* Подложка: тихий плавающий гул под всей сценой в любое время
-       суток, плюс отдельный слой машинного гула (фильтрованный шум —
-       без единого файла), чья громкость следует за тем же DUSK/NIGHT,
-       что красит небо и окна. Поэтому вечером звук сам "подъезжает"
-       к картинке машинного гула города, а глубокой ночью стихает, и
-       делает это ровно в такт со сменой освещения, а не отдельно. */
+    /* Подложка: тихий плавающий гул под сценой в любое время суток,
+       мягкий "воздух" (гуляющий ветер, всегда чуть слышен) и слой
+       машинного гула города — громкость последнего следует за тем же
+       DUSK/NIGHT, что красит небо, через setTargetAtTime (плавное
+       скольжение к цели, а не мгновенная подмена числа), поэтому
+       смена звучит вместе со сменой света, а не отдельным щелчком. */
     function startAmbient() {
       if (!ctx || ambientOn) return;
       ambientOn = true;
@@ -172,6 +212,25 @@
         lfo.start(); o.start();
       });
 
+      // тихий воздух — гуляющий ветер, чуть колышется по громкости
+      var windGain = ctx.createGain();
+      windGain.gain.value = 0.018;
+      windGain.connect(master);
+      var windSrc = ctx.createBufferSource();
+      windSrc.buffer = noiseBuffer(ctx, 4);
+      windSrc.loop = true;
+      var windBP = ctx.createBiquadFilter();
+      windBP.type = 'bandpass'; windBP.frequency.value = 900; windBP.Q.value = 0.5;
+      windSrc.connect(windBP); windBP.connect(windGain);
+      windSrc.start();
+      var gustLFO = ctx.createOscillator();
+      var gustLFOGain = ctx.createGain();
+      gustLFO.frequency.value = 0.045;
+      gustLFOGain.gain.value = 0.010;
+      gustLFO.connect(gustLFOGain); gustLFOGain.connect(windGain.gain);
+      gustLFO.start();
+
+      // гул города — фильтрованный шум, громкость решает updateAmbient()
       var noiseSrc = ctx.createBufferSource();
       noiseSrc.buffer = noiseBuffer(ctx, 3);
       noiseSrc.loop = true;
@@ -187,17 +246,16 @@
       scheduleChirp();
     }
 
-    /* Вызывается каждый кадр — дёшево, пара умножений и запись одного
-       числа. Громкость машинного гула следует за TOD/DUSK/NIGHT,
-       которые и так пересчитываются каждый кадр для цвета неба, так
-       что звук меняется в тот же момент и с той же плавностью, что и
-       картинка, а не отдельным резким переключением. */
+    /* Вызывается каждый кадр. setTargetAtTime вместо прямого
+       присваивания — сглаживает саму передачу числа в звук, поверх
+       того, что TOD и так подъезжает к цели плавно кадр за кадром:
+       переход слышен как непрерывное скольжение. */
     function updateAmbient() {
       if (!ctx || !ambientOn || !trafficGain) return;
       var dusk = (typeof DUSK === 'number') ? DUSK : 0;
       var night = (typeof NIGHT === 'number') ? NIGHT : 0;
-      var traffic = Math.min(0.5, dusk * 1.15 + night * 0.22);
-      trafficGain.gain.value = traffic * 0.055;
+      var traffic = Math.min(0.55, 0.05 + dusk * 1.05 + night * 0.20);
+      trafficGain.gain.setTargetAtTime(traffic * 0.055, ctx.currentTime, 0.8);
     }
 
     function setMuted(m) {

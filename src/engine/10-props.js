@@ -215,7 +215,9 @@
     if (!L) return;
     var ctx = this.ctx, px = this.px, py = this.py, pz = this.pz;
 
-    // свет кладём ПОД мачты, иначе он ложится поверх них молочным пятном
+    // свет кладём ПОД мачты, иначе он ложится поверх них молочным пятном.
+    // У каждого фонаря свой медленный пульс (фаза от индекса) — иначе
+    // ровный свет всей площадки выглядит одной застывшей фотографией.
     if (NIGHT > 0.15) {
       var al = Math.min(1, (NIGHT - 0.15) / 0.35);
       ctx.globalCompositeOperation = 'lighter';
@@ -223,9 +225,10 @@
         var tp = L[i].t;
         var k = FOCAL / Math.max(1, CAM_DIST - pz[tp]) * this.S;
         var rr = k * 0.42;
+        var alI = al * (1 + 0.08 * Math.sin(this.time * 0.85 + i * 2.1));
         var g = ctx.createRadialGradient(px[tp], py[tp], 0, px[tp], py[tp], rr);
-        g.addColorStop(0, 'rgba(255, 214, 140, ' + (0.55 * al).toFixed(3) + ')');
-        g.addColorStop(0.45, 'rgba(255, 200, 120, ' + (0.16 * al).toFixed(3) + ')');
+        g.addColorStop(0, 'rgba(255, 214, 140, ' + (0.55 * alI).toFixed(3) + ')');
+        g.addColorStop(0.45, 'rgba(255, 200, 120, ' + (0.16 * alI).toFixed(3) + ')');
         g.addColorStop(1, 'rgba(255, 190, 110, 0)');
         ctx.fillStyle = g;
         ctx.beginPath();
