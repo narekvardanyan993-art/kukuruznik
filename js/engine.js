@@ -7,6 +7,8 @@
 (function (global) {
   'use strict';
 
+  var BUILD = '19';     // видно на самой странице — чтобы не гадать, свежая ли версия
+
   var PAPER = '#f5ecda';
   var INK   = '#2f2a25';
 
@@ -17,6 +19,8 @@
      Наружные поверхности намеренно НЕПРОЗРАЧНЫЕ. Полупрозрачные
      стены давали рентген: сквозь башню просвечивала её же изнанка,
      и сверху казалось, что здание пустое. */
+  var C_TERR     = 'rgb(150, 148, 142)';   // камень подпорных стен
+  var C_TERRTOP  = 'rgb(176, 188, 140)';   // трава на террасе
   var C_CITY     = 'rgb(188, 184, 174)';   // соседние дома: вдали цвет светлее
   var C_CITY_TOP = 'rgb(203, 199, 187)';
   var C_CITY_BND = 'rgb(126, 136, 138)';
@@ -249,6 +253,11 @@
     this.drawShadows(0);   // тень здания на земле
     this.drawCity(false);  // дальние соседи — ещё до рощи
     this.drawTrees(false); // дальняя роща — за зданием
+
+    // подпорные террасы склона — уже после дальнего плана
+    this.fillShells('terrTop', C_TERRTOP);
+    this.fillShells('terr',    C_TERR);
+    this.strokeBody(2);
 
     // стилобат и лестница
     this.fillShells('podium',  C_PODIUM);
@@ -1098,7 +1107,10 @@
     }
 
     global.requestAnimationFrame(frame);
-    global.Kukuruznik = { engine: engine, state: state, controls: controls };
+    var hintEl = global.document.getElementById('hint');
+    if (hintEl) hintEl.textContent += ' · сборка ' + BUILD;
+
+    global.Kukuruznik = { engine: engine, state: state, controls: controls, build: BUILD };
   }
 
   if (document.readyState === 'loading') {

@@ -184,13 +184,32 @@
        Плоская лужайка была враньём: вокруг площадки земля уходит вниз,
        и город лежит НИЖЕ здания, а не рядом с ним. */
     var GN = 48, rGround = 13.0;
-    var rPlateau = 5.0, hDrop = 2.15;
 
+    /* Склон срезан каменными подпорными террасами — как на фотографии.
+       Плавный перегиб был слишком робким: на экране он читался просто
+       чуть скошенной травой. Ступени из камня врезаются в глаз сразу
+       и говорят «это вершина» без всяких объяснений. */
+    /* Масштаб: башня высотой 5.2 единицы — это около 60 метров, значит
+       единица примерно 11 метров. Подпорная стенка в жизни метра три,
+       то есть 0.27 единицы. Первый заход дал стенки по 1.05 — вышли
+       заборы в четыре этажа, накрывшие треть экрана. */
+    var TR = [
+      { r: 4.90, y: yGround },
+      { r: 6.10, y: yGround - 0.28 },
+      { r: 7.40, y: yGround - 0.58 },
+      { r: 8.80, y: yGround - 0.90 }
+    ];
+    var hFoot = yGround - 1.75;    // низ склона у края земли
+
+    /* Высота земли на радиусе r. По ней сажается ВСЁ, что стоит
+       снаружи площадки: деревья, соседние дома, тени. */
     function groundY(r) {
-      if (r <= rPlateau) return yGround;
-      var t = (r - rPlateau) / (rGround - rPlateau);
+      if (r <= TR[0].r) return TR[0].y;
+      for (var i = 1; i < TR.length; i++) if (r <= TR[i].r) return TR[i].y;
+      var last = TR[TR.length - 1];
+      var t = (r - last.r) / (rGround - last.r);
       if (t > 1) t = 1;
-      return yGround - hDrop * t * t * (3 - 2 * t);   // плавный перегиб
+      return last.y + (hFoot - last.y) * t;
     }
 
     var groundRing = new Array(GN);
@@ -200,6 +219,39 @@
     }
 
     var FRONT_A = -Math.PI / 2;       // куда смотрит фасад: в сторону −Z
+
+    /* ======== подпорные террасы склона ======== */
+    curPart = 2;
+    var TM = 28;
+    for (var ti = 0; ti < TR.length; ti++) {
+      var yTop2 = TR[ti].y;
+      var yBot2 = (ti + 1 < TR.length) ? TR[ti + 1].y : hFoot;
+      var rIn2  = TR[ti].r;
+      var rOut2 = (ti + 1 < TR.length) ? TR[ti + 1].r : rGround * 0.97;
+
+      /* Тут важно то, на чём я уже обжёгся: мало опустить КРАЙ земли.
+         Если между площадкой и краем нет настоящей поверхности, то
+         рельеф есть только в силуэте, а всё, что на нём стоит, висит
+         или тонет. Поэтому у каждой ступени два пояса: отвесная
+         каменная стенка и горизонтальная площадка под ней. Именно на
+         эти площадки и садятся деревья с домами. */
+      var stone = ti + 1 < TR.length;
+
+      var wTop = ring(TM, rIn2, yTop2);
+      var wBot = ring(TM, rIn2, yBot2);
+      var apron = ring(TM, rOut2, yBot2);
+
+      if (stone) {
+        var wIds = band('terr', wBot, wTop, 0, true);
+        var aIds = band('terrTop', apron, wBot, 6, true);
+        ringLines(wTop, MED, wIds, null);
+        ringLines(wBot, THIN, aIds, wIds);
+      } else {
+        // последняя ступень — не стенка, а трава, уходящая вниз склоном
+        band('terrTop', apron, wTop, 2, true);
+      }
+    }
+    curPart = 0;
 
     // ======== стилобат ========
     curPart = 3;
@@ -684,7 +736,7 @@
     var city = [], cityCenters = [], cityParts = [];
     var crnd = seeded(31337);
 
-    for (var c2 = 0; c2 < 140 && city.length < 18; c2++) {
+    for (var c2 = 0; c2 < 140 && city.length < 14; c2++) {
       var cang = crnd() * Math.PI * 2;
       var crad = 7.4 + crnd() * 4.6;
       var ccx = Math.cos(cang) * crad, ccz = Math.sin(cang) * crad;
@@ -787,7 +839,7 @@
       return true;
     }
 
-    for (var t2 = 0; t2 < 200 && trees.length < 60; t2++) {
+    for (var t2 = 0; t2 < 200 && trees.length < 46; t2++) {
       var ang = trnd() * Math.PI * 2;
       var rad = 3.4 + trnd() * 7.2;
       var tx = Math.cos(ang) * rad, tz = Math.sin(ang) * rad;
