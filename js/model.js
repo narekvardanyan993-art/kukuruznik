@@ -792,9 +792,19 @@
     var city = [], cityCenters = [], cityParts = [];
     var crnd = seeded(31337);
 
+    /* Раньше дома садились по чистому кругу — угол и радиус оба
+       случайные. На экране это читалось как рулетка, а не район: одни
+       торчали за неровным краем земли (радиус доходил до 12.0, а край
+       на некоторых углах лежит ниже 12.3), другие стояли по одному
+       посреди пустоты. Теперь у района четыре стороны — как кучки
+       соседних дворов, а не забор из коробок по периметру — и радиус
+       не подходит к краю ближе чем на разумный запас. */
+    var CITY_CLUSTERS = [0.35, 2.10, 3.55, 5.15];
+
     for (var c2 = 0; c2 < 140 && city.length < 14; c2++) {
-      var cang = crnd() * Math.PI * 2;
-      var crad = 7.4 + crnd() * 4.6;
+      var clusterA = CITY_CLUSTERS[c2 % CITY_CLUSTERS.length];
+      var cang = clusterA + (crnd() - 0.5) * 0.9;
+      var crad = 7.4 + crnd() * 3.4;
       var ccx = Math.cos(cang) * crad, ccz = Math.sin(cang) * crad;
       if (ccx > 0.5 && ccx < 6.4 && Math.abs(ccz) < 2.6) continue;   // за корпусом
       if (ccx < -0.5 && ccx > -6.2 && Math.abs(ccz) < 2.4) continue; // за крылом
