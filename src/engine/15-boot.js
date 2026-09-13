@@ -39,12 +39,22 @@
       state.idle = false;          // человек взял управление — не мешаем
     });
 
+    /* Звук нельзя запустить без касания — это правило браузера, не
+       наше. Ловим самое первое касание где угодно на странице (по
+       сцене или по любой кнопке) и один раз включаем звуковой движок. */
+    function unlockSound() {
+      document.removeEventListener('pointerdown', unlockSound);
+      if (Snd.ensure()) Snd.startAmbient();
+    }
+    document.addEventListener('pointerdown', unlockSound, { passive: true });
+
     /* Дрон: медленный облёт с плавным подъёмом и наездом. Не «камера
        летит по маршруту», а спокойный круг — из такого кадра получается
        готовый ролик без единого касания. */
     var droneBtn = document.getElementById('droneBtn');
     var droneT = 0;
     droneBtn.addEventListener('click', function () {
+      Snd.tap(1.08);
       state.drone = !state.drone;
       droneBtn.setAttribute('aria-pressed', state.drone ? 'true' : 'false');
       toast(state.drone ? 'Облёт включён' : 'Облёт выключен');
@@ -55,6 +65,7 @@
     });
 
     autoBtn.addEventListener('click', function () {
+      Snd.tap(1.08);
       state.auto = !state.auto;
       autoBtn.setAttribute('aria-pressed', state.auto ? 'true' : 'false');
       toast(state.auto ? 'Поворот включён' : 'Поворот выключен');
@@ -64,6 +75,7 @@
       }
     });
     resetBtn.addEventListener('click', function () {
+      Snd.tap(0.92);
       resetBtn.classList.remove('tapped');
       void resetBtn.offsetWidth;          // перезапуск анимации
       resetBtn.classList.add('tapped');
@@ -202,11 +214,14 @@
     }
 
     hudBtn.addEventListener('click', function () {
-      setMenu(mode === 'sub' ? 'ring' : (mode === '' ? 'ring' : ''));
+      var next = mode === 'sub' ? 'ring' : (mode === '' ? 'ring' : '');
+      Snd.tap(next === '' ? 0.85 : 1.15);
+      setMenu(next);
     });
 
     var weatherBtn = document.getElementById('weatherBtn');
     weatherBtn.addEventListener('click', function () {
+      Snd.tap(1.0);
       setMenu(mode === 'sub' ? 'ring' : 'sub');
     });
 
@@ -222,7 +237,26 @@
         try { document.exitFullscreen(); } catch (e) {}
       }
     }
-    hideBtn.addEventListener('click', function () { setMenu(''); toast('Полный экран'); setUI(true); });
+    hideBtn.addEventListener('click', function () {
+      Snd.tap(0.85);
+      setMenu('');
+      toast('Полный экран');
+      setUI(true);
+    });
+
+    /* Кнопка звука — отдельно от кольца меню: там и так впритык с
+       пятью иконками, а звук нужен реже, чем остальное. */
+    var soundBtn = document.getElementById('soundBtn');
+    function paintSoundBtn() {
+      soundBtn.setAttribute('aria-pressed', Snd.isMuted() ? 'false' : 'true');
+    }
+    soundBtn.addEventListener('click', function () {
+      var willUnmute = Snd.isMuted();
+      Snd.setMuted(!willUnmute);
+      paintSoundBtn();
+      if (willUnmute) Snd.tap(1.0);
+    });
+    paintSoundBtn();
 
     var tapX = 0, tapY = 0, tapT = 0;
     stage.addEventListener('pointerdown', function (e) {
@@ -274,6 +308,7 @@
     for (var ci = 0; ci < chips.length; ci++) {
       (function (btn) {
         btn.addEventListener('click', function () {
+          Snd.tap(1.0);
           var v = +btn.getAttribute('data-v');
           if (timeEl) timeEl.value = v;
           todTarget = v / 100;
@@ -296,7 +331,7 @@
 
     global.Kukuruznik = {
       engine: engine, state: state, controls: controls,
-      build: BUILD, setTime: applyTime
+      build: BUILD, setTime: applyTime, snd: Snd
     };
   }
 

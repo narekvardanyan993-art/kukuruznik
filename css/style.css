@@ -449,7 +449,41 @@ body.night { background: #0d1230; }
 
 body.ui-off #hud,
 body.ui-off #fps,
+body.ui-off #soundBtn,
 body.ui-off #hint { opacity: 0; pointer-events: none; }
+
+/* ---------- кнопка звука ---------- */
+
+#soundBtn {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
+  left: 12px;
+  z-index: 10;
+  width: 38px;
+  height: 38px;
+  margin: 0;
+  border-radius: 19px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  touch-action: manipulation;
+  opacity: 0.55;
+  transition: transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 320ms ease,
+              background 300ms ease, border-color 450ms ease,
+              color 450ms ease, box-shadow 450ms ease;
+}
+#soundBtn svg { width: 19px; height: 19px; display: block; }
+#soundBtn .off-i { display: none; }
+#soundBtn[aria-pressed="false"] .on-i { display: none; }
+#soundBtn[aria-pressed="false"] .off-i { display: block; }
+#soundBtn:active { transform: scale(0.88); }
+
+@media (hover: hover) and (pointer: fine) {
+  #soundBtn:hover { opacity: 0.85; background: rgba(255, 255, 255, 0.12); }
+  body.night #soundBtn:hover { background: rgba(150, 178, 240, 0.14); }
+}
 
 /* ---------- ползунок дня и ночи ---------- */
 
