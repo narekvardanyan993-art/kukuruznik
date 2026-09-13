@@ -10,7 +10,7 @@
 (function (global) {
   'use strict';
 
-  var BUILD = '51';     // видно на самой странице — чтобы не гадать, свежая ли версия
+  var BUILD = '52';     // видно на самой странице — чтобы не гадать, свежая ли версия
 
   var PAPER = '#f5ecda';
   var INK   = '#2f2a25';
@@ -79,6 +79,7 @@
   var TOD = 0.26;     // 0 — раннее утро, 1 — глубокая ночь
   var NIGHT = 0;      // насколько темно (0..1)
   var DUSK = 0;       // насколько «золотой час» (0..1)
+  var DAWN = 0;        // насколько раннее утро, лёгкая холодная дымка (0..1)
 
   function parseCol(str) {
     var m = str.match(/[\d.]+/g);
@@ -90,6 +91,17 @@
 
   function tint(b) {
     var r = b[0], g = b[1], bl = b[2];
+    /* Рассвет: без этого утро — единственное время суток вообще без
+       цветокоррекции (DUSK и NIGHT оба нулевые), и именно поэтому
+       трава с землёй смотрелись плоско и мультяшно — голый базовый
+       цвет без единого прилагательного. Лёгкая холодная дымка: чуть
+       к серому и в синеву, самую малость. */
+    if (DAWN > 0) {
+      var haze = (r + g + bl) / 3;
+      r += (haze - r) * 0.16 * DAWN - 5 * DAWN;
+      g += (haze - g) * 0.16 * DAWN - 1 * DAWN;
+      bl += (haze - bl) * 0.16 * DAWN + 9 * DAWN;
+    }
     // закат: света становится меньше, но он теплеет
     r += 17 * DUSK; g += 2 * DUSK; bl -= 13 * DUSK;
     // ночь: гасим и уводим в синеву
@@ -158,6 +170,8 @@
     NIGHT = t < 0.46 ? 0 : Math.min(1, (t - 0.46) / 0.40);
     var d = 1 - Math.abs(t - 0.50) / 0.22;
     DUSK = d > 0 ? d : 0;
+    var dw = 1 - Math.abs(t - 0.09) / 0.17;
+    DAWN = dw > 0 ? dw : 0;
 
     C_PAVE = tint(B.PAVE);
     C_TERR = tint(B.TERR);         C_TERRTOP = tint(B.TERRTOP);
@@ -509,8 +523,24 @@
      ближние после. Каждый дом — свой слой линий (part 20 + номер). */
   /* Один соседний дом. */
   Engine.prototype.drawOneCity = function (bi) {
-    this.fillShells('city',     C_CITY,     bi);
-    this.fillShells('cityBand', C_CITY_BND, bi);
+    this.fillShells('city', C_CITY, bi);
+
+    /* Раньше окна ВСЕХ соседних домов грели одним и тем же глобальным
+       цветом сразу — то же "один рубильник на весь квартал", что было
+       у самой башни. Теперь у каждого дома свой порог включения
+       (тот же приём, что у окон башни и у фонарей) и свой медленный
+       пульс — квартал зажигается постепенно, дом за домом. */
+    var bnd = C_CITY_BND;
+    if (NIGHT > 0.08) {
+      var cb = this.model.city[bi];
+      var seed = (cb && typeof cb.lamp === 'number') ? cb.lamp : 0.5;
+      var onset = 0.12 + seed * 0.34;
+      var amt = Math.min(1, Math.max(0, (NIGHT - onset) / 0.16)) * 0.85;
+      var pulse = amt > 0 ? (1 + 0.06 * Math.sin(this.time * 0.7 + seed * 22)) : 1;
+      bnd = lamp(B.CITY_BND, Math.min(1, Math.max(0, amt * pulse)));
+    }
+    this.fillShells('cityBand', bnd, bi);
+
     this.fillShells('cityTop',  C_CITY_TOP, bi);
     this.fillShells('cityPara', C_CITY,     bi);
     this.strokeBody(this.model.cityParts[bi]);

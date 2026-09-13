@@ -17,6 +17,8 @@
     NIGHT = t < 0.46 ? 0 : Math.min(1, (t - 0.46) / 0.40);
     var d = 1 - Math.abs(t - 0.50) / 0.22;
     DUSK = d > 0 ? d : 0;
+    var dw = 1 - Math.abs(t - 0.09) / 0.17;
+    DAWN = dw > 0 ? dw : 0;
 
     C_PAVE = tint(B.PAVE);
     C_TERR = tint(B.TERR);         C_TERRTOP = tint(B.TERRTOP);

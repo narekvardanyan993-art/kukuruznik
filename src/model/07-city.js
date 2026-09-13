@@ -146,7 +146,7 @@
       for (var q2 = shellStart; q2 < shells.length; q2++) shells[q2].bld = bi;
       city.push0 = 0;
 
-      city.push({ x: ccx, z: ccz, h: bh });
+      city.push({ x: ccx, z: ccz, h: bh, lamp: crnd() });
       cityCenters.push(ccx, cby + bh * 0.5 - yCenter, ccz);
       cityParts.push(20 + bi);
     }

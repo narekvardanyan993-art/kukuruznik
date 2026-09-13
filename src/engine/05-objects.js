@@ -1,6 +1,22 @@
   Engine.prototype.drawOneCity = function (bi) {
-    this.fillShells('city',     C_CITY,     bi);
-    this.fillShells('cityBand', C_CITY_BND, bi);
+    this.fillShells('city', C_CITY, bi);
+
+    /* Раньше окна ВСЕХ соседних домов грели одним и тем же глобальным
+       цветом сразу — то же "один рубильник на весь квартал", что было
+       у самой башни. Теперь у каждого дома свой порог включения
+       (тот же приём, что у окон башни и у фонарей) и свой медленный
+       пульс — квартал зажигается постепенно, дом за домом. */
+    var bnd = C_CITY_BND;
+    if (NIGHT > 0.08) {
+      var cb = this.model.city[bi];
+      var seed = (cb && typeof cb.lamp === 'number') ? cb.lamp : 0.5;
+      var onset = 0.12 + seed * 0.34;
+      var amt = Math.min(1, Math.max(0, (NIGHT - onset) / 0.16)) * 0.85;
+      var pulse = amt > 0 ? (1 + 0.06 * Math.sin(this.time * 0.7 + seed * 22)) : 1;
+      bnd = lamp(B.CITY_BND, Math.min(1, Math.max(0, amt * pulse)));
+    }
+    this.fillShells('cityBand', bnd, bi);
+
     this.fillShells('cityTop',  C_CITY_TOP, bi);
     this.fillShells('cityPara', C_CITY,     bi);
     this.strokeBody(this.model.cityParts[bi]);
