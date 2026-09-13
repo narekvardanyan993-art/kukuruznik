@@ -242,11 +242,10 @@
     this.drawShadows(0);   // тень здания на земле
 
     // стилобат и лестница
-    if (!global.__noBack) this.strokeGroup(false, -1, 0, 1.1, 0.80, 3);
     this.fillShells('podium',  C_PODIUM);
     this.fillShells('deck',    C_DECK);
     this.hatch();
-    if (!global.__noFront3) this.strokeBody(3);
+    this.strokeBody(3);
     this.drawShadows(1);   // тень башни на террасе — уже поверх террасы
 
     /* Нижний корпус стоит сбоку, а не сверху, поэтому очередь у него
@@ -293,8 +292,8 @@
   Engine.prototype.strokeBody = function (part) {
     var widths = [0.75, 1.25, 1.9];
     for (var s = 0; s < 3; s++) {
-      this.strokeGroup(true, s, 0, widths[s], 0.85, part);
-      this.strokeGroup(true, s, 1, widths[s] * 0.8, 0.38, part);
+      this.strokeGroup(s, 0, widths[s], 0.85, part);
+      this.strokeGroup(s, 1, widths[s] * 0.8, 0.38, part);
     }
   };
 
@@ -753,14 +752,24 @@
   /* Обводка линий одним путём.
      front — ближняя половина или дальняя; style — толщина (-1 = любая);
      pass — какой набор дрожания взять. */
-  Engine.prototype.strokeGroup = function (front, style, pass, width, alpha, part) {
+  /* Обводка линий одним путём.
+     Ребро рисуется тогда, и только тогда, когда хотя бы одна из двух
+     граней, сходящихся в нём, смотрит на камеру. Низ дальней стены не
+     видит никто — он и не рисуется. Дальний край площадки видно —
+     он рисуется. Раньше решали по направлению «наружу от оси», и
+     дальние рёбра лезли поверх здания: картинка была прозрачной.
+
+     ВАЖНО про имена переменных: угол поворота лежит в cosY/sinY, а не
+     в cy/sy. Раньше здесь была локальная sy для экранной координаты,
+     и она затирала синус угла — после первой же линии проверка
+     видимости считала мусор. Ровно отсюда и росли полоски. */
+  Engine.prototype.strokeGroup = function (style, pass, width, alpha, part) {
     var ctx = this.ctx, m = this.model;
     var lines = m.lines, styles = m.styles, jit = this.jit;
-    var parts = m.parts, nocull = m.nocull;
+    var parts = m.parts, lfa = m.lfa, lfb = m.lfb, ldir = m.ldir;
+    var shells = m.shells;
     var px = this.px, py = this.py;
-    var ldir = this.ldir;
-    var cy = this.rot.cy, sy = this.rot.sy;
-    var seeTop = this.rot.sp > 0.36;   // смотрим сверху настолько, что крыша раскрылась
+    var cosY = this.rot.cy, sinY = this.rot.sy;
     var count = styles.length;
     var off = pass * 4;
 
@@ -770,19 +779,17 @@
       if (style >= 0 && styles[i] !== style) continue;
       if (part >= 0 && parts[i] !== part) continue;
 
-      /* На ближней стороне линия или на дальней — по направлению наружу.
-         Кольца крыши (флаг nocull) рисуются целиком, но только когда
-         крышу и правда видно сверху. Сбоку полное кольцо превращается
-         в парящий обруч над колпаком, и там нужна обычная половинка. */
-      var nc = nocull[i];
-      if (nc === 2 && !seeTop) continue;   // линия только для вида сверху
-      var nx = ldir[i * 2], nz = ldir[i * 2 + 1];
-      var facing = (nc > 0 && seeTop) || (nx === 0 && nz === 0) ||
-                   (-nx * sy + nz * cy) > -0.03;
-      if (facing !== front) continue;
+      var fa = lfa[i], fb = lfb[i], vis;
+      if (fa < 0 && fb < 0) {
+        // у прямых стен корпуса граней не записано — идём по нормали
+        var nx = ldir[i * 2], nz = ldir[i * 2 + 1];
+        vis = (nx === 0 && nz === 0) || (-nx * sinY + nz * cosY) > -0.03;
+      } else {
+        vis = (fa >= 0 && shells[fa].vis) || (fb >= 0 && shells[fb].vis);
+      }
+      if (!vis) continue;
 
       var a = lines[i * 2], b = lines[i * 2 + 1];
-
       var o = i * 12;
       var x1 = px[a] + jit[o + off];
       var y1 = py[a] + jit[o + off + 1];
@@ -796,13 +803,13 @@
 
       // Перелёт за угол — так рисует рука, а не плоттер
       var e1 = jit[o + 10], e2 = jit[o + 11];
-      var sx = x1 - ux * e1, sy = y1 - uy * e1;
-      var ex = x2 + ux * e2, ey = y2 + uy * e2;
+      var ax = x1 - ux * e1, ay = y1 - uy * e1;
+      var bx = x2 + ux * e2, by = y2 + uy * e2;
 
       // Лёгкий изгиб: середина сдвинута поперёк линии
       var bow = jit[o + 8 + pass];
-      ctx.moveTo(sx, sy);
-      ctx.quadraticCurveTo((sx + ex) * 0.5 - uy * bow, (sy + ey) * 0.5 + ux * bow, ex, ey);
+      ctx.moveTo(ax, ay);
+      ctx.quadraticCurveTo((ax + bx) * 0.5 - uy * bow, (ay + by) * 0.5 + ux * bow, bx, by);
       any = true;
     }
     if (!any) return;

@@ -27,5 +27,9 @@ SVG с пересборкой DOM каждый кадр НЕ использов�
 ## Стек
 Чистый HTML/CSS/JS, без фреймворков. Публикация на GitHub Pages.
 
+## Ссылки
+Живой сайт: https://narekvardanyan993-art.github.io/kukuruznik/
+Репозиторий: https://github.com/narekvardanyan993-art/kukuruznik
+
 ## Журнал
 Ведётся в LOG.md
