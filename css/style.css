@@ -183,8 +183,21 @@ body.night { background: #0d1230; }
 /* Кнопка должна чуть проседать под пальцем, как любая живая кнопка
    в iOS -- у лучей меню (.ri) такой отклик уже был, у самой звезды
    почему-то нет. */
-#hudBtn:active { transform: scale(0.90); }
-#hud.ring #hudBtn:active { transform: rotate(180deg) scale(0.86); }
+#hudBtn:active {
+  transform: scale(0.90);
+  box-shadow: inset 0 1.5px 0 var(--g-top), inset 0 -1px 0 var(--g-bot),
+              var(--g-drop), 0 0 0 10px rgba(255, 255, 255, 0.14);
+}
+#hud.ring #hudBtn:active {
+  transform: rotate(180deg) scale(0.86);
+  box-shadow: inset 0 1.5px 0 var(--g-top), inset 0 -1px 0 var(--g-bot),
+              var(--g-drop), 0 0 0 10px rgba(255, 255, 255, 0.14);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  #hudBtn:hover { background: rgba(255, 255, 255, 0.12); }
+  body.night #hudBtn:hover { background: rgba(150, 178, 240, 0.14); }
+}
 
 #hudBtn svg { width: 26px; height: 26px; display: block; }
 #hudBtn .close-i, #hudBtn .back-i { display: none; }
@@ -214,9 +227,9 @@ body.night { background: #0d1230; }
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 46px;
-  height: 46px;
-  margin: -23px 0 0 -23px;
+  width: 54px;
+  height: 54px;
+  margin: -27px 0 0 -27px;
   z-index: 2;
   transform: translate(0, 0) scale(0.28);
   opacity: 0;
@@ -253,8 +266,8 @@ body.night { background: #0d1230; }
 .ri {
   appearance: none;
   -webkit-appearance: none;
-  width: 46px;
-  height: 46px;
+  width: 54px;
+  height: 54px;
   margin: 0;
   padding: 0;
   border: 1px solid var(--g-line);
@@ -265,16 +278,34 @@ body.night { background: #0d1230; }
   justify-content: center;
   cursor: pointer;
   touch-action: manipulation;
-  transition: background 220ms ease, color 220ms ease,
-              transform 160ms ease, box-shadow 450ms ease;
+  transition: background 260ms ease, color 260ms ease,
+              transform 160ms ease, box-shadow 380ms ease;
 }
 
-.ri:active { transform: scale(0.88); }
-.ri svg { width: 22px; height: 22px; display: block; }
+/* Нажатие пальцем должно быть видно, не только чувствоваться: короткая
+   яркая вспышка стекла вокруг кнопки поверх обычного проседания. */
+.ri:active {
+  transform: scale(0.88);
+  background: var(--g-on-bg);
+  box-shadow: inset 0 1.5px 0 var(--g-top), inset 0 -1px 0 var(--g-bot),
+              0 0 0 9px rgba(255, 255, 255, 0.16);
+}
+.ri svg { width: 25px; height: 25px; display: block; }
+
+/* На мыши (не на пальце) — мягкая подсветка под курсором; на тачскрине
+   этого правила просто нет, чтобы подсветка не "залипала" после тапа. */
+@media (hover: hover) and (pointer: fine) {
+  .ri:hover { background: rgba(255, 255, 255, 0.14); }
+  body.night .ri:hover { background: rgba(150, 178, 240, 0.16); }
+}
 
 .ri[aria-pressed="true"] {
   background: var(--g-on-bg);
   color: var(--g-on-text);
+  /* Включённый пункт (Облёт/Поворот) светится мягким ровным ореолом —
+     тот же язык стекла, что и у остальной панели, но заметно живой. */
+  box-shadow: inset 0 1.5px 0 var(--g-top), inset 0 -1px 0 var(--g-bot),
+              0 0 12px 2px rgba(255, 255, 255, 0.30);
 }
 
 /* Подписей под иконками нет намеренно: на дуге они налезают на соседние
@@ -382,15 +413,28 @@ body.night { background: #0d1230; }
   font-size: 11.5px;
   cursor: pointer;
   touch-action: manipulation;
-  transition: background 200ms ease, color 200ms ease, transform 160ms ease;
+  transition: background 260ms ease, color 260ms ease, transform 160ms ease,
+              box-shadow 380ms ease;
 }
 
-.chip:active { transform: scale(0.93); }
+@media (hover: hover) and (pointer: fine) {
+  .chip:hover { background: rgba(255, 255, 255, 0.18); }
+  body.night .chip:hover { background: rgba(150, 178, 240, 0.20); }
+}
 
+.chip:active {
+  transform: scale(0.93);
+  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.14);
+}
+
+/* Выбранное время суток светится, а не просто перекрашивается —
+   тот же приём, что у кнопок меню: мягкий внешний ореол поверх
+   верхнего блика стекла. */
 .chip[aria-pressed="true"] {
   background: var(--g-on-bg);
   color: var(--g-on-text);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55),
+              0 0 10px 1px rgba(255, 255, 255, 0.28);
 }
 
 /* --- анимации внутри иконок --- */
