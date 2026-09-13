@@ -299,6 +299,7 @@
   Engine.prototype.drawWing = function () {
     this.fillShells('wing',     C_HALL);
     this.drawCells(5);
+    this.fillShells('wingGlass', C_GLASS);
     this.fillShells('wingCorn', C_SLAB);
     this.fillShells('wingSlab', C_SLAB);
     this.fillShells('wingTop',  C_DECK);
