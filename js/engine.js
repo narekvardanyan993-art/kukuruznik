@@ -7,7 +7,7 @@
 (function (global) {
   'use strict';
 
-  var BUILD = '22';     // видно на самой странице — чтобы не гадать, свежая ли версия
+  var BUILD = '23';     // видно на самой странице — чтобы не гадать, свежая ли версия
 
   var PAPER = '#f5ecda';
   var INK   = '#2f2a25';
@@ -19,8 +19,9 @@
      Наружные поверхности намеренно НЕПРОЗРАЧНЫЕ. Полупрозрачные
      стены давали рентген: сквозь башню просвечивала её же изнанка,
      и сверху казалось, что здание пустое. */
-  var C_TERR     = 'rgb(150, 148, 142)';   // камень подпорных стен
-  var C_TERRTOP  = 'rgb(176, 188, 140)';   // трава на террасе
+  var C_TERR     = 'rgb(124, 122, 116)';   // камень подпорных стен
+  var C_TERRTOP  = 'rgb(150, 176, 114)';   // трава на террасе
+  var C_PAVE     = 'rgb(138, 136, 132)';   // асфальт площади
   var C_CITY     = 'rgb(188, 184, 174)';   // соседние дома: вдали цвет светлее
   var C_CITY_TOP = 'rgb(203, 199, 187)';
   var C_CITY_BND = 'rgb(126, 136, 138)';
@@ -28,8 +29,8 @@
   var C_TREE_B   = 'rgb(126, 150, 100)';   // второй оттенок, чтобы не было ковра
   var C_TREE_DRK = 'rgb(96, 116, 78)';     // теневая половина кроны
   var C_TRUNK    = 'rgb(104, 90, 72)';
-  var C_GROUND     = 'rgb(190, 200, 148)';  // трава вблизи
-  var C_GROUND_FAR = 'rgb(214, 214, 180)';  // она же вдали, съеденная воздухом
+  var C_GROUND     = 'rgb(163, 189, 122)';  // трава вблизи
+  var C_GROUND_FAR = 'rgb(198, 208, 166)';  // она же вдали, съеденная воздухом
   var C_PODIUM  = 'rgb(152, 152, 157)';   // базальт стилобата
   var C_HALL    = 'rgb(126, 128, 132)';   // стены нижнего корпуса, тёмный туф
   var C_SLAB    = 'rgb(198, 191, 171)';   // торец волнистой плиты
@@ -114,6 +115,7 @@
   var B = {};
   function grab(name, val) { B[name] = parseCol(val); }
 
+  grab('PAVE', C_PAVE);
   grab('TERR', C_TERR);        grab('TERRTOP', C_TERRTOP);
   grab('CITY', C_CITY);        grab('CITY_TOP', C_CITY_TOP);
   grab('CITY_BND', C_CITY_BND);
@@ -140,6 +142,7 @@
     var d = 1 - Math.abs(t - 0.50) / 0.22;
     DUSK = d > 0 ? d : 0;
 
+    C_PAVE = tint(B.PAVE);
     C_TERR = tint(B.TERR);         C_TERRTOP = tint(B.TERRTOP);
     C_CITY = tint(B.CITY);         C_CITY_TOP = tint(B.CITY_TOP);
     C_CITY_BND = lamp(B.CITY_BND, NIGHT * 0.85);
@@ -265,11 +268,12 @@
     if (!this.clouds) {
       var rc2 = seeded(91);
       this.clouds = [];
-      for (var ci = 0; ci < 4; ci++) {
+      for (var ci = 0; ci < 7; ci++) {
         this.clouds.push({
           x: rc2() * 1200, y: 0.04 + rc2() * 0.26,
           s: 0.045 + rc2() * 0.045,
-          v: 4 + rc2() * 7                  // пикселей в секунду
+          v: 3 + rc2() * 8,                 // пикселей в секунду
+          ph: rc2() * 6.28
         });
       }
       var rb = seeded(404);
@@ -404,6 +408,7 @@
     // подпорные террасы склона — уже после дальнего плана
     this.fillShells('terrTop', C_TERRTOP);
     this.fillShells('terr',    C_TERR);
+    this.fillShells('pave',    C_PAVE);
     this.strokeBody(2);
 
     // стилобат и лестница
@@ -415,7 +420,7 @@
     this.drawShadows(1);   // тень башни на террасе — уже поверх террасы
     this.drawLamps();
     this.drawBenches();
-    this.drawPeople(false);   // те, кто за башней
+    this.drawFlags();
 
     /* Нижний корпус стоит сбоку, а не сверху, поэтому очередь у него
        плавающая: если он дальше башни — рисуем до неё, если ближе —
@@ -447,9 +452,9 @@
     if (hz >= 0) this.drawHall();   // корпус ближе башни — ложится поверх
     if (wz >= 0) this.drawWing();
 
-    this.drawPeople(true);    // те, кто перед башней
     this.drawCity(true);   // ближние соседи
     this.drawTrees(true);  // ближняя роща — перед зданием
+    this.drawSign();      // надпись ложится на фасад, но до воздуха
     this.drawAir();       // воздух поверх массы — он касается и линий
     this.drawOutline();   // жирный край — последним, поверх всего
     ctx.globalAlpha = 1;
@@ -557,10 +562,13 @@
     var k = FOCAL / Math.max(1, CAM_DIST - pz[b]) * this.S;
     /* Лёгкое качание. Амплитуда крошечная — полпроцента ширины кроны:
        больше выглядит как шторм, а не как ветер. */
-    var sway = Math.sin(this.time * 0.9 + f.wob[0] * 12.7 + f.wob[3] * 5.1) * k * 0.020;
+    var ph2 = f.wob[0] * 12.7 + f.wob[3] * 5.1;
+    var sway = Math.sin(this.time * 0.62 + ph2) * k * 0.030
+             + Math.sin(this.time * 1.35 + ph2 * 1.7) * k * 0.012;
     var cx = px[b] + f.lean * k + sway;
     var cy = py[b] - f.h * k * 0.74;
-    var rx = f.w * k, ry = f.h * k * 0.40;
+    var breath = 1 + Math.sin(this.time * 0.5 + f.wob[1] * 8.1) * 0.022;
+    var rx = f.w * k * breath, ry = f.h * k * 0.40 * (2 - breath);
     if (mode === 2) { cx += rx * 0.30; cy += ry * 0.18; rx *= 0.80; ry *= 0.80; }
 
     /* Ведём кривую через середины отрезков: каждая вершина становится
@@ -708,71 +716,77 @@
     return o;
   };
 
-  /* Люди. Ходят кругами вокруг стилобата. Рисуются двумя путями на
-     всех разом: тела с ногами — обводкой, головы — заливкой. */
-  Engine.prototype.drawPeople = function (near) {
-    var W = this.model.walkers;
-    if (!W) return;
-    var ctx = this.ctx, t = this.time;
-    var o = this._po || (this._po = {});
-    var listB = [], listH = [];
-
-    var blk = this.model.blocks || [];
-    for (var i = 0; i < W.length; i++) {
-      var f = W[i];
-      var a = f.ph + t * f.sp;
-      var wx = Math.cos(a) * f.r, wz = Math.sin(a) * f.r;
-
-      // человек не должен идти сквозь стену корпуса
-      var inside = false;
-      for (var bq = 0; bq < blk.length; bq++) {
-        var bk = blk[bq];
-        if (wx > bk.x0 && wx < bk.x1 && wz > bk.z0 && wz < bk.z1) { inside = true; break; }
-      }
-      if (inside) continue;
-
-      this.proj(wx, f.y, wz, o);
-      if ((o.z > 0) !== !!near) continue;
-      listB.push(o.x, o.y, o.k, i);
-    }
-    if (!listB.length) return;
+  /* Флаги. Полотнище — волна от времени: живое движение, которое не
+     выглядит зациклённым, потому что у каждого флага своя фаза. */
+  Engine.prototype.drawFlags = function () {
+    var F = this.model.flags;
+    if (!F || !F.length) return;
+    var ctx = this.ctx, px = this.px, py = this.py, pz = this.pz, t = this.time;
 
     ctx.beginPath();
-    for (var q = 0; q < listB.length; q += 4) {
-      var x = listB[q], y = listB[q + 1], k = listB[q + 2], f2 = W[listB[q + 3]];
-      var hh = f2.h * k;
-      var step = Math.sin(t * 5.2 + f2.st) * hh * 0.16;
-      ctx.moveTo(x, y - hh * 0.34);            // ноги
-      ctx.lineTo(x - step, y);
-      ctx.moveTo(x, y - hh * 0.34);
-      ctx.lineTo(x + step, y);
-      ctx.moveTo(x, y - hh * 0.34);            // корпус
-      ctx.lineTo(x, y - hh * 0.80);
-      listH.push(x, y - hh * 0.90, hh * 0.098);
+    for (var i = 0; i < F.length; i++) {
+      ctx.moveTo(px[F[i].b], py[F[i].b]);
+      ctx.lineTo(px[F[i].t], py[F[i].t]);
     }
-    /* Тот же силуэт кладётся дважды: сначала толстой светлой линией,
-       потом тонкой тёмной. Светлая подложка отбивает человека от фона —
-       без неё фигурка терялась на сером стилобате и на телефоне её было
-       просто не видно. */
-    var lw = Math.max(1.6, listB[2] * 0.020);
-    ctx.strokeStyle = NIGHT > 0.5 ? 'rgba(240,236,224,0.55)' : 'rgba(250,246,236,0.85)';
-    ctx.lineWidth = lw * 2.1;
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = Math.max(1, this.S * 0.008);
+    ctx.globalAlpha = 0.8;
     ctx.stroke();
-    ctx.strokeStyle = NIGHT > 0.5 ? 'rgb(24,26,44)' : 'rgb(52,46,40)';
-    ctx.lineWidth = lw;
-    ctx.stroke();
-
-    ctx.beginPath();
-    for (var q2 = 0; q2 < listH.length; q2 += 3) {
-      ctx.moveTo(listH[q2] + listH[q2 + 2], listH[q2 + 1]);
-      ctx.arc(listH[q2], listH[q2 + 1], listH[q2 + 2], 0, Math.PI * 2);
-    }
-    ctx.fillStyle = NIGHT > 0.5 ? 'rgba(240,236,224,0.55)' : 'rgba(250,246,236,0.85)';
-    ctx.lineWidth = lw * 2.1;
-    ctx.stroke();
-    ctx.fillStyle = NIGHT > 0.5 ? 'rgb(24,26,44)' : 'rgb(52,46,40)';
-    ctx.fill();
     ctx.globalAlpha = 1;
+
+    for (var j = 0; j < F.length; j++) {
+      var f = F[j], tp = f.t;
+      var k = FOCAL / Math.max(1, CAM_DIST - pz[tp]) * this.S;
+      var x0 = px[tp], y0 = py[tp];
+      var wdt = k * 0.30, hgt = k * 0.16;
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      for (var q = 1; q <= 6; q++) {
+        var u = q / 6;
+        ctx.lineTo(x0 + wdt * u, y0 + Math.sin(t * 2.4 + f.ph + u * 4.2) * hgt * 0.30 * u);
+      }
+      for (var q2 = 6; q2 >= 0; q2--) {
+        var u2 = q2 / 6;
+        ctx.lineTo(x0 + wdt * u2,
+                   y0 + hgt + Math.sin(t * 2.4 + f.ph + u2 * 4.2) * hgt * 0.30 * u2);
+      }
+      ctx.closePath();
+      ctx.fillStyle = j === 1 ? 'rgba(208, 84, 66, 0.92)' : 'rgba(232, 226, 208, 0.92)';
+      ctx.fill();
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 0.9;
+      ctx.globalAlpha = 0.55;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  };
+
+  /* Надпись на фасаде. Текст раскладывается по четырём точкам плиты,
+     поэтому он поворачивается вместе со зданием, а не висит наклейкой
+     поверх экрана. */
+  Engine.prototype.drawSign = function () {
+    var sg = this.model.sign;
+    if (!sg) return;
+    var sh = this.model.shells[sg.face];
+    if (!sh || !sh.vis) return;
+
+    var ctx = this.ctx, px = this.px, py = this.py;
+    var ax = px[sg.a], ay = py[sg.a];
+    var ux = px[sg.b] - ax, uy = py[sg.b] - ay;     // вдоль строки
+    var vx = px[sg.d] - ax, vy = py[sg.d] - ay;     // вверх по высоте
+    var len = Math.sqrt(ux * ux + uy * uy);
+    if (len < 26) return;                            // мелко — не мельтешим
+
+    ctx.save();
+    ctx.transform(ux / 100, uy / 100, vx / 100, vy / 100, ax, ay);
+    ctx.scale(1, -1);                                // экранный Y смотрит вниз
+    ctx.font = '600 62px -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif';
+    ctx.textBaseline = 'alphabetic';
+    var w = ctx.measureText(sg.text).width;
+    ctx.scale(96 / w, 96 / w);
+    ctx.fillStyle = NIGHT > 0.35 ? 'rgba(250, 226, 170, 0.95)' : 'rgba(58, 52, 46, 0.85)';
+    ctx.fillText(sg.text, 2, -18);
+    ctx.restore();
   };
 
   /* Скамейки. Сиденье и две ножки, все разом одним путём. */
@@ -910,7 +924,7 @@
       var c0 = cl[k];
       var cx = ((c0.x + t * c0.v) % span + span) % span - 200;
       var cy = c0.y * h;
-      var sc = c0.s * Math.min(w, h);
+      var sc = c0.s * Math.min(w, h) * (1 + Math.sin(t * 0.10 + c0.ph) * 0.09);
       for (var q = 0; q < 2; q++) {
         var e = q === 0 ? 1.28 : 1.0;
         var al = (q === 0 ? 0.22 : 0.42) * (1 - 0.72 * NIGHT);
@@ -1526,6 +1540,11 @@
       state.time = now * 0.001;
       controls.update(dt);
 
+      if (Math.abs(TOD - todTarget) > 0.0008) {
+        TOD += (todTarget - TOD) * Math.min(1, dt * 0.0028);
+        refreshTime(false);
+      }
+
       if (state.drone) {
         droneT += dt * 0.001;
         state.yaw += 0.085 * dt * 0.001;
@@ -1545,19 +1564,33 @@
     var hintEl = global.document.getElementById('hint');
     if (hintEl) hintEl.textContent += ' · сборка ' + BUILD;
 
+    /* Время суток не прыгает за пальцем, а ДОГОНЯЕТ его: солнце
+       всходит и садится плавно, тени разворачиваются на глазах. Это
+       самая заметная анимация во всей сцене, и стоит она почти ничего.
+
+       Небо при этом пересобирается не каждый кадр, а когда время
+       уехало заметно: в нижнем слое лежит зерно бумаги, и перерисовка
+       его 60 раз в секунду была бы расточительством. */
     var timeEl = document.getElementById('tod');
-    if (timeEl) {
-      var applyUI = function () {
-        var v = timeEl.value / 100;
-        applyTime(v);
-        engine.drawPaper();      // небо живёт в нижнем слое, его и обновляем
-        document.body.classList.toggle('night', NIGHT > 0.45);
-      };
-      timeEl.addEventListener('input', applyUI);
-      applyUI();
-    } else {
+    var todTarget = TOD, lastBaked = -1;
+
+    function refreshTime(force) {
       applyTime(TOD);
+      if (force || Math.abs(TOD - lastBaked) > 0.018) {
+        engine.drawPaper();
+        lastBaked = TOD;
+      }
+      document.body.classList.toggle('night', NIGHT > 0.45);
     }
+
+    if (timeEl) {
+      todTarget = timeEl.value / 100;
+      TOD = todTarget;
+      timeEl.addEventListener('input', function () {
+        todTarget = timeEl.value / 100;
+      });
+    }
+    refreshTime(true);
 
     global.Kukuruznik = {
       engine: engine, state: state, controls: controls,
