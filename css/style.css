@@ -145,8 +145,8 @@ body.night { background: #0d1230; }
 
 #hud {
   position: fixed;
-  left: 16px;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 34px);
+  left: calc(50% - 17px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 54px);
   z-index: 10;
   width: 62px;
   height: 62px;
@@ -175,10 +175,16 @@ body.night { background: #0d1230; }
   touch-action: manipulation;
   z-index: 3;
   transition:
-    transform 560ms cubic-bezier(0.22, 1.25, 0.36, 1),
+    transform 560ms cubic-bezier(0.34, 1.56, 0.64, 1),
     background 300ms ease, border-color 450ms ease,
     color 450ms ease, box-shadow 450ms ease;
 }
+
+/* Кнопка должна чуть проседать под пальцем, как любая живая кнопка
+   в iOS -- у лучей меню (.ri) такой отклик уже был, у самой звезды
+   почему-то нет. */
+#hudBtn:active { transform: scale(0.90); }
+#hud.ring #hudBtn:active { transform: rotate(180deg) scale(0.86); }
 
 #hudBtn svg { width: 26px; height: 26px; display: block; }
 #hudBtn .close-i, #hudBtn .back-i { display: none; }
@@ -216,7 +222,7 @@ body.night { background: #0d1230; }
   opacity: 0;
   pointer-events: none;
   transition:
-    transform 520ms cubic-bezier(0.22, 1.32, 0.36, 1),
+    transform 520ms cubic-bezier(0.34, 1.56, 0.64, 1),
     opacity 220ms ease;
 }
 
@@ -303,18 +309,23 @@ body.night { background: #0d1230; }
 
 #sub {
   position: absolute;
-  left: -2px;
+  left: 50%;
+  /* Раньше панель росла вправо от кнопки в углу экрана и всегда
+     помещалась. Кнопка теперь у центра экрана, и та же логика увела
+     бы панель за правый край -- поэтому центрируем её саму, с тем же
+     ограничением по ширине, что и раньше. */
+  margin-left: calc(-1 * min(150px, (50vw - 15px)));
   bottom: 76px;
   z-index: 4;
   width: min(300px, calc(100vw - 30px));
   padding: 11px 14px 12px;
   border-radius: 24px;
-  transform-origin: 22px calc(100% + 46px);   /* растёт из кнопки */
+  transform-origin: 50% calc(100% + 46px);   /* растёт из кнопки */
   transform: translateY(10px) scale(0.72);
   opacity: 0;
   pointer-events: none;
   transition:
-    transform 500ms cubic-bezier(0.22, 1.25, 0.36, 1),
+    transform 500ms cubic-bezier(0.34, 1.56, 0.64, 1),
     opacity 240ms ease,
     background 450ms ease, border-color 450ms ease,
     color 450ms ease, box-shadow 450ms ease;
@@ -329,7 +340,7 @@ body.night { background: #0d1230; }
 #sub > * {
   transform: translateY(8px);
   opacity: 0;
-  transition: transform 420ms cubic-bezier(0.22, 1.2, 0.36, 1), opacity 260ms ease;
+  transition: transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 260ms ease;
 }
 #hud.sub #sub > * { transform: none; opacity: 1; }
 #hud.sub #sub > :nth-child(1) { transition-delay: 90ms; }
