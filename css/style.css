@@ -490,8 +490,10 @@ body.ui-off #hint { opacity: 0; pointer-events: none; }
 @media (hover: hover) and (pointer: fine) {
   /* Подсказка сидит на .rs (обёртке), а не на самой кнопке: у кнопки
      свой overflow:hidden для анимации блика по стеклу, и он же тихо
-     обрезал бы подсказку, которая рисуется ЗА пределами круга кнопки. */
-  .rs { position: relative; }
+     обрезал бы подсказку, которая рисуется ЗА пределами круга кнопки.
+     .rs уже сама position:absolute (см. правило выше) -- этого хватает,
+     чтобы подсказка позиционировалась от неё; ставить сюда ещё раз
+     position нельзя, это перебивало бы absolute и разваливало веер меню. */
   .rs::before {
     content: attr(data-cap);
     position: absolute;
