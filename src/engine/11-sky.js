@@ -200,13 +200,23 @@
 
     /* Звёзды рисуем раньше горы: она должна их закрывать. */
     if (NIGHT > 0.12) {
+      /* Те же азимутальные координаты и то же сжатие SKY_K, что у
+         солнца и силуэта города: звёзды стоят в мире, а не приклеены
+         к экрану, и разворачиваются вместе со всем дальним планом. */
       var stars0 = this.stars;
+      var Fst = FOCAL * this.S / Math.cos(pitch);
       ctx.fillStyle = 'rgba(255, 252, 236, ' + (0.85 * NIGHT).toFixed(3) + ')';
       for (var s0 = 0; s0 < stars0.length; s0 += 3) {
+        var th0 = stars0[s0] - yaw + Math.PI / 2;
+        while (th0 > Math.PI) th0 -= Math.PI * 2;
+        while (th0 < -Math.PI) th0 += Math.PI * 2;
+        if (Math.cos(th0) <= 0.05) continue;      // за спиной
+        var sxx = this.ox + Math.tan(th0 * SKY_K) * Fst;
+        if (sxx < -8 || sxx > w + 8) continue;
         var tw0 = 0.65 + 0.35 * Math.sin(t * 1.7 + stars0[s0 + 2]);
         var rr0 = stars0[s0 + 2] % 1 * 0.9 + 0.5;
         ctx.globalAlpha = tw0;
-        ctx.fillRect(stars0[s0] * w, stars0[s0 + 1] * horizon, rr0, rr0);
+        ctx.fillRect(sxx, stars0[s0 + 1] * horizon, rr0, rr0);
       }
       ctx.globalAlpha = 1;
     }

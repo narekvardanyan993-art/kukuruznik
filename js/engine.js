@@ -10,7 +10,7 @@
 (function (global) {
   'use strict';
 
-  var BUILD = '40';     // видно на самой странице — чтобы не гадать, свежая ли версия
+  var BUILD = '41';     // видно на самой странице — чтобы не гадать, свежая ли версия
 
   var PAPER = '#f5ecda';
   var INK   = '#2f2a25';
@@ -297,7 +297,10 @@
 
       var rs = seeded(555);
       this.stars = [];
-      for (var si = 0; si < 70; si++) this.stars.push(rs(), rs() * 0.92, rs() * 6.28);
+      /* [азимут 0..2π, высота 0..0.92 от горизонта, фаза мерцания] на
+         каждую звезду — тройка чисел, как и раньше, но первое теперь
+         угол в мире, а не доля экрана. */
+      for (var si = 0; si < 340; si++) this.stars.push(rs() * 6.28318, rs() * 0.92, rs() * 6.28);
     }
   };
 
@@ -1391,13 +1394,23 @@
 
     /* Звёзды рисуем раньше горы: она должна их закрывать. */
     if (NIGHT > 0.12) {
+      /* Те же азимутальные координаты и то же сжатие SKY_K, что у
+         солнца и силуэта города: звёзды стоят в мире, а не приклеены
+         к экрану, и разворачиваются вместе со всем дальним планом. */
       var stars0 = this.stars;
+      var Fst = FOCAL * this.S / Math.cos(pitch);
       ctx.fillStyle = 'rgba(255, 252, 236, ' + (0.85 * NIGHT).toFixed(3) + ')';
       for (var s0 = 0; s0 < stars0.length; s0 += 3) {
+        var th0 = stars0[s0] - yaw + Math.PI / 2;
+        while (th0 > Math.PI) th0 -= Math.PI * 2;
+        while (th0 < -Math.PI) th0 += Math.PI * 2;
+        if (Math.cos(th0) <= 0.05) continue;      // за спиной
+        var sxx = this.ox + Math.tan(th0 * SKY_K) * Fst;
+        if (sxx < -8 || sxx > w + 8) continue;
         var tw0 = 0.65 + 0.35 * Math.sin(t * 1.7 + stars0[s0 + 2]);
         var rr0 = stars0[s0 + 2] % 1 * 0.9 + 0.5;
         ctx.globalAlpha = tw0;
-        ctx.fillRect(stars0[s0] * w, stars0[s0 + 1] * horizon, rr0, rr0);
+        ctx.fillRect(sxx, stars0[s0 + 1] * horizon, rr0, rr0);
       }
       ctx.globalAlpha = 1;
     }
@@ -2215,9 +2228,32 @@
       toastT = setTimeout(function () { toastEl.classList.remove('on'); }, 1600);
     }
 
+    /* Закрытие анимируется той же волной, что открытие, только в
+       обратном порядке. CSS не умеет само по себе анимировать «на
+       выход» с задержками (правило .ring работает лишь пока класс
+       стоит), поэтому на миг закрытия вешаем .ringOut / .subOut, а
+       через время, заведомо большее длительности анимации, снимаем —
+       иначе класс мешал бы следующему открытию.  */
+    var ringOutT = 0, subOutT = 0;
+
     function setMenu(m) {
+      var prev = mode;
       mode = m;
       if (m !== 'ring') { clearTimeout(toastT); toastEl.classList.remove('on'); }
+
+      if (prev === 'ring' && m !== 'ring') {
+        hud.classList.add('ringOut');
+        clearTimeout(ringOutT);
+        ringOutT = setTimeout(function () { hud.classList.remove('ringOut'); }, 700);
+      }
+      if (prev === 'sub' && m !== 'sub') {
+        hud.classList.add('subOut');
+        clearTimeout(subOutT);
+        subOutT = setTimeout(function () { hud.classList.remove('subOut'); }, 650);
+      }
+      if (m === 'ring') { clearTimeout(ringOutT); hud.classList.remove('ringOut'); }
+      if (m === 'sub')  { clearTimeout(subOutT);  hud.classList.remove('subOut'); }
+
       hud.classList.toggle('ring', m === 'ring');
       hud.classList.toggle('sub', m === 'sub');
       document.body.classList.toggle('menu', m !== '');
@@ -2245,7 +2281,7 @@
         try { document.exitFullscreen(); } catch (e) {}
       }
     }
-    hideBtn.addEventListener('click', function () { setMenu(''); setUI(true); });
+    hideBtn.addEventListener('click', function () { setMenu(''); toast('Полный экран'); setUI(true); });
 
     var tapX = 0, tapY = 0, tapT = 0;
     stage.addEventListener('pointerdown', function (e) {
@@ -2301,6 +2337,7 @@
           if (timeEl) timeEl.value = v;
           todTarget = v / 100;
           markChips(v);
+          toast(btn.textContent);
         });
       })(chips[ci]);
     }

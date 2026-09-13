@@ -155,9 +155,32 @@
       toastT = setTimeout(function () { toastEl.classList.remove('on'); }, 1600);
     }
 
+    /* Закрытие анимируется той же волной, что открытие, только в
+       обратном порядке. CSS не умеет само по себе анимировать «на
+       выход» с задержками (правило .ring работает лишь пока класс
+       стоит), поэтому на миг закрытия вешаем .ringOut / .subOut, а
+       через время, заведомо большее длительности анимации, снимаем —
+       иначе класс мешал бы следующему открытию.  */
+    var ringOutT = 0, subOutT = 0;
+
     function setMenu(m) {
+      var prev = mode;
       mode = m;
       if (m !== 'ring') { clearTimeout(toastT); toastEl.classList.remove('on'); }
+
+      if (prev === 'ring' && m !== 'ring') {
+        hud.classList.add('ringOut');
+        clearTimeout(ringOutT);
+        ringOutT = setTimeout(function () { hud.classList.remove('ringOut'); }, 700);
+      }
+      if (prev === 'sub' && m !== 'sub') {
+        hud.classList.add('subOut');
+        clearTimeout(subOutT);
+        subOutT = setTimeout(function () { hud.classList.remove('subOut'); }, 650);
+      }
+      if (m === 'ring') { clearTimeout(ringOutT); hud.classList.remove('ringOut'); }
+      if (m === 'sub')  { clearTimeout(subOutT);  hud.classList.remove('subOut'); }
+
       hud.classList.toggle('ring', m === 'ring');
       hud.classList.toggle('sub', m === 'sub');
       document.body.classList.toggle('menu', m !== '');
@@ -185,7 +208,7 @@
         try { document.exitFullscreen(); } catch (e) {}
       }
     }
-    hideBtn.addEventListener('click', function () { setMenu(''); setUI(true); });
+    hideBtn.addEventListener('click', function () { setMenu(''); toast('Полный экран'); setUI(true); });
 
     var tapX = 0, tapY = 0, tapT = 0;
     stage.addEventListener('pointerdown', function (e) {
@@ -241,6 +264,7 @@
           if (timeEl) timeEl.value = v;
           todTarget = v / 100;
           markChips(v);
+          toast(btn.textContent);
         });
       })(chips[ci]);
     }

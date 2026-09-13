@@ -146,7 +146,7 @@ body.night { background: #0d1230; }
 #hud {
   position: fixed;
   left: 16px;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 34px);
   z-index: 10;
   width: 62px;
   height: 62px;
@@ -229,6 +229,16 @@ body.night { background: #0d1230; }
 #hud.ring .rs:nth-child(3) { transition-delay: 68ms; }
 #hud.ring .rs:nth-child(4) { transition-delay: 102ms; }
 #hud.ring .rs:nth-child(5) { transition-delay: 136ms; }
+
+/* Закрытие — та же волна в обратном порядке: последняя вылетевшая
+   иконка первой уходит назад. .ringOut навешивается JS-ом на время
+   схлопывания (ring уже снят, поэтому без этого класса задержка
+   обнулялась бы и всё пряталось разом). */
+#hud.ringOut .rs:nth-child(1) { transition-delay: 136ms; }
+#hud.ringOut .rs:nth-child(2) { transition-delay: 102ms; }
+#hud.ringOut .rs:nth-child(3) { transition-delay: 68ms; }
+#hud.ringOut .rs:nth-child(4) { transition-delay: 34ms; }
+#hud.ringOut .rs:nth-child(5) { transition-delay: 0ms; }
 
 .ri {
   appearance: none;
@@ -321,6 +331,11 @@ body.night { background: #0d1230; }
 #hud.sub #sub > :nth-child(1) { transition-delay: 90ms; }
 #hud.sub #sub > :nth-child(2) { transition-delay: 140ms; }
 #hud.sub #sub > :nth-child(3) { transition-delay: 190ms; }
+
+/* То же самое для содержимого панели времени суток. */
+#hud.subOut #sub > :nth-child(1) { transition-delay: 190ms; }
+#hud.subOut #sub > :nth-child(2) { transition-delay: 140ms; }
+#hud.subOut #sub > :nth-child(3) { transition-delay: 90ms; }
 
 .sub-head {
   font-size: 11px;
