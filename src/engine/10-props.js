@@ -1,0 +1,272 @@
+
+  /* Скамейки. Сиденье и две ножки, все разом одним путём. */
+
+  /* Фонари. Днём — тонкая мачта с головкой, ночью ещё и тёплое пятно
+     света: без него площадка остаётся чёрной, сколько ни зажигай окон. */
+  Engine.prototype.drawOneLamp = function (i) {
+    var L = this.model.lamps[i];
+    var ctx = this.ctx, px = this.px, py = this.py, pz = this.pz;
+    var tp = L.t;
+    var k = FOCAL / Math.max(1, CAM_DIST - pz[tp]) * this.S;
+
+    // свет кладём ПОД мачту, иначе он ложится поверх неё молочным пятном
+    if (NIGHT > 0.15) {
+      var al = Math.min(1, (NIGHT - 0.15) / 0.35);
+      var rr = k * 0.42 * (this.lod < 0.7 ? 0.7 : 1);
+      var g = ctx.createRadialGradient(px[tp], py[tp], 0, px[tp], py[tp], rr);
+      g.addColorStop(0, 'rgba(255, 214, 140, ' + (0.55 * al).toFixed(3) + ')');
+      g.addColorStop(0.45, 'rgba(255, 200, 120, ' + (0.16 * al).toFixed(3) + ')');
+      g.addColorStop(1, 'rgba(255, 190, 110, 0)');
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(px[tp], py[tp], rr, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(px[L.b], py[L.b]);
+    ctx.lineTo(px[tp], py[tp]);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = Math.max(0.9, this.S * 0.010);
+    ctx.globalAlpha = 0.78;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    ctx.beginPath();
+    ctx.arc(px[tp], py[tp], k * 0.022, 0, Math.PI * 2);
+    ctx.fillStyle = NIGHT > 0.2 ? 'rgb(255, 226, 164)' : C_RAIL;
+    ctx.fill();
+  };
+
+  Engine.prototype.drawOneBench = function (i) {
+    var f = this.model.benches[i];
+    var ctx = this.ctx, px = this.px, py = this.py;
+    ctx.beginPath();
+    ctx.moveTo(px[f.a], py[f.a]); ctx.lineTo(px[f.b], py[f.b]);
+    ctx.moveTo(px[f.a], py[f.a]); ctx.lineTo(px[f.c], py[f.c]);
+    ctx.moveTo(px[f.b], py[f.b]); ctx.lineTo(px[f.d], py[f.d]);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = Math.max(1.1, this.S * 0.013);
+    ctx.globalAlpha = 0.72;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  };
+
+  Engine.prototype.drawOneFlag = function (i) {
+    var f = this.model.flags[i];
+    var ctx = this.ctx, px = this.px, py = this.py, pz = this.pz, t = this.time;
+
+    ctx.beginPath();
+    ctx.moveTo(px[f.b], py[f.b]);
+    ctx.lineTo(px[f.t], py[f.t]);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = Math.max(1, this.S * 0.008);
+    ctx.globalAlpha = 0.8;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    var k = FOCAL / Math.max(1, CAM_DIST - pz[f.t]) * this.S;
+    var x0 = px[f.t], y0 = py[f.t];
+    var wdt = k * 0.30, hgt = k * 0.16;
+
+    /* Флаг армянский: красный, синий, абрикосовый. Полотнище идёт
+       волной, поэтому каждая полоса рисуется своей кривой — иначе
+       полосы разъедутся между собой. */
+    var BAND = [['rgba(217, 0, 18, 0.94)', 0, 1 / 3],
+                ['rgba(0, 51, 160, 0.94)', 1 / 3, 2 / 3],
+                ['rgba(242, 168, 0, 0.94)', 2 / 3, 1]];
+    for (var s3 = 0; s3 < 3; s3++) {
+      var y1b = y0 + hgt * BAND[s3][1], y2b = y0 + hgt * BAND[s3][2];
+      ctx.beginPath();
+      for (var q3 = 0; q3 <= 6; q3++) {
+        var u3 = q3 / 6;
+        var wv = Math.sin(t * 2.4 + f.ph + u3 * 4.2) * hgt * 0.30 * u3;
+        if (q3 === 0) ctx.moveTo(x0, y1b + wv);
+        else ctx.lineTo(x0 + wdt * u3, y1b + wv);
+      }
+      for (var q4 = 6; q4 >= 0; q4--) {
+        var u4 = q4 / 6;
+        var wv2 = Math.sin(t * 2.4 + f.ph + u4 * 4.2) * hgt * 0.30 * u4;
+        ctx.lineTo(x0 + wdt * u4, y2b + wv2);
+      }
+      ctx.closePath();
+      ctx.fillStyle = BAND[s3][0];
+      ctx.fill();
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    for (var q = 1; q <= 6; q++) {
+      var u = q / 6;
+      ctx.lineTo(x0 + wdt * u, y0 + Math.sin(t * 2.4 + f.ph + u * 4.2) * hgt * 0.30 * u);
+    }
+    for (var q2 = 6; q2 >= 0; q2--) {
+      var u2 = q2 / 6;
+      ctx.lineTo(x0 + wdt * u2,
+                 y0 + hgt + Math.sin(t * 2.4 + f.ph + u2 * 4.2) * hgt * 0.30 * u2);
+    }
+    ctx.closePath();
+    /* Заливки тут нет: полотнище уже покрашено тремя полосами выше.
+       Раньше здесь стояла одноцветная заливка, и она закрашивала
+       триколор — флаги выходили просто синими. */
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 0.9;
+    ctx.globalAlpha = 0.55;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  };
+
+
+  /* Надпись на фасаде. Текст раскладывается по четырём точкам плиты,
+     поэтому он поворачивается вместе со зданием, а не висит наклейкой
+     поверх экрана. */
+  Engine.prototype.drawSign = function (sg, faceCheck) {
+    sg = sg || this.model.sign;
+    if (!sg) return;
+    if (faceCheck !== false) {
+      var sh = this.model.shells[sg.face];
+      if (!sh || !sh.vis) return;
+    }
+
+    var ctx = this.ctx, px = this.px, py = this.py;
+    var ax = px[sg.a], ay = py[sg.a];
+    var ux = px[sg.b] - ax, uy = py[sg.b] - ay;     // вдоль строки
+    var vx = px[sg.d] - ax, vy = py[sg.d] - ay;     // вверх по высоте
+    var len = Math.sqrt(ux * ux + uy * uy);
+    if (len < 22) return;                            // мелко — не мельтешим
+
+    ctx.save();
+    ctx.transform(ux / 100, uy / 100, vx / 100, vy / 100, ax, ay);
+    ctx.scale(1, -1);                                // экранный Y смотрит вниз
+    ctx.font = '600 62px -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif';
+    ctx.textBaseline = 'alphabetic';
+    var w = ctx.measureText(sg.text).width;
+    ctx.scale(96 / w, 96 / w);
+    ctx.fillStyle = NIGHT > 0.35 ? 'rgba(250, 226, 170, 0.95)' : 'rgba(58, 52, 46, 0.85)';
+    ctx.fillText(sg.text, 2, -18);
+    ctx.restore();
+  };
+
+  /* Огни города внизу. Ночью нижняя половина кадра проваливалась в
+     черноту — светилась одна башня и висела в пустоте. Теперь под
+     холмом лежит россыпь тёплых точек: дальние окна и уличный свет.
+     Всё сводится к двум заливкам на весь город. */
+  Engine.prototype.drawCityGlow = function () {
+    if (NIGHT < 0.12) return;
+    var G = this.model.glow;
+    if (!G || !G.length) return;
+    var ctx = this.ctx, px = this.px, py = this.py, pz = this.pz, t = this.time;
+    var S = this.S, a = Math.min(1, (NIGHT - 0.12) / 0.3);
+
+    // мягкое свечение
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.beginPath();
+    for (var i = 0; i < G.length; i++) {
+      var b = G[i];
+      var k = FOCAL / Math.max(1, CAM_DIST - pz[b]) * S;
+      var r = k * 0.018;
+      if (r < 0.4) continue;
+      ctx.moveTo(px[b] + r * 2.4, py[b]);
+      ctx.arc(px[b], py[b], r * 2.4, 0, Math.PI * 2);
+    }
+    ctx.fillStyle = 'rgba(255, 186, 96, ' + (0.085 * a).toFixed(3) + ')';
+    ctx.fill();
+
+    // сами огоньки, с лёгким мерцанием
+    ctx.beginPath();
+    for (var j = 0; j < G.length; j++) {
+      var b2 = G[j];
+      var k2 = FOCAL / Math.max(1, CAM_DIST - pz[b2]) * S;
+      var r2 = k2 * 0.0115 * (0.75 + 0.25 * Math.sin(t * 1.3 + j * 2.1));
+      if (r2 < 0.25) continue;
+      ctx.moveTo(px[b2] + r2, py[b2]);
+      ctx.arc(px[b2], py[b2], r2, 0, Math.PI * 2);
+    }
+    ctx.fillStyle = 'rgba(255, 214, 150, ' + (0.85 * a).toFixed(3) + ')';
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  };
+
+  /* Скамейки. Сиденье и две ножки, все разом одним путём. */
+  Engine.prototype.drawBenches = function () {
+    var Bc = this.model.benches;
+    if (!Bc || !Bc.length) return;
+    var ctx = this.ctx, px = this.px, py = this.py;
+    ctx.beginPath();
+    for (var i = 0; i < Bc.length; i++) {
+      var f = Bc[i];
+      ctx.moveTo(px[f.a], py[f.a]); ctx.lineTo(px[f.b], py[f.b]);
+      ctx.moveTo(px[f.a], py[f.a]); ctx.lineTo(px[f.c], py[f.c]);
+      ctx.moveTo(px[f.b], py[f.b]); ctx.lineTo(px[f.d], py[f.d]);
+    }
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = Math.max(1.1, this.S * 0.013);
+    ctx.globalAlpha = 0.72;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  };
+
+  /* Фонари. Днём — тонкая мачта с головкой, ночью ещё и тёплое пятно
+     света: без него площадка остаётся чёрной, сколько ни зажигай окон. */
+  Engine.prototype.drawLamps = function () {
+    var L = this.model.lamps;
+    if (!L) return;
+    var ctx = this.ctx, px = this.px, py = this.py, pz = this.pz;
+
+    // свет кладём ПОД мачты, иначе он ложится поверх них молочным пятном
+    if (NIGHT > 0.15) {
+      var al = Math.min(1, (NIGHT - 0.15) / 0.35);
+      ctx.globalCompositeOperation = 'lighter';
+      for (var i = 0; i < L.length; i++) {
+        var tp = L[i].t;
+        var k = FOCAL / Math.max(1, CAM_DIST - pz[tp]) * this.S;
+        var rr = k * 0.42;
+        var g = ctx.createRadialGradient(px[tp], py[tp], 0, px[tp], py[tp], rr);
+        g.addColorStop(0, 'rgba(255, 214, 140, ' + (0.55 * al).toFixed(3) + ')');
+        g.addColorStop(0.45, 'rgba(255, 200, 120, ' + (0.16 * al).toFixed(3) + ')');
+        g.addColorStop(1, 'rgba(255, 190, 110, 0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(px[tp], py[tp], rr, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    ctx.beginPath();
+    for (var j = 0; j < L.length; j++) {
+      ctx.moveTo(px[L[j].b], py[L[j].b]);
+      ctx.lineTo(px[L[j].t], py[L[j].t]);
+    }
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = Math.max(0.9, this.S * 0.010);
+    ctx.globalAlpha = 0.78;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    ctx.beginPath();
+    for (var j2 = 0; j2 < L.length; j2++) {
+      var tp2 = L[j2].t;
+      var k2 = FOCAL / Math.max(1, CAM_DIST - pz[tp2]) * this.S;
+      ctx.moveTo(px[tp2] + k2 * 0.022, py[tp2]);
+      ctx.arc(px[tp2], py[tp2], k2 * 0.022, 0, Math.PI * 2);
+    }
+    ctx.fillStyle = NIGHT > 0.2 ? 'rgb(255, 226, 164)' : C_RAIL;
+    ctx.fill();
+  };
+
+  /* АРАРАТ.
+
+     Гора бесконечно далека, поэтому её нельзя считать обычной точкой:
+     при удалении в шестьдесят километров формула проекции вырождается.
+     Считаем её как небо: положение зависит ТОЛЬКО от направления
+     взгляда, а не от того, где стоит камера. Отсюда и правильное
+     ощущение — при повороте гора уходит за край, при наклоне поднимается
+     вместе с горизонтом, но не «объезжает» здание.
+
+     Линия горизонта в нашей проекции: oy − tg(наклон) · FOCAL · S.
+     Видимая высота горы — её угловой размер, то есть высота, делённая
+     на расстояние. У Арарата это примерно 5 км на 60 — но с натуры он
+     кажется больше, и мы берём крупнее: рисунок, а не топография. */
