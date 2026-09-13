@@ -235,8 +235,63 @@
       line(tN, oN, MED, chN, chN);
       line(tF, oF, MED, chF, chF);
     }
-    stairFlight(-2.14, -2.92, tiers[0].y1, yGround,     1.05, 5);
-    stairFlight(-1.62, -2.02, tiers[1].y1, tiers[0].y1, 0.70, 5);
+    /* Лестницы. Террасы круглые, поэтому и марши круглые: прямой
+       марш упирался в дугу и стыковался с ней только серединой, а по
+       краям оставались щели — из-за них лестница выглядела решёткой,
+       лежащей рядом со зданием.
+
+       Теперь это ступени-дуги, разбегающиеся наружу по сектору фасада.
+       Каждая ступень — проступь (горизонтальная) и подступёнок
+       (вертикальный), плюс закрытые щёки по краям сектора. */
+    var FRONT = -Math.PI / 2;         // сторона фасада: туда смотрит −Z
+
+    function stairArc(rIn, yTop, yBot, half, steps, depth) {
+      var K = 12;
+      var a0 = FRONT - half, a1 = FRONT + half;
+      var rise = (yTop - yBot) / steps;
+      var run  = depth / steps;
+
+      for (var s2 = 0; s2 < steps; s2++) {
+        var yT = yTop - rise * s2;
+        var r0 = rIn + run * s2, r1 = rIn + run * (s2 + 1);
+        var inner = [], outer = [], down = [];
+        for (var i = 0; i <= K; i++) {
+          var a = a0 + (a1 - a0) * (i / K);
+          inner.push(addPt(a, r0, yT));
+          outer.push(addPt(a, r1, yT));
+          down.push(addPt(a, r1, yT - rise));
+        }
+        for (var i = 0; i < K; i++) {
+          var am = a0 + (a1 - a0) * ((i + 0.5) / K);
+          var tread = face('deck', inner[i], outer[i], outer[i + 1], inner[i + 1],
+                           0, 1, 0);
+          var riser = face('podium', outer[i], down[i], down[i + 1], outer[i + 1],
+                           Math.cos(am), 0, Math.sin(am));
+          /* Кромку ступени привязываем только к подступёнку. Проступь
+             смотрит вверх и «видна» всегда, и из-за неё дальние ступени
+             прочерчивались тёмными закорючками сбоку от башни. */
+          line(outer[i], outer[i + 1], MED, riser, riser);
+        }
+      }
+
+      // щёки по краям сектора — без них марш висит в воздухе
+      for (var e = 0; e < 2; e++) {
+        var ae = e === 0 ? a0 : a1;
+        var sgn = e === 0 ? -1 : 1;
+        var p1 = addPt(ae, rIn, yTop);
+        var p2 = addPt(ae, rIn + depth, yBot);
+        var p3 = addPt(ae, rIn + depth, yBot - 0.001);
+        var p4 = addPt(ae, rIn, yBot);
+        /* Щека только закрывает объём. Линий на ней нет: она стоит
+           почти ребром к глазу, и любая линия на ней превращалась
+           в тёмную закорючку сбоку от башни. */
+        face('podium', p1, p2, p3, p4,
+             -Math.sin(ae) * sgn, 0, Math.cos(ae) * sgn);
+      }
+    }
+
+    stairArc(tiers[1].r, tiers[1].y1, tiers[0].y1, 0.46, 4, 0.34);
+    stairArc(tiers[0].r, tiers[0].y1, yGround,     0.60, 4, 0.40);
 
     // ======== ствол ========
     curPart = 0;
@@ -368,6 +423,84 @@
       line(hBotN[k], hBotF[k], THIN, eW, eS);
     }
 
+    // ======== длинное низкое крыло с аркадой (слева от башни) ========
+    /* На фотографии это самый узнаваемый кусок комплекса после самой
+       башни: длинный низкий объём, у которого весь фасад — сплошной ряд
+       высоких узких арок, а сверху лежит плоская плита с выносом.
+       Стоит по другую сторону от волнистого корпуса, вдоль той же оси. */
+    curPart = 5;
+    var WX0 = -1.95, WX1 = -4.35;   // от стилобата наружу
+    var WZ  = 1.22;                 // половина ширины
+    var WY  = 0.88;                 // верх стены
+    var WYT = 1.00;                 // верх плиты кровли
+    var WO  = 0.12;                 // вынос плиты за стену
+
+    var wgN0 = addXYZ(WX0, yGround, -WZ), wgN1 = addXYZ(WX1, yGround, -WZ);
+    var wgF0 = addXYZ(WX0, yGround,  WZ), wgF1 = addXYZ(WX1, yGround,  WZ);
+    var wtN0 = addXYZ(WX0, WY, -WZ),      wtN1 = addXYZ(WX1, WY, -WZ);
+    var wtF0 = addXYZ(WX0, WY,  WZ),      wtF1 = addXYZ(WX1, WY,  WZ);
+
+    var wallN = face('wing', wgN0, wgN1, wtN1, wtN0,  0, 0, -1);
+    var wallF = face('wing', wgF1, wgF0, wtF0, wtF1,  0, 0,  1);
+    var wallW = face('wing', wgN1, wgF1, wtF1, wtN1, -1, 0,  0);
+
+    // плита кровли: короб с выносом на три стороны
+    var sbN0 = addXYZ(WX0, WY,  -WZ - WO), sbN1 = addXYZ(WX1 - WO, WY,  -WZ - WO);
+    var sbF0 = addXYZ(WX0, WY,   WZ + WO), sbF1 = addXYZ(WX1 - WO, WY,   WZ + WO);
+    var stN0 = addXYZ(WX0, WYT, -WZ - WO), stN1 = addXYZ(WX1 - WO, WYT, -WZ - WO);
+    var stF0 = addXYZ(WX0, WYT,  WZ + WO), stF1 = addXYZ(WX1 - WO, WYT,  WZ + WO);
+
+    var slabN = face('wingSlab', sbN0, sbN1, stN1, stN0,  0, 0, -1);
+    var slabF = face('wingSlab', sbF1, sbF0, stF0, stF1,  0, 0,  1);
+    var slabW = face('wingSlab', sbN1, sbF1, stF1, stN1, -1, 0,  0);
+    var slabT = face('wingTop',  stN0, stN1, stF1, stF0,  0, 1,  0);
+
+    line(wgN0, wgN1, MED,  wallN, wallN);
+    line(wgF0, wgF1, MED,  wallF, wallF);
+    line(wgN1, wtN1, MED,  wallN, wallW);
+    line(wgF1, wtF1, MED,  wallF, wallW);
+    line(wtN0, wtN1, THIN, wallN, slabN);
+    line(wtF0, wtF1, THIN, wallF, slabF);
+    line(sbN0, sbN1, MED,  slabN, slabN);
+    line(sbF0, sbF1, MED,  slabF, slabF);
+    line(stN0, stN1, MED,  slabN, slabT);
+    line(stF0, stF1, MED,  slabF, slabT);
+    line(stN1, stF1, MED,  slabW, slabT);
+    line(sbN1, stN1, MED,  slabN, slabW);
+    line(sbF1, stF1, MED,  slabF, slabW);
+
+    outline.push(wgN1, wtN1, wallN, wallW);
+    outline.push(wgF1, wtF1, wallF, wallW);
+
+    /* Сами арки. Это те же «чешуйки», что и лоджии на стволе, только
+       без балкона: узкий проём с полуовальным верхом, внутри тень. */
+    var AN = 11;
+    var aY0 = 0.10, aY1 = 0.74;
+    var aSpan = (WX1 - WX0) / AN;
+    for (var i = 0; i < AN; i++) {
+      var axA = WX0 + aSpan * (i + 0.26);
+      var axB = WX0 + aSpan * (i + 0.74);
+      cells.push({
+        grp: 5, arch: true,
+        a: addXYZ(axA, aY0, -WZ), b: addXYZ(axB, aY0, -WZ),
+        c: addXYZ(axB, aY1, -WZ), d: addXYZ(axA, aY1, -WZ),
+        nx: 0, ny: 0, nz: -1, vis: false, lit: 0
+      });
+      cells.push({
+        grp: 5, arch: true,
+        a: addXYZ(axB, aY0, WZ), b: addXYZ(axA, aY0, WZ),
+        c: addXYZ(axA, aY1, WZ), d: addXYZ(axB, aY1, WZ),
+        nx: 0, ny: 0, nz: 1, vis: false, lit: 0
+      });
+    }
+
+    var wingShadow = [
+      addXYZ(WX1 - WO - 0.10 + 0.60, yGround, -WZ - WO - 0.10 + -0.27),
+      addXYZ(WX0 + 0.60,             yGround, -WZ - WO - 0.10 + -0.27),
+      addXYZ(WX0 + 0.60,             yGround,  WZ + WO + 0.10 + -0.27),
+      addXYZ(WX1 - WO - 0.10 + 0.60, yGround,  WZ + WO + 0.10 + -0.27)
+    ];
+
     curPart = 0;
 
     /* Тень нижнего корпуса на земле. Сдвиг вбит теми же числами, что
@@ -397,6 +530,8 @@
       groundCount: GN,
       hallCenter: [(HX0 + HX1) * 0.5, 0.6 - yCenter, 0],
       hallShadow: new Uint16Array(hallShadow),
+      wingCenter: [(WX0 + WX1) * 0.5, 0.5 - yCenter, 0],
+      wingShadow: new Uint16Array(wingShadow),
       /* Круги, на которые ложится тень: общая тень здания на земле,
          тень башни на верхней террасе и контактная — узкое плотное
          кольцо у самого основания. Последняя почти не сдвинута вбок:

@@ -221,7 +221,7 @@
     // телефоне здание не должно упираться в края.
     /* Масштаб считается под всю композицию, а не под одну башню:
        сбоку появился корпус, и кадр стал шире. */
-    this.S = Math.min(this.w * 0.220, this.h * 0.105) * state.zoom;
+    this.S = Math.min(this.w * 0.255, this.h * 0.125) * state.zoom;
     this.ox = this.w * 0.5;
     this.oy = this.h * 0.50;
 
@@ -255,6 +255,10 @@
     var hz = (-hc[0] * r.sy + hc[2] * r.cy) * r.cp + hc[1] * r.sp;
     if (hz < 0) this.drawHall();
 
+    var wc = m.wingCenter;
+    var wz = (-wc[0] * r.sy + wc[2] * r.cy) * r.cp + wc[1] * r.sp;
+    if (wz < 0) this.drawWing();
+
     /* У ствола дальних линий нет вовсе: стена непрозрачная, изнанку
        башни видеть неоткуда, а рисовались они как мусор на фасаде. */
     this.fillShells('shaft',   C_SHAFT);
@@ -272,6 +276,7 @@
     this.strokeBody(1);
 
     if (hz >= 0) this.drawHall();   // корпус ближе башни — ложится поверх
+    if (wz >= 0) this.drawWing();
 
     this.drawAir();       // воздух поверх массы — он касается и линий
     this.drawOutline();   // жирный край — последним, поверх всего
@@ -286,6 +291,16 @@
     this.fillShells('slab',    C_SLAB);
     this.fillShells('slabTop', C_SLABTOP);
     this.strokeBody(4);
+  };
+
+  /* Длинное низкое крыло с аркадой. Своя очередь, как и у корпуса:
+     оно стоит сбоку от башни, а не над ней. */
+  Engine.prototype.drawWing = function () {
+    this.fillShells('wing',     C_HALL);
+    this.drawCells(5);
+    this.fillShells('wingSlab', C_SLAB);
+    this.fillShells('wingTop',  C_DECK);
+    this.strokeBody(5);
   };
 
   // Ближние линии одного этажа: два прохода — отсюда «двойная обводка»
@@ -560,9 +575,10 @@
     ctx.quadraticCurveTo(bxm + vx * 0.72, bym + vy * 0.72, ax, ay);
   };
 
-  Engine.prototype.drawCells = function () {
+  Engine.prototype.drawCells = function (grp) {
     var ctx = this.ctx, cells = this.model.cells;
     var n = cells.length;
+    grp = grp || 0;
 
     // 1–2. проём и окно, каждый в двух тонах: на свету и в тени
     var layers = [
@@ -575,13 +591,15 @@
         ctx.beginPath();
         for (var i = 0; i < n; i++) {
           var f = cells[i];
-          if (!f.vis) continue;
+          if (!f.vis || (f.grp || 0) !== grp) continue;
+          if (f.arch && L > 0) continue;      // у арки нет окна в глубине
           if ((pass === 1) !== (f.lit <= 0.05)) continue;
           this.archPath(f, layers[L].inset);
           any = true;
         }
         if (any) {
-          ctx.fillStyle = pass === 1 ? layers[L].drk : layers[L].lit;
+          // Арка — это дыра в стене: внутри тень при любом свете.
+          ctx.fillStyle = (pass === 1 || grp === 5) ? layers[L].drk : layers[L].lit;
           ctx.fill();
         }
       }
@@ -593,7 +611,7 @@
       ctx.beginPath();
       for (var i = 0; i < n; i++) {
         var f = cells[i];
-        if (!f.vis) continue;
+        if (!f.vis || (f.grp || 0) !== grp || f.arch) continue;
         if ((pass === 1) !== (f.lit <= 0.05)) continue;
         this.balconyPath(f);
         any2 = true;
@@ -609,7 +627,7 @@
     ctx.beginPath();
     for (var i = 0; i < n; i++) {
       var f = cells[i];
-      if (!f.vis) continue;
+      if (!f.vis || (f.grp || 0) !== grp || f.arch) continue;
       this.balconyPath(f);
       any3 = true;
     }
@@ -711,9 +729,13 @@
     // Тень нижнего корпуса — прямоугольник, её точки уже сдвинуты в модели
     if (layer === 0) {
       var hs = this.model.hallShadow, px = this.px, py = this.py;
+      var ws = this.model.wingShadow;
       ctx.beginPath();
       ctx.moveTo(px[hs[0]], py[hs[0]]);
       for (var q = 1; q < hs.length; q++) ctx.lineTo(px[hs[q]], py[hs[q]]);
+      ctx.closePath();
+      ctx.moveTo(px[ws[0]], py[ws[0]]);
+      for (var q2 = 1; q2 < ws.length; q2++) ctx.lineTo(px[ws[q2]], py[ws[q2]]);
       ctx.closePath();
       ctx.globalAlpha = 0.17;
       ctx.fillStyle = C_SHADOW;
