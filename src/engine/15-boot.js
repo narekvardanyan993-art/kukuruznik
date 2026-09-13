@@ -244,6 +244,9 @@
     }
     hideBtn.addEventListener('click', function () {
       Snd.tap('hide');
+      hideBtn.classList.remove('tapped');
+      void hideBtn.offsetWidth;          // перезапуск анимации
+      hideBtn.classList.add('tapped');
       setMenu('');
       toast('Полный экран');
       setUI(true);

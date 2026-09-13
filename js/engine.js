@@ -10,7 +10,7 @@
 (function (global) {
   'use strict';
 
-  var BUILD = '52';     // видно на самой странице — чтобы не гадать, свежая ли версия
+  var BUILD = '53';     // видно на самой странице — чтобы не гадать, свежая ли версия
 
   var PAPER = '#f5ecda';
   var INK   = '#2f2a25';
@@ -2723,6 +2723,9 @@
     }
     hideBtn.addEventListener('click', function () {
       Snd.tap('hide');
+      hideBtn.classList.remove('tapped');
+      void hideBtn.offsetWidth;          // перезапуск анимации
+      hideBtn.classList.add('tapped');
       setMenu('');
       toast('Полный экран');
       setUI(true);

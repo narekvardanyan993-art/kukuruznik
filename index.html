@@ -26,24 +26,24 @@
 </div>
 
 <div id="fps">— fps</div>
-<button id="soundBtn" class="lg" type="button" aria-pressed="true" aria-label="Звук"><svg class="on-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4h3.6L13 18V6L7.6 10H4z"/><path d="M16.2 9.2a4 4 0 0 1 0 5.6M18.6 6.8a7.6 7.6 0 0 1 0 10.4"/></svg><svg class="off-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4h3.6L13 18V6L7.6 10H4z"/><path d="M16 9.5l4.6 4.6M20.6 9.5L16 14.1"/></svg></button>
+<button id="soundBtn" class="lg" type="button" aria-pressed="true" aria-label="Звук" data-cap="Звук"><svg class="on-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4h3.6L13 18V6L7.6 10H4z"/><g class="waves"><path d="M16.2 9.2a4 4 0 0 1 0 5.6M18.6 6.8a7.6 7.6 0 0 1 0 10.4"/></g></svg><svg class="off-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4h3.6L13 18V6L7.6 10H4z"/><path d="M16 9.5l4.6 4.6M20.6 9.5L16 14.1"/></svg></button>
 <div id="hint">Крути пальцем · два пальца — приблизить</div>
 
 <div id="hud">
-    <div class="rs" style="--x:96.6px;--y:-25.9px">
-      <button id="weatherBtn" class="ri lg" type="button" aria-label="Погода" data-cap="Погода"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><g class="sun-g"><circle cx="9.3" cy="15" r="2.9"/><path d="M9.3 10.3V8.6M9.3 19.7v1.7M4.6 15H2.9M14 15h1.7M12.62 11.68l1.21-1.21M5.98 18.32l-1.21 1.21M12.62 18.32l1.21 1.21M5.98 11.68L4.77 10.47"/></g><path d="M20.4 7.3A3.96 3.96 0 0 1 15.4 2.3 3.96 3.96 0 1 0 20.4 7.3z"/></svg></button>
+    <div class="rs" style="--x:96.6px;--y:-25.9px" data-cap="Погода">
+      <button id="weatherBtn" class="ri lg" type="button" aria-label="Погода" data-cap="Погода"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><g class="sun-g"><circle cx="12" cy="12" r="4.6"/><path d="M12 3.6v2.3M12 18.1v2.3M4.6 12H2.3M21.7 12h-2.3M6.34 6.34L4.73 4.73M19.27 19.27l-1.61-1.61M17.66 6.34l1.61-1.61M4.73 19.27l1.61-1.61"/></g></svg></button>
     </div>
-    <div class="rs" style="--x:60.9px;--y:-79.3px">
+    <div class="rs" style="--x:60.9px;--y:-79.3px" data-cap="Облёт">
       <button id="droneBtn" class="ri lg" type="button" aria-pressed="false" aria-label="Облёт" data-cap="Облёт"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.6"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><g class="orbit"><circle cx="20.6" cy="12" r="1.9" fill="currentColor" stroke="none"/></g></svg></button>
     </div>
-    <div class="rs" style="--x:0px;--y:-100.0px">
+    <div class="rs" style="--x:0px;--y:-100.0px" data-cap="Поворот">
       <button id="autoBtn" class="ri lg" type="button" aria-pressed="false" aria-label="Поворот" data-cap="Поворот"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><g class="spin-slow"><path d="M20.2 12a8.2 8.2 0 1 1-2.4-5.8"/><path d="M20.2 4v4.9h-4.9"/></g></svg></button>
     </div>
-    <div class="rs" style="--x:-60.9px;--y:-79.3px">
+    <div class="rs" style="--x:-60.9px;--y:-79.3px" data-cap="Сброс">
       <button id="resetBtn" class="ri lg" type="button" aria-label="Сброс" data-cap="Сброс"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><g class="snap"><circle cx="12" cy="12" r="8.2"/><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/><path d="M12 1.6v3M12 19.4v3M1.6 12h3M19.4 12h3"/></g></svg></button>
     </div>
-    <div class="rs" style="--x:-96.6px;--y:-25.9px">
-      <button id="hideBtn" class="ri lg" type="button" aria-label="Экран" data-cap="Экран"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9.2 3H3v6.2M14.8 3H21v6.2M21 14.8V21h-6.2M3 14.8V21h6.2"/></svg></button>
+    <div class="rs" style="--x:-96.6px;--y:-25.9px" data-cap="Экран">
+      <button id="hideBtn" class="ri lg" type="button" aria-label="Экран" data-cap="Экран"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><g class="brackets"><path d="M9.2 3H3v6.2M14.8 3H21v6.2M21 14.8V21h-6.2M3 14.8V21h6.2"/></g></svg></button>
     </div>
 
   <div id="sub" class="lg">
@@ -63,7 +63,7 @@
 
   <div id="toast" class="lg"></div>
 
-  <button id="hudBtn" class="lg" type="button" aria-expanded="false" aria-label="Меню"><svg class="open-i" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2.7"/><circle cx="19.6" cy="12" r="1.85"/><circle cx="15.8" cy="5.42" r="1.85"/><circle cx="8.2" cy="5.42" r="1.85"/><circle cx="4.4" cy="12" r="1.85"/><circle cx="8.2" cy="18.58" r="1.85"/><circle cx="15.8" cy="18.58" r="1.85"/></svg><svg class="close-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M6.8 6.8l10.4 10.4M17.2 6.8L6.8 17.2"/></svg><svg class="back-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.6 5.4L8 12l6.6 6.6"/></svg></button>
+  <button id="hudBtn" class="lg" type="button" aria-expanded="false" aria-label="Меню" data-cap="Меню"><svg class="open-i" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2.7"/><circle cx="19.6" cy="12" r="1.85"/><circle cx="15.8" cy="5.42" r="1.85"/><circle cx="8.2" cy="5.42" r="1.85"/><circle cx="4.4" cy="12" r="1.85"/><circle cx="8.2" cy="18.58" r="1.85"/><circle cx="15.8" cy="18.58" r="1.85"/></svg><svg class="close-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M6.8 6.8l10.4 10.4M17.2 6.8L6.8 17.2"/></svg><svg class="back-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.6 5.4L8 12l6.6 6.6"/></svg></button>
 </div>
 
 <div id="back-tip" class="lg">Коснись экрана, чтобы вернуть панель</div>
