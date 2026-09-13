@@ -7,7 +7,7 @@
 (function (global) {
   'use strict';
 
-  var BUILD = '20';     // видно на самой странице — чтобы не гадать, свежая ли версия
+  var BUILD = '21';     // видно на самой странице — чтобы не гадать, свежая ли версия
 
   var PAPER = '#f5ecda';
   var INK   = '#2f2a25';
@@ -272,6 +272,13 @@
           v: 4 + rc2() * 7                  // пикселей в секунду
         });
       }
+      var rb = seeded(404);
+      this.birds = [];
+      for (var bi2 = 0; bi2 < 3; bi2++) {
+        this.birds.push({ x: rb() * 900, y: 0.10 + rb() * 0.18,
+                          s: 0.008 + rb() * 0.005, v: 16 + rb() * 14, p: rb() * 6.28 });
+      }
+
       var rs = seeded(555);
       this.stars = [];
       for (var si = 0; si < 70; si++) this.stars.push(rs(), rs() * 0.92, rs() * 6.28);
@@ -406,6 +413,8 @@
     this.hatch();
     this.strokeBody(3);
     this.drawShadows(1);   // тень башни на террасе — уже поверх террасы
+    this.drawLamps();
+    this.drawPeople(false);   // те, кто за башней
 
     /* Нижний корпус стоит сбоку, а не сверху, поэтому очередь у него
        плавающая: если он дальше башни — рисуем до неё, если ближе —
@@ -437,6 +446,7 @@
     if (hz >= 0) this.drawHall();   // корпус ближе башни — ложится поверх
     if (wz >= 0) this.drawWing();
 
+    this.drawPeople(true);    // те, кто перед башней
     this.drawCity(true);   // ближние соседи
     this.drawTrees(true);  // ближняя роща — перед зданием
     this.drawAir();       // воздух поверх массы — он касается и линий
@@ -546,7 +556,7 @@
     var k = FOCAL / Math.max(1, CAM_DIST - pz[b]) * this.S;
     /* Лёгкое качание. Амплитуда крошечная — полпроцента ширины кроны:
        больше выглядит как шторм, а не как ветер. */
-    var sway = Math.sin(this.time * 0.8 + f.wob[0] * 9.3) * k * 0.014;
+    var sway = Math.sin(this.time * 0.9 + f.wob[0] * 12.7 + f.wob[3] * 5.1) * k * 0.020;
     var cx = px[b] + f.lean * k + sway;
     var cy = py[b] - f.h * k * 0.74;
     var rx = f.w * k, ry = f.h * k * 0.40;
@@ -681,12 +691,144 @@
     if (any) { ctx.fillStyle = g; ctx.fill(); }
   };
 
+  /* Проекция одной точки на лету. Нужна тем, кто двигается: массив
+     positions считается один раз на всю модель, а люди ходят. */
+  Engine.prototype.proj = function (x, y, z, o) {
+    var r = this.rot;
+    var x1 = x * r.cy + z * r.sy;
+    var z1 = -x * r.sy + z * r.cy;
+    var y2 = y * r.cp - z1 * r.sp;
+    var z2 = y * r.sp + z1 * r.cp;
+    var d = CAM_DIST - z2; if (d < 1) d = 1;
+    var k = FOCAL / d * this.S;
+    o.x = this.ox + x1 * k;
+    o.y = this.oy - y2 * k;
+    o.k = k; o.z = z2;
+    return o;
+  };
+
+  /* Люди. Ходят кругами вокруг стилобата. Рисуются двумя путями на
+     всех разом: тела с ногами — обводкой, головы — заливкой. */
+  Engine.prototype.drawPeople = function (near) {
+    var W = this.model.walkers;
+    if (!W) return;
+    var ctx = this.ctx, t = this.time;
+    var o = this._po || (this._po = {});
+    var listB = [], listH = [];
+
+    for (var i = 0; i < W.length; i++) {
+      var f = W[i];
+      var a = f.ph + t * f.sp;
+      this.proj(Math.cos(a) * f.r, f.y, Math.sin(a) * f.r, o);
+      if ((o.z > 0) !== !!near) continue;
+      listB.push(o.x, o.y, o.k, i);
+    }
+    if (!listB.length) return;
+
+    ctx.beginPath();
+    for (var q = 0; q < listB.length; q += 4) {
+      var x = listB[q], y = listB[q + 1], k = listB[q + 2], f2 = W[listB[q + 3]];
+      var hh = f2.h * k;
+      var step = Math.sin(t * 5.2 + f2.st) * hh * 0.16;
+      ctx.moveTo(x, y - hh * 0.34);            // ноги
+      ctx.lineTo(x - step, y);
+      ctx.moveTo(x, y - hh * 0.34);
+      ctx.lineTo(x + step, y);
+      ctx.moveTo(x, y - hh * 0.34);            // корпус
+      ctx.lineTo(x, y - hh * 0.80);
+      listH.push(x, y - hh * 0.90, hh * 0.115);
+    }
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = Math.max(1, listB[2] * 0.013);
+    ctx.globalAlpha = 0.82;
+    ctx.stroke();
+
+    ctx.beginPath();
+    for (var q2 = 0; q2 < listH.length; q2 += 3) {
+      ctx.moveTo(listH[q2] + listH[q2 + 2], listH[q2 + 1]);
+      ctx.arc(listH[q2], listH[q2 + 1], listH[q2 + 2], 0, Math.PI * 2);
+    }
+    ctx.fillStyle = INK;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  };
+
+  /* Фонари. Днём — тонкая мачта с головкой, ночью ещё и тёплое пятно
+     света: без него площадка остаётся чёрной, сколько ни зажигай окон. */
+  Engine.prototype.drawLamps = function () {
+    var L = this.model.lamps;
+    if (!L) return;
+    var ctx = this.ctx, px = this.px, py = this.py, pz = this.pz;
+
+    // свет кладём ПОД мачты, иначе он ложится поверх них молочным пятном
+    if (NIGHT > 0.15) {
+      var al = Math.min(1, (NIGHT - 0.15) / 0.35);
+      ctx.globalCompositeOperation = 'lighter';
+      for (var i = 0; i < L.length; i++) {
+        var tp = L[i].t;
+        var k = FOCAL / Math.max(1, CAM_DIST - pz[tp]) * this.S;
+        var rr = k * 0.42;
+        var g = ctx.createRadialGradient(px[tp], py[tp], 0, px[tp], py[tp], rr);
+        g.addColorStop(0, 'rgba(255, 214, 140, ' + (0.55 * al).toFixed(3) + ')');
+        g.addColorStop(0.45, 'rgba(255, 200, 120, ' + (0.16 * al).toFixed(3) + ')');
+        g.addColorStop(1, 'rgba(255, 190, 110, 0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(px[tp], py[tp], rr, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    ctx.beginPath();
+    for (var j = 0; j < L.length; j++) {
+      ctx.moveTo(px[L[j].b], py[L[j].b]);
+      ctx.lineTo(px[L[j].t], py[L[j].t]);
+    }
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = Math.max(0.9, this.S * 0.010);
+    ctx.globalAlpha = 0.78;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    ctx.beginPath();
+    for (var j2 = 0; j2 < L.length; j2++) {
+      var tp2 = L[j2].t;
+      var k2 = FOCAL / Math.max(1, CAM_DIST - pz[tp2]) * this.S;
+      ctx.moveTo(px[tp2] + k2 * 0.022, py[tp2]);
+      ctx.arc(px[tp2], py[tp2], k2 * 0.022, 0, Math.PI * 2);
+    }
+    ctx.fillStyle = NIGHT > 0.2 ? 'rgb(255, 226, 164)' : C_RAIL;
+    ctx.fill();
+  };
+
   /* Небо. Рисуется каждый кадр — иначе не сменить время суток и не
      двинуть облака. Стоит дёшево: одна заливка с градиентом, четыре
      облака по восемь дуг и горсть звёзд. */
   Engine.prototype.drawSky = function () {
     var ctx = this.ctx, w = this.w, h = this.h, t = this.time;
     var horizon = h * 0.72;
+
+    /* Светило. Идёт по дуге вместе с ползунком: днём мягкое солнце,
+       ночью холодная луна. Оно же объясняет, откуда падают тени. */
+    var sa = Math.PI * (0.14 + TOD * 0.74);
+    var sx = w * (0.50 - Math.cos(sa) * 0.46);
+    var sy = horizon * (1.02 - Math.sin(sa) * 0.92);
+    var sr = Math.min(w, h) * 0.042;
+    var gs = ctx.createRadialGradient(sx, sy, sr * 0.2, sx, sy, sr * 3.4);
+    if (NIGHT > 0.55) {
+      gs.addColorStop(0, 'rgba(226, 232, 250, 0.90)');
+      gs.addColorStop(0.14, 'rgba(210, 220, 245, 0.30)');
+      gs.addColorStop(1, 'rgba(190, 205, 240, 0)');
+    } else {
+      gs.addColorStop(0, 'rgba(255, 244, 206, ' + (0.85 - 0.4 * NIGHT).toFixed(2) + ')');
+      gs.addColorStop(0.13, 'rgba(255, 226, 160, 0.28)');
+      gs.addColorStop(1, 'rgba(255, 210, 140, 0)');
+    }
+    ctx.fillStyle = gs;
+    ctx.beginPath();
+    ctx.arc(sx, sy, sr * 3.4, 0, Math.PI * 2);
+    ctx.fill();
 
     // 3. звёзды
     if (NIGHT > 0.12) {
@@ -699,6 +841,26 @@
         ctx.fillRect(stars[i] * w, stars[i + 1] * horizon, rr, rr);
       }
       ctx.globalAlpha = 1;
+    }
+
+    /* Птицы. Три галочки, скользящие поперёк неба; взмах — изменение
+       угла галочки. Дёшево, а небо перестаёт быть неподвижным. */
+    if (NIGHT < 0.6) {
+      var brd = this.birds;
+      ctx.beginPath();
+      for (var bi = 0; bi < brd.length; bi++) {
+        var bd = brd[bi];
+        var bx = ((bd.x + t * bd.v) % (w + 160) + w + 160) % (w + 160) - 80;
+        var by = bd.y * h + Math.sin(t * 0.5 + bd.p) * h * 0.012;
+        var fl = 0.35 + 0.28 * Math.sin(t * 6.2 + bd.p);
+        var sz = bd.s * Math.min(w, h);
+        ctx.moveTo(bx - sz, by - sz * fl);
+        ctx.lineTo(bx, by);
+        ctx.lineTo(bx + sz, by - sz * fl);
+      }
+      ctx.strokeStyle = 'rgba(70, 66, 62, ' + (0.42 * (1 - NIGHT)).toFixed(2) + ')';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
     }
 
     // 4. облака: медленно плывут, ночью почти гаснут
