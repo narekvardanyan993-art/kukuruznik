@@ -10,7 +10,7 @@
 (function (global) {
   'use strict';
 
-  var BUILD = '55';     // видно на самой странице — чтобы не гадать, свежая ли версия
+  var BUILD = '56';     // видно на самой странице — чтобы не гадать, свежая ли версия
 
   var PAPER = '#f5ecda';
   var INK   = '#2f2a25';
@@ -352,14 +352,6 @@
     var h = (box && box.height) || (vv && vv.height) || ih || scr.height || 0;
     w = Math.round(w); h = Math.round(h);
     if (!w || !h) return;
-
-    if (!this._sizeLogged) {
-      this._sizeLogged = true;
-      if (!iw || !ih) {
-        var hintEl0 = global.document && global.document.getElementById('hint');
-        if (hintEl0) hintEl0.textContent += ' · iw' + iw + ' ih' + ih + ' → ' + w + '×' + h;
-      }
-    }
 
     this.w = w; this.h = h; this.dpr = dpr;
 

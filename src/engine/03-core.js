@@ -105,14 +105,6 @@
     w = Math.round(w); h = Math.round(h);
     if (!w || !h) return;
 
-    if (!this._sizeLogged) {
-      this._sizeLogged = true;
-      if (!iw || !ih) {
-        var hintEl0 = global.document && global.document.getElementById('hint');
-        if (hintEl0) hintEl0.textContent += ' · iw' + iw + ' ih' + ih + ' → ' + w + '×' + h;
-      }
-    }
-
     this.w = w; this.h = h; this.dpr = dpr;
 
     var c1 = this.canvas, c2 = this.paper;
