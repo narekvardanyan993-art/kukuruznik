@@ -92,8 +92,17 @@
        физические размеры экрана (screen.width/height) в «домашнем»
        режиме и есть размер окна — там нет ни адресной строки, ни
        панелей браузера, которые могли бы дать разницу. */
-    var w = iw || scr.width || 0;
-    var h = ih || scr.height || 0;
+    /* Порядок источников размера — от самого честного к запасному.
+       Холст растянут по #stage средствами CSS, поэтому его собственная
+       измеренная коробка и есть настоящий размер картинки: она верна и
+       тогда, когда innerHeight врёт (приложение с домашнего экрана,
+       выезжающие панели Safari, вырез и «дом-бар» айфона). */
+    var vv = global.visualViewport;
+    var box = (this.canvas && this.canvas.getBoundingClientRect)
+      ? this.canvas.getBoundingClientRect() : null;
+    var w = (box && box.width)  || (vv && vv.width)  || iw || scr.width  || 0;
+    var h = (box && box.height) || (vv && vv.height) || ih || scr.height || 0;
+    w = Math.round(w); h = Math.round(h);
     if (!w || !h) return;
 
     if (!this._sizeLogged) {

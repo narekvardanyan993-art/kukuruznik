@@ -43,4 +43,27 @@ for srcdir, out in JOBS:
         print('%s %s  <- %d кусков, %d строк' % (
             'собран  ' if not same else 'без изменений', out, len(names), text.count('\n')))
 
+# ---- номер сборки в загрузчик index.html ----
+# Загрузчик добавляет ?v=НОМЕР к адресам css и js. Раньше там стояло
+# время с точностью до минуты, и телефон при каждом запуске лез в сеть
+# за «новыми» файлами — с домашнего экрана это оборачивалось пустой
+# сценой. Держим номер сборки: меняется ровно тогда, когда есть что
+# скачивать заново.
+import re
+
+pal = open(os.path.join(HERE, 'src/engine/01-palette.js'), encoding='utf-8').read()
+m = re.search(r"var BUILD = '([^']+)'", pal)
+if m:
+    ipath = os.path.join(HERE, 'index.html')
+    html = open(ipath, encoding='utf-8').read()
+    fixed = re.sub(r"var VERSION = '[^']*';", "var VERSION = '%s';" % m.group(1), html)
+    if fixed == html:
+        print('версия загрузчика  index.html  <- уже %s' % m.group(1))
+    elif check:
+        print('РАЗОШЛОСЬ   index.html (версия загрузчика)')
+        bad += 1
+    else:
+        open(ipath, 'w', encoding='utf-8').write(fixed)
+        print('версия загрузчика  index.html  <- %s' % m.group(1))
+
 sys.exit(1 if bad else 0)

@@ -1,0 +1,16 @@
+{
+  "name": "Кукурузник — Дом молодёжи",
+  "short_name": "Кукурузник",
+  "description": "Снесённый Дом молодёжи в Ереване, восстановленный в 3D",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d1230",
+  "theme_color": "#0d1230",
+  "icons": [
+    { "src": "icons/apple-touch-icon.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
+    { "src": "icons/apple-touch-icon.png", "sizes": "180x180", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/favicon.png", "sizes": "32x32", "type": "image/png" }
+  ]
+}

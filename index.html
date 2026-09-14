@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0d1230">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 
 <!-- «На экран Домой» на iPhone: открывается без адресной строки и
      полосок Safari — это и есть настоящий полноэкранный режим,
@@ -15,6 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="Кукурузник">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" href="icons/favicon.png">
+<link rel="manifest" href="manifest.json">
 
 <title>Кукурузник — 3D</title>
 </head>
@@ -67,19 +67,59 @@
 </div>
 
 <div id="back-tip" class="lg">Коснись экрана, чтобы вернуть панель</div>
+<div id="fatal" style="display:none;position:fixed;left:16px;right:16px;top:50%;transform:translateY(-50%);z-index:99;padding:16px 18px;border-radius:14px;background:#161c3a;color:#e9edf7;font:15px/1.45 -apple-system,system-ui,sans-serif;text-align:center"></div>
 
 <script>
 (function () {
-  var v = Math.floor(Date.now() / 60000);
+  /* Номер версии проставляет build.py из номера сборки.
+
+     Раньше здесь стояло текущее время с точностью до минуты: каждый
+     запуск просил у сети адреса, которых телефон ни разу не видел. В
+     Safari это сходило с рук, а приложение с домашнего экрана при
+     холодном старте часто не успевает поднять сеть — файлы движка не
+     приходили, интерфейс (он в самой странице) рисовался, а сцена не
+     появлялась вовсе. Постоянная версия даёт взять файлы из кэша, а
+     после новой сборки номер меняется — и телефон честно скачивает
+     свежие. */
+  var VERSION = '55';                     /* build.py перепишет сам */
+  var q = '?v=' + VERSION;
+
+  function fatal(text) {
+    var box = document.getElementById('fatal');
+    if (!box) return;
+    box.style.display = 'block';
+    box.textContent = text;
+  }
+
   var css = document.createElement('link');
-  css.rel = 'stylesheet'; css.href = 'css/style.css?v=' + v;
+  css.rel = 'stylesheet';
+  css.href = 'css/style.css' + q;
+  css.onerror = function () {
+    var again = document.createElement('link');
+    again.rel = 'stylesheet';
+    again.href = 'css/style.css';
+    document.head.appendChild(again);
+  };
   document.head.appendChild(css);
+
   var files = ['js/model.js', 'js/controls.js', 'js/engine.js'];
   for (var i = 0; i < files.length; i++) {
-    var s = document.createElement('script');
-    s.src = files[i] + '?v=' + v; s.async = false;
-    document.head.appendChild(s);
+    (function (src) {
+      var el = document.createElement('script');
+      el.src = src + q;
+      el.async = false;                   /* порядок файлов важен */
+      el.onerror = function () {
+        fatal('Не загрузился ' + src + '. Проверь интернет и открой заново.');
+      };
+      document.head.appendChild(el);
+    })(files[i]);
   }
+
+  /* Пустой экран без объяснений — худшее, что может случиться на
+     телефоне: непонятно, сломано приложение или просто нет сети. */
+  window.addEventListener('error', function (e) {
+    if (e && e.message) fatal('Сцена не запустилась: ' + e.message);
+  });
 })();
 </script>
 </body>

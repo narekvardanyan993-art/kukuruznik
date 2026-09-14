@@ -43,7 +43,12 @@ body.night {
 html, body {
   margin: 0;
   padding: 0;
+  /* Три высоты подряд — не опечатка: браузер возьмёт последнюю, которую
+     понимает. 100% — для самых старых, -webkit-fill-available — для
+     Safari на айфоне, 100dvh — правильная «живая» высота экрана. */
   height: 100%;
+  height: -webkit-fill-available;
+  height: 100dvh;
   overflow: hidden;
   background: var(--paper);
   color: var(--ink);

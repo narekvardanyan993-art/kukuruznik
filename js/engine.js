@@ -10,7 +10,7 @@
 (function (global) {
   'use strict';
 
-  var BUILD = '54';     // видно на самой странице — чтобы не гадать, свежая ли версия
+  var BUILD = '55';     // видно на самой странице — чтобы не гадать, свежая ли версия
 
   var PAPER = '#f5ecda';
   var INK   = '#2f2a25';
@@ -340,8 +340,17 @@
        физические размеры экрана (screen.width/height) в «домашнем»
        режиме и есть размер окна — там нет ни адресной строки, ни
        панелей браузера, которые могли бы дать разницу. */
-    var w = iw || scr.width || 0;
-    var h = ih || scr.height || 0;
+    /* Порядок источников размера — от самого честного к запасному.
+       Холст растянут по #stage средствами CSS, поэтому его собственная
+       измеренная коробка и есть настоящий размер картинки: она верна и
+       тогда, когда innerHeight врёт (приложение с домашнего экрана,
+       выезжающие панели Safari, вырез и «дом-бар» айфона). */
+    var vv = global.visualViewport;
+    var box = (this.canvas && this.canvas.getBoundingClientRect)
+      ? this.canvas.getBoundingClientRect() : null;
+    var w = (box && box.width)  || (vv && vv.width)  || iw || scr.width  || 0;
+    var h = (box && box.height) || (vv && vv.height) || ih || scr.height || 0;
+    w = Math.round(w); h = Math.round(h);
     if (!w || !h) return;
 
     if (!this._sizeLogged) {
@@ -2578,13 +2587,40 @@
     }
     global.addEventListener('resize', onResize);
     global.addEventListener('orientationchange', onResize);
+    /* Приложение с домашнего экрана просыпается из свёрнутого вида и
+       из «снимка» — обычного resize при этом может не быть вовсе. */
+    global.addEventListener('pageshow', onResize);
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) onResize();
+    });
+    if (global.visualViewport) {
+      global.visualViewport.addEventListener('resize', onResize);
+    }
 
     // Счётчик кадров. Текст в DOM пишем 4 раза в секунду, а не 60 —
     // каждое обращение к DOM заставляет браузер пересчитывать страницу.
     var last = 0, fpsAvg = 60, fpsClock = 0;
+    var seenW = 0, seenH = 0;
 
     function frame(now) {
       global.requestAnimationFrame(frame);
+
+      /* Самолечение размера.
+
+         Приложение, запущенное с иконки на домашнем экране, иногда
+         стартует, когда окно ещё нулевой ширины, а события resize
+         после этого не приходит вообще. Раньше мы пробовали получить
+         размер полторы секунды и сдавались — и если за это время окно
+         так и не появилось, холст навсегда оставался нулевым: сцена не
+         рисовалась никогда, хотя интерфейс был на месте. Теперь размер
+         проверяется каждый кадр и чинится сам, как только появится.
+         Проверка дешёвая — два числа из окна, вёрстку она не трогает. */
+      if (!engine.w || !engine.h ||
+          global.innerWidth !== seenW || global.innerHeight !== seenH) {
+        seenW = global.innerWidth;
+        seenH = global.innerHeight;
+        engine.resize();
+      }
 
       if (!last) { last = now; return; }
       var dt = now - last;

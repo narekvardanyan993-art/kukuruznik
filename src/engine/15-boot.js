@@ -99,13 +99,40 @@
     }
     global.addEventListener('resize', onResize);
     global.addEventListener('orientationchange', onResize);
+    /* Приложение с домашнего экрана просыпается из свёрнутого вида и
+       из «снимка» — обычного resize при этом может не быть вовсе. */
+    global.addEventListener('pageshow', onResize);
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) onResize();
+    });
+    if (global.visualViewport) {
+      global.visualViewport.addEventListener('resize', onResize);
+    }
 
     // Счётчик кадров. Текст в DOM пишем 4 раза в секунду, а не 60 —
     // каждое обращение к DOM заставляет браузер пересчитывать страницу.
     var last = 0, fpsAvg = 60, fpsClock = 0;
+    var seenW = 0, seenH = 0;
 
     function frame(now) {
       global.requestAnimationFrame(frame);
+
+      /* Самолечение размера.
+
+         Приложение, запущенное с иконки на домашнем экране, иногда
+         стартует, когда окно ещё нулевой ширины, а события resize
+         после этого не приходит вообще. Раньше мы пробовали получить
+         размер полторы секунды и сдавались — и если за это время окно
+         так и не появилось, холст навсегда оставался нулевым: сцена не
+         рисовалась никогда, хотя интерфейс был на месте. Теперь размер
+         проверяется каждый кадр и чинится сам, как только появится.
+         Проверка дешёвая — два числа из окна, вёрстку она не трогает. */
+      if (!engine.w || !engine.h ||
+          global.innerWidth !== seenW || global.innerHeight !== seenH) {
+        seenW = global.innerWidth;
+        seenH = global.innerHeight;
+        engine.resize();
+      }
 
       if (!last) { last = now; return; }
       var dt = now - last;
