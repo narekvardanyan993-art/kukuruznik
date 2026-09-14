@@ -67,6 +67,7 @@
 </div>
 
 <div id="back-tip" class="lg">Коснись экрана, чтобы вернуть панель</div>
+<div id="diag" style="position:fixed;left:8px;right:8px;top:8px;z-index:98;padding:8px 10px;border-radius:10px;background:rgba(8,12,30,0.82);color:#cfe0ff;font:11px/1.45 ui-monospace,Menlo,monospace;white-space:pre-wrap;-webkit-user-select:all;user-select:all">диагностика…</div>
 <div id="fatal" style="display:none;position:fixed;left:16px;right:16px;top:50%;transform:translateY(-50%);z-index:99;padding:16px 18px;border-radius:14px;background:#161c3a;color:#e9edf7;font:15px/1.45 -apple-system,system-ui,sans-serif;text-align:center"></div>
 
 <script>
@@ -81,8 +82,31 @@
      появлялась вовсе. Постоянная версия даёт взять файлы из кэша, а
      после новой сборки номер меняется — и телефон честно скачивает
      свежие. */
-  var VERSION = '56';                     /* build.py перепишет сам */
+  var VERSION = '57';                     /* build.py перепишет сам */
   var q = '?v=' + VERSION;
+
+  /* Самообновление.
+
+     Сама страница (index.html) лежит в адресе без версии, и телефон
+     честно держит её в кэше. С иконки на домашнем экране это особенно
+     заметно: можно неделю смотреть на старую сборку и не понимать,
+     почему правки не появляются. Поэтому спрашиваем у сервера
+     маленький version.txt мимо кэша: если там номер новее — один раз
+     перезагружаемся. Один раз за запуск, чтобы не уйти в кольцо. */
+  try {
+    if (!sessionStorage.getItem('kk-reloaded')) {
+      fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.text() : ''; })
+        .then(function (t) {
+          t = (t || '').trim();
+          if (t && t !== VERSION) {
+            sessionStorage.setItem('kk-reloaded', t);
+            location.reload();
+          }
+        })
+        .catch(function () {});
+    }
+  } catch (e) {}
 
   function fatal(text) {
     var box = document.getElementById('fatal');

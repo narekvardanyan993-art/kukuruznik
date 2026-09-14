@@ -114,8 +114,40 @@
     var last = 0, fpsAvg = 60, fpsClock = 0;
     var seenW = 0, seenH = 0;
 
+    /* Временная панель диагностики: пустой экран на телефоне нельзя
+       объяснить догадками, нужны настоящие числа с самого телефона. */
+    var diagEl = document.getElementById('diag');
+    var frames = 0, drawn = 0, diagClock = 0;
+    if (diagEl) {
+      diagEl.addEventListener('click', function () { diagEl.style.display = 'none'; });
+    }
+
+    function paintDiag() {
+      if (!diagEl) return;
+      var c = engine.canvas;
+      var r = c.getBoundingClientRect();
+      var cs = global.getComputedStyle ? global.getComputedStyle(c) : {};
+      var st = document.getElementById('stage');
+      var sr = st ? st.getBoundingClientRect() : { width: 0, height: 0 };
+      var standalone = (global.navigator && global.navigator.standalone) ? 'с иконки' :
+        (global.matchMedia && global.matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'браузер');
+      diagEl.textContent =
+        'сборка ' + BUILD + ' · ' + standalone + ' · кадров ' + frames + ' · рисований ' + drawn + '\n' +
+        'движок ' + engine.w + '×' + engine.h + ' dpr' + engine.dpr +
+        ' · холст ' + c.width + '×' + c.height + '\n' +
+        'коробка холста ' + Math.round(r.width) + '×' + Math.round(r.height) +
+        ' · сцена ' + Math.round(sr.width) + '×' + Math.round(sr.height) + '\n' +
+        'окно ' + global.innerWidth + '×' + global.innerHeight +
+        ' · экран ' + (global.screen ? global.screen.width + '×' + global.screen.height : '?') +
+        ' · dpr ' + global.devicePixelRatio + '\n' +
+        'холст: display ' + (cs.display || '?') + ' видимость ' + (cs.visibility || '?') +
+        ' прозрачность ' + (cs.opacity || '?') + '\n' +
+        'body: "' + document.body.className + '"';
+    }
+
     function frame(now) {
       global.requestAnimationFrame(frame);
+      frames++;
 
       /* Самолечение размера.
 
@@ -133,6 +165,9 @@
         seenH = global.innerHeight;
         engine.resize();
       }
+
+      if (engine.w && engine.h) drawn++;
+      if (diagEl && now - diagClock > 250) { diagClock = now; paintDiag(); }
 
       if (!last) { last = now; return; }
       var dt = now - last;

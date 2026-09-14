@@ -57,6 +57,7 @@ if m:
     ipath = os.path.join(HERE, 'index.html')
     html = open(ipath, encoding='utf-8').read()
     fixed = re.sub(r"var VERSION = '[^']*';", "var VERSION = '%s';" % m.group(1), html)
+    open(os.path.join(HERE, 'version.txt'), 'w', encoding='utf-8').write(m.group(1) + '\n')
     if fixed == html:
         print('версия загрузчика  index.html  <- уже %s' % m.group(1))
     elif check:
