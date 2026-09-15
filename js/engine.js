@@ -10,7 +10,7 @@
 (function (global) {
   'use strict';
 
-  var BUILD = '57';     // видно на самой странице — чтобы не гадать, свежая ли версия
+  var BUILD = '58';     // видно на самой странице — чтобы не гадать, свежая ли версия
 
   var PAPER = '#f5ecda';
   var INK   = '#2f2a25';
@@ -2597,7 +2597,7 @@
     /* Временная панель диагностики: пустой экран на телефоне нельзя
        объяснить догадками, нужны настоящие числа с самого телефона. */
     var diagEl = document.getElementById('diag');
-    var frames = 0, drawn = 0, diagClock = 0;
+    var frames = 0, drawn = 0, diagClock = 0, canary = 'нет';
     if (diagEl) {
       diagEl.addEventListener('click', function () { diagEl.style.display = 'none'; });
     }
@@ -2622,7 +2622,10 @@
         ' · dpr ' + global.devicePixelRatio + '\n' +
         'холст: display ' + (cs.display || '?') + ' видимость ' + (cs.visibility || '?') +
         ' прозрачность ' + (cs.opacity || '?') + '\n' +
-        'body: "' + document.body.className + '"';
+        'body: "' + document.body.className + '"\n' +
+        'канарейка: ' + canary + ' · очередь ' +
+          ((engine.queue && engine.queue.length) || 0) + ' · граней ' +
+          ((engine.model && engine.model.cells && engine.model.cells.length) || 0);
     }
 
     function frame(now) {
@@ -2648,6 +2651,7 @@
 
       if (engine.w && engine.h) drawn++;
       if (diagEl && now - diagClock > 250) { diagClock = now; paintDiag(); }
+
 
       if (!last) { last = now; return; }
       var dt = now - last;
@@ -2677,6 +2681,33 @@
         state.zoom = 1.04 + 0.30 * Math.sin(droneT * 0.12 + 1.2);
       }
       engine.render(state);
+
+      /* КАНАРЕЙКА (временно, сборка 58).
+
+         Рисуем прямо по холсту, в сырых пикселях, мимо камеры, модели
+         и всей машинерии сцены. Дальше по одному взгляду на экран
+         видно, где обрыв:
+           видна рамка по краю экрана  -> холст жив, цел и нужного
+                                          размера, виновата сама сцена;
+           рамка маленькая, в углу     -> холст не того размера;
+           не видно ничего             -> холст невидим или нулевой. */
+      try {
+        var cvs = engine.canvas, cx2 = cvs.getContext('2d');
+        if (cx2 && cvs.width && cvs.height) {
+          cx2.save();
+          cx2.setTransform(1, 0, 0, 1, 0, 0);
+          cx2.globalAlpha = 1;
+          cx2.strokeStyle = '#ff00c8';
+          cx2.lineWidth = 8;
+          cx2.strokeRect(4, 4, cvs.width - 8, cvs.height - 8);
+          cx2.fillStyle = '#ff00c8';
+          cx2.fillRect(14, 14, 90, 90);
+          cx2.restore();
+          canary = 'нарисована';
+        } else {
+          canary = cx2 ? ('холст ' + cvs.width + 'x' + cvs.height) : 'нет контекста';
+        }
+      } catch (e) { canary = 'ошибка: ' + e.message; }
 
       fpsAvg += (1000 / dt - fpsAvg) * 0.08;
       if (now - fpsClock > 250) {
