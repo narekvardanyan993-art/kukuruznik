@@ -66,7 +66,7 @@ img, svg { display: block; max-width: 100%; }
   cursor: pointer;
 }
 
-.layer, .layer img {
+.layer, .layer picture, .layer img {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -76,33 +76,72 @@ img, svg { display: block; max-width: 100%; }
 .layer img {
   object-fit: cover;
   object-position: 50% 24%;
+  /* небольшой запас со всех сторон под параллакс мышью/прокруткой,
+     иначе сдвиг картинки на пару пикселей открывал бы серый край */
+  transform: translate3d(calc(var(--px, 0) * 1px), calc(var(--py, 0) * 1px), 0) scale(1.06);
 }
 
-.photo img {
-  transition: filter 2.6s ease;
-}
+.plate.parallax .layer img { transition: transform 90ms linear; }
 
+/* Фото — нижний слой на всю ширину. Рисунок — верхний, срезанный
+   до полосы правее ползунка (см. --pos, ставит JS в hub.js). */
 .sketch {
-  -webkit-mask-image: linear-gradient(125deg, #000 42%, transparent 58%);
-          mask-image: linear-gradient(125deg, #000 42%, transparent 58%);
-  -webkit-mask-size: 320% 320%;
-          mask-size: 320% 320%;
-  -webkit-mask-repeat: no-repeat;
-          mask-repeat: no-repeat;
-  -webkit-mask-position: 100% 100%;
-          mask-position: 100% 100%;
-  transition: -webkit-mask-position 2.8s cubic-bezier(0.6, 0.05, 0.3, 1),
-                      mask-position 2.8s cubic-bezier(0.6, 0.05, 0.3, 1);
+  clip-path: inset(0 0 0 var(--pos, 38%));
+  will-change: clip-path;
 }
 
-.plate.drawn .sketch {
-  -webkit-mask-position: 0 0;
-          mask-position: 0 0;
-}
+.plate:not(.dragging) .sketch { transition: clip-path 700ms cubic-bezier(0.4, 0, 0.2, 1); }
 
-.plate.drawn .photo img {
-  filter: grayscale(0.85) sepia(0.2) brightness(1.06);
+.split-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--pos, 38%);
+  width: 2px;
+  margin-left: -1px;
+  background: rgba(250, 246, 236, 0.9);
+  box-shadow: 0 0 0 1px rgba(51, 46, 42, 0.25);
+  pointer-events: none;
 }
+.plate:not(.dragging) .split-line { transition: left 700ms cubic-bezier(0.4, 0, 0.2, 1); }
+
+.handle {
+  position: absolute;
+  top: 50%;
+  left: var(--pos, 38%);
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--paper-hi);
+  color: var(--graphite);
+  border: 1.5px solid rgba(51, 46, 42, 0.7);
+  box-shadow: 0 3px 8px rgba(40, 30, 20, 0.35);
+  cursor: ew-resize;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.handle svg { width: 20px; height: 20px; }
+.plate:not(.dragging) .handle { transition: left 700ms cubic-bezier(0.4, 0, 0.2, 1); }
+.handle:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+
+.edge-tag {
+  position: absolute;
+  bottom: 10px;
+  padding: 4px 9px;
+  border-radius: 20px;
+  background: rgba(28, 24, 20, 0.42);
+  color: #f5efe1;
+  font: 500 11px/1 var(--text);
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  opacity: 0.85;
+}
+.edge-tag .hy { font-family: var(--hy); }
+.tag-l { left: 10px; }
+.tag-r { right: 10px; }
 
 .tape {
   position: absolute;
@@ -120,36 +159,42 @@ img, svg { display: block; max-width: 100%; }
 .note {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: baseline;
   gap: 12px;
-  padding: 2px 4px 4px;
-  font-family: var(--hand);
-  font-size: 22px;
-  line-height: 1;
-  color: var(--graphite);
+  padding: 6px 4px 4px;
+  flex-wrap: wrap;
 }
 
-.swap {
-  display: none;
-  margin: 0;
-  padding: 12px 0;
-  border: 0;
-  background: none;
-  font: inherit;
+.cred {
+  padding: 8px 0;
   color: var(--soft);
-  cursor: pointer;
-  touch-action: manipulation;
+  font-size: 13px;
+  text-decoration: none;
+  border-bottom: 1px dotted currentColor;
 }
-.js .swap { display: block; }
 
 .note-link {
   margin-left: auto;
-  padding: 12px 0;
+  padding: 8px 0;
+  font-family: var(--hand);
+  font-size: 22px;
+  line-height: 1;
   color: var(--ink);
   font-weight: 700;
   text-decoration: none;
-  background: linear-gradient(currentColor, currentColor) 0 calc(100% - 9px) / 100% 1.5px no-repeat;
+  background: linear-gradient(currentColor, currentColor) 0 calc(100% - 7px) / 100% 1.5px no-repeat;
 }
+
+.restore-note {
+  margin: 2px 4px 0;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(51, 46, 42, 0.3);
+  color: var(--soft);
+  font-size: 12.5px;
+  line-height: 1.5;
+  font-style: italic;
+}
+.restore-note .hy { display: block; font-style: normal; font-size: 12px; margin-top: 1px; }
 
 /* ---------- заголовок ---------- */
 
@@ -222,8 +267,11 @@ h2 .hy { font-family: var(--hy); font-weight: 300; font-size: 24px; color: var(-
 .card {
   position: relative;
   transform: rotate(var(--tilt, 0deg));
+  transition: transform 340ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .card:not(.soon) { grid-column: 1 / -1; transform: rotate(calc(var(--tilt, 0deg) * 0.4)); }
+
+.card.lift { transform: rotate(0deg) translateY(-7px) scale(1.025); z-index: 2; }
 
 .card::before {
   content: "";
@@ -246,7 +294,9 @@ h2 .hy { font-family: var(--hy); font-weight: 300; font-size: 24px; color: var(-
   position: relative;
   aspect-ratio: 1 / 1;
   background: #ede3cf;
+  transition: box-shadow 340ms ease;
 }
+.card.lift .pic { box-shadow: 0 20px 28px -14px rgba(35, 25, 15, 0.5); }
 
 .pic > img {
   width: 100%;
@@ -356,8 +406,21 @@ h3 {
   margin-top: 2px;
 }
 
+.stamp.active { color: var(--graphite); border-style: dashed; }
+
 .soon h3 { font-size: 22px; color: var(--graphite); }
 .soon .meta { font-size: 13px; line-height: 1.3; }
+.card.soon:not(.active) .pic { aspect-ratio: 1 / 1; }
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 
 /* ---------- подвал ---------- */
 
@@ -371,6 +434,26 @@ h3 {
 .foot p { margin: 0; }
 .foot .hand { font-size: 24px; color: var(--graphite); }
 .foot .small { margin-top: 4px; font-size: 13px; }
+.foot .tiktok { margin-top: 12px; }
+.foot .tiktok a {
+  color: var(--red);
+  font-weight: 700;
+  text-decoration: none;
+  border-bottom: 1.5px solid currentColor;
+}
+
+/* ---------- проявление при прокрутке ---------- */
+
+.reveal {
+  opacity: 0;
+  filter: blur(9px);
+  transition: opacity 800ms ease, filter 800ms ease;
+}
+.reveal.in { opacity: 1; filter: blur(0); }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; filter: none; transition: none; }
+}
 
 /* ---------- планшет и компьютер ---------- */
 
@@ -401,18 +484,13 @@ h3 {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .card { transition: transform 300ms ease; }
-  .card:not(.soon):hover { transform: rotate(0deg) translateY(-3px); }
-  .swap:hover, .note-link:hover { color: var(--red); }
+  .card:hover { transform: rotate(0deg) translateY(-7px) scale(1.025); z-index: 2; }
+  .card:hover .pic { box-shadow: 0 20px 28px -14px rgba(35, 25, 15, 0.5); }
+  .note-link:hover, .cred:hover { color: var(--red); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sketch {
-    -webkit-mask-image: none;
-            mask-image: none;
-    opacity: 0;
-    transition: opacity 0.6s ease;
-  }
-  .plate.drawn .sketch { opacity: 1; }
-  .photo img { transition: none; }
+  .sketch, .split-line, .handle { transition: none !important; }
+  .layer img { transition: none !important; transform: none !important; }
+  .card, .pic { transition: none !important; }
 }

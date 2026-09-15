@@ -19,7 +19,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Serif+Armenian:wght@300;500&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="assets/hub.css?v=1">
+<link rel="stylesheet" href="assets/hub.css?v=2">
 </head>
 <body>
 
@@ -28,28 +28,42 @@
   <symbol id="ghost-dome" viewBox="0 0 200 200"><path d="M20 170h160v-8h-10v-40c0-38-31-70-70-70s-70 32-70 70v40H20z M92 52V34h16v18"/></symbol>
   <symbol id="ghost-slab" viewBox="0 0 200 200"><path d="M14 170h172v-10h-8V96h-26V72H48v24H22v64h-8z M60 72V58h80v14"/></symbol>
   <symbol id="ghost-tower" viewBox="0 0 200 200"><path d="M40 170h120v-12h-18V58l-8-10V30H86v18l-8 10v100H40z"/></symbol>
+  <symbol id="ghost-statue" viewBox="0 0 200 200"><path d="M56 172h88v-11H132v-15h-64v15H56z M76 146h48v-9c0-5-3-9-8-11l-8-5V72c11-4 18-13 18-24 0-15-12-27-26-27S34 33 34 48c0 11 7 20 18 24v49l-8 5c-5 2-8 6-8 11z"/></symbol>
 </svg>
 
 <main class="album">
 
   <header class="hero">
     <figure class="plate" id="plate" data-frame>
-      <div class="plate-in">
-        <picture class="layer photo">
-          <source type="image/webp" srcset="assets/hero-photo-720.webp 720w, assets/hero-photo-1080.webp 1080w" sizes="(min-width: 900px) 520px, calc(100vw - 32px)">
-          <img src="assets/hero-photo-1080.jpg" width="1080" height="1080" alt="Кукурузник — Дом молодёжи в Ереване, архивное фото" fetchpriority="high" decoding="async">
-        </picture>
-        <picture class="layer sketch" aria-hidden="true">
-          <source type="image/webp" srcset="assets/hero-sketch-720.webp 720w, assets/hero-sketch-1080.webp 1080w" sizes="(min-width: 900px) 520px, calc(100vw - 32px)">
-          <img src="assets/hero-sketch-1080.jpg" width="1080" height="1080" alt="" decoding="async">
-        </picture>
+      <div class="plate-in" id="plateIn">
+        <div class="layer photo">
+          <picture>
+            <source type="image/webp" srcset="assets/hero-photo-720.webp 720w, assets/hero-photo-1080.webp 1080w" sizes="(min-width: 900px) 520px, calc(100vw - 32px)">
+            <img src="assets/hero-photo-1080.jpg" width="1080" height="1080" alt="Кукурузник — Дом молодёжи в Ереване, архивное фото" fetchpriority="high" decoding="async">
+          </picture>
+        </div>
+        <div class="layer sketch" id="sketchLayer" aria-hidden="true">
+          <picture>
+            <source type="image/webp" srcset="assets/hero-sketch-720.webp 720w, assets/hero-sketch-1080.webp 1080w" sizes="(min-width: 900px) 520px, calc(100vw - 32px)">
+            <img src="assets/hero-sketch-1080.jpg" width="1080" height="1080" alt="" decoding="async">
+          </picture>
+        </div>
+        <div class="split-line" id="splitLine" aria-hidden="true"></div>
+        <div class="handle" id="handle" role="slider" tabindex="0"
+             aria-label="Сравнить архивное фото и рисунок" aria-valuemin="0" aria-valuemax="100" aria-valuenow="38">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></svg>
+        </div>
+        <span class="edge-tag tag-l">фото <span class="hy" lang="hy">· լուսանկար</span></span>
+        <span class="edge-tag tag-r">рисунок <span class="hy" lang="hy">· նկար</span></span>
       </div>
       <span class="tape tape-l" aria-hidden="true"></span>
       <span class="tape tape-r" aria-hidden="true"></span>
       <figcaption class="note">
-        <button class="swap" id="swap" type="button" aria-pressed="false">фото → рисунок</button>
+        <a class="cred" href="https://pastvu.com/p/1333413" target="_blank" rel="noopener">фото: [АВТОР] / PastVu</a>
         <a class="note-link" href="kukuruznik/">Кукурузник в 3D&nbsp;→</a>
       </figcaption>
+      <p class="restore-note">Художественная реставрация — цвета восстановлены по памяти, это не документ.
+        <span class="hy" lang="hy">Գեղարվեստական վերականգնում է, ոչ թե փաստաթուղթ։</span></p>
     </figure>
 
     <div class="title">
@@ -63,13 +77,13 @@
   </header>
 
   <section class="shelf" aria-labelledby="shelf-h">
-    <h2 id="shelf-h" class="hand">Альбом <span class="hy" lang="hy">· Ալբոմ</span></h2>
+    <h2 id="shelf-h" class="hand reveal">Альбом <span class="hy" lang="hy">· Ալբոմ</span></h2>
 
     <ul class="cards">
 
       <!-- ═══ КАРТОЧКА ЗДАНИЯ. Для нового здания скопируй этот блок целиком. ═══ -->
-      <li class="card" style="--wash:#9cc0d6; --tilt:-1.4deg">
-        <a class="card-in" href="kukuruznik/">
+      <li class="card reveal" style="--wash:#9cc0d6; --tilt:-1.4deg">
+        <a class="card-in" href="kukuruznik/" data-transition>
           <div class="pic" data-frame>
             <img src="kukuruznik/card.webp" width="480" height="511" alt="" loading="lazy" decoding="async">
           </div>
@@ -83,42 +97,38 @@
       </li>
       <!-- ═══ конец карточки ═══ -->
 
-      <!-- Карточка «скоро»: без ссылки, вместо рисунка — размытый силуэт. -->
-      <li class="card soon" style="--wash:#e0b184; --tilt:1.1deg">
+      <!-- Карточка «рисую сейчас»: без ссылки (страница ещё не готова), но с настоящим названием. -->
+      <li class="card soon active reveal" style="--wash:#e0b184; --tilt:1.1deg">
         <div class="card-in">
           <div class="pic" data-frame>
-            <svg class="ghost" viewBox="0 0 200 200" aria-hidden="true"><use href="#ghost-dome"/></svg>
-            <span class="stamp">скоро<i lang="hy">շուտով</i></span>
+            <svg class="ghost" viewBox="0 0 200 200" aria-hidden="true"><use href="#ghost-statue"/></svg>
+            <span class="stamp active">рисую сейчас<i lang="hy">նկարում եմ</i></span>
           </div>
           <div class="txt">
-            <h3>Здание № 2</h3>
-            <p class="meta">название позже</p>
+            <h3>Площадь Ленина</h3>
+            <p class="hy" lang="hy">Լենինի հրապարակ, 1970-ականներ</p>
+            <p class="meta">1970-е · Ереван</p>
           </div>
         </div>
       </li>
 
-      <li class="card soon" style="--wash:#b9c99a; --tilt:-0.8deg">
+      <!-- Карточки «скоро»: только силуэт и штамп, без названия — его ещё нет. -->
+      <li class="card soon reveal" style="--wash:#b9c99a; --tilt:-0.8deg">
         <div class="card-in">
           <div class="pic" data-frame>
             <svg class="ghost" viewBox="0 0 200 200" aria-hidden="true"><use href="#ghost-slab"/></svg>
             <span class="stamp">скоро<i lang="hy">շուտով</i></span>
-          </div>
-          <div class="txt">
-            <h3>Здание № 3</h3>
-            <p class="meta">название позже</p>
+            <span class="sr-only">Ещё одно здание — скоро в альбоме</span>
           </div>
         </div>
       </li>
 
-      <li class="card soon" style="--wash:#d4a6a0; --tilt:1.6deg">
+      <li class="card soon reveal" style="--wash:#d4a6a0; --tilt:1.6deg">
         <div class="card-in">
           <div class="pic" data-frame>
             <svg class="ghost" viewBox="0 0 200 200" aria-hidden="true"><use href="#ghost-tower"/></svg>
             <span class="stamp">скоро<i lang="hy">շուտով</i></span>
-          </div>
-          <div class="txt">
-            <h3>Здание № 4</h3>
-            <p class="meta">название позже</p>
+            <span class="sr-only">Ещё одно здание — скоро в альбоме</span>
           </div>
         </div>
       </li>
@@ -126,13 +136,14 @@
     </ul>
   </section>
 
-  <footer class="foot">
+  <footer class="foot reveal">
     <p class="hand"><span class="hy" lang="hy">Չկա</span> · альбом утраченной архитектуры Еревана</p>
-    <p class="small">Архивные фотографии — из открытых источников.</p>
+    <p class="small">Архивные фото — с указанием авторства, см. подпись у каждого снимка.</p>
+    <p class="tiktok"><a href="[TIKTOK]">мой TikTok <span class="hy" lang="hy">· տիկտոկում</span></a></p>
   </footer>
 
 </main>
 
-<script src="assets/hub.js?v=1" defer></script>
+<script src="assets/hub.js?v=2" defer></script>
 </body>
 </html>
