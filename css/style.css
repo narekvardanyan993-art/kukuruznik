@@ -49,7 +49,18 @@ html, body {
   height: 100%;
   height: -webkit-fill-available;
   height: 100dvh;
-  overflow: hidden;
+  /* ЗДЕСЬ БЫЛО overflow: hidden — и именно оно ломало приложение,
+     запущенное с иконки на домашнем экране: Safari переставал выводить
+     слой холста на экран. Холст при этом жил полноценно — нужного
+     размера, с закрашенными пикселями, ничем не накрытый, — но до
+     экрана его картинка не доходила, и не появлялся даже его
+     собственный цвет фона. Найдено перебором прямо на телефоне:
+     стоило снять overflow, здание появилось.
+
+     Прокручивать тут всё равно нечего: всё видимое — фиксированные
+     слои, в обычном потоке страницы пусто. Резинку у краёв держат
+     overscroll-behavior ниже и position:fixed у body. */
+  overscroll-behavior: none;
   background: var(--paper);
   color: var(--ink);
   font: 15px/1.3 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
@@ -58,6 +69,16 @@ html, body {
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
   transition: background 500ms ease;
+}
+
+/* Страница прибита к экрану: прокрутки нет и без overflow:hidden,
+   который в режиме приложения ломает вывод холста (см. выше). */
+body {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
 }
 
 body.night { background: #0d1230; }
