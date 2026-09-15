@@ -55,6 +55,35 @@ def cards():
         print('карточка  %s/card.webp  (%dx%d — впиши эти числа в карточку)' % (d, w, h))
 
 
+def galleries():
+    """Галерея архивных фото на странице здания — необязательный блок.
+
+       Кладёшь снимки в <папка здания>/gallery-source/что-угодно.jpg —
+       имя файла станет и именем в gallery/, и его нужно будет
+       подставить в data-full/src на странице (см. docs/NOVOE-ZDANIE.md).
+    """
+    for d in sorted(os.listdir(HERE)):
+        src_dir = os.path.join(HERE, d, 'gallery-source')
+        if not os.path.isdir(src_dir):
+            continue
+        out_dir = os.path.join(HERE, d, 'gallery')
+        os.makedirs(out_dir, exist_ok=True)
+        for fname in sorted(os.listdir(src_dir)):
+            base, ext = os.path.splitext(fname)
+            if ext.lower() not in ('.jpg', '.jpeg', '.png', '.webp'):
+                continue
+            img = ImageOps.exif_transpose(Image.open(os.path.join(src_dir, fname))).convert('RGB')
+            w, h = img.size
+            full_w = min(1200, w)
+            full = img.resize((full_w, round(h * full_w / w)), Image.LANCZOS)
+            full.save(os.path.join(out_dir, base + '.webp'), 'WEBP', quality=76, method=6)
+            s = min(w, h)
+            thumb = ImageOps.fit(img, (s, s), Image.LANCZOS).resize((480, 480), Image.LANCZOS)
+            thumb.save(os.path.join(out_dir, base + '-thumb.webp'), 'WEBP', quality=72, method=6)
+            print('галерея  %s/gallery/%s.webp + %s-thumb.webp' % (d, base, base))
+
+
 hero('hero-photo')
 hero('hero-sketch')
 cards()
+galleries()

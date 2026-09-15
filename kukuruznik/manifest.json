@@ -2,7 +2,7 @@
   "name": "Кукурузник — Дом молодёжи",
   "short_name": "Кукурузник",
   "description": "Снесённый Дом молодёжи в Ереване, восстановленный в 3D",
-  "start_url": "./",
+  "start_url": "./scene.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
