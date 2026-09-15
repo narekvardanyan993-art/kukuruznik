@@ -119,6 +119,7 @@
     var diagEl = document.getElementById('diag');
     var frames = 0, drawn = 0, diagClock = 0, canary = 'нет';
     var verdictText = 'считаю…', verdictClock = 0;
+    var jitter = false;
 
     /* Страница ставит диагноз сама.
 
@@ -177,71 +178,104 @@
        варианты обхода перебираются касанием: касание по панели —
        следующий вариант, а какой сейчас, написано в самой панели. */
     var variant = 0;
+
+    /* Второй заход. Первый набор (свой слой, fixed, без стекла, dpr 1,
+       will-change) не дал ничего, и — главное — не появился даже
+       красный фон самого холста. Значит дело не в том, ЧТО мы рисуем:
+       Safari показывает замороженную пустую плитку вместо слоя холста
+       и не перерисовывает её. Отсюда и призрак старого кадра поверх
+       нового. Эти варианты бьют именно в это: заставить слой
+       пересобраться заново. */
+    function hardRepaint(el) {
+      var d = el.style.display;
+      el.style.display = 'none';
+      void el.offsetHeight;                 // заставляем пересчитать
+      el.style.display = d || '';
+    }
+
     var VARIANTS = [
       ['исходный — как сейчас', function () {}],
 
-      ['КРАСНЫЙ ФОН холста (сам элемент рисуется?)', function () {
-        sceneCanvas.style.background = '#c81e2b';
+      ['КРАСНЫЙ ФОН у сцены (рисуется ли родитель холста)', function () {
+        stage.style.background = '#c81e2b';
       }],
 
-      ['холсты в свой слой (translateZ)', function () {
-        sceneCanvas.style.transform = 'translateZ(0)';
-        paperCanvas.style.transform = 'translateZ(0)';
+      ['КРАСНЫЙ ФОН у страницы (рисуется ли вообще хоть что-то)', function () {
+        document.body.style.background = '#c81e2b';
       }],
 
-      ['сцена не fixed, а absolute', function () {
-        stage.style.position = 'absolute';
+      ['перерисовать слой: спрятать и показать', function () {
+        hardRepaint(sceneCanvas);
+        hardRepaint(paperCanvas);
       }],
 
-      ['холсты сами fixed', function () {
-        sceneCanvas.style.position = 'fixed';
-        paperCanvas.style.position = 'fixed';
-      }],
-
-      ['стекло выключено (backdrop-filter)', function () {
-        var gl = document.querySelectorAll('.lg');
-        for (var i = 0; i < gl.length; i++) {
-          gl[i].style.webkitBackdropFilter = 'none';
-          gl[i].style.backdropFilter = 'none';
-        }
-      }],
-
-      ['dpr = 1 (холст втрое меньше)', function () {
-        engine.maxDpr = 1;
+      ['вынуть холсты и вставить обратно', function () {
+        var p1 = paperCanvas.parentNode, n1 = paperCanvas.nextSibling;
+        p1.removeChild(paperCanvas); p1.insertBefore(paperCanvas, n1);
+        var p2 = sceneCanvas.parentNode, n2 = sceneCanvas.nextSibling;
+        p2.removeChild(sceneCanvas); p2.insertBefore(sceneCanvas, n2);
         engine.resize();
       }],
 
-      ['will-change на холстах', function () {
-        sceneCanvas.style.willChange = 'transform';
-        paperCanvas.style.willChange = 'transform';
+      ['холсты прямо в страницу, без сцены-обёртки', function () {
+        document.body.appendChild(paperCanvas);
+        document.body.appendChild(sceneCanvas);
+        paperCanvas.style.position = sceneCanvas.style.position = 'fixed';
+        paperCanvas.style.left = sceneCanvas.style.left = '0';
+        paperCanvas.style.top = sceneCanvas.style.top = '0';
+        paperCanvas.style.width = sceneCanvas.style.width = '100%';
+        paperCanvas.style.height = sceneCanvas.style.height = '100%';
+        engine.resize();
       }],
 
-      ['всё сразу: слой + fixed + без стекла + dpr 1', function () {
-        sceneCanvas.style.transform = paperCanvas.style.transform = 'translateZ(0)';
-        sceneCanvas.style.position = paperCanvas.style.position = 'fixed';
-        var gl = document.querySelectorAll('.lg');
-        for (var i = 0; i < gl.length; i++) {
-          gl[i].style.webkitBackdropFilter = 'none';
-          gl[i].style.backdropFilter = 'none';
-        }
-        engine.maxDpr = 1;
+      ['убрать overflow:hidden у страницы', function () {
+        document.documentElement.style.overflow = 'visible';
+        document.body.style.overflow = 'visible';
+      }],
+
+      ['высота страницы: 100% вместо 100dvh', function () {
+        document.documentElement.style.height = '100%';
+        document.body.style.height = '100%';
+      }],
+
+      ['дрожание слоя каждый кадр', function () {
+        jitter = true;
+      }],
+
+      ['всё сразу: в страницу + перерисовка + без overflow', function () {
+        document.documentElement.style.overflow = 'visible';
+        document.body.style.overflow = 'visible';
+        document.body.appendChild(paperCanvas);
+        document.body.appendChild(sceneCanvas);
+        paperCanvas.style.position = sceneCanvas.style.position = 'fixed';
+        paperCanvas.style.left = sceneCanvas.style.left = '0';
+        paperCanvas.style.top = sceneCanvas.style.top = '0';
+        paperCanvas.style.width = sceneCanvas.style.width = '100%';
+        paperCanvas.style.height = sceneCanvas.style.height = '100%';
         engine.resize();
+        hardRepaint(sceneCanvas);
+        hardRepaint(paperCanvas);
+        jitter = true;
       }]
     ];
 
     function applyVariant(n) {
-      /* Сначала снимаем всё, что навешивали раньше, иначе варианты
-         сложатся друг с другом и станет непонятно, что сработало. */
-      sceneCanvas.style.background = '';
-      sceneCanvas.style.transform = paperCanvas.style.transform = '';
-      sceneCanvas.style.position = paperCanvas.style.position = '';
-      sceneCanvas.style.willChange = paperCanvas.style.willChange = '';
-      stage.style.position = '';
-      var gl = document.querySelectorAll('.lg');
-      for (var i = 0; i < gl.length; i++) {
-        gl[i].style.webkitBackdropFilter = '';
-        gl[i].style.backdropFilter = '';
-      }
+      /* Снимаем всё, что вешали раньше: иначе варианты сложатся и
+         станет непонятно, что именно сработало. */
+      jitter = false;
+      stage.style.background = '';
+      document.body.style.background = '';
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+      document.documentElement.style.height = '';
+      document.body.style.height = '';
+      [paperCanvas, sceneCanvas].forEach(function (c) {
+        c.style.cssText = '';
+        if (c.parentNode !== stage) stage.appendChild(c);
+      });
+      // порядок важен: подложка ниже сцены
+      stage.appendChild(paperCanvas);
+      stage.appendChild(sceneCanvas);
       engine.maxDpr = 3;
       engine.resize();
 
@@ -339,6 +373,13 @@
       engine.render(state);
 
       if (now - verdictClock > 1000) { verdictClock = now; verdictText = computeVerdict(); }
+
+      /* Микросдвиг слоя каждый кадр: если Safari держит замороженную
+         плитку, постоянное изменение преобразования не даёт ей застыть. */
+      if (jitter) {
+        var j = (frames % 2) ? 0.01 : 0;
+        sceneCanvas.style.transform = 'translateZ(0) translateY(' + j + 'px)';
+      }
 
       /* КАНАРЕЙКА (временно, сборка 58).
 
