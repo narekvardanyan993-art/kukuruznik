@@ -168,6 +168,16 @@
 .timeline p { margin: 2px 0; font-size: 15px; }
 .timeline .hy { color: var(--graphite); font-size: 14px; }
 
+.t-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.t-thumb {
+  width: 56px;
+  height: 56px;
+  flex: none;
+  object-fit: cover;
+  border: 1px solid rgba(51, 46, 42, 0.3);
+  filter: grayscale(0.15);
+}
+
 /* ---------- кнопка 3D ----------
    Одна на странице, сразу под названием — как проштампованная от руки
    надпись на бумаге, а не цифровая кнопка: без заливки, только чернильный

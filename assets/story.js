@@ -22,9 +22,9 @@
       img.alt = it.getAttribute('data-cap') || '';
       var ru = it.getAttribute('data-cap') || '';
       var hy = it.getAttribute('data-cap-hy') || '';
-      var src = it.getAttribute('data-src');
+      var credit = it.getAttribute('data-credit');
       cap.innerHTML = ru + (hy ? ' <span class="hy" lang="hy">· ' + hy + '</span>' : '') +
-        (src ? '<br><a href="' + src + '" target="_blank" rel="noopener">фото: [АВТОР] / PastVu</a>' : '');
+        (credit ? '<br>' + credit : '');
     }
     function open(i) {
       show(i);

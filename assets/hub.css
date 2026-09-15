@@ -206,9 +206,13 @@ img, svg { display: block; max-width: 100%; }
 }
 
 .cred {
+  margin: 0;
   padding: 8px 0;
   color: var(--soft);
   font-size: 13px;
+}
+.cred a {
+  color: inherit;
   text-decoration: none;
   border-bottom: 1px dotted currentColor;
 }
@@ -511,6 +515,14 @@ h3 {
 .foot p { margin: 0; }
 .foot .hand { font-size: 24px; color: var(--graphite); }
 .foot .small { margin-top: 4px; font-size: 13px; }
+.foot .photo-rights {
+  max-width: 46ch;
+  margin: 10px auto 0;
+  color: var(--soft);
+  line-height: 1.5;
+}
+.foot .photo-rights a { color: inherit; text-decoration: underline; }
+.foot .photo-rights .hy { display: block; margin-top: 6px; font-family: var(--hy); }
 .foot .tiktok { margin-top: 12px; }
 .foot .tiktok a {
   color: var(--red);
@@ -563,7 +575,7 @@ h3 {
 @media (hover: hover) and (pointer: fine) {
   .card:hover { transform: rotate(0deg) translateY(-7px) scale(1.025); z-index: 2; }
   .card:hover .pic { box-shadow: 0 20px 28px -14px rgba(35, 25, 15, 0.5); }
-  .note-link:hover, .cred:hover { color: var(--red); }
+  .note-link:hover, .cred a:hover { color: var(--red); }
 }
 
 @media (prefers-reduced-motion: reduce) {
