@@ -43,28 +43,32 @@ for srcdir, out in JOBS:
         print('%s %s  <- %d кусков, %d строк' % (
             'собран  ' if not same else 'без изменений', out, len(names), text.count('\n')))
 
-# ---- номер сборки в загрузчик index.html ----
+# ---- номер сборки в загрузчик scene.html ----
 # Загрузчик добавляет ?v=НОМЕР к адресам css и js. Раньше там стояло
 # время с точностью до минуты, и телефон при каждом запуске лез в сеть
 # за «новыми» файлами — с домашнего экрана это оборачивалось пустой
 # сценой. Держим номер сборки: меняется ровно тогда, когда есть что
 # скачивать заново.
+#
+# Загрузчик живёт в kukuruznik/scene.html — это сама 3D-сцена. Страница
+# kukuruznik/index.html (рассказ о здании) её не грузит сама, а
+# открывает во всплывающем окне поверх себя.
 import re
 
 pal = open(os.path.join(HERE, 'src/engine/01-palette.js'), encoding='utf-8').read()
 m = re.search(r"var BUILD = '([^']+)'", pal)
 if m:
-    ipath = os.path.join(HERE, 'kukuruznik/index.html')
+    ipath = os.path.join(HERE, 'kukuruznik/scene.html')
     html = open(ipath, encoding='utf-8').read()
     fixed = re.sub(r"var VERSION = '[^']*';", "var VERSION = '%s';" % m.group(1), html)
     open(os.path.join(HERE, 'kukuruznik/version.txt'), 'w', encoding='utf-8').write(m.group(1) + '\n')
     if fixed == html:
-        print('версия загрузчика  index.html  <- уже %s' % m.group(1))
+        print('версия загрузчика  scene.html  <- уже %s' % m.group(1))
     elif check:
-        print('РАЗОШЛОСЬ   index.html (версия загрузчика)')
+        print('РАЗОШЛОСЬ   scene.html (версия загрузчика)')
         bad += 1
     else:
         open(ipath, 'w', encoding='utf-8').write(fixed)
-        print('версия загрузчика  index.html  <- %s' % m.group(1))
+        print('версия загрузчика  scene.html  <- %s' % m.group(1))
 
 sys.exit(1 if bad else 0)

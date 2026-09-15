@@ -2,149 +2,218 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#0d1230">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f1e7d3">
+<title>Кукурузник — Дом молодёжи | Չկա</title>
+<meta name="description" content="Кукурузник — снесённый Дом молодёжи в Ереване (1979–2006). Архивные фото, хроника и 3D-модель, которую можно покрутить в браузере.">
+<meta property="og:title" content="Кукурузник — Дом молодёжи | Չկա">
+<meta property="og:description" content="Снесённое здание Еревана, восстановленное в рисунке и в 3D.">
+<meta property="og:type" content="article">
+<link rel="icon" href="../assets/favicon-32.png">
+<link rel="apple-touch-icon" href="../assets/icon-180.png">
 
-<!-- «На экран Домой» на iPhone: открывается без адресной строки и
-     полосок Safari — это и есть настоящий полноэкранный режим,
-     API браузера для него в Safari попросту нет. -->
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Кукурузник">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<link rel="icon" href="icons/favicon.png">
-<link rel="manifest" href="manifest.json">
-
-<title>Кукурузник — 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Serif+Armenian:wght@300;500&display=swap" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="../assets/hub.css?v=2">
+<link rel="stylesheet" href="../assets/story.css?v=1">
 </head>
 <body>
 
-<div id="stage">
-  <canvas id="paper"></canvas>
-  <canvas id="scene"></canvas>
-</div>
+<a class="topbar reveal" href="../" aria-label="Все здания — назад в альбом Չկա">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.6 5.4L8 12l6.6 6.6"/></svg>
+  <span class="hy" lang="hy">Չկա</span>
+</a>
 
-<div id="fps">— fps</div>
-<a id="toHub" class="lg" href="../" aria-label="Все здания — альбом Չկա"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.6 5.4L8 12l6.6 6.6"/></svg><span lang="hy">Չկա</span></a>
-<button id="soundBtn" class="lg" type="button" aria-pressed="true" aria-label="Звук" data-cap="Звук"><svg class="on-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4h3.6L13 18V6L7.6 10H4z"/><g class="waves"><path d="M16.2 9.2a4 4 0 0 1 0 5.6M18.6 6.8a7.6 7.6 0 0 1 0 10.4"/></g></svg><svg class="off-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4h3.6L13 18V6L7.6 10H4z"/><path d="M16 9.5l4.6 4.6M20.6 9.5L16 14.1"/></svg></button>
-<div id="hint">Крути пальцем · два пальца — приблизить</div>
+<main class="album story">
 
-<div id="hud">
-    <div class="rs" style="--x:96.6px;--y:-25.9px" data-cap="Погода">
-      <button id="weatherBtn" class="ri lg" type="button" aria-label="Погода" data-cap="Погода"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><g class="sun-g"><circle cx="12" cy="12" r="4.6"/><path d="M12 3.6v2.3M12 18.1v2.3M4.6 12H2.3M21.7 12h-2.3M6.34 6.34L4.73 4.73M19.27 19.27l-1.61-1.61M17.66 6.34l1.61-1.61M4.73 19.27l1.61-1.61"/></g></svg></button>
-    </div>
-    <div class="rs" style="--x:60.9px;--y:-79.3px" data-cap="Облёт">
-      <button id="droneBtn" class="ri lg" type="button" aria-pressed="false" aria-label="Облёт" data-cap="Облёт"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.6"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><g class="orbit"><circle cx="20.6" cy="12" r="1.9" fill="currentColor" stroke="none"/></g></svg></button>
-    </div>
-    <div class="rs" style="--x:0px;--y:-100.0px" data-cap="Поворот">
-      <button id="autoBtn" class="ri lg" type="button" aria-pressed="false" aria-label="Поворот" data-cap="Поворот"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><g class="spin-slow"><path d="M20.2 12a8.2 8.2 0 1 1-2.4-5.8"/><path d="M20.2 4v4.9h-4.9"/></g></svg></button>
-    </div>
-    <div class="rs" style="--x:-60.9px;--y:-79.3px" data-cap="Сброс">
-      <button id="resetBtn" class="ri lg" type="button" aria-label="Сброс" data-cap="Сброс"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><g class="snap"><circle cx="12" cy="12" r="8.2"/><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/><path d="M12 1.6v3M12 19.4v3M1.6 12h3M19.4 12h3"/></g></svg></button>
-    </div>
-    <div class="rs" style="--x:-96.6px;--y:-25.9px" data-cap="Экран">
-      <button id="hideBtn" class="ri lg" type="button" aria-label="Экран" data-cap="Экран"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><g class="brackets"><path d="M9.2 3H3v6.2M14.8 3H21v6.2M21 14.8V21h-6.2M3 14.8V21h6.2"/></g></svg></button>
-    </div>
+  <header class="s-head reveal">
+    <h1 class="hand">Кукурузник</h1>
+    <p class="hy" lang="hy">Երիտասարդական պալատ</p>
+    <p class="meta">Дом молодёжи · Ереван · 1979–2006</p>
+  </header>
 
-  <div id="sub" class="lg">
-    <div class="sub-head">Время суток</div>
-    <div id="tod-row">
-      <span class="edge" id="sun-edge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="4.1"/><path d="M12 2.4v2.3M12 19.3v2.3M4.4 4.4l1.6 1.6M18 18l1.6 1.6M2.4 12h2.3M19.3 12h2.3M4.4 19.6l1.6-1.6M18 6l1.6-1.6"/></svg></span>
-      <input type="range" id="tod" min="0" max="100" value="80" aria-label="Время суток">
-      <span class="edge" id="moon-edge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.4 14.5A8.6 8.6 0 0 1 9.5 3.6 8.6 8.6 0 1 0 20.4 14.5z"/></svg></span>
+  <figure class="plate reveal" id="plate" data-frame>
+    <div class="plate-in" id="plateIn">
+      <div class="layer photo">
+        <picture>
+          <source type="image/webp" srcset="../assets/hero-photo-720.webp 720w, ../assets/hero-photo-1080.webp 1080w" sizes="(min-width: 900px) 640px, calc(100vw - 32px)">
+          <img src="../assets/hero-photo-1080.jpg" width="1080" height="1080" alt="Кукурузник, архивное фото" decoding="async">
+        </picture>
+      </div>
+      <div class="layer sketch" aria-hidden="true">
+        <picture>
+          <source type="image/webp" srcset="../assets/hero-sketch-720.webp 720w, ../assets/hero-sketch-1080.webp 1080w" sizes="(min-width: 900px) 640px, calc(100vw - 32px)">
+          <img src="../assets/hero-sketch-1080.jpg" width="1080" height="1080" alt="" decoding="async">
+        </picture>
+      </div>
+      <div class="split-line" aria-hidden="true"></div>
+      <div class="handle" role="slider" tabindex="0"
+           aria-label="Сравнить архивное фото и рисунок" aria-valuemin="0" aria-valuemax="100" aria-valuenow="38">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></svg>
+      </div>
+      <span class="edge-tag tag-l">фото <span class="hy" lang="hy">· լուսանկար</span></span>
+      <span class="edge-tag tag-r">рисунок <span class="hy" lang="hy">· նկար</span></span>
     </div>
-    <div class="chips">
-      <button class="chip" type="button" data-v="12" aria-pressed="false">Утро</button>
-      <button class="chip" type="button" data-v="30" aria-pressed="false">День</button>
-      <button class="chip" type="button" data-v="50" aria-pressed="false">Закат</button>
-      <button class="chip" type="button" data-v="92" aria-pressed="false">Ночь</button>
+    <span class="tape tape-l" aria-hidden="true"></span>
+    <span class="tape tape-r" aria-hidden="true"></span>
+    <figcaption class="note">
+      <a class="cred" href="https://pastvu.com/p/1333413" target="_blank" rel="noopener">фото: [АВТОР] / PastVu</a>
+    </figcaption>
+    <p class="restore-note">Художественная реставрация — цвета восстановлены по памяти, это не документ.
+      <span class="hy" lang="hy">Գեղարվեստական վերականգնում է, ոչ թե փաստաթուղթ։</span></p>
+  </figure>
+
+  <section class="gallery-sec reveal" aria-labelledby="gal-h">
+    <h2 id="gal-h" class="hand">Архив <span class="hy" lang="hy">· Արխիվ</span></h2>
+    <div class="gallery" id="gallery">
+
+      <button class="g-item" type="button" data-full="gallery/facade.webp"
+              data-cap="Фасад со стороны площади" data-cap-hy="Ճակատամասը հրապարակի կողմից">
+        <div class="g-pic" data-frame><img src="gallery/facade-thumb.webp" width="480" height="480" alt="Кукурузник, фасад" loading="lazy" decoding="async"></div>
+      </button>
+
+      <button class="g-item" type="button" data-full="gallery/restaurant.webp"
+              data-cap="Ресторан на крыше" data-cap-hy="Տանիքի ռեստորանը">
+        <div class="g-pic" data-frame><img src="gallery/restaurant-thumb.webp" width="480" height="480" alt="Ресторан на крыше Кукурузника" loading="lazy" decoding="async"></div>
+      </button>
+
+      <button class="g-item" type="button" data-full="gallery/lobby.webp"
+              data-cap="Вестибюль" data-cap-hy="Հանդիսադահլիճի սրահը">
+        <div class="g-pic" data-frame><img src="gallery/lobby-thumb.webp" width="480" height="480" alt="Вестибюль Кукурузника" loading="lazy" decoding="async"></div>
+      </button>
+
+      <button class="g-item" type="button" data-full="gallery/aerial.webp"
+              data-cap="Вид сверху, здание на холме" data-cap-hy="Տեսք վերևից՝ շենքը բլրի վրա">
+        <div class="g-pic" data-frame><img src="gallery/aerial-thumb.webp" width="480" height="480" alt="Кукурузник, вид сверху" loading="lazy" decoding="async"></div>
+      </button>
+
     </div>
+    <p class="g-hint">свайп по фото · <span class="hy" lang="hy">սահեցրու՝ մյուսները տեսնելու համար</span></p>
+    <p class="cred small">фото: [АВТОР] / <a href="https://pastvu.com/p/1333413" target="_blank" rel="noopener">PastVu</a></p>
+  </section>
+
+  <div class="lightbox" id="lightbox" hidden>
+    <button class="lb-close" id="lbClose" type="button" aria-label="Закрыть">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <button class="lb-nav lb-prev" id="lbPrev" type="button" aria-label="Предыдущее фото">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <figure>
+      <img id="lbImg" src="" alt="">
+      <figcaption id="lbCap"></figcaption>
+    </figure>
+    <button class="lb-nav lb-next" id="lbNext" type="button" aria-label="Следующее фото">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+    </button>
   </div>
 
-  <div id="toast" class="lg"></div>
+  <section class="timeline-sec reveal" aria-labelledby="tl-h">
+    <h2 id="tl-h" class="hand">Хроника <span class="hy" lang="hy">· Ժամանակագրություն</span></h2>
+    <ol class="timeline">
+      <li>
+        <span class="t-y">Архитекторы</span>
+        <div>
+          <p>А. Тарханян, С. Хачикян, Г. Погосян, М. Захарян</p>
+          <p class="hy" lang="hy">Ա. Թարխանյան, Ս. Խաչիկյան, Գ. Պողոսյան, Մ. Զաքարյան — ճարտարապետներ</p>
+        </div>
+      </li>
+      <li>
+        <span class="t-y">1979</span>
+        <div>
+          <p>Открытие Дома молодёжи</p>
+          <p class="hy" lang="hy">Երիտասարդական պալատի բացումը</p>
+        </div>
+      </li>
+      <li>
+        <span class="t-y">2005</span>
+        <div>
+          <p>Разрешение мэрии №40 на снос, октябрь</p>
+          <p class="hy" lang="hy">Քաղաքապետարանի թիվ 40 որոշումը քանդման մասին, հոկտեմբեր</p>
+        </div>
+      </li>
+      <li>
+        <span class="t-y">2006</span>
+        <div>
+          <p>Снос здания. Формальная причина — сейсмостойкость</p>
+          <p class="hy" lang="hy">Շենքի քանդումը։ Պաշտոնական պատճառ՝ սեյսմակայունություն</p>
+        </div>
+      </li>
+    </ol>
+  </section>
 
-  <button id="hudBtn" class="lg" type="button" aria-expanded="false" aria-label="Меню" data-cap="Меню"><svg class="open-i" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2.7"/><circle cx="19.6" cy="12" r="1.85"/><circle cx="15.8" cy="5.42" r="1.85"/><circle cx="8.2" cy="5.42" r="1.85"/><circle cx="4.4" cy="12" r="1.85"/><circle cx="8.2" cy="18.58" r="1.85"/><circle cx="15.8" cy="18.58" r="1.85"/></svg><svg class="close-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M6.8 6.8l10.4 10.4M17.2 6.8L6.8 17.2"/></svg><svg class="back-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.6 5.4L8 12l6.6 6.6"/></svg></button>
+  <section class="cta-3d reveal">
+    <button class="btn-3d" id="open3d" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 3v18M4 7.5L12 12l8-4.5"/></svg>
+      <span>Смотреть в 3D <i class="hy" lang="hy">· տեսնել 3D-ով</i></span>
+    </button>
+    <p class="hint">крутится на 360°, меняются время суток и свет</p>
+  </section>
+
+  <section class="quiz-sec reveal" aria-labelledby="quiz-h">
+    <h2 id="quiz-h" class="hand">Угадай год <span class="hy" lang="hy">· Գուշակիր տարին</span></h2>
+    <div class="quiz" id="quiz" data-frame></div>
+  </section>
+
+  <section class="next-sec reveal">
+    <h2 class="hand">Что рисовать следующим? <span class="hy" lang="hy">· Ի՞նչ նկարել հաջորդը</span></h2>
+    <p>Пишите в комментариях в TikTok — читаю все.<br><span class="hy" lang="hy">Գրեք մեկնաբանություններում TikTok-ում</span></p>
+    <a class="btn-tiktok" href="[TIKTOK]">мой TikTok <span class="hy" lang="hy">· տիկտոկում</span></a>
+  </section>
+
+  <footer class="foot reveal">
+    <p class="hand"><span class="hy" lang="hy">Չկա</span> · <a href="../">на главную альбома</a></p>
+    <p class="tiktok"><a href="[TIKTOK]">мой TikTok <span class="hy" lang="hy">· տիկտոկում</span></a></p>
+  </footer>
+
+</main>
+
+<div class="scene-overlay" id="sceneOverlay" hidden>
+  <button class="scene-close" id="sceneClose" type="button" aria-label="Закрыть 3D">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
+  <iframe id="sceneFrame" title="Кукурузник — 3D" allow="autoplay"></iframe>
 </div>
 
-<div id="back-tip" class="lg">Коснись экрана, чтобы вернуть панель</div>
-<div id="fatal" style="display:none;position:fixed;left:16px;right:16px;top:50%;transform:translateY(-50%);z-index:99;padding:16px 18px;border-radius:14px;background:#161c3a;color:#e9edf7;font:15px/1.45 -apple-system,system-ui,sans-serif;text-align:center"></div>
-
 <script>
-(function () {
-  /* Номер версии проставляет build.py из номера сборки.
-
-     Раньше здесь стояло текущее время с точностью до минуты: каждый
-     запуск просил у сети адреса, которых телефон ни разу не видел. В
-     Safari это сходило с рук, а приложение с домашнего экрана при
-     холодном старте часто не успевает поднять сеть — файлы движка не
-     приходили, интерфейс (он в самой странице) рисовался, а сцена не
-     появлялась вовсе. Постоянная версия даёт взять файлы из кэша, а
-     после новой сборки номер меняется — и телефон честно скачивает
-     свежие. */
-  var VERSION = '62';                     /* build.py перепишет сам */
-  var q = '?v=' + VERSION;
-
-  /* Самообновление.
-
-     Сама страница (index.html) лежит в адресе без версии, и телефон
-     честно держит её в кэше. С иконки на домашнем экране это особенно
-     заметно: можно неделю смотреть на старую сборку и не понимать,
-     почему правки не появляются. Поэтому спрашиваем у сервера
-     маленький version.txt мимо кэша: если там номер новее — один раз
-     перезагружаемся. Один раз за запуск, чтобы не уйти в кольцо. */
-  try {
-    if (!sessionStorage.getItem('kk-reloaded')) {
-      fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
-        .then(function (r) { return r.ok ? r.text() : ''; })
-        .then(function (t) {
-          t = (t || '').trim();
-          if (t && t !== VERSION) {
-            sessionStorage.setItem('kk-reloaded', t);
-            location.reload();
-          }
-        })
-        .catch(function () {});
-    }
-  } catch (e) {}
-
-  function fatal(text) {
-    var box = document.getElementById('fatal');
-    if (!box) return;
-    box.style.display = 'block';
-    box.textContent = text;
-  }
-
-  var css = document.createElement('link');
-  css.rel = 'stylesheet';
-  css.href = 'css/style.css' + q;
-  css.onerror = function () {
-    var again = document.createElement('link');
-    again.rel = 'stylesheet';
-    again.href = 'css/style.css';
-    document.head.appendChild(again);
+  window.CHKA_BUILDING = {
+    scene: 'scene.html',
+    shareTitle: 'Չկա — Кукурузник',
+    shareText: 'Угадал {score} из {total} в игре про снесённый ереванский Кукурузник! Проверь себя:',
+    quiz: [
+      {
+        q: 'В каком году открылся Кукурузник?',
+        qHy: 'Ո՞ր տարում է բացվել Կուկուրուզնիկը',
+        options: ['1975', '1979', '1983'],
+        correct: 1
+      },
+      {
+        q: 'Сколько архитекторов работали над зданием?',
+        qHy: 'Քանի՞ ճարտարապետ է աշխատել շենքի վրա',
+        options: ['2', '3', '4'],
+        correct: 2
+      },
+      {
+        q: 'В каком году снесли Кукурузник?',
+        qHy: 'Ո՞ր տարում է քանդվել Կուկուրուզնիկը',
+        options: ['2003', '2006', '2010'],
+        correct: 1
+      },
+      {
+        q: 'Официальная причина сноса?',
+        qHy: 'Քանդման պաշտոնական պատճա՞ռը',
+        options: [
+          { ru: 'пожар', hy: 'հրդեհ' },
+          { ru: 'сейсмостойкость', hy: 'սեյսմակայունություն' },
+          { ru: 'расширение дороги', hy: 'ճանապարհի ընդլայնում' }
+        ],
+        correct: 1
+      }
+    ]
   };
-  document.head.appendChild(css);
-
-  var files = ['js/model.js', 'js/controls.js', 'js/engine.js'];
-  for (var i = 0; i < files.length; i++) {
-    (function (src) {
-      var el = document.createElement('script');
-      el.src = src + q;
-      el.async = false;                   /* порядок файлов важен */
-      el.onerror = function () {
-        fatal('Не загрузился ' + src + '. Проверь интернет и открой заново.');
-      };
-      document.head.appendChild(el);
-    })(files[i]);
-  }
-
-  /* Пустой экран без объяснений — худшее, что может случиться на
-     телефоне: непонятно, сломано приложение или просто нет сети. */
-  window.addEventListener('error', function (e) {
-    if (e && e.message) fatal('Сцена не запустилась: ' + e.message);
-  });
-})();
 </script>
+<script src="../assets/chka-common.js?v=1" defer></script>
+<script src="../assets/story.js?v=1" defer></script>
 </body>
 </html>

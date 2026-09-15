@@ -1,0 +1,334 @@
+/* Չկա — страница здания. Опирается на токены и слайдер из hub.css:
+   бумага, карандаш, скотч, штриховка уже там. Здесь — то, чего у
+   главной нет: шапка, галерея, хроника, кнопка 3D, игра, подвал CTA. */
+
+.story { padding-top: 0; }
+
+/* ---------- верхняя панель ---------- */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: calc(env(safe-area-inset-top, 0px) + 10px) 0 18px;
+  padding: 8px 14px 8px 10px;
+  border-radius: 20px;
+  background: rgba(241, 231, 211, 0.88);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(51, 46, 42, 0.25);
+  color: var(--ink);
+  text-decoration: none;
+  font: 600 15px/1 var(--text);
+}
+.topbar svg { width: 17px; height: 17px; }
+.topbar .hy { font-family: var(--hy); font-weight: 500; font-size: 15px; }
+
+/* ---------- шапка здания ---------- */
+
+.s-head { padding: 4px 2px 28px; }
+.s-head h1 {
+  margin: 0;
+  font-size: clamp(44px, 12vw, 64px);
+  line-height: 1;
+  color: #2c2825;
+}
+.s-head .hy { display: block; margin-top: 6px; font-size: 19px; color: var(--graphite); }
+.s-head .meta { margin: 6px 0 0; color: var(--soft); font-size: 14px; }
+
+/* пластинка со слайдером здесь квадратная, без прицепленного заголовка сбоку */
+.story .plate { margin-bottom: 34px; }
+
+/* ---------- галерея ---------- */
+
+.gallery-sec { margin-top: 56px; }
+
+.gallery {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding: 4px 4px 14px;
+  margin: 0 -4px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+.gallery::-webkit-scrollbar { height: 6px; }
+.gallery::-webkit-scrollbar-thumb { background: rgba(51, 46, 42, 0.3); border-radius: 3px; }
+
+.g-item {
+  flex: 0 0 auto;
+  width: 156px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  scroll-snap-align: start;
+  -webkit-tap-highlight-color: transparent;
+}
+.g-pic {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  background: #ede3cf;
+  transition: transform 260ms ease, box-shadow 260ms ease;
+}
+.g-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.g-item.lift .g-pic, .g-item:active .g-pic { transform: scale(0.97); }
+@media (hover: hover) and (pointer: fine) {
+  .g-item:hover .g-pic { transform: translateY(-4px); box-shadow: 0 14px 20px -12px rgba(35, 25, 15, 0.45); }
+}
+
+.g-hint { margin: 4px 4px 0; color: var(--soft); font-size: 13px; }
+.g-hint .hy { font-family: var(--hy); }
+.cred.small { display: block; margin: 6px 4px 0; font-size: 12px; }
+
+/* ---------- лайтбокс ---------- */
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+  background: rgba(20, 16, 12, 0.94);
+  animation: lb-in 220ms ease;
+}
+.lightbox[hidden] { display: none; }
+@keyframes lb-in { from { opacity: 0; } to { opacity: 1; } }
+
+.lightbox figure { grid-column: 2; margin: 0; padding: 0 6px; text-align: center; max-height: 88vh; }
+.lightbox img { max-width: 100%; max-height: 74vh; margin: 0 auto; display: block; border: 4px solid #f1e7d3; background: #f1e7d3; }
+.lightbox figcaption { margin-top: 12px; color: #f1e7d3; font-size: 14px; line-height: 1.4; }
+
+.lb-close {
+  position: absolute;
+  top: max(14px, env(safe-area-inset-top));
+  right: 14px;
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  border: 1px solid rgba(241, 231, 211, 0.5);
+  background: rgba(241, 231, 211, 0.12);
+  color: #f1e7d3;
+  display: grid; place-items: center;
+  cursor: pointer;
+}
+.lb-close svg { width: 18px; height: 18px; }
+
+.lb-nav {
+  grid-row: 1;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(241, 231, 211, 0.4);
+  background: rgba(241, 231, 211, 0.1);
+  color: #f1e7d3;
+  display: grid; place-items: center;
+  cursor: pointer;
+  justify-self: center;
+}
+.lb-nav svg { width: 20px; height: 20px; }
+.lb-prev { grid-column: 1; }
+.lb-next { grid-column: 3; }
+
+/* ---------- хроника ---------- */
+
+.timeline-sec { margin-top: 60px; }
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0 0 20px;
+  border-left: 2px dashed rgba(51, 46, 42, 0.35);
+}
+.timeline li { position: relative; padding: 0 0 26px 20px; }
+.timeline li::before {
+  content: "";
+  position: absolute;
+  left: -27px;
+  top: 4px;
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 2px solid var(--red);
+}
+.timeline li:last-child { padding-bottom: 0; }
+.t-y {
+  display: inline-block;
+  font-family: var(--hand);
+  font-weight: 700;
+  font-size: 24px;
+  color: var(--red);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.timeline p { margin: 2px 0; font-size: 15px; }
+.timeline .hy { color: var(--graphite); font-size: 14px; }
+
+/* ---------- кнопка 3D ---------- */
+
+.cta-3d { margin-top: 60px; text-align: center; }
+
+.btn-3d {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 26px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: var(--paper-hi);
+  color: var(--ink);
+  font: 700 19px/1 var(--text);
+  cursor: pointer;
+  box-shadow: 3px 3px 0 rgba(51, 46, 42, 0.18);
+  transition: transform 200ms ease, box-shadow 200ms ease;
+  touch-action: manipulation;
+}
+.btn-3d svg { width: 22px; height: 22px; }
+.btn-3d i { font-style: normal; font-family: var(--hy); font-weight: 500; font-size: 15px; opacity: 0.75; }
+.btn-3d:active, .btn-3d.lift { transform: translate(2px, 2px); box-shadow: 1px 1px 0 rgba(51, 46, 42, 0.18); }
+@media (hover: hover) and (pointer: fine) {
+  .btn-3d:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 rgba(51, 46, 42, 0.18); }
+}
+.cta-3d .hint { margin: 12px 0 0; color: var(--soft); font-size: 13px; }
+
+/* ---------- окно 3D ---------- */
+
+.scene-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: #0d1230;
+  opacity: 0;
+  transform: scale(0.94);
+  transition: opacity 320ms cubic-bezier(0.4, 0, 0.2, 1), transform 320ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.scene-overlay[hidden] { display: none; }
+.scene-overlay.open { opacity: 1; transform: scale(1); }
+.scene-overlay iframe { width: 100%; height: 100%; border: 0; display: block; }
+.scene-close {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  right: 12px;
+  z-index: 2;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(233, 237, 247, 0.4);
+  background: rgba(15, 20, 40, 0.55);
+  color: #e9edf7;
+  display: grid; place-items: center;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.scene-close svg { width: 19px; height: 19px; }
+
+/* ---------- игра ---------- */
+
+.quiz-sec { margin-top: 60px; }
+
+.quiz {
+  position: relative;
+  padding: 22px 18px 24px;
+  background: var(--paper-hi);
+  box-shadow: 0 10px 24px -16px rgba(60, 45, 30, 0.5);
+}
+
+.q-progress {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.q-progress span {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(51, 46, 42, 0.18);
+}
+.q-progress span.done { background: var(--red); }
+
+.q-text { margin: 0 0 4px; font-size: 19px; font-weight: 600; }
+.q-text-hy { margin: 0 0 16px; font-family: var(--hy); font-size: 15px; color: var(--graphite); }
+
+.q-options { display: grid; gap: 10px; }
+.q-opt {
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid rgba(51, 46, 42, 0.4);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink);
+  font: 600 16px/1.3 var(--text);
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.q-opt .hy { display: block; font-family: var(--hy); font-weight: 400; font-size: 13px; color: var(--soft); margin-top: 2px; }
+.q-opt:active { transform: translateY(1px); }
+.q-opt.correct { border-color: #4a7a4a; background: rgba(74, 122, 74, 0.14); }
+.q-opt.wrong { border-color: var(--red); background: rgba(140, 58, 44, 0.12); }
+.q-opt[disabled] { cursor: default; }
+
+.q-result { text-align: center; }
+.q-score { font-family: var(--hand); font-size: 48px; line-height: 1; color: var(--red); margin: 0 0 8px; }
+.q-msg { margin: 0 0 4px; font-size: 17px; }
+.q-msg-hy { margin: 0 0 18px; font-family: var(--hy); font-size: 14px; color: var(--graphite); }
+.q-share {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: 700 16px/1 var(--text);
+  cursor: pointer;
+}
+.q-share svg { width: 17px; height: 17px; }
+.q-again { display: block; margin: 14px auto 0; border: 0; background: none; color: var(--soft); font: inherit; text-decoration: underline; cursor: pointer; }
+.q-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+  transform: translateX(-50%) translateY(12px);
+  padding: 10px 18px;
+  border-radius: 20px;
+  background: var(--ink);
+  color: var(--paper-hi);
+  font-size: 14px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease, transform 220ms ease;
+  z-index: 90;
+}
+.q-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---------- что дальше ---------- */
+
+.next-sec { margin-top: 64px; text-align: center; padding: 30px 12px; border-top: 1px dashed rgba(51, 46, 42, 0.3); }
+.next-sec p { color: var(--soft); margin: 0 0 18px; }
+.next-sec .hy { display: block; margin-top: 2px; font-size: 13px; }
+
+.btn-tiktok, .foot .tiktok a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  background: var(--red);
+  color: #f6ede1;
+  font: 700 16px/1 var(--text);
+  text-decoration: none;
+}
+.foot .tiktok a { padding: 10px 18px; font-size: 15px; }
+
+.story .foot { margin-top: 46px; }
+.story .foot p.hand a { color: inherit; text-decoration: underline; }
+
+@media (min-width: 700px) {
+  .story { max-width: 640px; }
+  .gallery { flex-wrap: nowrap; }
+}
