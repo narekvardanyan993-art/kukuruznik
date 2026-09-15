@@ -10,7 +10,7 @@
 (function (global) {
   'use strict';
 
-  var BUILD = '58';     // видно на самой странице — чтобы не гадать, свежая ли версия
+  var BUILD = '59';     // видно на самой странице — чтобы не гадать, свежая ли версия
 
   var PAPER = '#f5ecda';
   var INK   = '#2f2a25';
@@ -2598,6 +2598,56 @@
        объяснить догадками, нужны настоящие числа с самого телефона. */
     var diagEl = document.getElementById('diag');
     var frames = 0, drawn = 0, diagClock = 0, canary = 'нет';
+    var verdictText = 'считаю…', verdictClock = 0;
+
+    /* Страница ставит диагноз сама.
+
+       Пересказывать цифры с телефона на словах — лишняя работа и лишний
+       круг. Проверяем три вещи по порядку и пишем вывод по-русски:
+       есть ли у холста размер, закрашены ли в нём пиксели на самом деле
+       (читаем их обратно, а не верим глазам), и что лежит в середине
+       экрана — вдруг холст просто накрыт чем-то сверху. */
+    function computeVerdict() {
+      var c = engine.canvas;
+      var r = c.getBoundingClientRect();
+      if (!c.width || !c.height) {
+        return 'ХОЛСТ НУЛЕВОГО РАЗМЕРА (' + c.width + 'x' + c.height + ')';
+      }
+      if (r.width < 50 || r.height < 50) {
+        return 'КОРОБКА ХОЛСТА КРОШЕЧНАЯ: ' + Math.round(r.width) + 'x' + Math.round(r.height);
+      }
+      var painted = 0, tried = 0;
+      try {
+        var cx = c.getContext('2d');
+        var pts = [[0.5, 0.2], [0.5, 0.5], [0.5, 0.8], [0.2, 0.5], [0.8, 0.5]];
+        for (var i = 0; i < pts.length; i++) {
+          var x = Math.max(0, Math.floor(c.width * pts[i][0]) - 10);
+          var y = Math.max(0, Math.floor(c.height * pts[i][1]) - 10);
+          var d = cx.getImageData(x, y, 20, 20).data;
+          tried++;
+          for (var k = 3; k < d.length; k += 4) {
+            if (d[k] > 0) { painted++; break; }
+          }
+        }
+      } catch (e) {
+        return 'ПИКСЕЛИ НЕ ЧИТАЮТСЯ: ' + e.message;
+      }
+      var cover = '?';
+      try {
+        var el = document.elementFromPoint(
+          Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2));
+        cover = el ? (el.id ? '#' + el.id : el.tagName) : 'ничего';
+      } catch (e) {}
+      var mine = (cover === '#scene' || cover === '#stage' || cover === '#paper');
+      if (painted === 0) {
+        return mine
+          ? 'ХОЛСТ ПУСТОЙ — сцена ничего не рисует'
+          : 'ХОЛСТ ПУСТОЙ и вдобавок накрыт: ' + cover;
+      }
+      return mine
+        ? 'ХОЛСТ ЗАКРАШЕН ' + painted + '/' + tried + ' и ничем не накрыт — картинка ДОЛЖНА быть видна'
+        : 'ХОЛСТ ЗАКРАШЕН, НО НАКРЫТ СВЕРХУ: ' + cover;
+    }
     if (diagEl) {
       diagEl.addEventListener('click', function () { diagEl.style.display = 'none'; });
     }
@@ -2611,7 +2661,7 @@
       var sr = st ? st.getBoundingClientRect() : { width: 0, height: 0 };
       var standalone = (global.navigator && global.navigator.standalone) ? 'с иконки' :
         (global.matchMedia && global.matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'браузер');
-      diagEl.textContent =
+      diagEl.textContent = '► ' + verdictText + '\n' +
         'сборка ' + BUILD + ' · ' + standalone + ' · кадров ' + frames + ' · рисований ' + drawn + '\n' +
         'движок ' + engine.w + '×' + engine.h + ' dpr' + engine.dpr +
         ' · холст ' + c.width + '×' + c.height + '\n' +
@@ -2681,6 +2731,8 @@
         state.zoom = 1.04 + 0.30 * Math.sin(droneT * 0.12 + 1.2);
       }
       engine.render(state);
+
+      if (now - verdictClock > 1000) { verdictClock = now; verdictText = computeVerdict(); }
 
       /* КАНАРЕЙКА (временно, сборка 58).
 
