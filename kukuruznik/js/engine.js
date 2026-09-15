@@ -2743,14 +2743,17 @@
     var hideBtn = document.getElementById('hideBtn');
     var uiOff = false;
 
+    /* Раньше здесь ещё вызывался Fullscreen API (requestFullscreen /
+       exitFullscreen) — настоящий полноэкранный режим браузера. Убрано:
+       сцена теперь может жить и во вплывающем окне поверх страницы
+       здания (внутри iframe), а там запрос полного экрана либо тихо
+       отклоняется, либо ведёт себя непредсказуемо — на Mac в Safari
+       вместо сцены сворачивалось окно браузера. Кнопка «Экран» и без
+       этого честно делает своё: прячет весь интерфейс, остаётся только
+       сама картинка. */
     function setUI(off) {
       uiOff = off;
       document.body.classList.toggle('ui-off', off);
-      if (off && stage.requestFullscreen) {
-        try { stage.requestFullscreen({ navigationUI: 'hide' }); } catch (e) {}
-      } else if (!off && document.fullscreenElement && document.exitFullscreen) {
-        try { document.exitFullscreen(); } catch (e) {}
-      }
     }
     hideBtn.addEventListener('click', function () {
       Snd.tap('hide');
@@ -2758,7 +2761,7 @@
       void hideBtn.offsetWidth;          // перезапуск анимации
       hideBtn.classList.add('tapped');
       setMenu('');
-      toast('Полный экран');
+      toast('Интерфейс скрыт');
       setUI(true);
     });
 

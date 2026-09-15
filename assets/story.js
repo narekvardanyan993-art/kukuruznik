@@ -22,7 +22,9 @@
       img.alt = it.getAttribute('data-cap') || '';
       var ru = it.getAttribute('data-cap') || '';
       var hy = it.getAttribute('data-cap-hy') || '';
-      cap.innerHTML = ru + (hy ? ' <span class="hy" lang="hy">· ' + hy + '</span>' : '');
+      var src = it.getAttribute('data-src');
+      cap.innerHTML = ru + (hy ? ' <span class="hy" lang="hy">· ' + hy + '</span>' : '') +
+        (src ? '<br><a href="' + src + '" target="_blank" rel="noopener">фото: [АВТОР] / PastVu</a>' : '');
     }
     function open(i) {
       show(i);
@@ -62,18 +64,28 @@
     }, { passive: true });
   })();
 
-  /* ---------- окно 3D поверх страницы ---------- */
+  /* ---------- окно 3D поверх страницы ----------
+
+     Кнопок «Смотреть в 3D» на странице две (наверху и после хроники) —
+     у обеих настоящий href="scene.html". Без JS (или если он не успел
+     подключиться) клик просто открывает 3D как обычную страницу, со
+     своей кнопкой возврата — это и есть надёжный запасной вариант.
+     С JS клик перехватывается и вместо перехода открывается то же
+     самое scene.html во всплывающем слое поверх страницы: обычный
+     position:fixed-блок с крестиком, БЕЗ Fullscreen API браузера — в
+     Safari на Mac он вёл себя непредсказуемо (сворачивал окно). */
 
   (function () {
     var cfg = window.CHKA_BUILDING || {};
-    var openBtn = document.getElementById('open3d');
+    var openBtns = document.querySelectorAll('.btn-3d');
     var overlay = document.getElementById('sceneOverlay');
     var closeBtn = document.getElementById('sceneClose');
     var frame = document.getElementById('sceneFrame');
-    if (!openBtn || !overlay || !frame || !cfg.scene) return;
+    if (!openBtns.length || !overlay || !frame || !cfg.scene) return;
     var loaded = false;
 
-    function openScene() {
+    function openScene(e) {
+      if (e) e.preventDefault();
       if (!loaded) { frame.src = cfg.scene; loaded = true; }
       overlay.hidden = false;
       requestAnimationFrame(function () { overlay.classList.add('open'); });
@@ -84,7 +96,7 @@
       document.body.style.overflow = '';
       setTimeout(function () { overlay.hidden = true; }, window.ChkaReducedMotion ? 0 : 340);
     }
-    openBtn.addEventListener('click', openScene);
+    openBtns.forEach(function (btn) { btn.addEventListener('click', openScene); });
     if (closeBtn) closeBtn.addEventListener('click', closeScene);
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && !overlay.hidden) closeScene();

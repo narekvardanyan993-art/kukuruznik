@@ -51,7 +51,9 @@
 - **Галерея.** Клади архивные фото в `<папка>/gallery-source/имя.jpg`
   и запускай `python3 tools/images.py` — появится `<папка>/gallery/имя.webp`
   и `имя-thumb.webp`. На странице на каждое фото — кнопка `.g-item` с
-  `data-full`, `data-cap`, `data-cap-hy` (см. разметку в `kukuruznik/index.html`).
+  `data-full`, `data-cap`, `data-cap-hy`, `data-src` (ссылка на страницу
+  этого фото на pastvu.com — своя у каждого снимка) — см. разметку в
+  `kukuruznik/index.html`.
   Лайтбокс и свайп уже умеет `assets/story.js` — подключи его вместе с
   `chka-common.js`.
 
