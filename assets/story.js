@@ -2,7 +2,7 @@
    окно 3D поверх страницы, мини-игра «угадай год». */
 (function () {
   var plate = document.getElementById('plate');
-  if (plate && window.ChkaCompareSlider) window.ChkaCompareSlider(plate, 38);
+  if (plate && window.ChkaCompareSlider) window.ChkaCompareSlider(plate, 50);
 
   /* ---------- галерея: лайтбокс со свайпом (нативный скролл) ---------- */
 

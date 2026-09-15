@@ -1,48 +1,7 @@
-/* Չկա — главная. Специфика именно этой страницы: включение слайдера
-   реставрации, параллакс большого фото, переход-разворот на карточку
-   здания. Рамки, проявление при прокрутке и приподнятие карточек —
-   в assets/chka-common.js, подключённом раньше этого файла. */
+/* Չկա — главная. Специфика именно этой страницы: переход-разворот на
+   карточку здания. Рамки, проявление при прокрутке и приподнятие
+   карточек — в assets/chka-common.js, подключённом раньше этого файла. */
 (function () {
-  var plate = document.getElementById('plate');
-  if (plate && window.ChkaCompareSlider) window.ChkaCompareSlider(plate, 38);
-
-  /* ---------- параллакс от мыши и прокрутки (только мышь+курсор) ---------- */
-
-  if (window.ChkaFinePointer && !window.ChkaReducedMotion) {
-    var hero = document.querySelector('.hero');
-    if (hero && plate) {
-      var raf = null, px = 0, py = 0;
-      function setVars() {
-        raf = null;
-        plate.querySelectorAll('.layer').forEach(function (l) {
-          l.style.setProperty('--px', px.toFixed(2));
-          l.style.setProperty('--py', py.toFixed(2));
-        });
-      }
-      hero.addEventListener('mousemove', function (e) {
-        var b = plate.getBoundingClientRect();
-        var cx = b.left + b.width / 2, cy = b.top + b.height / 2;
-        px = Math.max(-1, Math.min(1, (e.clientX - cx) / b.width)) * -7;
-        py = Math.max(-1, Math.min(1, (e.clientY - cy) / b.height)) * -7;
-        plate.classList.add('parallax');
-        if (!raf) raf = requestAnimationFrame(setVars);
-      });
-      hero.addEventListener('mouseleave', function () {
-        px = 0; py = 0;
-        if (!raf) raf = requestAnimationFrame(setVars);
-      });
-      window.addEventListener('scroll', function () {
-        var b = plate.getBoundingClientRect();
-        var mid = b.top + b.height / 2 - window.innerHeight / 2;
-        py = Math.max(-1, Math.min(1, mid / window.innerHeight)) * 6;
-        plate.classList.add('parallax');
-        if (!raf) raf = requestAnimationFrame(setVars);
-      }, { passive: true });
-    }
-  }
-
-  /* ---------- переход на страницу здания: карточка «разворачивается» ---------- */
-
   document.querySelectorAll('[data-transition]').forEach(function (a) {
     a.addEventListener('click', function (e) {
       if (window.ChkaReducedMotion || e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;

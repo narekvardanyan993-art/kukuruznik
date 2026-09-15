@@ -15,8 +15,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Serif+Armenian:wght@300;500&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="../assets/hub.css?v=2">
-<link rel="stylesheet" href="../assets/story.css?v=1">
+<link rel="stylesheet" href="../assets/hub.css?v=3">
+<link rel="stylesheet" href="../assets/story.css?v=2">
 </head>
 <body>
 
@@ -32,9 +32,14 @@
     <p class="hy" lang="hy">Երիտասարդական պալատ</p>
     <p class="meta">Дом молодёжи · Ереван · 1979–2006</p>
     <a class="btn-3d btn-3d-top" href="scene.html">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 3v18M4 7.5L12 12l8-4.5"/></svg>
+      <svg class="cube-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3.4Q16.3 5.6 20 7.3Q20.3 11.8 20 16.1Q16 18.6 12 20.8Q7.8 18.7 4 16.2Q3.7 11.7 4 7.4Q7.9 5.5 12 3.4Z"/>
+        <path d="M12 3.6Q12.3 12 12 20.6"/>
+        <path d="M4.2 7.5Q8 9.8 12 12.1Q16 9.7 19.8 7.4"/>
+      </svg>
       <span>Смотреть в 3D <i class="hy" lang="hy">· տեսնել 3D-ով</i></span>
     </a>
+    <p class="hint">крутится на 360°, меняются время суток и свет</p>
   </header>
 
   <figure class="plate reveal" id="plate" data-frame>
@@ -53,7 +58,7 @@
       </div>
       <div class="split-line" aria-hidden="true"></div>
       <div class="handle" role="slider" tabindex="0"
-           aria-label="Сравнить архивное фото и рисунок" aria-valuemin="0" aria-valuemax="100" aria-valuenow="38">
+           aria-label="Сравнить архивное фото и рисунок" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></svg>
       </div>
       <span class="edge-tag tag-l">фото <span class="hy" lang="hy">· լուսանկար</span></span>
@@ -64,8 +69,14 @@
     <figcaption class="note">
       <a class="cred" href="https://pastvu.com/p/1333413" target="_blank" rel="noopener">фото: [АВТОР] / PastVu</a>
     </figcaption>
-    <p class="restore-note">Художественная реставрация — цвета восстановлены по памяти, это не документ.
-      <span class="hy" lang="hy">Գեղարվեստական վերականգնում է, ոչ թե փաստաթուղթ։</span></p>
+    <div class="restore-note">
+      <p><strong>Дом молодёжи</strong> («Кукурузник»), Ереван. Архитекторы: А. Тарханян, С. Хачикян, Г. Погосян, М. Захарян.
+        <span class="hy" lang="hy">Երիտասարդական պալատ («Կուկուրուզնիկ»), Երևան։ Ճարտարապետներ՝ Ա. Թարխանյան, Ս. Խաչիկյան, Գ. Պողոսյան, Մ. Զաքարյան։</span></p>
+      <p>Открыт в 1979, снесён в 2006.
+        <span class="hy" lang="hy">Բացվել է 1979-ին, քանդվել՝ 2006-ին։</span></p>
+      <p>Архивное фото ↔ мой 3D-рисунок — потяните границу, чтобы сравнить.
+        <span class="hy" lang="hy">Արխիվային լուսանկարը ↔ իմ 3D-նկարը․ քաշեք սահմանը՝ համեմատելու համար։</span></p>
+    </div>
   </figure>
 
   <section class="gallery-sec reveal" aria-labelledby="gal-h">
@@ -146,14 +157,6 @@
     </ol>
   </section>
 
-  <section class="cta-3d reveal">
-    <a class="btn-3d" href="scene.html">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 3v18M4 7.5L12 12l8-4.5"/></svg>
-      <span>Смотреть в 3D <i class="hy" lang="hy">· տեսնել 3D-ով</i></span>
-    </a>
-    <p class="hint">крутится на 360°, меняются время суток и свет</p>
-  </section>
-
   <section class="quiz-sec reveal" aria-labelledby="quiz-h">
     <h2 id="quiz-h" class="hand">Угадай год <span class="hy" lang="hy">· Գուշակիր տարին</span></h2>
     <div class="quiz" id="quiz" data-frame></div>
@@ -217,6 +220,6 @@
   };
 </script>
 <script src="../assets/chka-common.js?v=1" defer></script>
-<script src="../assets/story.js?v=1" defer></script>
+<script src="../assets/story.js?v=2" defer></script>
 </body>
 </html>

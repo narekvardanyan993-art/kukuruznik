@@ -13,13 +13,11 @@
 <link rel="icon" href="assets/favicon-32.png">
 <link rel="apple-touch-icon" href="assets/icon-180.png">
 
-<link rel="preload" as="image" type="image/webp" href="assets/hero-photo-720.webp"
-      imagesrcset="assets/hero-photo-720.webp 720w, assets/hero-photo-1080.webp 1080w"
-      imagesizes="(min-width: 900px) 520px, calc(100vw - 32px)" fetchpriority="high">
+<link rel="preload" as="image" type="image/webp" href="kukuruznik/card.webp" fetchpriority="high">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Serif+Armenian:wght@300;500&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="assets/hub.css?v=2">
+<link rel="stylesheet" href="assets/hub.css?v=3">
 </head>
 <body>
 
@@ -34,37 +32,20 @@
 <main class="album">
 
   <header class="hero">
-    <figure class="plate" id="plate" data-frame>
-      <div class="plate-in" id="plateIn">
-        <div class="layer photo">
-          <picture>
-            <source type="image/webp" srcset="assets/hero-photo-720.webp 720w, assets/hero-photo-1080.webp 1080w" sizes="(min-width: 900px) 520px, calc(100vw - 32px)">
-            <img src="assets/hero-photo-1080.jpg" width="1080" height="1080" alt="Кукурузник — Дом молодёжи в Ереване, архивное фото" fetchpriority="high" decoding="async">
-          </picture>
-        </div>
-        <div class="layer sketch" id="sketchLayer" aria-hidden="true">
-          <picture>
-            <source type="image/webp" srcset="assets/hero-sketch-720.webp 720w, assets/hero-sketch-1080.webp 1080w" sizes="(min-width: 900px) 520px, calc(100vw - 32px)">
-            <img src="assets/hero-sketch-1080.jpg" width="1080" height="1080" alt="" decoding="async">
-          </picture>
-        </div>
-        <div class="split-line" id="splitLine" aria-hidden="true"></div>
-        <div class="handle" id="handle" role="slider" tabindex="0"
-             aria-label="Сравнить архивное фото и рисунок" aria-valuemin="0" aria-valuemax="100" aria-valuenow="38">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></svg>
-        </div>
-        <span class="edge-tag tag-l">фото <span class="hy" lang="hy">· լուսանկար</span></span>
-        <span class="edge-tag tag-r">рисунок <span class="hy" lang="hy">· նկար</span></span>
+    <div class="stack" aria-hidden="true">
+      <div class="stack-card sc-a">
+        <div class="sc-pic" data-frame><svg class="ghost" viewBox="0 0 200 200"><use href="#ghost-tower"/></svg></div>
       </div>
-      <span class="tape tape-l" aria-hidden="true"></span>
-      <span class="tape tape-r" aria-hidden="true"></span>
-      <figcaption class="note">
-        <a class="cred" href="https://pastvu.com/p/1333413" target="_blank" rel="noopener">фото: [АВТОР] / PastVu</a>
-        <a class="note-link" href="kukuruznik/">Кукурузник в 3D&nbsp;→</a>
-      </figcaption>
-      <p class="restore-note">Художественная реставрация — цвета восстановлены по памяти, это не документ.
-        <span class="hy" lang="hy">Գեղարվեստական վերականգնում է, ոչ թե փաստաթուղթ։</span></p>
-    </figure>
+      <div class="stack-card sc-b">
+        <div class="sc-pic" data-frame><svg class="ghost" viewBox="0 0 200 200"><use href="#ghost-slab"/></svg></div>
+      </div>
+      <div class="stack-card sc-c">
+        <div class="sc-pic" data-frame><svg class="ghost" viewBox="0 0 200 200"><use href="#ghost-statue"/></svg></div>
+      </div>
+      <div class="stack-card sc-d">
+        <div class="sc-pic" data-frame><img src="kukuruznik/card.webp" width="480" height="480" alt="" fetchpriority="high" decoding="async"></div>
+      </div>
+    </div>
 
     <div class="title">
       <h1><span class="hy" lang="hy">Չկա</span></h1>
@@ -72,7 +53,15 @@
         <span class="hy" lang="hy">շենքեր, որոնք այլևս չկան</span>
         <span class="ru">здания, которых больше нет</span>
       </p>
-      <p class="intro">Рисую снесённые здания Еревана по архивным фото и собираю их в 3D — чтобы на них снова можно было посмотреть со всех сторон.</p>
+      <p class="intro">
+        Альбом утраченной архитектуры Еревана. Нахожу архивные фото снесённых зданий, рисую их и собираю в 3D.
+        <span class="hy" lang="hy">Երևանի կորած ճարտարապետության ալբոմ։ Գտնում եմ քանդված շենքերի արխիվային նկարները, նկարում եմ դրանք ու վերականգնում 3D-ով։</span>
+      </p>
+      <p class="intro">
+        Здесь можно покрутить здание со всех сторон, сравнить «было и стало», узнать историю и сыграть в «угадай год».
+        <span class="hy" lang="hy">Այստեղ կարող ես պտտել շենքը բոլոր կողմերից, համեմատել «նախքանն ու հետոն», կարդալ պատմությունը և խաղալ «գուշակիր տարին»։</span>
+      </p>
+      <a class="btn-open" href="#shelf-h">открыть альбом <span class="hy" lang="hy">· բացել ալբոմը</span> <span class="arrow">↓</span></a>
     </div>
   </header>
 
@@ -145,6 +134,6 @@
 </main>
 
 <script src="assets/chka-common.js?v=1" defer></script>
-<script src="assets/hub.js?v=3" defer></script>
+<script src="assets/hub.js?v=4" defer></script>
 </body>
 </html>

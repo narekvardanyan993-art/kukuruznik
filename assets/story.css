@@ -168,55 +168,50 @@
 .timeline p { margin: 2px 0; font-size: 15px; }
 .timeline .hy { color: var(--graphite); font-size: 14px; }
 
-/* ---------- кнопка 3D ---------- */
-
-.cta-3d { margin-top: 60px; text-align: center; }
+/* ---------- кнопка 3D ----------
+   Одна на странице, сразу под названием — как проштампованная от руки
+   надпись на бумаге, а не цифровая кнопка: без заливки, только чернильный
+   контур пунктиром, рукописный шрифт, лёгкий наклон. */
 
 .btn-3d {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
-  padding: 16px 26px;
-  border: 2px solid var(--ink);
-  border-radius: 999px;
+  padding: 13px 22px 16px;
+  border: 2px dashed var(--red);
+  border-radius: 4px;
   background: var(--paper-hi);
-  color: var(--ink);
+  color: var(--red);
   text-decoration: none;
-  font: 700 19px/1 var(--text);
+  font-family: var(--hand);
+  font-weight: 700;
+  font-size: 27px;
+  line-height: 1;
   cursor: pointer;
-  box-shadow: 3px 3px 0 rgba(51, 46, 42, 0.18);
+  transform: rotate(-1.6deg);
+  box-shadow: 2px 3px 0 rgba(51, 46, 42, 0.14);
   transition: transform 200ms ease, box-shadow 200ms ease;
   touch-action: manipulation;
 }
-.btn-3d svg { width: 22px; height: 22px; flex: none; }
-.btn-3d i { font-style: normal; font-family: var(--hy); font-weight: 500; font-size: 15px; opacity: 0.75; }
-.btn-3d:active, .btn-3d.lift { transform: translate(2px, 2px); box-shadow: 1px 1px 0 rgba(51, 46, 42, 0.18); }
+.cube-i { width: 27px; height: 27px; flex: none; }
+.btn-3d i { font-style: normal; font-family: var(--hy); font-weight: 500; font-size: 0.58em; opacity: 0.8; }
+.btn-3d:active, .btn-3d.lift { transform: rotate(-1.6deg) translate(2px, 2px); box-shadow: 0 0 0 rgba(0, 0, 0, 0); }
 @media (hover: hover) and (pointer: fine) {
-  .btn-3d:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 rgba(51, 46, 42, 0.18); }
+  .btn-3d:hover { transform: rotate(0deg) translateY(-2px); box-shadow: 3px 5px 0 rgba(51, 46, 42, 0.16); }
 }
-.cta-3d .hint { margin: 12px 0 0; color: var(--soft); font-size: 13px; }
 
-/* Кнопка вверху шапки — чтобы «Смотреть в 3D» было видно на первом
-   экране iPhone без прокрутки, крупная и во всю ширину. */
+/* Наверху шапки — чтобы «Смотреть в 3D» было видно на первом экране
+   iPhone без прокрутки, во всю ширину. */
 .btn-3d-top {
-  display: flex;
-  justify-content: center;
   width: 100%;
-  margin: 16px 0 2px;
-  padding: 17px 18px;
-  font-size: 18px;
-  background: var(--red);
-  border-color: var(--red);
-  color: #f6ede1;
-  box-shadow: 3px 3px 0 rgba(140, 58, 44, 0.3);
-}
-.btn-3d-top i { opacity: 0.85; }
-@media (hover: hover) and (pointer: fine) {
-  .btn-3d-top:hover { box-shadow: 5px 5px 0 rgba(140, 58, 44, 0.3); }
+  margin: 16px 0 0;
 }
 @media (min-width: 480px) {
-  .btn-3d-top { width: auto; padding: 16px 30px; }
+  .btn-3d-top { width: auto; }
 }
+
+.s-head .hint { margin: 10px 2px 0; color: var(--soft); font-size: 13px; }
 
 /* ---------- окно 3D ---------- */
 
