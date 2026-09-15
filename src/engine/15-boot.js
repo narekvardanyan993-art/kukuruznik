@@ -168,8 +168,91 @@
         ? 'ХОЛСТ ЗАКРАШЕН ' + painted + '/' + tried + ' и ничем не накрыт — картинка ДОЛЖНА быть видна'
         : 'ХОЛСТ ЗАКРАШЕН, НО НАКРЫТ СВЕРХУ: ' + cover;
     }
+    /* ПЕРЕБОР ОБХОДОВ (временно, сборка 60).
+
+       Числа говорят, что холст нужного размера, пиксели в нём
+       закрашены и сверху ничем не накрыто — а на экране с иконки его
+       нет. Значит рисование ни при чём: картинка не доходит до экрана
+       на стороне самого Safari. Вслепую такое не угадывается, поэтому
+       варианты обхода перебираются касанием: касание по панели —
+       следующий вариант, а какой сейчас, написано в самой панели. */
+    var variant = 0;
+    var VARIANTS = [
+      ['исходный — как сейчас', function () {}],
+
+      ['КРАСНЫЙ ФОН холста (сам элемент рисуется?)', function () {
+        sceneCanvas.style.background = '#c81e2b';
+      }],
+
+      ['холсты в свой слой (translateZ)', function () {
+        sceneCanvas.style.transform = 'translateZ(0)';
+        paperCanvas.style.transform = 'translateZ(0)';
+      }],
+
+      ['сцена не fixed, а absolute', function () {
+        stage.style.position = 'absolute';
+      }],
+
+      ['холсты сами fixed', function () {
+        sceneCanvas.style.position = 'fixed';
+        paperCanvas.style.position = 'fixed';
+      }],
+
+      ['стекло выключено (backdrop-filter)', function () {
+        var gl = document.querySelectorAll('.lg');
+        for (var i = 0; i < gl.length; i++) {
+          gl[i].style.webkitBackdropFilter = 'none';
+          gl[i].style.backdropFilter = 'none';
+        }
+      }],
+
+      ['dpr = 1 (холст втрое меньше)', function () {
+        engine.maxDpr = 1;
+        engine.resize();
+      }],
+
+      ['will-change на холстах', function () {
+        sceneCanvas.style.willChange = 'transform';
+        paperCanvas.style.willChange = 'transform';
+      }],
+
+      ['всё сразу: слой + fixed + без стекла + dpr 1', function () {
+        sceneCanvas.style.transform = paperCanvas.style.transform = 'translateZ(0)';
+        sceneCanvas.style.position = paperCanvas.style.position = 'fixed';
+        var gl = document.querySelectorAll('.lg');
+        for (var i = 0; i < gl.length; i++) {
+          gl[i].style.webkitBackdropFilter = 'none';
+          gl[i].style.backdropFilter = 'none';
+        }
+        engine.maxDpr = 1;
+        engine.resize();
+      }]
+    ];
+
+    function applyVariant(n) {
+      /* Сначала снимаем всё, что навешивали раньше, иначе варианты
+         сложатся друг с другом и станет непонятно, что сработало. */
+      sceneCanvas.style.background = '';
+      sceneCanvas.style.transform = paperCanvas.style.transform = '';
+      sceneCanvas.style.position = paperCanvas.style.position = '';
+      sceneCanvas.style.willChange = paperCanvas.style.willChange = '';
+      stage.style.position = '';
+      var gl = document.querySelectorAll('.lg');
+      for (var i = 0; i < gl.length; i++) {
+        gl[i].style.webkitBackdropFilter = '';
+        gl[i].style.backdropFilter = '';
+      }
+      engine.maxDpr = 3;
+      engine.resize();
+
+      variant = n;
+      VARIANTS[n][1]();
+    }
+
     if (diagEl) {
-      diagEl.addEventListener('click', function () { diagEl.style.display = 'none'; });
+      diagEl.addEventListener('click', function () {
+        applyVariant((variant + 1) % VARIANTS.length);
+      });
     }
 
     function paintDiag() {
@@ -181,7 +264,10 @@
       var sr = st ? st.getBoundingClientRect() : { width: 0, height: 0 };
       var standalone = (global.navigator && global.navigator.standalone) ? 'с иконки' :
         (global.matchMedia && global.matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'браузер');
-      diagEl.textContent = '► ' + verdictText + '\n' +
+      diagEl.textContent =
+        'ВАРИАНТ ' + variant + ' из ' + (VARIANTS.length - 1) + ': ' + VARIANTS[variant][0] + '\n' +
+        '(касание по этой панели — следующий вариант)\n' +
+        '► ' + verdictText + '\n' +
         'сборка ' + BUILD + ' · ' + standalone + ' · кадров ' + frames + ' · рисований ' + drawn + '\n' +
         'движок ' + engine.w + '×' + engine.h + ' dpr' + engine.dpr +
         ' · холст ' + c.width + '×' + c.height + '\n' +
