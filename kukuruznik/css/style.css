@@ -673,3 +673,28 @@ body.ui-off #back-tip { animation: tip 3.4s ease forwards; }
   70% { opacity: 1; }
   100% { opacity: 0; }
 }
+
+/* ---------- назад в альбом Չկա ----------
+   Сверху по центру: слева звук, справа счётчик кадров. */
+#toHub {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
+  left: 50%;
+  z-index: 10;
+  height: 38px;
+  padding: 0 14px 0 8px;
+  border-radius: 19px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  text-decoration: none;
+  font: 500 16px/1 "Noto Sans Armenian", -apple-system, BlinkMacSystemFont, sans-serif;
+  touch-action: manipulation;
+  transform: translateX(-50%);
+  transition: transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 320ms ease,
+              background 300ms ease, border-color 450ms ease,
+              color 450ms ease, box-shadow 450ms ease;
+}
+#toHub svg { width: 18px; height: 18px; display: block; }
+#toHub:active { transform: translateX(-50%) scale(0.9); }
+body.ui-off #toHub { opacity: 0; pointer-events: none; }

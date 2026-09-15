@@ -2,148 +2,137 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#0d1230">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f1e7d3">
+<title>Չկա — здания, которых больше нет</title>
+<meta name="description" content="Չկա — альбом снесённых зданий Еревана: карандашные рисунки по архивным фото и 3D-модели, которые можно покрутить в браузере.">
+<meta property="og:title" content="Չկա — здания, которых больше нет">
+<meta property="og:description" content="Альбом снесённых зданий Еревана: рисунки и 3D-модели.">
+<meta property="og:type" content="website">
+<meta name="apple-mobile-web-app-title" content="Չկա">
+<link rel="icon" href="assets/favicon-32.png">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
 
-<!-- «На экран Домой» на iPhone: открывается без адресной строки и
-     полосок Safari — это и есть настоящий полноэкранный режим,
-     API браузера для него в Safari попросту нет. -->
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Кукурузник">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<link rel="icon" href="icons/favicon.png">
-<link rel="manifest" href="manifest.json">
-
-<title>Кукурузник — 3D</title>
+<link rel="preload" as="image" type="image/webp" href="assets/hero-photo-720.webp"
+      imagesrcset="assets/hero-photo-720.webp 720w, assets/hero-photo-1080.webp 1080w"
+      imagesizes="(min-width: 900px) 520px, calc(100vw - 32px)" fetchpriority="high">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Serif+Armenian:wght@300;500&display=swap" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="assets/hub.css?v=1">
 </head>
 <body>
 
-<div id="stage">
-  <canvas id="paper"></canvas>
-  <canvas id="scene"></canvas>
-</div>
+<!-- Силуэты для карточек «скоро». Новый силуэт — ещё один <symbol>. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="ghost-dome" viewBox="0 0 200 200"><path d="M20 170h160v-8h-10v-40c0-38-31-70-70-70s-70 32-70 70v40H20z M92 52V34h16v18"/></symbol>
+  <symbol id="ghost-slab" viewBox="0 0 200 200"><path d="M14 170h172v-10h-8V96h-26V72H48v24H22v64h-8z M60 72V58h80v14"/></symbol>
+  <symbol id="ghost-tower" viewBox="0 0 200 200"><path d="M40 170h120v-12h-18V58l-8-10V30H86v18l-8 10v100H40z"/></symbol>
+</svg>
 
-<div id="fps">— fps</div>
-<button id="soundBtn" class="lg" type="button" aria-pressed="true" aria-label="Звук" data-cap="Звук"><svg class="on-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4h3.6L13 18V6L7.6 10H4z"/><g class="waves"><path d="M16.2 9.2a4 4 0 0 1 0 5.6M18.6 6.8a7.6 7.6 0 0 1 0 10.4"/></g></svg><svg class="off-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4h3.6L13 18V6L7.6 10H4z"/><path d="M16 9.5l4.6 4.6M20.6 9.5L16 14.1"/></svg></button>
-<div id="hint">Крути пальцем · два пальца — приблизить</div>
+<main class="album">
 
-<div id="hud">
-    <div class="rs" style="--x:96.6px;--y:-25.9px" data-cap="Погода">
-      <button id="weatherBtn" class="ri lg" type="button" aria-label="Погода" data-cap="Погода"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><g class="sun-g"><circle cx="12" cy="12" r="4.6"/><path d="M12 3.6v2.3M12 18.1v2.3M4.6 12H2.3M21.7 12h-2.3M6.34 6.34L4.73 4.73M19.27 19.27l-1.61-1.61M17.66 6.34l1.61-1.61M4.73 19.27l1.61-1.61"/></g></svg></button>
+  <header class="hero">
+    <figure class="plate" id="plate" data-frame>
+      <div class="plate-in">
+        <picture class="layer photo">
+          <source type="image/webp" srcset="assets/hero-photo-720.webp 720w, assets/hero-photo-1080.webp 1080w" sizes="(min-width: 900px) 520px, calc(100vw - 32px)">
+          <img src="assets/hero-photo-1080.jpg" width="1080" height="1080" alt="Кукурузник — Дом молодёжи в Ереване, архивное фото" fetchpriority="high" decoding="async">
+        </picture>
+        <picture class="layer sketch" aria-hidden="true">
+          <source type="image/webp" srcset="assets/hero-sketch-720.webp 720w, assets/hero-sketch-1080.webp 1080w" sizes="(min-width: 900px) 520px, calc(100vw - 32px)">
+          <img src="assets/hero-sketch-1080.jpg" width="1080" height="1080" alt="" decoding="async">
+        </picture>
+      </div>
+      <span class="tape tape-l" aria-hidden="true"></span>
+      <span class="tape tape-r" aria-hidden="true"></span>
+      <figcaption class="note">
+        <button class="swap" id="swap" type="button" aria-pressed="false">фото → рисунок</button>
+        <a class="note-link" href="kukuruznik/">Кукурузник в 3D&nbsp;→</a>
+      </figcaption>
+    </figure>
+
+    <div class="title">
+      <h1><span class="hy" lang="hy">Չկա</span></h1>
+      <p class="sub">
+        <span class="hy" lang="hy">շենքեր, որոնք այլևս չկան</span>
+        <span class="ru">здания, которых больше нет</span>
+      </p>
+      <p class="intro">Рисую снесённые здания Еревана по архивным фото и собираю их в 3D — чтобы на них снова можно было посмотреть со всех сторон.</p>
     </div>
-    <div class="rs" style="--x:60.9px;--y:-79.3px" data-cap="Облёт">
-      <button id="droneBtn" class="ri lg" type="button" aria-pressed="false" aria-label="Облёт" data-cap="Облёт"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.6"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><g class="orbit"><circle cx="20.6" cy="12" r="1.9" fill="currentColor" stroke="none"/></g></svg></button>
-    </div>
-    <div class="rs" style="--x:0px;--y:-100.0px" data-cap="Поворот">
-      <button id="autoBtn" class="ri lg" type="button" aria-pressed="false" aria-label="Поворот" data-cap="Поворот"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><g class="spin-slow"><path d="M20.2 12a8.2 8.2 0 1 1-2.4-5.8"/><path d="M20.2 4v4.9h-4.9"/></g></svg></button>
-    </div>
-    <div class="rs" style="--x:-60.9px;--y:-79.3px" data-cap="Сброс">
-      <button id="resetBtn" class="ri lg" type="button" aria-label="Сброс" data-cap="Сброс"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><g class="snap"><circle cx="12" cy="12" r="8.2"/><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/><path d="M12 1.6v3M12 19.4v3M1.6 12h3M19.4 12h3"/></g></svg></button>
-    </div>
-    <div class="rs" style="--x:-96.6px;--y:-25.9px" data-cap="Экран">
-      <button id="hideBtn" class="ri lg" type="button" aria-label="Экран" data-cap="Экран"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><g class="brackets"><path d="M9.2 3H3v6.2M14.8 3H21v6.2M21 14.8V21h-6.2M3 14.8V21h6.2"/></g></svg></button>
-    </div>
+  </header>
 
-  <div id="sub" class="lg">
-    <div class="sub-head">Время суток</div>
-    <div id="tod-row">
-      <span class="edge" id="sun-edge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="4.1"/><path d="M12 2.4v2.3M12 19.3v2.3M4.4 4.4l1.6 1.6M18 18l1.6 1.6M2.4 12h2.3M19.3 12h2.3M4.4 19.6l1.6-1.6M18 6l1.6-1.6"/></svg></span>
-      <input type="range" id="tod" min="0" max="100" value="80" aria-label="Время суток">
-      <span class="edge" id="moon-edge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.4 14.5A8.6 8.6 0 0 1 9.5 3.6 8.6 8.6 0 1 0 20.4 14.5z"/></svg></span>
-    </div>
-    <div class="chips">
-      <button class="chip" type="button" data-v="12" aria-pressed="false">Утро</button>
-      <button class="chip" type="button" data-v="30" aria-pressed="false">День</button>
-      <button class="chip" type="button" data-v="50" aria-pressed="false">Закат</button>
-      <button class="chip" type="button" data-v="92" aria-pressed="false">Ночь</button>
-    </div>
-  </div>
+  <section class="shelf" aria-labelledby="shelf-h">
+    <h2 id="shelf-h" class="hand">Альбом <span class="hy" lang="hy">· Ալբոմ</span></h2>
 
-  <div id="toast" class="lg"></div>
+    <ul class="cards">
 
-  <button id="hudBtn" class="lg" type="button" aria-expanded="false" aria-label="Меню" data-cap="Меню"><svg class="open-i" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2.7"/><circle cx="19.6" cy="12" r="1.85"/><circle cx="15.8" cy="5.42" r="1.85"/><circle cx="8.2" cy="5.42" r="1.85"/><circle cx="4.4" cy="12" r="1.85"/><circle cx="8.2" cy="18.58" r="1.85"/><circle cx="15.8" cy="18.58" r="1.85"/></svg><svg class="close-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M6.8 6.8l10.4 10.4M17.2 6.8L6.8 17.2"/></svg><svg class="back-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.6 5.4L8 12l6.6 6.6"/></svg></button>
-</div>
+      <!-- ═══ КАРТОЧКА ЗДАНИЯ. Для нового здания скопируй этот блок целиком. ═══ -->
+      <li class="card" style="--wash:#9cc0d6; --tilt:-1.4deg">
+        <a class="card-in" href="kukuruznik/">
+          <div class="pic" data-frame>
+            <img src="kukuruznik/card.webp" width="480" height="511" alt="" loading="lazy" decoding="async">
+          </div>
+          <div class="txt">
+            <h3>Кукурузник</h3>
+            <p class="hy" lang="hy">Երիտասարդական պալատ</p>
+            <p class="meta">Дом молодёжи · Ереван</p>
+            <span class="go">открыть 3D&nbsp;→</span>
+          </div>
+        </a>
+      </li>
+      <!-- ═══ конец карточки ═══ -->
 
-<div id="back-tip" class="lg">Коснись экрана, чтобы вернуть панель</div>
-<div id="fatal" style="display:none;position:fixed;left:16px;right:16px;top:50%;transform:translateY(-50%);z-index:99;padding:16px 18px;border-radius:14px;background:#161c3a;color:#e9edf7;font:15px/1.45 -apple-system,system-ui,sans-serif;text-align:center"></div>
+      <!-- Карточка «скоро»: без ссылки, вместо рисунка — размытый силуэт. -->
+      <li class="card soon" style="--wash:#e0b184; --tilt:1.1deg">
+        <div class="card-in">
+          <div class="pic" data-frame>
+            <svg class="ghost" viewBox="0 0 200 200" aria-hidden="true"><use href="#ghost-dome"/></svg>
+            <span class="stamp">скоро<i lang="hy">շուտով</i></span>
+          </div>
+          <div class="txt">
+            <h3>Здание № 2</h3>
+            <p class="meta">название позже</p>
+          </div>
+        </div>
+      </li>
 
-<script>
-(function () {
-  /* Номер версии проставляет build.py из номера сборки.
+      <li class="card soon" style="--wash:#b9c99a; --tilt:-0.8deg">
+        <div class="card-in">
+          <div class="pic" data-frame>
+            <svg class="ghost" viewBox="0 0 200 200" aria-hidden="true"><use href="#ghost-slab"/></svg>
+            <span class="stamp">скоро<i lang="hy">շուտով</i></span>
+          </div>
+          <div class="txt">
+            <h3>Здание № 3</h3>
+            <p class="meta">название позже</p>
+          </div>
+        </div>
+      </li>
 
-     Раньше здесь стояло текущее время с точностью до минуты: каждый
-     запуск просил у сети адреса, которых телефон ни разу не видел. В
-     Safari это сходило с рук, а приложение с домашнего экрана при
-     холодном старте часто не успевает поднять сеть — файлы движка не
-     приходили, интерфейс (он в самой странице) рисовался, а сцена не
-     появлялась вовсе. Постоянная версия даёт взять файлы из кэша, а
-     после новой сборки номер меняется — и телефон честно скачивает
-     свежие. */
-  var VERSION = '62';                     /* build.py перепишет сам */
-  var q = '?v=' + VERSION;
+      <li class="card soon" style="--wash:#d4a6a0; --tilt:1.6deg">
+        <div class="card-in">
+          <div class="pic" data-frame>
+            <svg class="ghost" viewBox="0 0 200 200" aria-hidden="true"><use href="#ghost-tower"/></svg>
+            <span class="stamp">скоро<i lang="hy">շուտով</i></span>
+          </div>
+          <div class="txt">
+            <h3>Здание № 4</h3>
+            <p class="meta">название позже</p>
+          </div>
+        </div>
+      </li>
 
-  /* Самообновление.
+    </ul>
+  </section>
 
-     Сама страница (index.html) лежит в адресе без версии, и телефон
-     честно держит её в кэше. С иконки на домашнем экране это особенно
-     заметно: можно неделю смотреть на старую сборку и не понимать,
-     почему правки не появляются. Поэтому спрашиваем у сервера
-     маленький version.txt мимо кэша: если там номер новее — один раз
-     перезагружаемся. Один раз за запуск, чтобы не уйти в кольцо. */
-  try {
-    if (!sessionStorage.getItem('kk-reloaded')) {
-      fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
-        .then(function (r) { return r.ok ? r.text() : ''; })
-        .then(function (t) {
-          t = (t || '').trim();
-          if (t && t !== VERSION) {
-            sessionStorage.setItem('kk-reloaded', t);
-            location.reload();
-          }
-        })
-        .catch(function () {});
-    }
-  } catch (e) {}
+  <footer class="foot">
+    <p class="hand"><span class="hy" lang="hy">Չկա</span> · альбом утраченной архитектуры Еревана</p>
+    <p class="small">Архивные фотографии — из открытых источников.</p>
+  </footer>
 
-  function fatal(text) {
-    var box = document.getElementById('fatal');
-    if (!box) return;
-    box.style.display = 'block';
-    box.textContent = text;
-  }
+</main>
 
-  var css = document.createElement('link');
-  css.rel = 'stylesheet';
-  css.href = 'css/style.css' + q;
-  css.onerror = function () {
-    var again = document.createElement('link');
-    again.rel = 'stylesheet';
-    again.href = 'css/style.css';
-    document.head.appendChild(again);
-  };
-  document.head.appendChild(css);
-
-  var files = ['js/model.js', 'js/controls.js', 'js/engine.js'];
-  for (var i = 0; i < files.length; i++) {
-    (function (src) {
-      var el = document.createElement('script');
-      el.src = src + q;
-      el.async = false;                   /* порядок файлов важен */
-      el.onerror = function () {
-        fatal('Не загрузился ' + src + '. Проверь интернет и открой заново.');
-      };
-      document.head.appendChild(el);
-    })(files[i]);
-  }
-
-  /* Пустой экран без объяснений — худшее, что может случиться на
-     телефоне: непонятно, сломано приложение или просто нет сети. */
-  window.addEventListener('error', function (e) {
-    if (e && e.message) fatal('Сцена не запустилась: ' + e.message);
-  });
-})();
-</script>
+<script src="assets/hub.js?v=1" defer></script>
 </body>
 </html>

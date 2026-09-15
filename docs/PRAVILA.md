@@ -7,8 +7,8 @@
 
 - Правь только `src/engine/*.js` и `src/model/*.js`. Что где лежит — в `src/CARTA.md`.
 - После правки: `python3 build.py`. Он склеит `js/engine.js` и `js/model.js`.
-- `js/engine.js` и `js/model.js` СОБРАННЫЕ. Правки прямо в них пропадут.
-- Проверка перед коммитом: `python3 build.py && node --check js/engine.js && node --check js/model.js`.
+- `kukuruznik/js/engine.js` и `kukuruznik/js/model.js` СОБРАННЫЕ. Правки прямо в них пропадут.
+- Проверка перед коммитом: `python3 build.py && node --check kukuruznik/js/engine.js && node --check kukuruznik/js/model.js`.
 - Почему не настоящие модули: весь движок — одна замкнутая функция, палитра и
   время суток видны рисующим кускам только изнутри неё. Разрезать по-настоящему —
   значит переписать сотни обращений. Склейка даёт то же удобство без риска.
@@ -53,7 +53,7 @@
 
 - Номер сборки — в `src/engine/01-palette.js` (`var BUILD = '...'`), он же
   виден на самой странице внизу. `build.py` сам проставляет его версией в
-  загрузчик `index.html` и пишет в `version.txt` — руками номер поднимать не
+  загрузчик `kukuruznik/index.html` и пишет в `kukuruznik/version.txt` — руками номер поднимать не
   нужно нигде, кроме `01-palette.js`.
 - Страница сама сверяет `version.txt` на сервере с тем, что у неё в кэше, и
   при расхождении один раз перезагружается — это чинит проблему «телефон

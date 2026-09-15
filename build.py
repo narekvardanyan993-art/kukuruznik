@@ -16,7 +16,7 @@
 import os, sys, hashlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-JOBS = [('src/engine', 'js/engine.js'), ('src/model', 'js/model.js')]
+JOBS = [('src/engine', 'kukuruznik/js/engine.js'), ('src/model', 'kukuruznik/js/model.js')]
 
 BANNER = (
     '/* ВНИМАНИЕ: этот файл СОБРАН автоматически из src/%s/.\n'
@@ -54,10 +54,10 @@ import re
 pal = open(os.path.join(HERE, 'src/engine/01-palette.js'), encoding='utf-8').read()
 m = re.search(r"var BUILD = '([^']+)'", pal)
 if m:
-    ipath = os.path.join(HERE, 'index.html')
+    ipath = os.path.join(HERE, 'kukuruznik/index.html')
     html = open(ipath, encoding='utf-8').read()
     fixed = re.sub(r"var VERSION = '[^']*';", "var VERSION = '%s';" % m.group(1), html)
-    open(os.path.join(HERE, 'version.txt'), 'w', encoding='utf-8').write(m.group(1) + '\n')
+    open(os.path.join(HERE, 'kukuruznik/version.txt'), 'w', encoding='utf-8').write(m.group(1) + '\n')
     if fixed == html:
         print('версия загрузчика  index.html  <- уже %s' % m.group(1))
     elif check:
