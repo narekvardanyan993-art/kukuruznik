@@ -3,13 +3,29 @@
 :root {
   --paper: #f1e7d3;
   --paper-hi: #faf4e8;
-  --ink: #332e2a;
+  --ink: #2a2420;
   --graphite: #4b4540;
   --soft: #6e655d;
   --red: #8c3a2c;
+  /* тёплый тёмно-бирюзовый — цвет стеклянного пояса самого Кукурузника,
+     второй акцент рядом с чернильно-красным: для ссылок и активных
+     состояний там, где красный уже занят штампами. */
+  --teal: #2f5a56;
   --hand: "Caveat", "Segoe Print", "Bradley Hand", cursive;
   --hy: "Noto Serif Armenian", "Mshtakan", "Noto Sans Armenian", serif;
   --text: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* шкала отступов — ею размечены секции ниже, чтобы ритм страницы
+     был предсказуемым на любой ширине */
+  --sp-1: 8px;
+  --sp-2: 14px;
+  --sp-3: 22px;
+  --sp-4: 36px;
+  --sp-5: 56px;
+  --sp-6: 88px;
+
+  --ease: cubic-bezier(0.22, 0.85, 0.32, 1);
 }
 
 * { box-sizing: border-box; }
@@ -55,12 +71,13 @@ html:not([data-lang="en"]) .i18n-block[lang="en"] { display: none; }
   border-radius: 999px;
   background: none;
   color: var(--soft);
-  font: 700 12px/1 var(--text);
+  font: 700 12px/1 var(--sans);
   letter-spacing: 0.03em;
   cursor: pointer;
   touch-action: manipulation;
-  transition: background 200ms ease, color 200ms ease;
+  transition: background 200ms var(--ease), color 200ms var(--ease), transform 150ms var(--ease);
 }
+.lang-switch button:active { transform: scale(0.92); }
 .lang-switch button[aria-pressed="true"] {
   background: var(--ink);
   color: var(--paper-hi);
@@ -229,7 +246,7 @@ img, svg { display: block; max-width: 100%; }
   border-radius: 20px;
   background: rgba(28, 24, 20, 0.42);
   color: #f5efe1;
-  font: 500 11px/1 var(--text);
+  font: 600 11px/1 var(--sans);
   letter-spacing: 0.02em;
   pointer-events: none;
   opacity: 0.85;
@@ -264,7 +281,9 @@ img, svg { display: block; max-width: 100%; }
   margin: 0;
   padding: 8px 0;
   color: var(--soft);
-  font-size: 13px;
+  font-family: var(--sans);
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
 }
 .cred a {
   color: inherit;
@@ -481,7 +500,7 @@ h3 {
 }
 
 .txt .hy, .txt [lang="hy"] { margin: 4px 0 0; font-size: 17px; color: var(--graphite); }
-.txt .meta { margin: 2px 0 0; font-size: 15px; color: var(--soft); }
+.txt .meta { margin: 4px 0 0; font-family: var(--sans); font-size: 13px; letter-spacing: 0.01em; color: var(--soft); }
 
 .go {
   display: inline-block;
@@ -545,7 +564,7 @@ h3 {
 .stamp.active { color: var(--graphite); border-style: dashed; }
 
 .soon h3 { font-size: 22px; color: var(--graphite); }
-.soon .meta { font-size: 13px; line-height: 1.3; }
+.soon .meta { font-family: var(--sans); font-size: 12px; letter-spacing: 0.01em; line-height: 1.3; }
 .card.soon:not(.active) .pic { aspect-ratio: 1 / 1; }
 
 .sr-only {
@@ -625,6 +644,7 @@ h3 {
   .sub .hy, .sub [lang="hy"] { font-size: 24px; }
   .sub .ru, .sub [lang="ru"] { font-size: 34px; }
   .intro { font-size: 18px; }
+  .shelf { margin-top: var(--sp-6); }
 }
 
 @media (hover: hover) and (pointer: fine) {
