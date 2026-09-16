@@ -90,7 +90,7 @@ body {
 
 img, svg { display: block; max-width: 100%; }
 
-.hy { font-family: var(--hy); }
+.hy, [lang="hy"]:not(html) { font-family: var(--hy); }
 .hand { font-family: var(--hand); }
 
 .album {
@@ -234,7 +234,7 @@ img, svg { display: block; max-width: 100%; }
   pointer-events: none;
   opacity: 0.85;
 }
-.edge-tag .hy { font-family: var(--hy); }
+.edge-tag .hy, .edge-tag [lang="hy"] { font-family: var(--hy); }
 .tag-l { left: 10px; }
 .tag-r { right: 10px; }
 
@@ -295,7 +295,7 @@ img, svg { display: block; max-width: 100%; }
 }
 .restore-note p { margin: 0; }
 .restore-note p + p { margin-top: 7px; }
-.restore-note .hy { display: block; font-style: normal; font-size: 12px; margin-top: 1px; }
+.restore-note .hy, .restore-note [lang="hy"] { display: block; font-style: normal; font-size: 12px; margin-top: 1px; }
 .restore-note strong { font-weight: 700; font-style: normal; color: var(--graphite); }
 
 /* ---------- заголовок ---------- */
@@ -338,8 +338,8 @@ img, svg { display: block; max-width: 100%; }
   gap: 2px;
   margin: 4px 0 0;
 }
-.sub .hy { font-size: 20px; color: var(--graphite); }
-.sub .ru { font-family: var(--hand); font-size: 28px; line-height: 1.1; color: var(--ink); }
+.sub .hy, .sub [lang="hy"] { font-size: 20px; color: var(--graphite); }
+.sub .ru, .sub [lang="ru"] { font-family: var(--hand); font-size: 28px; line-height: 1.1; color: var(--ink); }
 
 .intro {
   max-width: 42ch;
@@ -347,7 +347,7 @@ img, svg { display: block; max-width: 100%; }
   color: #544c45;
 }
 .sub + .intro { margin-top: 20px; }
-.intro .hy { display: block; margin-top: 4px; font-family: var(--hy); font-size: 0.86em; color: var(--graphite); }
+.intro .hy, .intro [lang="hy"] { display: block; margin-top: 4px; font-family: var(--hy); font-size: 0.86em; color: var(--graphite); }
 
 .btn-open {
   display: inline-flex;
@@ -363,7 +363,7 @@ img, svg { display: block; max-width: 100%; }
   text-decoration: none;
   background: linear-gradient(currentColor, currentColor) 0 calc(100% - 8px) / 100% 1.5px no-repeat;
 }
-.btn-open .hy { font-family: var(--hy); font-weight: 500; font-size: 0.62em; }
+.btn-open .hy, .btn-open [lang="hy"] { font-family: var(--hy); font-weight: 500; font-size: 0.62em; }
 .btn-open .arrow { display: inline-block; font-family: var(--text); }
 @media (hover: hover) and (pointer: fine) {
   .btn-open:hover { color: var(--red); }
@@ -389,7 +389,7 @@ h2 {
   background: repeating-linear-gradient(-45deg, rgba(51, 46, 42, 0.45) 0 1px, transparent 1px 5px) 0 100% / 100% 8px no-repeat;
   padding-bottom: 10px;
 }
-h2 .hy { font-family: var(--hy); font-weight: 300; font-size: 24px; color: var(--soft); }
+h2 .hy, h2 [lang="hy"] { font-family: var(--hy); font-weight: 300; font-size: 24px; color: var(--soft); }
 
 .cards {
   list-style: none;
@@ -480,7 +480,7 @@ h3 {
   line-height: 1;
 }
 
-.txt .hy { margin: 4px 0 0; font-size: 17px; color: var(--graphite); }
+.txt .hy, .txt [lang="hy"] { margin: 4px 0 0; font-size: 17px; color: var(--graphite); }
 .txt .meta { margin: 2px 0 0; font-size: 15px; color: var(--soft); }
 
 .go {
@@ -577,7 +577,7 @@ h3 {
   line-height: 1.5;
 }
 .foot .photo-rights a { color: inherit; text-decoration: underline; }
-.foot .photo-rights .hy { display: block; margin-top: 6px; font-family: var(--hy); }
+.foot .photo-rights .hy, .foot .photo-rights [lang="hy"] { display: block; margin-top: 6px; font-family: var(--hy); }
 .foot .tiktok { margin-top: 12px; }
 .foot .tiktok a {
   color: var(--red);
@@ -622,8 +622,8 @@ h3 {
     align-items: center;
     gap: 64px;
   }
-  .sub .hy { font-size: 24px; }
-  .sub .ru { font-size: 34px; }
+  .sub .hy, .sub [lang="hy"] { font-size: 24px; }
+  .sub .ru, .sub [lang="ru"] { font-size: 34px; }
   .intro { font-size: 18px; }
 }
 

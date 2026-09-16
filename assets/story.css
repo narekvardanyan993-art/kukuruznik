@@ -25,7 +25,7 @@
   font: 600 15px/1 var(--text);
 }
 .topbar svg { width: 17px; height: 17px; }
-.topbar .hy { font-family: var(--hy); font-weight: 500; font-size: 15px; }
+.topbar .hy, .topbar [lang="hy"] { font-family: var(--hy); font-weight: 500; font-size: 15px; }
 
 /* ---------- шапка здания ---------- */
 
@@ -36,7 +36,7 @@
   line-height: 1;
   color: #2c2825;
 }
-.s-head .hy { display: block; margin-top: 6px; font-size: 19px; color: var(--graphite); }
+.s-head .hy, .s-head [lang="hy"] { display: block; margin-top: 6px; font-size: 19px; color: var(--graphite); }
 .s-head .meta { margin: 6px 0 0; color: var(--soft); font-size: 14px; }
 
 /* пластинка со слайдером здесь квадратная, без прицепленного заголовка сбоку */
@@ -82,7 +82,7 @@
 }
 
 .g-hint { margin: 4px 4px 0; color: var(--soft); font-size: 13px; }
-.g-hint .hy { font-family: var(--hy); }
+.g-hint .hy, .g-hint [lang="hy"] { font-family: var(--hy); }
 .cred.small { display: block; margin: 6px 4px 0; font-size: 12px; }
 
 /* ---------- лайтбокс ---------- */
@@ -166,7 +166,7 @@
   margin-bottom: 4px;
 }
 .timeline p { margin: 2px 0; font-size: 15px; }
-.timeline .hy { color: var(--graphite); font-size: 14px; }
+.timeline .hy, .timeline [lang="hy"] { color: var(--graphite); font-size: 14px; }
 
 .t-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .t-thumb {
@@ -294,7 +294,7 @@
   cursor: pointer;
   touch-action: manipulation;
 }
-.q-opt .hy { display: block; font-family: var(--hy); font-weight: 400; font-size: 13px; color: var(--soft); margin-top: 2px; }
+.q-opt .hy, .q-opt [lang="hy"] { display: block; font-family: var(--hy); font-weight: 400; font-size: 13px; color: var(--soft); margin-top: 2px; }
 .q-opt:active { transform: translateY(1px); }
 .q-opt.correct { border-color: #4a7a4a; background: rgba(74, 122, 74, 0.14); }
 .q-opt.wrong { border-color: var(--red); background: rgba(140, 58, 44, 0.12); }
@@ -339,7 +339,7 @@
 
 .next-sec { margin-top: 64px; text-align: center; padding: 30px 12px; border-top: 1px dashed rgba(51, 46, 42, 0.3); }
 .next-sec p { color: var(--soft); margin: 0 0 18px; }
-.next-sec .hy { display: block; margin-top: 2px; font-size: 13px; }
+.next-sec .hy, .next-sec [lang="hy"] { display: block; margin-top: 2px; font-size: 13px; }
 
 .btn-tiktok, .foot .tiktok a {
   display: inline-flex;
