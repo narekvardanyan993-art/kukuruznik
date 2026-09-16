@@ -29,6 +29,67 @@
 <a id="toHub" class="lg" href="./" aria-label="Закрыть 3D"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.6 5.4L8 12l6.6 6.6"/></svg><span lang="hy">Չկա</span></a>
 <button id="soundBtn" class="lg" type="button" aria-pressed="true" aria-label="Звук" data-cap="Звук"><svg class="on-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4h3.6L13 18V6L7.6 10H4z"/><g class="waves"><path d="M16.2 9.2a4 4 0 0 1 0 5.6M18.6 6.8a7.6 7.6 0 0 1 0 10.4"/></g></svg><svg class="off-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4h3.6L13 18V6L7.6 10H4z"/><path d="M16 9.5l4.6 4.6M20.6 9.5L16 14.1"/></svg></button>
 <div id="hint">Крути пальцем · два пальца — приблизить</div>
+<!-- Крупная подсказка на трёх языках при первом открытии 3D. Старая
+     мелкая строка выше остаётся для движка (он дописывает в неё номер
+     сборки), но на экране её не видно. Уходит после первого касания и
+     больше не показывается на этом устройстве. -->
+<div id="bigHint" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V10m0-1.5a1.5 1.5 0 0 1 3 0V11m0-1a1.5 1.5 0 0 1 3 0v4.5A6.5 6.5 0 0 1 11.5 21h-.6a6 6 0 0 1-4.6-2.2L3.6 15.6a1.6 1.6 0 0 1 2.3-2.2L9 16"/></svg><span id="bigHintText"></span></div>
+<style>
+#hint { visibility: hidden !important; }
+#bigHint {
+  position: fixed; left: 50%; z-index: 12;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 104px);
+  display: flex; align-items: center; gap: 12px;
+  width: max-content; max-width: calc(100vw - 32px);
+  padding: 14px 20px;
+  border-radius: 22px;
+  background: rgba(10, 14, 32, 0.78);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  color: #fff;
+  font: 700 21px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Armenian", sans-serif;
+  text-align: left;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transition: opacity 500ms ease, transform 500ms ease;
+}
+#bigHint[hidden] { display: none; }
+#bigHint.gone { opacity: 0; transform: translate(-50%, 12px); }
+#bigHint svg { flex: none; width: 34px; height: 34px; }
+@media (prefers-reduced-motion: no-preference) {
+  #bigHint svg { animation: hintSwipe 2.4s ease-in-out infinite; }
+}
+@media (prefers-reduced-motion: reduce) { #bigHint { transition: none; } }
+@keyframes hintSwipe { 0%, 100% { transform: translateX(-5px) rotate(-8deg); } 50% { transform: translateX(6px) rotate(6deg); } }
+</style>
+<script>
+(function () {
+  var box = document.getElementById('bigHint');
+  var KEY = 'chka-3d-hint';
+  try { if (localStorage.getItem(KEY)) return; } catch (e) {}
+  var T = {
+    hy: 'Պտտեք մատով · երկու մատով՝ մոտեցնել',
+    ru: 'Крутите пальцем · щипок — приблизить',
+    en: 'Drag to spin · pinch to zoom'
+  };
+  var l = 'hy';
+  try {
+    l = localStorage.getItem('chka-lang') || ((navigator.languages && navigator.languages[0]) || navigator.language || '').slice(0, 2).toLowerCase();
+  } catch (e) {}
+  if (!T[l]) l = 'hy';
+  document.getElementById('bigHintText').textContent = T[l];
+  box.lang = l;
+  box.hidden = false;
+  function hide() {
+    box.classList.add('gone');
+    try { localStorage.setItem(KEY, '1'); } catch (e) {}
+    window.removeEventListener('pointerdown', hide, true);
+    window.removeEventListener('touchstart', hide, true);
+    setTimeout(function () { box.hidden = true; }, 600);
+  }
+  window.addEventListener('pointerdown', hide, true);
+  window.addEventListener('touchstart', hide, { capture: true, passive: true });
+})();
+</script>
 
 <div id="hud">
     <div class="rs" style="--x:96.6px;--y:-25.9px" data-cap="Погода">

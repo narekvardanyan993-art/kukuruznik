@@ -17,10 +17,11 @@
       /* .parallax включаем только после разлёта, иначе его быстрый
          transition перебивает задержки веера (--stagger-подобная
          хореография у .sc-a..d). */
+      var intro = document.documentElement.classList.contains('intro');
       setTimeout(function () {
         stack.classList.add('parallax');
         initStackParallax(stack);
-      }, 1050);
+      }, intro ? 1350 : 700);
     }
   }
 
@@ -60,6 +61,16 @@
       }, { passive: true });
     }
   }
+
+  /* Подсказка «листайте вниз» уходит, как только человек начал листать. */
+  function markScrolled() {
+    if (window.scrollY > 24) {
+      document.documentElement.classList.add('scrolled');
+      window.removeEventListener('scroll', markScrolled);
+    }
+  }
+  window.addEventListener('scroll', markScrolled, { passive: true });
+  markScrolled();
 
   document.querySelectorAll('[data-transition]').forEach(function (a) {
     a.addEventListener('click', function (e) {

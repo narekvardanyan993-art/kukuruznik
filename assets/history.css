@@ -3,7 +3,7 @@
    полоса прогресса чтения под меню и вёрстка глав. */
 
 .history { max-width: 680px; }
-.logo-sub { font-family: var(--font); font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+.logo-sub { font-family: var(--font); font-size: 1.1875rem; font-weight: 700; letter-spacing: -0.01em; }
 .logo-sub [lang="hy"] { font-family: var(--hy); }
 
 /* ---------- полоса прогресса чтения (по нижнему краю меню) ---------- */
@@ -35,15 +35,15 @@
 .h-head { padding: 18px 0 36px; }
 .h-eyebrow {
   margin: 0 0 10px;
-  font-size: 12.5px;
+  font-size: 0.875rem;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--accent);
 }
-.h-head h1 { font-size: clamp(38px, 10.5vw, 60px); text-wrap: balance; }
+.h-head h1 { font-size: clamp(2.375rem, calc(10.5vw * var(--fs)), 3.75rem); text-wrap: balance; }
 .h-head h1 [lang="hy"] { font-size: 0.82em; }
-.h-sub { max-width: 46ch; margin: 16px 0 0; color: var(--muted); font-size: 18px; line-height: 1.5; }
+.h-sub { max-width: 46ch; margin: 16px 0 0; color: var(--muted); font-size: 1.25rem; line-height: 1.5; }
 
 /* ---------- главы ---------- */
 
@@ -59,15 +59,14 @@
   border-radius: 999px;
   background: var(--accent-soft);
   color: var(--accent);
-  font-size: 13px;
-  font-weight: 800;
+  font-size: 0.875rem;
+  font-weight: 700;
   letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
 }
-.chapter h2 { margin: 0 0 18px; font-size: clamp(26px, 6.6vw, 36px); line-height: 1.12; text-wrap: balance; }
-.ch-text p { margin: 0 0 14px; font-size: 17px; line-height: 1.65; color: var(--ink); max-width: 62ch; }
+.chapter h2 { margin: 0 0 18px; font-size: clamp(1.625rem, calc(6.6vw * var(--fs)), 2.25rem); line-height: 1.12; text-wrap: balance; }
+.ch-text p { margin: 0 0 16px; font-size: 1.1875rem; line-height: 1.65; color: var(--ink); max-width: 65ch; }
 .ch-text p:last-child { margin-bottom: 0; }
-.ch-text [lang="hy"] { font-size: 16px; }
 
 .ch-fig {
   margin: 0 0 22px;
@@ -78,17 +77,17 @@
   box-shadow: var(--shadow);
 }
 .ch-fig img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: calc(var(--r-lg) - 8px); background: var(--ghost-bg); }
-.ch-fig figcaption { padding: 10px 6px 4px; font-size: 12px; line-height: 1.45; color: var(--faint); }
+.ch-fig figcaption { padding: 10px 6px 4px; font-size: 0.875rem; line-height: 1.45; color: var(--faint); }
 .ch-fig figcaption a { color: inherit; text-decoration-color: var(--accent); text-underline-offset: 2px; }
 
 /* ---------- источники ---------- */
 
 .h-sources { margin-top: 72px; padding-top: 28px; border-top: 1px solid var(--line); }
-.h-sources h2 { margin: 0 0 12px; font-size: 26px; }
-.h-sources p { margin: 0 0 4px; color: var(--muted); font-size: 14px; }
+.h-sources h2 { margin: 0 0 12px; font-size: 1.625rem; }
+.h-sources p { margin: 0 0 4px; color: var(--muted); font-size: 1rem; }
 .h-src-list { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 8px; }
-.h-src-list li { color: var(--muted); font-size: 14px; }
-.h-src-list a { color: var(--ink); font-weight: 700; font-size: 15px; text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; }
+.h-src-list li { color: var(--muted); font-size: 1rem; }
+.h-src-list a { color: var(--ink); font-weight: 700; font-size: 1.0625rem; text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; }
 @media (hover: hover) and (pointer: fine) { .h-src-list a:hover { color: var(--accent); } }
 
 .history .next-sec { background: transparent; padding: 0; margin-top: 44px; }

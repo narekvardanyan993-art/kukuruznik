@@ -16,6 +16,13 @@
   } catch (e) { document.documentElement.setAttribute('data-lang', 'hy'); }
 })();
 </script>
+<script>
+/* крупный текст («А+») и появление главной — до отрисовки, без мигания */
+(function () {
+  var d = document.documentElement;
+  try { if (localStorage.getItem('chka-fs') === 'big') d.classList.add('fs-big'); } catch (e) {}
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#fbfaf7">
 <title>Кукурузник — Дом молодёжи | Չկա</title>
@@ -27,9 +34,9 @@
 <link rel="apple-touch-icon" href="../assets/icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+Armenian:wght@400;500;600;700;800&family=Caveat:wght@600&display=swap">
-<link rel="stylesheet" href="../assets/hub.css?v=10">
-<link rel="stylesheet" href="../assets/story.css?v=9">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700&family=Noto+Sans+Armenian:wght@500;600;700&family=Caveat:wght@600&display=swap">
+<link rel="stylesheet" href="../assets/hub.css?v=11">
+<link rel="stylesheet" href="../assets/story.css?v=10">
 </head>
 <body>
 <nav class="nav"><div class="nav-in">
@@ -204,7 +211,7 @@
     ]
   };
 </script>
-<script src="../assets/i18n.js?v=1" defer></script>
+<script src="../assets/i18n.js?v=2" defer></script>
 <script src="../assets/chka-common.js?v=2" defer></script>
 <script src="../assets/story.js?v=7" defer></script>
 <script src="../assets/gallery.js?v=1" defer></script>

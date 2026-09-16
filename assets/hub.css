@@ -12,10 +12,16 @@
   --bg: #fbfaf7;
   --surface: #ffffff;
   --surface-2: #f4f2ee;
-  --ink: #15171a;
-  --muted: #5a5f67;
-  --faint: #868b93;
-  --line: rgba(21, 23, 26, 0.08);
+  /* текст — почти чёрный графит; контраст с фоном: основной 16.9:1,
+     второстепенный 10.2:1, мелкие подписи 7.2:1 (сайт читают люди
+     со слабым зрением — светло-серого текста здесь нет) */
+  --ink: #17191c;
+  --muted: #3b3f45;
+  --faint: #50555c;
+  --line: rgba(21, 23, 26, 0.14);
+  /* множитель кнопки «А+»: весь текст задан в rem и растёт вместе
+     с корнем, а размеры «от ширины экрана» домножаются на --fs */
+  --fs: 1;
   /* акцент: акварельная терракота из рисунков (контраст с белым 6:1) */
   --accent: #a3472a;
   --accent-strong: #8a3b22;
@@ -41,11 +47,11 @@
   --font: "Manrope", "Noto Sans Armenian", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --hy: "Noto Sans Armenian", var(--font);
   --hand: "Caveat", "Segoe Print", cursive;
-  --h-weight: 800;
+  --h-weight: 700;
   --h-track: -0.035em;
   --ease: cubic-bezier(0.22, 0.85, 0.32, 1);
   --spring: cubic-bezier(0.34, 1.4, 0.64, 1);
-  --nav-h: 60px;
+  --nav-h: 64px;
   --gutter: max(16px, env(safe-area-inset-left));
 
   /* галерея: светлый «зал», терракотовые акценты */
@@ -75,18 +81,21 @@ html:not([data-lang="en"]) .i18n-block[lang="en"] { display: none; }
 .i18n-block[lang] { display: block; }
 
 html {
+  font-size: 100%;
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
   background: var(--bg);
 }
 @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
 
+html.fs-big { font-size: 115%; --fs: 1.15; }
+
 body {
   margin: 0;
   min-height: 100vh;
   color: var(--ink);
   background: var(--bg);
-  font: 400 16.5px/1.6 var(--font);
+  font: 500 1.1875rem/1.6 var(--font);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -95,6 +104,7 @@ img, svg { display: block; max-width: 100%; }
 a { color: inherit; }
 button { font: inherit; color: inherit; }
 [lang="hy"]:not(html), .hy { font-family: var(--hy); }
+p { max-width: 65ch; }
 :focus-visible { outline: 2.5px solid var(--accent); outline-offset: 3px; border-radius: 8px; }
 
 .sr-only {
@@ -131,37 +141,85 @@ button { font: inherit; color: inherit; }
   min-height: 44px;
   padding: 0 4px;
   text-decoration: none;
-  font: 800 24px/1 var(--hy);
+  font: 700 1.5rem/1 var(--hy);
   letter-spacing: -0.02em;
   color: var(--ink);
 }
 .logo svg { width: 22px; height: 22px; }
 .logo .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-top: 8px; }
 
-.lang-switch {
-  display: inline-flex;
-  padding: 3px;
-  gap: 2px;
-  border-radius: 999px;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-}
-.lang-switch button {
-  min-width: 46px;
-  min-height: 36px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 999px;
-  background: none;
-  color: var(--muted);
-  font: 700 12.5px/1 var(--font);
-  letter-spacing: 0.04em;
+.nav-ctrls { display: flex; align-items: center; gap: 10px; }
+
+/* круглые кнопки меню: «А+» и язык (все от 48px — удобно пальцу) */
+.ctl {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font: 700 15px/1 var(--font);
+  letter-spacing: 0.02em;
   cursor: pointer;
   touch-action: manipulation;
-  transition: background 220ms var(--ease), color 220ms var(--ease), transform 160ms var(--ease);
+  -webkit-user-select: none;
+  user-select: none;
+  box-shadow: var(--shadow-sm);
+  transition: transform 200ms var(--spring), background 220ms var(--ease), color 220ms var(--ease), box-shadow 220ms var(--ease);
 }
-.lang-switch button:active { transform: scale(0.9); }
-.lang-switch button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.ctl:active { transform: scale(0.88); }
+.ctl [lang="hy"], .ctl.hy { font-family: var(--hy); }
+.fs-btn { font-size: 17px; letter-spacing: -0.01em; }
+.fs-btn[aria-pressed="true"] { background: var(--graphite); color: #fff; border-color: var(--graphite); }
+
+.lang-switch { position: relative; width: 48px; height: 48px; }
+.lang-cur {
+  position: relative;
+  z-index: 2;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: var(--btn-shadow);
+}
+.lang-cur::after {
+  /* тонкое кольцо — подсказка, что кнопка раскрывается */
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 1.5px solid var(--accent);
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 260ms var(--ease), transform 360ms var(--spring);
+}
+.lang-switch.open .lang-cur::after { opacity: 0.45; transform: scale(1); }
+.lang-opt {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(0) scale(0.4);
+  box-shadow: var(--shadow);
+  transition: transform 420ms var(--spring), opacity 220ms var(--ease);
+  transition-delay: calc((var(--i) - 1) * 60ms);
+}
+.lang-switch.open .lang-opt {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(calc(var(--i) * 58px)) scale(1);
+}
+@media (hover: hover) and (pointer: fine) {
+  .ctl:hover { box-shadow: var(--shadow); }
+  .lang-opt:hover { color: var(--accent); border-color: var(--accent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ctl, .lang-opt, .lang-cur::after { transition: none; }
+}
 
 /* ---------- страница ---------- */
 
@@ -178,12 +236,12 @@ h1, h2, h3 {
   line-height: 1.05;
   margin: 0;
 }
-h2 { font-size: clamp(30px, 8vw, 44px); margin-bottom: 20px; }
+h2 { font-size: clamp(1.875rem, calc(8vw * var(--fs)), 2.75rem); margin-bottom: 20px; }
 h2 [lang="hy"], h3 [lang="hy"], h1 [lang="hy"] { letter-spacing: -0.01em; }
 .eyebrow {
   display: inline-block;
   margin-bottom: 10px;
-  font-size: 12.5px;
+  font-size: 0.875rem;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -203,7 +261,7 @@ h2 [lang="hy"], h3 [lang="hy"], h1 [lang="hy"] { letter-spacing: -0.01em; }
   border-radius: 999px;
   background: var(--accent);
   color: var(--accent-ink);
-  font: 700 17px/1 var(--font);
+  font: 700 1.1875rem/1 var(--font);
   letter-spacing: -0.01em;
   text-decoration: none;
   cursor: pointer;
@@ -230,18 +288,25 @@ h2 [lang="hy"], h3 [lang="hy"], h1 [lang="hy"] { letter-spacing: -0.01em; }
 /* ---------- первый экран ---------- */
 
 .hero {
+  position: relative;
   display: grid;
   gap: 18px;
   align-content: start;
+  /* первый экран — на всю высоту, внизу место под подсказку прокрутки */
+  grid-template-rows: auto auto 1fr;
+  min-height: calc(100svh - var(--nav-h) - env(safe-area-inset-top, 0px) - 14px);
+}
+@supports not (height: 1svh) {
+  .hero { min-height: calc(100vh - var(--nav-h) - 14px); }
 }
 .stack {
   position: relative;
-  height: min(40svh, 380px);
-  width: min(100%, calc(min(40svh, 380px) * 0.92));
+  height: min(38svh, 380px);
+  width: min(100%, calc(min(38svh, 380px) * 0.92));
   margin: 0 auto;
 }
 @supports not (height: 1svh) {
-  .stack { height: min(40vh, 380px); width: min(100%, calc(min(40vh, 380px) * 0.92)); }
+  .stack { height: min(38vh, 380px); width: min(100%, calc(min(38vh, 380px) * 0.92)); }
 }
 .stack-card {
   position: absolute;
@@ -277,14 +342,14 @@ h2 [lang="hy"], h3 [lang="hy"], h1 [lang="hy"] { letter-spacing: -0.01em; }
 .title { text-align: left; }
 .title h1 {
   font-family: var(--hy);
-  font-weight: 800;
-  font-size: clamp(56px, 17vw, 120px);
+  font-weight: 700;
+  font-size: clamp(3.5rem, calc(17vw * var(--fs)), 7.5rem);
   line-height: 1.1;
   letter-spacing: -0.03em;
 }
 .sub {
   margin: 2px 0 0;
-  font-size: 19px;
+  font-size: 1.3125rem;
   font-weight: 600;
   color: var(--muted);
   letter-spacing: -0.01em;
@@ -293,20 +358,35 @@ h2 [lang="hy"], h3 [lang="hy"], h1 [lang="hy"] { letter-spacing: -0.01em; }
 .greet {
   margin: 12px 0 0;
   max-width: 30ch;
-  font-size: clamp(19px, 5.2vw, 24px);
-  line-height: 1.38;
+  font-size: clamp(1.3125rem, calc(5.6vw * var(--fs)), 1.625rem);
+  line-height: 1.45;
   font-weight: 600;
   letter-spacing: -0.015em;
   color: var(--ink);
 }
-.greet [lang="hy"] { font-size: 0.92em; }
-.hero-cta { margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap; }
-.hero-cta .btn { width: 100%; }
 .btn .arrow { transition: transform 200ms var(--ease); }
-@media (prefers-reduced-motion: no-preference) {
-  .btn-open .arrow { animation: nudge 1.8s ease-in-out infinite; }
+
+/* тихая подсказка «листайте вниз» — уходит, как только начали листать */
+.scroll-hint {
+  align-self: end;
+  justify-self: center;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-width: 160px;
+  padding: 8px 16px 6px;
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity 400ms var(--ease), transform 400ms var(--ease);
 }
-@keyframes nudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(3px); } }
+.scroll-hint svg { width: 30px; height: 30px; color: var(--accent); }
+html.scrolled .scroll-hint { opacity: 0; transform: translateY(10px); pointer-events: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .scroll-hint svg { animation: nudge 2.2s ease-in-out infinite; }
+}
+@keyframes nudge { 0%, 100% { transform: translateY(0); opacity: 0.55; } 50% { transform: translateY(6px); opacity: 1; } }
 
 .about {
   margin-top: 26px;
@@ -316,16 +396,37 @@ h2 [lang="hy"], h3 [lang="hy"], h1 [lang="hy"] { letter-spacing: -0.01em; }
   border: 1px solid var(--line);
   box-shadow: var(--shadow-sm);
 }
-.about p { margin: 0; color: var(--muted); max-width: 56ch; }
+.about p { margin: 0; color: var(--muted); }
 .about p + p { margin-top: 10px; }
 
+/* ---------- появление при открытии главной ----------
+   Первый заход в сессии (html.intro, ставит скрипт в <head>): фото по
+   одному мягко ложатся на стол, затем проявляются заголовок и
+   приветствие, затем альбом и подсказка — всё укладывается в ~1.9 с.
+   Повторный заход (html.intro-short) — короткая версия. Листать можно
+   сразу: анимируются только прозрачность и сдвиг. При «уменьшить
+   движение» ничего не анимируется. */
 @media (prefers-reduced-motion: no-preference) {
-  .title > * { animation: fadeUp 700ms var(--ease) both; }
-  .title > :nth-child(1) { animation-delay: 120ms; }
-  .title > :nth-child(2) { animation-delay: 220ms; }
-  .title > :nth-child(3) { animation-delay: 320ms; }
-  .title > :nth-child(4) { animation-delay: 420ms; }
+  .stack:not(.fanned) .stack-card { transform: translateY(-14%) rotate(var(--r0, 0deg)) scale(1.1); opacity: 0; }
+  .sc-a { --r0: -20deg; } .sc-b { --r0: 18deg; } .sc-c { --r0: -12deg; } .sc-d { --r0: 10deg; }
+  html.intro .stack-card { transition: transform 700ms cubic-bezier(0.2, 0.75, 0.25, 1), opacity 450ms var(--ease); }
+  html.intro .sc-a { transition-delay: 0ms; }
+  html.intro .sc-b { transition-delay: 170ms; }
+  html.intro .sc-c { transition-delay: 340ms; }
+  html.intro .sc-d { transition-delay: 510ms; }
+  html.intro .title > * { animation: fadeUp 700ms var(--ease) both; }
+  html.intro .title > :nth-child(1) { animation-delay: 650ms; }
+  html.intro .title > :nth-child(2) { animation-delay: 800ms; }
+  html.intro .title > :nth-child(3) { animation-delay: 950ms; }
+  html.intro .scroll-hint, html.intro .shelf { animation: fadeIn 600ms var(--ease) 1300ms both; }
+
+  html.intro-short .stack-card { transition: transform 420ms var(--ease), opacity 300ms var(--ease); }
+  html.intro-short .sc-b { transition-delay: 50ms; }
+  html.intro-short .sc-c { transition-delay: 100ms; }
+  html.intro-short .sc-d { transition-delay: 150ms; }
+  html.intro-short .title > * { animation: fadeUp 400ms var(--ease) 150ms both; }
 }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 
 /* ---------- полка карточек ---------- */
@@ -369,9 +470,9 @@ h2 [lang="hy"], h3 [lang="hy"], h1 [lang="hy"] { letter-spacing: -0.01em; }
 @media (hover: hover) and (pointer: fine) { a.card-in:hover .pic > img { transform: scale(1.04); } }
 .ghost { width: 64%; height: 64%; fill: var(--ghost-fill, rgba(40, 44, 52, 0.26)); filter: blur(3px); transform: translateY(14%); }
 .txt { padding: 14px 8px 6px; }
-.card h3 { font-size: 28px; }
+.card h3 { font-size: 1.75rem; }
 .card h3 [lang="hy"] { font-size: 0.85em; }
-.meta { margin: 6px 0 0; color: var(--muted); font-size: 14px; font-weight: 500; }
+.meta { margin: 6px 0 0; color: var(--muted); font-size: 1rem; font-weight: 500; }
 .go {
   white-space: nowrap;
   display: inline-flex;
@@ -384,23 +485,24 @@ h2 [lang="hy"], h3 [lang="hy"], h1 [lang="hy"] { letter-spacing: -0.01em; }
   background: var(--accent);
   color: var(--accent-ink);
   font-weight: 700;
-  font-size: 16px;
+  font-size: 1.125rem;
 }
 .soon .txt { padding: 10px 4px 2px; }
-.soon h3 { font-size: 17px; letter-spacing: -0.01em; }
-.soon .meta { font-size: 12.5px; }
+.soon h3 { font-size: 1.1875rem; letter-spacing: -0.01em; }
+.soon .meta { font-size: 0.875rem; }
 .chip {
   position: absolute;
   top: 10px; left: 10px;
   padding: 6px 11px;
-  border-radius: 999px;
+  border-radius: 14px;
   background: var(--chip-bg, rgba(255, 255, 255, 0.85));
   color: var(--chip-fg, var(--ink));
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
-  font: 700 11.5px/1 var(--font);
+  font: 700 0.875rem/1 var(--font);
   letter-spacing: 0.02em;
-  white-space: nowrap;
+  line-height: 1.25;
+  max-width: calc(100% - 20px);
 }
 .chip.live { background: var(--accent); color: var(--accent-ink); }
 .chip.live::before {
@@ -421,12 +523,12 @@ h2 [lang="hy"], h3 [lang="hy"], h1 [lang="hy"] { letter-spacing: -0.01em; }
   background: var(--surface-2);
   text-align: center;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 1rem;
 }
 .foot p { margin: 0; }
-.foot .brand { font-weight: 700; color: var(--ink); font-size: 15px; }
-.foot .brand .hy { font-weight: 800; }
-.foot .photo-rights { max-width: 52ch; margin: 12px auto 0; line-height: 1.55; font-size: 13px; }
+.foot .brand { font-weight: 700; color: var(--ink); font-size: 1.0625rem; }
+.foot .brand .hy { font-weight: 700; }
+.foot .photo-rights { max-width: 52ch; margin: 12px auto 0; line-height: 1.55; font-size: 0.875rem; }
 .foot .tiktok { margin-top: 18px; }
 .foot .tiktok a { min-height: 48px; }
 
@@ -452,15 +554,18 @@ h2 [lang="hy"], h3 [lang="hy"], h1 [lang="hy"] { letter-spacing: -0.01em; }
 @media (min-width: 760px) {
   .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
   .card:not(.soon) .card-in { display: grid; grid-template-columns: 1.1fr 1fr; gap: 28px; align-items: center; padding: 14px; }
-  .card:not(.soon) h3 { font-size: 44px; }
-  .soon h3 { font-size: 20px; }
+  .card:not(.soon) h3 { font-size: 2.75rem; }
+  .soon h3 { font-size: 1.375rem; }
 }
 @media (min-width: 900px) {
   :root { --gutter: 32px; }
   .page { padding-top: calc(var(--nav-h) + 48px); }
-  .hero { grid-template-columns: 1fr 1fr; align-items: center; gap: 56px; min-height: calc(100vh - var(--nav-h) - 120px); }
+  .hero { grid-template-columns: 1fr 1fr; align-items: center; gap: 24px 56px; grid-template-rows: 1fr auto; min-height: calc(100vh - var(--nav-h) - 120px); }
+  .title { grid-column: 1; grid-row: 1; }
+  .stack { grid-column: 2; grid-row: 1; }
+  .scroll-hint { grid-column: 1 / -1; grid-row: 2; }
   .stack { order: 2; height: min(62vh, 520px); width: min(100%, 480px); }
-  .greet { font-size: 26px; }
+  .greet { font-size: 1.625rem; }
   .shelf, .sec { margin-top: 96px; }
   .story-wrap { display: grid; grid-template-columns: minmax(0, 1fr); max-width: 760px; margin: 0 auto; }
 }
@@ -470,8 +575,9 @@ h2 [lang="hy"], h3 [lang="hy"], h1 [lang="hy"] { letter-spacing: -0.01em; }
    заголовок и приветствие компактнее, чтобы кнопка была видна сразу */
 @media (max-width: 899px) and (max-height: 700px) {
   .hero { gap: 12px; }
-  .title h1 { font-size: 50px; }
-  .greet { font-size: 18px; margin-top: 8px; }
+  .stack { height: 33svh; width: min(100%, calc(33svh * 0.92)); }
+  .title h1 { font-size: 3.125rem; }
+  .greet { font-size: 1.25rem; margin-top: 8px; }
   .hero-cta { margin-top: 14px; }
 }
 .go svg { width: 18px; height: 18px; }
@@ -502,11 +608,11 @@ h2 [lang="hy"], h3 [lang="hy"], h1 [lang="hy"] { letter-spacing: -0.01em; }
   align-items: center;
   min-height: 48px;
   padding: 0 18px;
-  border-radius: 999px;
+  border-radius: 14px;
   background: var(--surface-2);
   color: var(--graphite);
   font-weight: 700;
-  font-size: 15px;
+  font-size: 1.0625rem;
   text-decoration: none;
   touch-action: manipulation;
   transition: transform 200ms var(--spring), color 200ms var(--ease);
