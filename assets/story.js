@@ -114,6 +114,12 @@
 
     function openScene(e) {
       if (e) e.preventDefault();
+      var btn = e && e.currentTarget;
+      if (btn && !window.ChkaReducedMotion) {
+        btn.classList.remove('stamped');
+        void btn.offsetWidth;
+        btn.classList.add('stamped');
+      }
       if (!loaded) { frame.src = cfg.scene; loaded = true; }
       overlay.hidden = false;
       requestAnimationFrame(function () { overlay.classList.add('open'); });
@@ -160,14 +166,23 @@
         '<div class="q-options">' + opts + '</div>';
       window.ChkaDrawFrames && window.ChkaDrawFrames(root);
       var buttons = root.querySelectorAll('.q-opt');
+      function addCheck(btn) {
+        var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', '0 0 24 24');
+        svg.setAttribute('class', 'q-check');
+        svg.setAttribute('aria-hidden', 'true');
+        svg.innerHTML = '<path d="M4 13l5 5L20 6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>';
+        btn.appendChild(svg);
+      }
       buttons.forEach(function (btn) {
         btn.addEventListener('click', function () {
           var n = +btn.getAttribute('data-i');
           buttons.forEach(function (b) { b.disabled = true; });
-          if (n === q.correct) { btn.classList.add('correct'); score++; }
+          if (n === q.correct) { btn.classList.add('correct'); addCheck(btn); score++; }
           else {
             btn.classList.add('wrong');
             buttons[q.correct].classList.add('correct');
+            addCheck(buttons[q.correct]);
           }
           setTimeout(function () {
             i++;

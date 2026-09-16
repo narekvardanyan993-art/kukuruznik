@@ -84,7 +84,7 @@
   /* ---------- порядковая задержка карточек в ряду/сетке ---------- */
 
   function setStagger(root) {
-    (root || document).querySelectorAll('.cards, .gallery, .g-row').forEach(function (group) {
+    (root || document).querySelectorAll('.cards, .gallery, .g-row, .timeline').forEach(function (group) {
       var i = 0;
       [].forEach.call(group.children, function (child) {
         if (child.classList && child.classList.contains('reveal') && !child.hasAttribute('data-staggered')) {
@@ -97,6 +97,42 @@
   }
   setStagger();
   window.ChkaSetStagger = setStagger;
+
+  /* ---------- годы в хронике «досчитывают» до значения ---------- */
+
+  function animateCount(el, from, to, dur) {
+    var t0 = performance.now();
+    function tick(now) {
+      var p = Math.min(1, (now - t0) / dur);
+      var eased = 1 - Math.pow(1 - p, 3);
+      el.textContent = Math.round(from + (to - from) * eased);
+      if (p < 1) requestAnimationFrame(tick);
+      else el.textContent = String(to);
+    }
+    requestAnimationFrame(tick);
+  }
+  function initYearCounters(root) {
+    if (window.ChkaReducedMotion || !('IntersectionObserver' in window)) return;
+    (root || document).querySelectorAll('.timeline .t-y').forEach(function (el) {
+      if (el.hasAttribute('data-counted')) return;
+      var txt = el.textContent.trim();
+      if (!/^\d{4}$/.test(txt)) return;
+      el.setAttribute('data-counted', '');
+      var target = parseInt(txt, 10);
+      var start = target - 24;
+      el.textContent = String(start);
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) {
+          if (!en.isIntersecting) return;
+          io.unobserve(en.target);
+          animateCount(el, start, target, 900);
+        });
+      }, { threshold: 0.4 });
+      io.observe(el.closest('li') || el);
+    });
+  }
+  initYearCounters();
+  window.ChkaInitYearCounters = initYearCounters;
 
   /* ---------- карточки/плитки «приподнимаются» от касания ---------- */
 

@@ -36,11 +36,25 @@
   line-height: 1;
   color: #2c2825;
 }
+@media (prefers-reduced-motion: no-preference) {
+  .s-head h1 { clip-path: inset(0 100% 0 -4%); animation: chkaPencil 850ms var(--ease) 100ms both; }
+}
 .s-head .hy, .s-head [lang="hy"] { display: block; margin-top: 6px; font-size: 19px; color: var(--graphite); }
 .s-head .meta { margin: 6px 0 0; color: var(--soft); font-size: 14px; }
 
 /* пластинка со слайдером здесь квадратная, без прицепленного заголовка сбоку */
 .story .plate { margin-bottom: 34px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Медленный наплыв на фото и рисунок — здание будто разглядывают,
+     а не просто показывают статичным кадром. Фото и рисунок зумят
+     синхронно, чтобы граница слайдера не «плавала» между ними. */
+  .story .plate .layer img { animation: chkaKenBurns 26s ease-in-out infinite alternate; }
+}
+@keyframes chkaKenBurns {
+  0% { transform: translate3d(calc(var(--px, 0) * 1px), calc(var(--py, 0) * 1px), 0) scale(1.06); }
+  100% { transform: translate3d(calc(var(--px, 0) * 1px - 1.5%), calc(var(--py, 0) * 1px - 1%), 0) scale(1.16); }
+}
 
 /* ---------- галерея ---------- */
 
@@ -142,7 +156,24 @@
   list-style: none;
   margin: 0;
   padding: 6px 0 0 20px;
-  border-left: 2px dashed rgba(51, 46, 42, 0.35);
+  border-left: 2px solid transparent;
+  position: relative;
+}
+.timeline::before {
+  content: "";
+  position: absolute;
+  left: -2px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-image: repeating-linear-gradient(to bottom, rgba(51, 46, 42, 0.35) 0 6px, transparent 6px 12px);
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* Линия «дорисовывается» сверху вниз, когда хроника появляется в
+     видимой области — ставит .in существующий IntersectionObserver
+     (см. .timeline-sec.reveal в chka-common.js). */
+  .timeline::before { transform-origin: top; transform: scaleY(0); transition: transform 900ms var(--ease) 100ms; }
+  .timeline-sec.in .timeline::before { transform: scaleY(1); }
 }
 .timeline li { position: relative; padding: 0 0 26px 20px; }
 .timeline li::before {
@@ -178,6 +209,29 @@
   filter: grayscale(0.15);
 }
 
+/* Пункты хроники проявляются по одному — тот же --stagger, что и у
+   карточек альбома (ставит ChkaSetStagger в chka-common.js). */
+.timeline > .reveal { --reveal-t: translateX(-16px); }
+.timeline > .reveal { transition-delay: calc(var(--stagger, 0) * 110ms); }
+@media (prefers-reduced-motion: reduce) {
+  .timeline > .reveal { transition-delay: 0ms; }
+}
+
+/* Кадр-реконструкция для пустого пролёта хроники, где нет свободного
+   архивного фото стройки — честная замена, а не дыра. */
+.t-recon {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 4px 10px 4px 4px;
+  background: var(--paper-hi);
+  box-shadow: 0 1px 1px rgba(60, 45, 30, 0.08), 0 8px 14px -10px rgba(60, 45, 30, 0.5);
+}
+.t-recon img { width: 44px; height: 44px; object-fit: cover; display: block; }
+.t-recon-cap { font-family: var(--hand); font-size: 14px; color: var(--soft); }
+.t-recon-cap.hy, .t-recon-cap[lang="hy"] { font-family: var(--hy); font-size: 12px; }
+
 /* ---------- кнопка 3D ----------
    Одна на странице, сразу под названием — как проштампованная от руки
    надпись на бумаге, а не цифровая кнопка: без заливки, только чернильный
@@ -209,6 +263,19 @@
 .btn-3d:active, .btn-3d.lift { transform: rotate(-1.6deg) translate(2px, 2px); box-shadow: 0 0 0 rgba(0, 0, 0, 0); }
 @media (hover: hover) and (pointer: fine) {
   .btn-3d:hover { transform: rotate(0deg) translateY(-2px); box-shadow: 3px 5px 0 rgba(51, 46, 42, 0.16); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* Штамп-press: кнопка вдавливается и слегка «дрожит», как печать
+     на бумаге — ставит .stamped через JS в story.js на время анимации. */
+  .btn-3d.stamped { animation: chkaStamp 420ms cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+}
+@keyframes chkaStamp {
+  0% { transform: rotate(-1.6deg) scale(1); }
+  30% { transform: rotate(-1.6deg) scale(0.9) translate(1px, 2px); }
+  45% { transform: rotate(-3.4deg) scale(0.94) translate(-2px, 1px); }
+  60% { transform: rotate(0.6deg) scale(0.97) translate(2px, 0); }
+  75% { transform: rotate(-2.2deg) scale(1) translate(-1px, 0); }
+  100% { transform: rotate(-1.6deg) scale(1) translate(0, 0); }
 }
 
 /* Наверху шапки — чтобы «Смотреть в 3D» было видно на первом экране
@@ -280,8 +347,9 @@
 .q-text { margin: 0 0 18px; font-family: var(--sans); font-size: 18px; line-height: 1.35; font-weight: 600; }
 .q-text-hy { margin: 0 0 16px; font-family: var(--hy); font-size: 15px; color: var(--graphite); }
 
-.q-options { display: grid; gap: 10px; }
+.q-options { display: grid; gap: 10px; perspective: 700px; }
 .q-opt {
+  position: relative;
   display: block;
   width: 100%;
   padding: 13px 15px;
@@ -295,6 +363,43 @@
   touch-action: manipulation;
   transition: border-color 200ms var(--ease), background 200ms var(--ease), transform 200ms var(--ease);
 }
+@media (prefers-reduced-motion: no-preference) {
+  .q-opt.correct { animation: qCorrectFlip 520ms var(--ease); }
+  .q-opt.wrong { animation: qWrongFlip 560ms var(--ease); }
+}
+@keyframes qCorrectFlip {
+  0% { transform: rotateX(0deg) scale(1); }
+  45% { transform: rotateX(85deg) scale(1); }
+  70% { transform: rotateX(0deg) scale(1.03); }
+  100% { transform: rotateX(0deg) scale(1); }
+}
+@keyframes qWrongFlip {
+  0% { transform: rotateX(0deg) translateX(0); }
+  40% { transform: rotateX(85deg) translateX(0); }
+  55% { transform: rotateX(0deg) translateX(0); }
+  65% { transform: translateX(-6px); }
+  78% { transform: translateX(5px); }
+  90% { transform: translateX(-3px); }
+  100% { transform: translateX(0); }
+}
+.q-check {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  margin-top: -11px;
+  color: #4a7a4a;
+  pointer-events: none;
+}
+.q-check path { stroke-dasharray: 30; stroke-dashoffset: 30; }
+@media (prefers-reduced-motion: no-preference) {
+  .q-check path { animation: qCheckDraw 380ms var(--ease) 260ms forwards; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .q-check path { stroke-dashoffset: 0; }
+}
+@keyframes qCheckDraw { to { stroke-dashoffset: 0; } }
 .q-opt:not([disabled]):active { transform: scale(0.98); }
 @media (hover: hover) and (pointer: fine) {
   .q-opt:not([disabled]):hover { border-color: var(--teal); background: var(--paper-hi); }
@@ -345,6 +450,33 @@
 .next-sec { margin-top: 64px; text-align: center; padding: 30px 12px; border-top: 1px dashed rgba(51, 46, 42, 0.3); }
 .next-sec p { color: var(--soft); margin: 0 0 18px; }
 .next-sec .hy, .next-sec [lang="hy"] { display: block; margin-top: 2px; font-size: 13px; }
+
+/* Декоративные «голоса» — не статистика, просто оживление паузы перед
+   призывом к действию, будто кто-то уже подсказывает идеи. */
+.voice-bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+  height: 40px;
+  margin: 0 0 18px;
+}
+.voice-bars span {
+  display: block;
+  width: 7px;
+  border-radius: 3px 3px 0 0;
+  background: linear-gradient(var(--teal), var(--red));
+  opacity: 0.55;
+  height: var(--h, 40%);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .voice-bars span {
+    height: 6%;
+    transition: height 700ms var(--ease);
+    transition-delay: calc(var(--i, 0) * 60ms);
+  }
+  .next-sec.in .voice-bars span { height: var(--h, 40%); }
+}
 
 .btn-tiktok, .foot .tiktok a {
   display: inline-flex;
