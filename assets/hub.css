@@ -14,6 +14,61 @@
 
 * { box-sizing: border-box; }
 
+/* ---------- три языка, показан один ----------
+   Чистый CSS по data-lang на <html> — не ждёт скрипта и не мигает
+   чужим языком. data-lang ставит инлайн-скрипт в <head> ДО отрисовки;
+   assets/i18n.js его лишь переключает и хранит выбор. */
+
+html:not([data-lang="hy"]) .i18n-inline[lang="hy"],
+html:not([data-lang="ru"]) .i18n-inline[lang="ru"],
+html:not([data-lang="en"]) .i18n-inline[lang="en"] { display: none; }
+
+html:not([data-lang="hy"]) .i18n-block[lang="hy"],
+html:not([data-lang="ru"]) .i18n-block[lang="ru"],
+html:not([data-lang="en"]) .i18n-block[lang="en"] { display: none; }
+
+.i18n-inline[lang] { display: inline; }
+.i18n-block[lang] { display: block; }
+
+.lang-switch-mount {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 10px);
+  right: max(12px, env(safe-area-inset-right));
+  z-index: 30;
+}
+
+.lang-switch {
+  display: inline-flex;
+  border: 1px solid rgba(51, 46, 42, 0.25);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+  background: rgba(250, 246, 236, 0.86);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(51, 46, 42, 0.14);
+}
+.lang-switch button {
+  border: 0;
+  margin: 0;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: none;
+  color: var(--soft);
+  font: 700 12px/1 var(--text);
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 200ms ease, color 200ms ease;
+}
+.lang-switch button[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--paper-hi);
+}
+@media (hover: hover) and (pointer: fine) {
+  .lang-switch button:not([aria-pressed="true"]):hover { color: var(--ink); }
+}
+
 html {
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;

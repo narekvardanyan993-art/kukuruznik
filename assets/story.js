@@ -1,6 +1,18 @@
 /* Չկա — страница здания: слайдер (через chka-common), галерея-лайтбокс,
-   окно 3D поверх страницы, мини-игра «угадай год». */
+   окно 3D поверх страницы, мини-игра «угадай год». Всё, что рисует сам
+   JS (лайтбокс, игра), тоже на трёх языках — берёт текущий язык из
+   window.ChkaI18n и перерисовывается на событие 'chka-lang'. */
 (function () {
+  function lang() { return (window.ChkaI18n && window.ChkaI18n.get()) || document.documentElement.getAttribute('data-lang') || 'hy'; }
+  function pick(obj) { return (obj && (obj[lang()] || obj.ru || obj.en || obj.hy)) || ''; }
+
+  var UI = {
+    hy: { close: 'Փակել', prev: 'Նախորդ լուսանկարը', next: 'Հաջորդ լուսանկարը', share: 'կիսվել', again: 'կրկին փորձել', copied: 'Պատճենվեց — տեղադրիր TikTok-ում', closeScene: 'Փակել 3D-ն' },
+    ru: { close: 'Закрыть', prev: 'Предыдущее фото', next: 'Следующее фото', share: 'поделиться', again: 'пройти ещё раз', copied: 'Скопировано — вставь в TikTok', closeScene: 'Закрыть 3D' },
+    en: { close: 'Close', prev: 'Previous photo', next: 'Next photo', share: 'share', again: 'play again', copied: 'Copied — paste it into TikTok', closeScene: 'Close 3D' }
+  };
+  function ui(key) { return (UI[lang()] || UI.ru)[key]; }
+
   var plate = document.getElementById('plate');
   if (plate && window.ChkaCompareSlider) window.ChkaCompareSlider(plate, 50);
 
@@ -12,21 +24,30 @@
     var lightbox = document.getElementById('lightbox');
     var img = document.getElementById('lbImg');
     var cap = document.getElementById('lbCap');
+    var btnClose = document.getElementById('lbClose');
+    var btnPrev = document.getElementById('lbPrev');
+    var btnNext = document.getElementById('lbNext');
     if (!lightbox || !img) return;
     var idx = 0;
+
+    function labels() {
+      if (btnClose) btnClose.setAttribute('aria-label', ui('close'));
+      if (btnPrev) btnPrev.setAttribute('aria-label', ui('prev'));
+      if (btnNext) btnNext.setAttribute('aria-label', ui('next'));
+    }
 
     function show(i) {
       idx = (i + items.length) % items.length;
       var it = items[idx];
+      var l = lang();
+      var capText = it.getAttribute('data-cap-' + l) || it.getAttribute('data-cap-ru') || '';
+      var credit = it.getAttribute('data-credit-' + l) || it.getAttribute('data-credit-ru') || '';
       img.src = it.getAttribute('data-full');
-      img.alt = it.getAttribute('data-cap') || '';
-      var ru = it.getAttribute('data-cap') || '';
-      var hy = it.getAttribute('data-cap-hy') || '';
-      var credit = it.getAttribute('data-credit');
-      cap.innerHTML = ru + (hy ? ' <span class="hy" lang="hy">· ' + hy + '</span>' : '') +
-        (credit ? '<br>' + credit : '');
+      img.alt = capText;
+      cap.innerHTML = capText + (credit ? '<br>' + credit : '');
     }
     function open(i) {
+      labels();
       show(i);
       lightbox.hidden = false;
       document.body.style.overflow = 'hidden';
@@ -38,9 +59,6 @@
     items.forEach(function (it, i) {
       it.addEventListener('click', function () { open(i); });
     });
-    var btnClose = document.getElementById('lbClose');
-    var btnPrev = document.getElementById('lbPrev');
-    var btnNext = document.getElementById('lbNext');
     if (btnClose) btnClose.addEventListener('click', close);
     if (btnPrev) btnPrev.addEventListener('click', function () { show(idx - 1); });
     if (btnNext) btnNext.addEventListener('click', function () { show(idx + 1); });
@@ -62,6 +80,11 @@
       if (Math.abs(dx) > 40) show(idx + (dx < 0 ? 1 : -1));
       sx = null;
     }, { passive: true });
+
+    document.addEventListener('chka-lang', function () {
+      labels();
+      if (!lightbox.hidden) show(idx);
+    });
   })();
 
   /* ---------- окно 3D поверх страницы ----------
@@ -83,6 +106,11 @@
     var frame = document.getElementById('sceneFrame');
     if (!openBtns.length || !overlay || !frame || !cfg.scene) return;
     var loaded = false;
+
+    if (closeBtn) closeBtn.setAttribute('aria-label', ui('closeScene'));
+    document.addEventListener('chka-lang', function () {
+      if (closeBtn) closeBtn.setAttribute('aria-label', ui('closeScene'));
+    });
 
     function openScene(e) {
       if (e) e.preventDefault();
@@ -114,23 +142,21 @@
     var qs = cfg.quiz || [];
     if (!root || !qs.length) return;
 
-    var i = 0, score = 0;
+    var i = 0, score = 0, onResult = false;
 
-    function optText(o) { return typeof o === 'string' ? { ru: o, hy: '' } : o; }
+    function optText(o) { return typeof o === 'string' ? o : pick(o); }
 
     function renderQuestion() {
+      onResult = false;
       var q = qs[i];
       var dots = '';
       for (var d = 0; d < qs.length; d++) dots += '<span class="' + (d < i ? 'done' : '') + '"></span>';
       var opts = q.options.map(function (raw, n) {
-        var o = optText(raw);
-        return '<button class="q-opt" type="button" data-i="' + n + '">' + o.ru +
-          (o.hy ? '<span class="hy" lang="hy">' + o.hy + '</span>' : '') + '</button>';
+        return '<button class="q-opt" type="button" data-i="' + n + '">' + optText(raw) + '</button>';
       }).join('');
       root.innerHTML =
         '<div class="q-progress">' + dots + '</div>' +
-        '<p class="q-text">' + q.q + '</p>' +
-        '<p class="q-text-hy hy" lang="hy">' + q.qHy + '</p>' +
+        '<p class="q-text">' + pick(q.q) + '</p>' +
         '<div class="q-options">' + opts + '</div>';
       window.ChkaDrawFrames && window.ChkaDrawFrames(root);
       var buttons = root.querySelectorAll('.q-opt');
@@ -152,7 +178,7 @@
     }
 
     function shareText() {
-      var t = cfg.shareText || 'Угадал {score} из {total}!';
+      var t = pick(cfg.share && cfg.share.text) || 'Score: {score}/{total}';
       return t.replace('{score}', score).replace('{total}', qs.length);
     }
 
@@ -168,33 +194,34 @@
       setTimeout(function () { el.classList.remove('show'); }, 2200);
     }
 
+    var MSG = {
+      full: { ru: 'Ты знаешь Кукурузник лучше многих ереванцев!', hy: 'Կուկուրուզնիկը ավելի լավ գիտես, քան շատերը', en: 'You know the Corncob better than most Yerevantsis!' },
+      none: { ru: 'Есть куда расти — но теперь ты знаешь его историю.', hy: 'Հիմա գիտես նրա պատմությունը', en: 'Room to grow — but now you know its story.' },
+      mid: { ru: 'Неплохо! Кукурузник запомнил.', hy: 'Վատ չէ, Կուկուրուզնիկը մնաց հիշողության մեջ', en: 'Not bad! You will remember the Corncob.' }
+    };
+
     function renderResult() {
+      onResult = true;
       var full = score === qs.length;
       var none = score === 0;
-      var msg = full ? 'Ты знаешь Кукурузник лучше многих ереванцев!'
-        : none ? 'Есть куда расти — но теперь ты знаешь его историю.'
-        : 'Неплохо! Кукурузник запомнил.';
-      var msgHy = full ? 'Կուկուրուզնիկը ավելի լավ գիտես, քան շատերը'
-        : none ? 'Հիմա գիտես նրա պատմությունը'
-        : 'Անվատ չէ';
+      var msg = pick(full ? MSG.full : none ? MSG.none : MSG.mid);
       root.innerHTML =
         '<div class="q-result">' +
         '<p class="q-score">' + score + ' / ' + qs.length + '</p>' +
         '<p class="q-msg">' + msg + '</p>' +
-        '<p class="q-msg-hy hy" lang="hy">' + msgHy + '</p>' +
         '<button class="q-share" type="button">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="M8.4 10.7l7.2-4M8.4 13.3l7.2 4"/></svg>' +
-        'поделиться</button>' +
-        '<button class="q-again" type="button">пройти ещё раз · <span class="hy" lang="hy">կրկին փորձել</span></button>' +
+        ui('share') + '</button>' +
+        '<button class="q-again" type="button">' + ui('again') + '</button>' +
         '</div>';
       window.ChkaDrawFrames && window.ChkaDrawFrames(root);
       root.querySelector('.q-share').addEventListener('click', function () {
         var text = shareText();
         if (navigator.share) {
-          navigator.share({ title: cfg.shareTitle || document.title, text: text, url: location.href }).catch(function () {});
+          navigator.share({ title: pick(cfg.share && cfg.share.title) || document.title, text: text, url: location.href }).catch(function () {});
         } else if (navigator.clipboard) {
           navigator.clipboard.writeText(text + ' ' + location.href).then(function () {
-            toast('Скопировано — вставь в TikTok');
+            toast(ui('copied'));
           }).catch(function () { toast(text); });
         } else {
           toast(text);
@@ -204,6 +231,10 @@
         i = 0; score = 0; renderQuestion();
       });
     }
+
+    document.addEventListener('chka-lang', function () {
+      if (onResult) renderResult(); else renderQuestion();
+    });
 
     renderQuestion();
   })();

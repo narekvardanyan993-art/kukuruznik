@@ -277,7 +277,7 @@
 }
 .q-progress span.done { background: var(--red); }
 
-.q-text { margin: 0 0 4px; font-size: 19px; font-weight: 600; }
+.q-text { margin: 0 0 16px; font-size: 19px; font-weight: 600; }
 .q-text-hy { margin: 0 0 16px; font-family: var(--hy); font-size: 15px; color: var(--graphite); }
 
 .q-options { display: grid; gap: 10px; }
@@ -302,7 +302,7 @@
 
 .q-result { text-align: center; }
 .q-score { font-family: var(--hand); font-size: 48px; line-height: 1; color: var(--red); margin: 0 0 8px; }
-.q-msg { margin: 0 0 4px; font-size: 17px; }
+.q-msg { margin: 0 0 18px; font-size: 17px; }
 .q-msg-hy { margin: 0 0 18px; font-family: var(--hy); font-size: 14px; color: var(--graphite); }
 .q-share {
   display: inline-flex;
