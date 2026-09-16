@@ -1,763 +1,515 @@
-/* Չկա — альбом художника. Общий стиль главной. */
+/* Չկա — общий стиль сайта («светлый музей»).
+   Принцип: рисованным остаётся только контент (скетчи, фото, 3D), всё
+   вокруг — чистая «музейная рамка»: светлый фон без фактур, один шрифт
+   без засечек, скругления, мягкие тени, стеклянное меню.
+   Акцент — акварельная терракота из палитры рисунков (кнопки, ссылки,
+   активный язык, счётчики, галерея); второй цвет — графит.
+   Здесь: токены, меню, кнопки, главная. Страница здания и галерея —
+   в story.css, страница истории — в history.css. */
 
 :root {
-  --paper: #f1e7d3;
-  --paper-hi: #faf4e8;
-  --ink: #2a2420;
-  --graphite: #4b4540;
-  --soft: #6e655d;
-  --red: #8c3a2c;
-  /* тёплый тёмно-бирюзовый — цвет стеклянного пояса самого Кукурузника,
-     второй акцент рядом с чернильно-красным: для ссылок и активных
-     состояний там, где красный уже занят штампами. */
-  --teal: #2f5a56;
-  --hand: "Caveat", "Segoe Print", "Bradley Hand", cursive;
-  --hy: "Noto Serif Armenian", "Mshtakan", "Noto Sans Armenian", serif;
-  --text: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
-  --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-
-  /* шкала отступов — ею размечены секции ниже, чтобы ритм страницы
-     был предсказуемым на любой ширине */
-  --sp-1: 8px;
-  --sp-2: 14px;
-  --sp-3: 22px;
-  --sp-4: 36px;
-  --sp-5: 56px;
-  --sp-6: 88px;
-
+  /* фон — чистый светлый, без бумаги и желтизны */
+  --bg: #fbfaf7;
+  --surface: #ffffff;
+  --surface-2: #f4f2ee;
+  --ink: #15171a;
+  --muted: #5a5f67;
+  --faint: #868b93;
+  --line: rgba(21, 23, 26, 0.08);
+  /* акцент: акварельная терракота из рисунков (контраст с белым 6:1) */
+  --accent: #a3472a;
+  --accent-strong: #8a3b22;
+  --accent-ink: #ffffff;
+  --accent-soft: #f7ece7;
+  /* второй цвет: графит, как карандашная линия */
+  --graphite: #3f434a;
+  --ok: #3f7d4e;
+  --bad: #b3261e;
+  --nav-bg: rgba(251, 250, 247, 0.74);
+  --nav-line: rgba(21, 23, 26, 0.07);
+  --shadow-sm: 0 1px 2px rgba(21, 23, 26, 0.05);
+  --shadow: 0 1px 2px rgba(21, 23, 26, 0.04), 0 18px 40px -22px rgba(21, 23, 26, 0.2);
+  --shadow-lg: 0 2px 6px rgba(21, 23, 26, 0.05), 0 30px 60px -24px rgba(21, 23, 26, 0.28);
+  --btn-shadow: 0 10px 24px -12px rgba(163, 71, 42, 0.6);
+  --btn-shadow-active: 0 3px 10px -6px rgba(163, 71, 42, 0.6);
+  --r-sm: 12px;
+  --r: 20px;
+  --r-lg: 24px;
+  --photo-mat: #ffffff;
+  --ghost-bg: #efede8;
+  --ghost-fill: rgba(63, 67, 74, 0.26);
+  --font: "Manrope", "Noto Sans Armenian", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --hy: "Noto Sans Armenian", var(--font);
+  --hand: "Caveat", "Segoe Print", cursive;
+  --h-weight: 800;
+  --h-track: -0.035em;
   --ease: cubic-bezier(0.22, 0.85, 0.32, 1);
+  --spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --nav-h: 60px;
+  --gutter: max(16px, env(safe-area-inset-left));
+
+  /* галерея: светлый «зал», терракотовые акценты */
+  --gx-bg: rgba(251, 250, 247, 0.95);
+  --gx-fg: #15171a;
+  --gx-btn-bg: rgba(255, 255, 255, 0.8);
+  --gx-btn-fg: #15171a;
+  --gx-btn-line: rgba(21, 23, 26, 0.08);
+  --gx-btn-shadow: 0 8px 24px -10px rgba(21, 23, 26, 0.28);
+  --gx-bar-bg: rgba(255, 255, 255, 0.82);
+  --gx-bar-fg: #15171a;
+  --gx-bar-muted: #646971;
+  --gx-photo-shadow: 0 24px 60px -24px rgba(21, 23, 26, 0.4);
+  --gx-radius: 12px;
 }
 
 * { box-sizing: border-box; }
 
-/* ---------- три языка, показан один ----------
-   Чистый CSS по data-lang на <html> — не ждёт скрипта и не мигает
-   чужим языком. data-lang ставит инлайн-скрипт в <head> ДО отрисовки;
-   assets/i18n.js его лишь переключает и хранит выбор. */
-
+/* ---------- три языка, показан один (как в основном сайте) ---------- */
 html:not([data-lang="hy"]) .i18n-inline[lang="hy"],
 html:not([data-lang="ru"]) .i18n-inline[lang="ru"],
-html:not([data-lang="en"]) .i18n-inline[lang="en"] { display: none; }
-
+html:not([data-lang="en"]) .i18n-inline[lang="en"],
 html:not([data-lang="hy"]) .i18n-block[lang="hy"],
 html:not([data-lang="ru"]) .i18n-block[lang="ru"],
 html:not([data-lang="en"]) .i18n-block[lang="en"] { display: none; }
-
 .i18n-inline[lang] { display: inline; }
 .i18n-block[lang] { display: block; }
-
-.lang-switch-mount {
-  position: fixed;
-  top: calc(env(safe-area-inset-top, 0px) + 10px);
-  right: max(12px, env(safe-area-inset-right));
-  z-index: 30;
-}
-
-.lang-switch {
-  display: inline-flex;
-  border: 1px solid rgba(51, 46, 42, 0.25);
-  border-radius: 999px;
-  padding: 3px;
-  gap: 2px;
-  background: rgba(250, 246, 236, 0.86);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 2px 8px rgba(51, 46, 42, 0.14);
-}
-.lang-switch button {
-  border: 0;
-  margin: 0;
-  padding: 5px 11px;
-  border-radius: 999px;
-  background: none;
-  color: var(--soft);
-  font: 700 12px/1 var(--sans);
-  letter-spacing: 0.03em;
-  cursor: pointer;
-  touch-action: manipulation;
-  transition: background 200ms var(--ease), color 200ms var(--ease), transform 150ms var(--ease);
-}
-.lang-switch button:active { transform: scale(0.92); }
-.lang-switch button[aria-pressed="true"] {
-  background: var(--ink);
-  color: var(--paper-hi);
-}
-@media (hover: hover) and (pointer: fine) {
-  .lang-switch button:not([aria-pressed="true"]):hover { color: var(--ink); }
-}
 
 html {
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
-  background: var(--paper);
+  background: var(--bg);
 }
-@media (prefers-reduced-motion: no-preference) {
-  html { scroll-behavior: smooth; }
-}
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
 
 body {
   margin: 0;
+  min-height: 100vh;
   color: var(--ink);
-  background-color: var(--paper);
-  background-image: url("paper.webp");
-  background-blend-mode: multiply;
-  font: 17px/1.55 var(--text);
+  background: var(--bg);
+  font: 400 16.5px/1.6 var(--font);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+img, svg { display: block; max-width: 100%; }
+a { color: inherit; }
+button { font: inherit; color: inherit; }
+[lang="hy"]:not(html), .hy { font-family: var(--hy); }
+:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 3px; border-radius: 8px; }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
 
-img, svg { display: block; max-width: 100%; }
+/* ---------- стеклянное меню сверху ---------- */
 
-.hy, [lang="hy"]:not(html) { font-family: var(--hy); }
-.hand { font-family: var(--hand); }
-
-.album {
-  max-width: 1080px;
+.nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 40;
+  padding-top: env(safe-area-inset-top, 0px);
+  background: var(--nav-bg);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--nav-line);
+}
+.nav-in {
+  max-width: 1120px;
+  height: var(--nav-h);
   margin: 0 auto;
-  padding-inline: max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right));
-  padding-block: calc(env(safe-area-inset-top, 0px) + 22px) calc(env(safe-area-inset-bottom, 0px) + 32px);
+  padding: 0 var(--gutter);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 4px;
+  text-decoration: none;
+  font: 800 24px/1 var(--hy);
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.logo svg { width: 22px; height: 22px; }
+.logo .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-top: 8px; }
+
+.lang-switch {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+.lang-switch button {
+  min-width: 46px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font: 700 12.5px/1 var(--font);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 220ms var(--ease), color 220ms var(--ease), transform 160ms var(--ease);
+}
+.lang-switch button:active { transform: scale(0.9); }
+.lang-switch button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+
+/* ---------- страница ---------- */
+
+.page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top, 0px) + var(--nav-h) + 14px) var(--gutter) calc(env(safe-area-inset-bottom, 0px) + 40px);
+}
+
+h1, h2, h3 {
+  font-family: var(--font);
+  font-weight: var(--h-weight);
+  letter-spacing: var(--h-track);
+  line-height: 1.05;
+  margin: 0;
+}
+h2 { font-size: clamp(30px, 8vw, 44px); margin-bottom: 20px; }
+h2 [lang="hy"], h3 [lang="hy"], h1 [lang="hy"] { letter-spacing: -0.01em; }
+.eyebrow {
+  display: inline-block;
+  margin-bottom: 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* ---------- кнопки ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 0 26px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: 700 17px/1 var(--font);
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  box-shadow: var(--btn-shadow);
+  transition: transform 200ms var(--spring), box-shadow 200ms var(--ease), background 200ms var(--ease);
+}
+.btn [lang="hy"] { font-family: var(--hy); }
+.btn svg { width: 20px; height: 20px; flex: none; }
+.btn:active, .btn.lift { transform: scale(0.95); box-shadow: var(--btn-shadow-active); }
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover { transform: translateY(-2px); }
+  .btn:active { transform: scale(0.96); }
+}
+.btn-ghost {
+  background: var(--surface);
+  color: var(--graphite);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--line);
 }
 
 /* ---------- первый экран ---------- */
 
 .hero {
   display: grid;
-  gap: 26px;
+  gap: 18px;
+  align-content: start;
 }
-
-/* ---------- стопка карточек (образ проекта на первом экране) ---------- */
-
 .stack {
   position: relative;
-  width: min(100%, 340px);
-  aspect-ratio: 4 / 5;
+  height: min(40svh, 380px);
+  width: min(100%, calc(min(40svh, 380px) * 0.92));
   margin: 0 auto;
 }
-
+@supports not (height: 1svh) {
+  .stack { height: min(40vh, 380px); width: min(100%, calc(min(40vh, 380px) * 0.92)); }
+}
 .stack-card {
   position: absolute;
   inset: 0;
   margin: auto;
-  width: 74%;
+  width: 70%;
   aspect-ratio: 1 / 1;
-  padding: 8px 8px 14px;
-  background: var(--paper-hi);
-  box-shadow: 0 1px 1px rgba(60, 45, 30, 0.08), 0 14px 22px -14px rgba(60, 45, 30, 0.55);
-  transition: transform 700ms var(--ease), opacity 550ms var(--ease);
+  height: auto;
+  padding: 7px;
+  border-radius: 18px;
+  background: var(--photo-mat);
+  box-shadow: var(--shadow);
+  transition: transform 800ms var(--spring), opacity 550ms var(--ease);
 }
-
-/* До .fanned (ставит hub.js вторым rAF после отрисовки) карточки лежат
-   ровной стопкой в центре и разлетаются по своим местам — как будто
-   веер фотографий бросили на стол. Только когда анимации разрешены:
-   при reduced-motion .fanned ставится сразу же, без кадра «стопки». */
 @media (prefers-reduced-motion: no-preference) {
-  .stack:not(.fanned) .stack-card {
-    transform: translate(0, 10%) rotate(0deg) scale(0.86);
-    opacity: 0;
-  }
+  .stack:not(.fanned) .stack-card { transform: translateY(12%) rotate(0deg) scale(0.84); opacity: 0; }
 }
-
 .sc-pic {
-  position: relative;
-  width: 100%;
-  height: 100%;
+  width: 100%; height: 100%;
   overflow: hidden;
-  background: #ede3cf;
-  display: grid;
-  place-items: center;
+  border-radius: 12px;
+  background: var(--ghost-bg, #efece6);
+  display: grid; place-items: center;
 }
-.sc-pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.sc-pic .ghost { width: 62%; height: 62%; fill: rgba(72, 64, 57, 0.42); filter: blur(2px); }
-
-.sc-a { transform: translate3d(calc(var(--px, 0) * 0.4px), calc(var(--py, 0) * 0.4px), 0) rotate(-13deg) translate(-16%, 4%); z-index: 1; transition-delay: 0ms; }
-.sc-b { transform: translate3d(calc(var(--px, 0) * 0.6px), calc(var(--py, 0) * 0.6px), 0) rotate(10deg) translate(15%, 9%); z-index: 2; transition-delay: 90ms; }
-.sc-c { transform: translate3d(calc(var(--px, 0) * 0.8px), calc(var(--py, 0) * 0.8px), 0) rotate(-5deg) translate(-5%, -10%); z-index: 3; transition-delay: 180ms; }
-.sc-d { transform: translate3d(calc(var(--px, 0) * 1px), calc(var(--py, 0) * 1px), 0) rotate(4deg) translate(3%, -2%); z-index: 4; transition-delay: 270ms; }
-
-/* Пока не .fanned — переход длинный (разлёт). После — быстрый и
-   линейный, чтобы параллакс мыши/прокрутки откликался без лага. */
+.sc-pic img { width: 100%; height: 100%; object-fit: cover; }
+.sc-pic .ghost { width: 60%; height: 60%; fill: var(--ghost-fill, rgba(40, 44, 52, 0.28)); filter: blur(2px); }
+.sc-a { transform: translate3d(calc(var(--px, 0) * 0.4px), calc(var(--py, 0) * 0.4px), 0) rotate(-12deg) translate(-17%, 4%); z-index: 1; transition-delay: 0ms; }
+.sc-b { transform: translate3d(calc(var(--px, 0) * 0.6px), calc(var(--py, 0) * 0.6px), 0) rotate(10deg) translate(16%, 8%); z-index: 2; transition-delay: 80ms; }
+.sc-c { transform: translate3d(calc(var(--px, 0) * 0.8px), calc(var(--py, 0) * 0.8px), 0) rotate(-5deg) translate(-5%, -9%); z-index: 3; transition-delay: 160ms; }
+.sc-d { transform: translate3d(calc(var(--px, 0) * 1px), calc(var(--py, 0) * 1px), 0) rotate(4deg) translate(3%, -1%); z-index: 4; transition-delay: 240ms; }
 .stack.parallax .stack-card { transition: transform 120ms linear, opacity 550ms var(--ease); }
 
-.plate {
-  position: relative;
-  margin: 0;
-  padding: 9px 9px 0;
-  background: var(--paper-hi);
-  transform: var(--reveal-t, translateY(0)) rotate(-1.1deg);
-  box-shadow: 0 1px 1px rgba(60, 45, 30, 0.08), 0 16px 26px -18px rgba(60, 45, 30, 0.55);
-  opacity: 0;
-  filter: blur(9px);
-  transition: transform 750ms var(--ease), opacity 750ms var(--ease), filter 750ms var(--ease);
-}
-
-.plate-in {
-  position: relative;
-  aspect-ratio: 4 / 5;
-  overflow: hidden;
-  background: #d8ccb4;
-  cursor: pointer;
-}
-
-.layer, .layer picture, .layer img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.layer img {
-  object-fit: cover;
-  object-position: 50% 24%;
-  /* небольшой запас со всех сторон под параллакс мышью/прокруткой,
-     иначе сдвиг картинки на пару пикселей открывал бы серый край */
-  transform: translate3d(calc(var(--px, 0) * 1px), calc(var(--py, 0) * 1px), 0) scale(1.06);
-}
-
-.plate.parallax .layer img { transition: transform 90ms linear; }
-
-/* Фото — нижний слой на всю ширину. Рисунок — верхний, срезанный
-   до полосы правее ползунка (см. --pos, ставит JS в hub.js). */
-.sketch {
-  clip-path: inset(0 0 0 var(--pos, 38%));
-  will-change: clip-path;
-}
-
-.plate:not(.dragging) .sketch { transition: clip-path 700ms cubic-bezier(0.4, 0, 0.2, 1); }
-
-.split-line {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: var(--pos, 38%);
-  width: 2px;
-  margin-left: -1px;
-  background: rgba(250, 246, 236, 0.9);
-  box-shadow: 0 0 0 1px rgba(51, 46, 42, 0.25);
-  pointer-events: none;
-}
-.plate:not(.dragging) .split-line { transition: left 700ms cubic-bezier(0.4, 0, 0.2, 1); }
-
-.handle {
-  position: absolute;
-  top: 50%;
-  left: var(--pos, 38%);
-  width: 40px;
-  height: 40px;
-  margin: -20px 0 0 -20px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: var(--paper-hi);
-  color: var(--graphite);
-  border: 1.5px solid rgba(51, 46, 42, 0.7);
-  box-shadow: 0 3px 8px rgba(40, 30, 20, 0.35);
-  cursor: ew-resize;
-  touch-action: none;
-  -webkit-tap-highlight-color: transparent;
-}
-.handle svg { width: 20px; height: 20px; }
-.plate:not(.dragging) .handle { transition: left 700ms cubic-bezier(0.4, 0, 0.2, 1); }
-.handle:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
-
-.edge-tag {
-  position: absolute;
-  bottom: 10px;
-  padding: 4px 9px;
-  border-radius: 20px;
-  background: rgba(28, 24, 20, 0.42);
-  color: #f5efe1;
-  font: 600 11px/1 var(--sans);
-  letter-spacing: 0.02em;
-  pointer-events: none;
-  opacity: 0.85;
-}
-.edge-tag .hy, .edge-tag [lang="hy"] { font-family: var(--hy); }
-.tag-l { left: 10px; }
-.tag-r { right: 10px; }
-
-.tape {
-  position: absolute;
-  top: -12px;
-  width: 84px;
-  height: 26px;
-  background: rgba(233, 219, 176, 0.78);
-  mix-blend-mode: multiply;
-  clip-path: polygon(3% 8%, 12% 0, 22% 9%, 35% 1%, 50% 8%, 64% 0, 78% 7%, 90% 0, 100% 9%,
-                     97% 92%, 86% 100%, 72% 91%, 58% 100%, 44% 92%, 30% 100%, 16% 91%, 5% 100%, 0 90%);
-}
-.tape-l { left: 12px; transform: rotate(-9deg); }
-.tape-r { right: 12px; transform: rotate(8deg); }
-
-.note {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 12px;
-  padding: 6px 4px 4px;
-  flex-wrap: wrap;
-}
-
-.cred {
-  margin: 0;
-  padding: 8px 0;
-  color: var(--soft);
-  font-family: var(--sans);
-  font-size: 12.5px;
-  letter-spacing: 0.01em;
-}
-.cred a {
-  color: inherit;
-  text-decoration: none;
-  border-bottom: 1px dotted currentColor;
-}
-
-.note-link {
-  margin-left: auto;
-  padding: 8px 0;
-  font-family: var(--hand);
-  font-size: 22px;
-  line-height: 1;
-  color: var(--ink);
-  font-weight: 700;
-  text-decoration: none;
-  background: linear-gradient(currentColor, currentColor) 0 calc(100% - 7px) / 100% 1.5px no-repeat;
-}
-
-.restore-note {
-  margin: 2px 4px 0;
-  padding-top: 8px;
-  border-top: 1px dashed rgba(51, 46, 42, 0.3);
-  color: var(--soft);
-  font-size: 12.5px;
-  line-height: 1.5;
-  font-style: italic;
-}
-.restore-note p { margin: 0; }
-.restore-note p + p { margin-top: 7px; }
-.restore-note .hy, .restore-note [lang="hy"] { display: block; font-style: normal; font-size: 12px; margin-top: 1px; }
-.restore-note strong { font-weight: 700; font-style: normal; color: var(--graphite); }
-
-/* ---------- заголовок ---------- */
-
-.title { position: relative; padding: 0 2px; }
-
-.title::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  left: -10px;
-  top: 6px;
-  width: min(250px, 66%);
-  height: 118px;
-  background: #a9c6d8;
-  opacity: 0.38;
-  border-radius: 46% 54% 40% 60% / 58% 44% 56% 42%;
-  box-shadow: inset 0 0 16px 3px #7fa6bf;
-  transform: rotate(-4deg);
-}
-
+.title { text-align: left; }
 .title h1 {
-  /* line-height взят с запасом: у армянских букв (особенно «Չ» и «կ»)
-     верхние и нижние штрихи выходят за метрики шрифта, и при line-height
-     около 1 строка «Չկա» наезжала на подпись под ней — на Mac и на
-     iPhone по-разному, в зависимости от того, какой армянский шрифт
-     реально подставился. */
-  margin: 0 0 10px;
   font-family: var(--hy);
-  font-weight: 300;
-  font-size: clamp(80px, 27vw, 150px);
-  line-height: 1.18;
-  letter-spacing: 0.01em;
-  color: #2c2825;
-  text-shadow: 0.7px 0.5px 0 rgba(44, 40, 37, 0.32), -0.5px -0.4px 0 rgba(44, 40, 37, 0.2);
+  font-weight: 800;
+  font-size: clamp(56px, 17vw, 120px);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
 }
-
-@media (prefers-reduced-motion: no-preference) {
-  /* Буквы открываются слева направо, будто их только что провели
-     карандашом — с лёгким перелётом и возвратом, а не ровной шторкой. */
-  .title h1 {
-    clip-path: inset(0 100% 0 -8%);
-    animation: chkaPencil 1000ms var(--ease) 150ms both;
-  }
-}
-
 .sub {
-  display: grid;
-  gap: 2px;
-  margin: 4px 0 0;
+  margin: 2px 0 0;
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: -0.01em;
 }
-.sub .hy, .sub [lang="hy"] { font-size: 20px; color: var(--graphite); }
-.sub .ru, .sub [lang="ru"] { font-family: var(--hand); font-size: 28px; line-height: 1.1; color: var(--ink); }
-
-.intro {
-  max-width: 42ch;
-  margin: 14px 0 0;
-  color: #544c45;
-}
-.sub + .intro { margin-top: 20px; }
-.intro .hy, .intro [lang="hy"] { display: block; margin-top: 4px; font-family: var(--hy); font-size: 0.86em; color: var(--graphite); }
-
-.btn-open {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-top: 22px;
-  padding: 6px 0 10px;
-  font-family: var(--hand);
-  font-weight: 700;
-  font-size: 26px;
-  line-height: 1;
+.sub .accent-hand:not([lang="hy"]) { font-family: var(--hand); font-weight: 600; font-size: 1.45em; line-height: 1; color: var(--accent); letter-spacing: 0; }
+.greet {
+  margin: 12px 0 0;
+  max-width: 30ch;
+  font-size: clamp(19px, 5.2vw, 24px);
+  line-height: 1.38;
+  font-weight: 600;
+  letter-spacing: -0.015em;
   color: var(--ink);
-  text-decoration: none;
-  background: linear-gradient(currentColor, currentColor) 0 calc(100% - 8px) / 100% 1.5px no-repeat;
 }
-.btn-open .hy, .btn-open [lang="hy"] { font-family: var(--hy); font-weight: 500; font-size: 0.62em; }
-.btn-open .arrow { display: inline-block; font-family: var(--text); }
-
-@media (prefers-reduced-motion: no-preference) {
-  /* Подзаголовок и текст всплывают следом за заголовком, по одному. */
-  .title > .sub, .title > .intro, .title > .btn-open {
-    animation: chkaFadeUp 650ms var(--ease) both;
-  }
-  .title > :nth-child(2) { animation-delay: 480ms; }
-  .title > :nth-child(3) { animation-delay: 600ms; }
-  .title > :nth-child(4) { animation-delay: 680ms; }
-  .title > :nth-child(5) { animation-delay: 780ms; }
-}
-@media (hover: hover) and (pointer: fine) {
-  .btn-open:hover { color: var(--red); }
-}
+.greet [lang="hy"] { font-size: 0.92em; }
+.hero-cta { margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap; }
+.hero-cta .btn { width: 100%; }
+.btn .arrow { transition: transform 200ms var(--ease); }
 @media (prefers-reduced-motion: no-preference) {
   .btn-open .arrow { animation: nudge 1.8s ease-in-out infinite; }
 }
-@keyframes nudge {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(4px); }
-}
-@keyframes chkaPencil {
-  0% { clip-path: inset(0 100% 0 -8%); }
-  70% { clip-path: inset(0 -8% 0 -8%); }
-  100% { clip-path: inset(0 -8% 0 -8%); }
-}
-@keyframes chkaFadeUp {
-  from { opacity: 0; transform: translateY(14px); }
-  to { opacity: 1; transform: translateY(0); }
-}
+@keyframes nudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(3px); } }
 
-/* ---------- полка с карточками ---------- */
-
-.shelf { margin-top: 64px; }
-
-h2 {
-  display: inline-block;
-  margin: 0 0 26px;
-  font-weight: 700;
-  font-size: 36px;
-  line-height: 1;
-  background: repeating-linear-gradient(-45deg, rgba(51, 46, 42, 0.45) 0 1px, transparent 1px 5px) 0 100% / 100% 8px no-repeat;
-  padding-bottom: 10px;
+.about {
+  margin-top: 26px;
+  padding: 20px;
+  border-radius: var(--r);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
 }
-h2 .hy, h2 [lang="hy"] { font-family: var(--hy); font-weight: 300; font-size: 24px; color: var(--soft); }
+.about p { margin: 0; color: var(--muted); max-width: 56ch; }
+.about p + p { margin-top: 10px; }
 
+@media (prefers-reduced-motion: no-preference) {
+  .title > * { animation: fadeUp 700ms var(--ease) both; }
+  .title > :nth-child(1) { animation-delay: 120ms; }
+  .title > :nth-child(2) { animation-delay: 220ms; }
+  .title > :nth-child(3) { animation-delay: 320ms; }
+  .title > :nth-child(4) { animation-delay: 420ms; }
+}
+@keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+/* ---------- полка карточек ---------- */
+
+.shelf { margin-top: 56px; scroll-margin-top: calc(var(--nav-h) + 16px); }
 .cards {
   list-style: none;
-  margin: 0;
-  padding: 0;
+  margin: 0; padding: 0;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 34px 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
 }
-
-.card {
-  position: relative;
-  transform: var(--reveal-t, translateY(0)) rotate(var(--tilt, 0deg));
-  transition: transform 340ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 700ms var(--ease), filter 700ms var(--ease);
-  opacity: 0;
-  filter: blur(9px);
-}
-.card:not(.soon) { grid-column: 1 / -1; transform: var(--reveal-t, translateY(0)) rotate(calc(var(--tilt, 0deg) * 0.4)); }
-
-.card.lift { transform: var(--reveal-t, translateY(0)) translateY(-7px) rotate(0deg) scale(1.025); z-index: 2; }
-
-.card-history {
-  position: absolute;
-  right: 2px;
-  bottom: -22px;
-  color: var(--soft);
-  font-family: var(--sans);
-  font-size: 12.5px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.card-history .hy, .card-history [lang="hy"] { font-family: var(--hy); font-weight: 500; }
-@media (hover: hover) and (pointer: fine) {
-  .card-history:hover { color: var(--red); }
-}
-
-.card::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  inset: 16% -3% 14% 12%;
-  background: var(--wash, #b8c7cf);
-  opacity: 0.34;
-  border-radius: 44% 56% 52% 48% / 52% 42% 58% 48%;
-  box-shadow: inset 0 0 18px 4px var(--wash, #b8c7cf);
-}
-
+.card { position: relative; transform: var(--reveal-t, none); transition: transform 380ms var(--spring), opacity 700ms var(--ease); }
+.card:not(.soon) { grid-column: 1 / -1; }
 .card-in {
   display: block;
+  height: 100%;
+  padding: 10px;
+  border-radius: var(--r-lg);
+  background: var(--card-bg, var(--surface));
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
   color: inherit;
   text-decoration: none;
+  transition: box-shadow 300ms var(--ease), transform 300ms var(--spring);
 }
-
+.card.lift .card-in { transform: scale(0.98); }
+@media (hover: hover) and (pointer: fine) {
+  a.card-in:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+}
 .pic {
   position: relative;
   aspect-ratio: 1 / 1;
-  background: #ede3cf;
-  transition: box-shadow 340ms ease;
-}
-.card.lift .pic { box-shadow: 0 20px 28px -14px rgba(35, 25, 15, 0.5); }
-
-.pic > img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: 50% 40%;
-  mix-blend-mode: multiply;
-}
-
-.pic::after {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  right: -10px;
-  bottom: -10px;
-  width: 62%;
-  height: 62%;
-  background: repeating-linear-gradient(-45deg, rgba(51, 46, 42, 0.36) 0 1px, transparent 1px 5px);
-  -webkit-mask-image: radial-gradient(circle at 100% 100%, #000 28%, transparent 70%);
-          mask-image: radial-gradient(circle at 100% 100%, #000 28%, transparent 70%);
-}
-
-.frame {
-  position: absolute;
-  inset: -2px;
-  width: calc(100% + 4px);
-  height: calc(100% + 4px);
-  max-width: none;
-  overflow: visible;
-  pointer-events: none;
-}
-.frame path { fill: none; stroke-linecap: round; }
-.frame .p1 { stroke: rgba(44, 40, 37, 0.78); stroke-width: 1.2; }
-.frame .p2 { stroke: rgba(44, 40, 37, 0.34); stroke-width: 0.9; }
-
-.plate .frame { inset: 7px 7px auto; width: calc(100% - 14px); height: auto; aspect-ratio: 4 / 5; }
-
-.txt { padding: 12px 2px 0; }
-
-h3 {
-  margin: 0;
-  font-family: var(--hand);
-  font-weight: 700;
-  font-size: 36px;
-  line-height: 1;
-}
-
-.txt .hy, .txt [lang="hy"] { margin: 4px 0 0; font-size: 17px; color: var(--graphite); }
-.txt .meta { margin: 4px 0 0; font-family: var(--sans); font-size: 13px; letter-spacing: 0.01em; color: var(--soft); }
-
-.go {
-  display: inline-block;
-  margin-top: 6px;
-  padding: 8px 0 10px;
-  font-family: var(--hand);
-  font-weight: 700;
-  font-size: 26px;
-  line-height: 1;
-  background: linear-gradient(currentColor, currentColor) 0 calc(100% - 6px) / 100% 1.5px no-repeat;
-}
-
-.card-in:active .pic { transform: translate(1px, 2px); }
-
-/* «скоро» */
-
-.soon .pic {
-  position: relative;
+  overflow: hidden;
+  border-radius: calc(var(--r-lg) - 8px);
+  background: var(--ghost-bg, #efece6);
   display: grid;
   place-items: center;
-  overflow: hidden;
-  background: #e9dfca;
 }
-.soon .pic::after { display: none; }
-
-/* Штриховка внутри «скоро»-карточек будто дорисовывается — здание ещё
-   не начато, но набросок уже идёт. */
-.soon .pic::before {
-  content: "";
+.pic > img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 40%; transition: transform 600ms var(--ease); }
+@media (hover: hover) and (pointer: fine) { a.card-in:hover .pic > img { transform: scale(1.04); } }
+.ghost { width: 64%; height: 64%; fill: var(--ghost-fill, rgba(40, 44, 52, 0.26)); filter: blur(3px); transform: translateY(14%); }
+.txt { padding: 14px 8px 6px; }
+.card h3 { font-size: 28px; }
+.card h3 [lang="hy"] { font-size: 0.85em; }
+.meta { margin: 6px 0 0; color: var(--muted); font-size: 14px; font-weight: 500; }
+.go {
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  min-height: 48px;
+  padding: 0 20px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
+  font-size: 16px;
+}
+.soon .txt { padding: 10px 4px 2px; }
+.soon h3 { font-size: 17px; letter-spacing: -0.01em; }
+.soon .meta { font-size: 12.5px; }
+.chip {
   position: absolute;
-  inset: 0;
-  background-image: repeating-linear-gradient(-45deg, rgba(72, 64, 57, 0.15) 0 2px, transparent 2px 10px);
-  background-size: 220% 220%;
-  pointer-events: none;
+  top: 10px; left: 10px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  background: var(--chip-bg, rgba(255, 255, 255, 0.85));
+  color: var(--chip-fg, var(--ink));
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  font: 700 11.5px/1 var(--font);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.chip.live { background: var(--accent); color: var(--accent-ink); }
+.chip.live::before {
+  content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 6px;
+  border-radius: 50%; background: currentColor; vertical-align: 1px;
 }
 @media (prefers-reduced-motion: no-preference) {
-  .soon .pic::before { animation: chkaHatch 6s linear infinite; }
+  .chip.live::before { animation: pulse 1.6s ease-in-out infinite; }
 }
-@keyframes chkaHatch {
-  0% { background-position: 0% 0%; opacity: 0.45; }
-  50% { background-position: 40% 40%; opacity: 0.85; }
-  100% { background-position: 80% 80%; opacity: 0.45; }
-}
-
-.ghost {
-  width: 70%;
-  height: 70%;
-  fill: rgba(72, 64, 57, 0.46);
-  filter: blur(2.5px);
-  transform: translateY(18%);
-}
-
-.stamp {
-  position: absolute;
-  right: 4px;
-  top: 4px;
-  transform: rotate(-6deg);
-  padding: 1px 5px 2px;
-  border: 1.5px solid currentColor;
-  border-radius: 6px;
-  background: rgba(241, 231, 211, 0.55);
-  color: var(--red);
-  font-family: var(--hand);
-  font-weight: 700;
-  font-size: 14px;
-  line-height: 1;
-  text-align: center;
-  white-space: nowrap;
-  opacity: 0.88;
-}
-.stamp i {
-  display: block;
-  font-style: normal;
-  font-family: var(--hy);
-  font-weight: 500;
-  font-size: 9px;
-  letter-spacing: 0.02em;
-  margin-top: 2px;
-}
-
-.stamp.active { color: var(--graphite); border-style: dashed; }
-
-.soon h3 { font-size: 22px; color: var(--graphite); }
-.soon .meta { font-family: var(--sans); font-size: 12px; letter-spacing: 0.01em; line-height: 1.3; }
-.card.soon:not(.active) .pic { aspect-ratio: 1 / 1; }
-
-.sr-only {
-  position: absolute;
-  width: 1px; height: 1px;
-  padding: 0; margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
+@keyframes pulse { 50% { opacity: 0.3; } }
 
 /* ---------- подвал ---------- */
 
 .foot {
-  margin-top: 72px;
-  padding-top: 18px;
+  margin-top: 64px;
+  padding: 28px 20px;
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
   text-align: center;
-  color: var(--soft);
-  background: linear-gradient(90deg, transparent, rgba(51, 46, 42, 0.4) 15%, rgba(51, 46, 42, 0.4) 85%, transparent) 0 0 / 100% 1px no-repeat;
+  color: var(--muted);
+  font-size: 14px;
 }
 .foot p { margin: 0; }
-.foot .hand { font-size: 24px; color: var(--graphite); }
-.foot .small { margin-top: 4px; font-size: 13px; }
-.foot .photo-rights {
-  max-width: 46ch;
-  margin: 10px auto 0;
-  color: var(--soft);
-  line-height: 1.5;
-}
-.foot .photo-rights a { color: inherit; text-decoration: underline; }
-.foot .photo-rights .hy, .foot .photo-rights [lang="hy"] { display: block; margin-top: 6px; font-family: var(--hy); }
-.foot .tiktok { margin-top: 12px; }
-.foot .tiktok a {
-  color: var(--red);
-  font-weight: 700;
-  text-decoration: none;
-  border-bottom: 1.5px solid currentColor;
-}
+.foot .brand { font-weight: 700; color: var(--ink); font-size: 15px; }
+.foot .brand .hy { font-weight: 800; }
+.foot .photo-rights { max-width: 52ch; margin: 12px auto 0; line-height: 1.55; font-size: 13px; }
+.foot .tiktok { margin-top: 18px; }
+.foot .tiktok a { min-height: 48px; }
 
 /* ---------- проявление при прокрутке ---------- */
 
-.reveal {
-  /* --reveal-t — общая переменная сдвига. У элементов вроде .card и
-     .plate свой transform УЖЕ подставляет её первым слагаемым (см. их
-     правила выше) — так поворот карточки и появление снизу складываются
-     в одну плавную анимацию, а не спорят за свойство transform.
-     У простых блоков без своего transform работает запасная строка
-     ниже — .reveal:not(.card):not(.plate). */
-  --reveal-t: translateY(22px);
-  opacity: 0;
-  filter: blur(9px);
-}
-.reveal:not(.card):not(.plate) {
-  transform: var(--reveal-t);
-  transition: opacity 750ms var(--ease), filter 750ms var(--ease), transform 750ms var(--ease);
-}
-.reveal.in { --reveal-t: translateY(0); opacity: 1; filter: blur(0); }
-.card:not(.reveal), .plate:not(.reveal) { opacity: 1; filter: none; }
-
-/* Карточки полки проявляются по очереди, не все разом — счётчик
-   ставит hub.js (--stagger, шаг ~70ms). */
+.reveal { --reveal-t: translateY(24px); opacity: 0; }
+.reveal:not(.card) { transform: var(--reveal-t); transition: opacity 700ms var(--ease), transform 700ms var(--ease); }
+.reveal.in { --reveal-t: translateY(0); opacity: 1; }
 .cards > .reveal { transition-delay: calc(var(--stagger, 0) * 70ms); }
-
 @media (prefers-reduced-motion: reduce) {
-  .reveal { --reveal-t: translateY(0); opacity: 1; filter: none; transition: none; }
-  .cards > .reveal { transition-delay: 0ms; }
+  .reveal { --reveal-t: none; opacity: 1; transition: none !important; }
 }
 
-/* ---------- планшет и компьютер ---------- */
 
+/* ================= планшет и компьютер ================= */
+
+@media (min-width: 560px) {
+  .hero-cta .btn { width: auto; }
+  .btn-3d { width: auto; }
+  .gallery { flex-wrap: nowrap; }
+  .g-item { width: 180px; }
+}
 @media (min-width: 760px) {
-  .cards {
-    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-    gap: 44px 30px;
-  }
-  .card:not(.soon) { grid-column: span 2; transform: var(--reveal-t, translateY(0)) rotate(var(--tilt, 0deg)); }
-  .card:not(.soon) .card-in { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: end; }
-  .ghost { filter: blur(6px); }
-  .stamp { top: 8px; right: 8px; font-size: 19px; }
-  .stamp i { font-size: 11px; }
-  .soon h3 { font-size: 28px; }
-  .soon .meta { font-size: 15px; }
+  .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+  .card:not(.soon) .card-in { display: grid; grid-template-columns: 1.1fr 1fr; gap: 28px; align-items: center; padding: 14px; }
+  .card:not(.soon) h3 { font-size: 44px; }
+  .soon h3 { font-size: 20px; }
 }
-
 @media (min-width: 900px) {
-  .album { padding-top: 56px; }
-  .hero {
-    grid-template-columns: minmax(0, 500px) 1fr;
-    align-items: center;
-    gap: 64px;
-  }
-  .sub .hy, .sub [lang="hy"] { font-size: 24px; }
-  .sub .ru, .sub [lang="ru"] { font-size: 34px; }
-  .intro { font-size: 18px; }
-  .shelf { margin-top: var(--sp-6); }
+  :root { --gutter: 32px; }
+  .page { padding-top: calc(var(--nav-h) + 48px); }
+  .hero { grid-template-columns: 1fr 1fr; align-items: center; gap: 56px; min-height: calc(100vh - var(--nav-h) - 120px); }
+  .stack { order: 2; height: min(62vh, 520px); width: min(100%, 480px); }
+  .greet { font-size: 26px; }
+  .shelf, .sec { margin-top: 96px; }
+  .story-wrap { display: grid; grid-template-columns: minmax(0, 1fr); max-width: 760px; margin: 0 auto; }
 }
 
+
+/* невысокие экраны (Safari с панелями на iPhone SE / mini):
+   заголовок и приветствие компактнее, чтобы кнопка была видна сразу */
+@media (max-width: 899px) and (max-height: 700px) {
+  .hero { gap: 12px; }
+  .title h1 { font-size: 50px; }
+  .greet { font-size: 18px; margin-top: 8px; }
+  .hero-cta { margin-top: 14px; }
+}
+.go svg { width: 18px; height: 18px; }
+
+
+/* ---------- детали «светлого музея» ---------- */
+
+.page { max-width: 1080px; }
+.shelf { margin-top: 72px; }
 @media (hover: hover) and (pointer: fine) {
-  .card:hover { transform: var(--reveal-t, translateY(0)) translateY(-7px) rotate(0deg) scale(1.025); z-index: 2; }
-  .card:hover .pic { box-shadow: 0 20px 28px -14px rgba(35, 25, 15, 0.5); }
-  .note-link:hover, .cred a:hover { color: var(--red); }
+  .btn:not(.btn-ghost):hover { background: var(--accent-strong); }
+  .btn-ghost:hover { color: var(--accent); }
 }
+.btn-ghost { --btn-shadow: var(--shadow-sm); --btn-shadow-active: none; }
+.about { background: transparent; border: 0; border-top: 1px solid var(--line); border-radius: 0; box-shadow: none; padding: 22px 0 0; }
+.foot { background: transparent; border-top: 1px solid var(--line); border-radius: 0; }
+.foot a { text-decoration-color: var(--accent); text-underline-offset: 3px; }
+.chip { background: rgba(255, 255, 255, 0.92); color: var(--graphite); }
 
-@media (prefers-reduced-motion: reduce) {
-  .sketch, .split-line, .handle { transition: none !important; }
-  .layer img { transition: none !important; transform: none !important; }
-  .card, .pic { transition: none !important; }
+/* ссылка «история» на карточке здания — отдельная кнопка рядом с «Открыть 3D»
+   (внутрь ссылки-карточки вложить нельзя) */
+.card { position: relative; }
+.card-history {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--graphite);
+  font-weight: 700;
+  font-size: 15px;
+  text-decoration: none;
+  touch-action: manipulation;
+  transition: transform 200ms var(--spring), color 200ms var(--ease);
 }
+.card-history:active { transform: scale(0.94); }
+@media (hover: hover) and (pointer: fine) { .card-history:hover { color: var(--accent); } }

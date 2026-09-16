@@ -17,143 +17,103 @@
 })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#f1e7d3">
+<meta name="theme-color" content="#fbfaf7">
 <title>Չկա — здания, которых больше нет</title>
 <meta name="description" content="Չկա — альбом снесённых зданий Еревана: карандашные рисунки по архивным фото и 3D-модели, которые можно покрутить в браузере.">
 <meta property="og:title" content="Չկա — здания, которых больше нет">
 <meta property="og:description" content="Альбом снесённых зданий Еревана: рисунки и 3D-модели.">
 <meta property="og:type" content="website">
 <meta name="apple-mobile-web-app-title" content="Չկա">
+<link rel="preload" as="image" type="image/webp" href="kukuruznik/card.webp" fetchpriority="high">
 <link rel="icon" href="assets/favicon-32.png">
 <link rel="apple-touch-icon" href="assets/icon-180.png">
-
-<link rel="preload" as="image" type="image/webp" href="kukuruznik/card.webp" fetchpriority="high">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Serif+Armenian:wght@300;500&family=Inter:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="assets/hub.css?v=9">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+Armenian:wght@400;500;600;700;800&family=Caveat:wght@600&display=swap">
+<link rel="stylesheet" href="assets/hub.css?v=10">
 </head>
 <body>
-
-<!-- Силуэты для карточек «скоро». Новый силуэт — ещё один <symbol>. -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="ghost-dome" viewBox="0 0 200 200"><path d="M20 170h160v-8h-10v-40c0-38-31-70-70-70s-70 32-70 70v40H20z M92 52V34h16v18"/></symbol>
   <symbol id="ghost-slab" viewBox="0 0 200 200"><path d="M14 170h172v-10h-8V96h-26V72H48v24H22v64h-8z M60 72V58h80v14"/></symbol>
   <symbol id="ghost-tower" viewBox="0 0 200 200"><path d="M40 170h120v-12h-18V58l-8-10V30H86v18l-8 10v100H40z"/></symbol>
   <symbol id="ghost-statue" viewBox="0 0 200 200"><path d="M56 172h88v-11H132v-15h-64v15H56z M76 146h48v-9c0-5-3-9-8-11l-8-5V72c11-4 18-13 18-24 0-15-12-27-26-27S34 33 34 48c0 11 7 20 18 24v49l-8 5c-5 2-8 6-8 11z"/></symbol>
-</svg>
+</svg><nav class="nav"><div class="nav-in">
+  <a class="logo" href="./" aria-label="Չկա — на главную"><span class="hy">Չկա</span><span class="dot" aria-hidden="true"></span></a>
+  <div class="lang-switch-mount" data-lang-switch></div>
+</div></nav>
 
-<div class="lang-switch-mount" data-lang-switch></div>
-
-<main class="album">
+<main class="page">
 
   <header class="hero">
     <div class="stack" aria-hidden="true">
-      <div class="stack-card sc-a">
-        <div class="sc-pic" data-frame><svg class="ghost" viewBox="0 0 200 200"><use href="#ghost-tower"/></svg></div>
-      </div>
-      <div class="stack-card sc-b">
-        <div class="sc-pic" data-frame><svg class="ghost" viewBox="0 0 200 200"><use href="#ghost-slab"/></svg></div>
-      </div>
-      <div class="stack-card sc-c">
-        <div class="sc-pic" data-frame><svg class="ghost" viewBox="0 0 200 200"><use href="#ghost-statue"/></svg></div>
-      </div>
-      <div class="stack-card sc-d">
-        <div class="sc-pic" data-frame><img src="kukuruznik/card.webp" width="480" height="480" alt="" fetchpriority="high" decoding="async"></div>
-      </div>
+      <div class="stack-card sc-a"><div class="sc-pic"><svg class="ghost" viewBox="0 0 200 200"><use href="#ghost-tower"/></svg></div></div>
+      <div class="stack-card sc-b"><div class="sc-pic"><svg class="ghost" viewBox="0 0 200 200"><use href="#ghost-slab"/></svg></div></div>
+      <div class="stack-card sc-c"><div class="sc-pic"><svg class="ghost" viewBox="0 0 200 200"><use href="#ghost-statue"/></svg></div></div>
+      <div class="stack-card sc-d"><div class="sc-pic"><img src="kukuruznik/card.webp" width="480" height="480" alt="" fetchpriority="high" decoding="async"></div></div>
     </div>
 
     <div class="title">
       <h1><span class="hy">Չկա</span></h1>
-      <p class="sub">
-        <span class="i18n-inline" lang="hy">շենքեր, որոնք այլևս չկան</span><span class="i18n-inline" lang="ru">здания, которых больше нет</span><span class="i18n-inline" lang="en">buildings that no longer exist</span>
-      </p>
-      <p class="intro">
-        <span class="i18n-inline" lang="hy">Երևանի կորած ճարտարապետության ալբոմ։ Գտնում եմ քանդված շենքերի արխիվային նկարները, նկարում եմ դրանք ու վերականգնում 3D-ով։</span><span class="i18n-inline" lang="ru">Альбом утраченной архитектуры Еревана. Нахожу архивные фото снесённых зданий, рисую их и собираю в 3D.</span><span class="i18n-inline" lang="en">An album of Yerevan's lost architecture. I find archival photos of demolished buildings, draw them, and rebuild them in 3D.</span>
-      </p>
-      <p class="intro">
-        <span class="i18n-inline" lang="hy">Հիշու՞մ ես այս ուրվագիծը։ Այստեղ կարող ես պտտել շենքը բոլոր կողմերից, համեմատել «նախքանն ու հետոն», կարդալ պատմությունը և խաղալ «գուշակիր տարին»։</span><span class="i18n-inline" lang="ru">Помните этот силуэт? Здесь можно покрутить здание со всех сторон, сравнить «было и стало», узнать историю и сыграть в «угадай год».</span><span class="i18n-inline" lang="en">Remember this silhouette? Spin the building all the way around, compare before and after, read its history, and play “guess the year”.</span>
-      </p>
-      <a class="btn-open" href="#shelf-h">
-        <span class="i18n-inline" lang="hy">բացել ալբոմը</span><span class="i18n-inline" lang="ru">открыть альбом</span><span class="i18n-inline" lang="en">open the album</span>
-        <span class="arrow">↓</span>
-      </a>
+      <p class="sub"><span class="i18n-inline accent-hand" lang="hy">շենքեր, որոնք այլևս չկան</span><span class="i18n-inline accent-hand" lang="ru">здания, которых больше нет</span><span class="i18n-inline accent-hand" lang="en">buildings that no longer exist</span></p>
+      <p class="greet"><span class="i18n-inline" lang="hy">Բարև։ Այստեղ կենդանանում են Երևանի շենքերը, որոնք այլևս չկան։ Պտտեք, մոտեցրեք, հիշեք։</span><span class="i18n-inline" lang="ru">Привет. Здесь оживают здания Еревана, которых больше нет. Покрутите, приблизьте, вспомните.</span><span class="i18n-inline" lang="en">Hi. This is where Yerevan’s lost buildings come back to life. Spin them, zoom in, remember.</span></p>
+      <div class="hero-cta">
+        <a class="btn btn-open" href="#shelf-h"><span class="i18n-inline" lang="hy">Բացել ալբոմը</span><span class="i18n-inline" lang="ru">Открыть альбом</span><span class="i18n-inline" lang="en">Open the album</span><svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg></a>
+      </div>
     </div>
   </header>
 
-  <section class="shelf" aria-labelledby="shelf-h">
-    <h2 id="shelf-h" class="hand reveal">
-      <span class="i18n-inline" lang="hy">Ալբոմ</span><span class="i18n-inline" lang="ru">Альбом</span><span class="i18n-inline" lang="en">Album</span>
-    </h2>
+  <section class="about reveal">
+    <p><span class="i18n-inline" lang="hy">Երևանի կորած ճարտարապետության ալբոմ։ Գտնում եմ քանդված շենքերի արխիվային նկարները, նկարում եմ դրանք ու վերականգնում 3D-ով։</span><span class="i18n-inline" lang="ru">Альбом утраченной архитектуры Еревана. Нахожу архивные фото снесённых зданий, рисую их и собираю в 3D.</span><span class="i18n-inline" lang="en">An album of Yerevan’s lost architecture. I find archival photos of demolished buildings, draw them, and rebuild them in 3D.</span></p>
+    <p><span class="i18n-inline" lang="hy">Հիշու՞մ ես այս ուրվագիծը։ Այստեղ կարող ես պտտել շենքը բոլոր կողմերից, համեմատել «նախքանն ու հետոն», կարդալ պատմությունը և խաղալ «գուշակիր տարին»։</span><span class="i18n-inline" lang="ru">Помните этот силуэт? Здесь можно покрутить здание со всех сторон, сравнить «было и стало», узнать историю и сыграть в «угадай год».</span><span class="i18n-inline" lang="en">Remember this silhouette? Spin the building all the way around, compare before and after, read its history, and play “guess the year”.</span></p>
+  </section>
 
+  <section class="shelf" aria-labelledby="shelf-h">
+    <h2 id="shelf-h" class="reveal"><span class="i18n-inline" lang="hy">Ալբոմ</span><span class="i18n-inline" lang="ru">Альбом</span><span class="i18n-inline" lang="en">Album</span></h2>
     <ul class="cards">
 
-      <!-- ═══ КАРТОЧКА ЗДАНИЯ. Для нового здания скопируй этот блок целиком. ═══ -->
-      <li class="card reveal" style="--wash:#9cc0d6; --tilt:-1.4deg">
+      <li class="card reveal">
         <a class="card-in" href="kukuruznik/" data-transition>
-          <div class="pic" data-frame>
-            <img src="kukuruznik/card.webp" width="480" height="480" alt="" loading="lazy" decoding="async">
-          </div>
+          <div class="pic"><img src="kukuruznik/card.webp" width="480" height="480" alt="" loading="lazy" decoding="async"></div>
           <div class="txt">
-            <h3><span class="i18n-inline hy" lang="hy">Կուկուրուզնիկ</span><span class="i18n-inline" lang="ru">Кукурузник</span><span class="i18n-inline" lang="en">The Corncob</span></h3>
-            <p class="meta">
-              <span class="i18n-inline hy" lang="hy">Երիտասարդական պալատ · Երևան</span><span class="i18n-inline" lang="ru">Дом молодёжи · Ереван</span><span class="i18n-inline" lang="en">Youth Palace · Yerevan</span>
-            </p>
-            <span class="go">
-              <span class="i18n-inline" lang="hy">բացել 3D-ով</span><span class="i18n-inline" lang="ru">открыть 3D</span><span class="i18n-inline" lang="en">open in 3D</span>
-              &nbsp;→
-            </span>
+            <span class="eyebrow"><span class="i18n-inline" lang="hy">3D · 1979–2006</span><span class="i18n-inline" lang="ru">3D · 1979–2006</span><span class="i18n-inline" lang="en">3D · 1979–2006</span></span>
+            <h3><span class="i18n-inline" lang="hy">Կուկուրուզնիկ</span><span class="i18n-inline" lang="ru">Кукурузник</span><span class="i18n-inline" lang="en">The Corncob</span></h3>
+            <p class="meta"><span class="i18n-inline" lang="hy">Երիտասարդական պալատ · Երևան</span><span class="i18n-inline" lang="ru">Дом молодёжи · Ереван</span><span class="i18n-inline" lang="en">Youth Palace · Yerevan</span></p>
+            <span class="go"><span class="i18n-inline" lang="hy">Բացել 3D-ով</span><span class="i18n-inline" lang="ru">Открыть 3D</span><span class="i18n-inline" lang="en">Open in 3D</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
           </div>
         </a>
-        <a class="card-history" href="kukuruznik/history.html">
-          <span class="i18n-inline hy" lang="hy">պատմությունը</span><span class="i18n-inline" lang="ru">история</span><span class="i18n-inline" lang="en">history</span>
-        </a>
+        <a class="card-history" href="kukuruznik/history.html"><span class="i18n-inline" lang="hy">պատմությունը</span><span class="i18n-inline" lang="ru">история</span><span class="i18n-inline" lang="en">history</span></a>
       </li>
-      <!-- ═══ конец карточки ═══ -->
 
-      <!-- Карточка «рисую сейчас»: без ссылки (страница ещё не готова), но с настоящим названием. -->
-      <li class="card soon active reveal" style="--wash:#e0b184; --tilt:1.1deg">
+      <li class="card soon active reveal">
         <div class="card-in">
-          <div class="pic" data-frame>
+          <div class="pic">
             <svg class="ghost" viewBox="0 0 200 200" aria-hidden="true"><use href="#ghost-statue"/></svg>
-            <span class="stamp active">
-              <span class="i18n-inline" lang="hy">նկարում եմ</span><span class="i18n-inline" lang="ru">рисую сейчас</span><span class="i18n-inline" lang="en">drawing now</span>
-            </span>
+            <span class="chip live"><span class="i18n-inline" lang="hy">նկարում եմ</span><span class="i18n-inline" lang="ru">рисую сейчас</span><span class="i18n-inline" lang="en">drawing now</span></span>
           </div>
           <div class="txt">
-            <h3><span class="i18n-inline hy" lang="hy">Լենինի հրապարակ</span><span class="i18n-inline" lang="ru">Площадь Ленина</span><span class="i18n-inline" lang="en">Lenin Square</span></h3>
-            <p class="meta">
-              <span class="i18n-inline hy" lang="hy">1970-ական թթ. · Երևան</span><span class="i18n-inline" lang="ru">1970-е · Ереван</span><span class="i18n-inline" lang="en">1970s · Yerevan</span>
-            </p>
+            <h3><span class="i18n-inline" lang="hy">Լենինի հրապարակ</span><span class="i18n-inline" lang="ru">Площадь Ленина</span><span class="i18n-inline" lang="en">Lenin Square</span></h3>
+            <p class="meta"><span class="i18n-inline" lang="hy">1970-ական թթ. · Երևան</span><span class="i18n-inline" lang="ru">1970-е · Ереван</span><span class="i18n-inline" lang="en">1970s · Yerevan</span></p>
           </div>
         </div>
       </li>
 
-      <!-- Карточки «скоро»: только силуэт и штамп, без названия — его ещё нет. -->
-      <li class="card soon reveal" style="--wash:#b9c99a; --tilt:-0.8deg">
+      <li class="card soon reveal">
         <div class="card-in">
-          <div class="pic" data-frame>
+          <div class="pic">
             <svg class="ghost" viewBox="0 0 200 200" aria-hidden="true"><use href="#ghost-slab"/></svg>
-            <span class="stamp">
-              <span class="i18n-inline" lang="hy">շուտով</span><span class="i18n-inline" lang="ru">скоро</span><span class="i18n-inline" lang="en">soon</span>
-            </span>
-            <span class="sr-only i18n-inline" lang="hy">ԵՒս մեկ շենք՝ շուտով ալբոմում</span>
-            <span class="sr-only i18n-inline" lang="ru">Ещё одно здание — скоро в альбоме</span>
-            <span class="sr-only i18n-inline" lang="en">Another building — coming soon</span>
+            <span class="chip"><span class="i18n-inline" lang="hy">շուտով</span><span class="i18n-inline" lang="ru">скоро</span><span class="i18n-inline" lang="en">soon</span></span>
+            <span class="i18n-inline sr-only" lang="hy">ԵՒս մեկ շենք՝ շուտով ալբոմում</span><span class="i18n-inline sr-only" lang="ru">Ещё одно здание — скоро в альбоме</span><span class="i18n-inline sr-only" lang="en">Another building — coming soon</span>
           </div>
         </div>
       </li>
 
-      <li class="card soon reveal" style="--wash:#d4a6a0; --tilt:1.6deg">
+      <li class="card soon reveal">
         <div class="card-in">
-          <div class="pic" data-frame>
+          <div class="pic">
             <svg class="ghost" viewBox="0 0 200 200" aria-hidden="true"><use href="#ghost-tower"/></svg>
-            <span class="stamp">
-              <span class="i18n-inline" lang="hy">շուտով</span><span class="i18n-inline" lang="ru">скоро</span><span class="i18n-inline" lang="en">soon</span>
-            </span>
-            <span class="sr-only i18n-inline" lang="hy">ԵՒս մեկ շենք՝ շուտով ալբոմում</span>
-            <span class="sr-only i18n-inline" lang="ru">Ещё одно здание — скоро в альбоме</span>
-            <span class="sr-only i18n-inline" lang="en">Another building — coming soon</span>
+            <span class="chip"><span class="i18n-inline" lang="hy">շուտով</span><span class="i18n-inline" lang="ru">скоро</span><span class="i18n-inline" lang="en">soon</span></span>
+            <span class="i18n-inline sr-only" lang="hy">ԵՒս մեկ շենք՝ շուտով ալբոմում</span><span class="i18n-inline sr-only" lang="ru">Ещё одно здание — скоро в альбоме</span><span class="i18n-inline sr-only" lang="en">Another building — coming soon</span>
           </div>
         </div>
       </li>
@@ -162,18 +122,9 @@
   </section>
 
   <footer class="foot reveal">
-    <p class="hand">
-      <span class="hy">Չկա</span> ·
-      <span class="i18n-inline hy" lang="hy">կորած ճարտարապետության ալբոմ</span><span class="i18n-inline" lang="ru">альбом утраченной архитектуры Еревана</span><span class="i18n-inline" lang="en">an album of Yerevan's lost architecture</span>
-    </p>
-    <p class="small photo-rights">
-      <span class="i18n-block hy" lang="hy">Արխիվային լուսանկարները պատկանում են իրենց հեղինակներին և արխիվներին։ Օգտագործվում են ոչ առևտրային նախագծում՝ աղբյուրը նշելով։ Եթե դուք հեղինակն եք և ցանկանում եք ուղղել ստորագրությունը կամ հեռացնել լուսանկարը՝ <a href="https://www.tiktok.com/@ht_product">գրեք ինձ</a>։</span>
-      <span class="i18n-block" lang="ru">Архивные фото принадлежат их авторам и архивам. Используются в некоммерческом проекте с указанием источника. Если вы автор и хотите исправить подпись или убрать фото — <a href="https://www.tiktok.com/@ht_product">напишите мне</a>.</span>
-      <span class="i18n-block" lang="en">Archival photos belong to their authors and archives. Used in a non-commercial project with the source credited. If you are the author and want to fix a caption or remove a photo — <a href="https://www.tiktok.com/@ht_product">message me</a>.</span>
-    </p>
-    <p class="tiktok"><a href="https://www.tiktok.com/@ht_product">
-      <span class="i18n-inline hy" lang="hy">TikTok-ում</span><span class="i18n-inline" lang="ru">мой TikTok</span><span class="i18n-inline" lang="en">my TikTok</span>
-    </a></p>
+    <p class="brand"><span class="hy">Չկա</span> · <span class="i18n-inline" lang="hy">կորած ճարտարապետության ալբոմ</span><span class="i18n-inline" lang="ru">альбом утраченной архитектуры Еревана</span><span class="i18n-inline" lang="en">an album of Yerevan’s lost architecture</span></p>
+    <p class="photo-rights"><span class="i18n-block" lang="hy">Արխիվային լուսանկարները պատկանում են իրենց հեղինակներին և արխիվներին։ Օգտագործվում են ոչ առևտրային նախագծում՝ աղբյուրը նշելով։ Եթե դուք հեղինակն եք և ցանկանում եք ուղղել ստորագրությունը կամ հեռացնել լուսանկարը՝ <a href="https://www.tiktok.com/@ht_product">գրեք ինձ</a>։</span><span class="i18n-block" lang="ru">Архивные фото принадлежат их авторам и архивам. Используются в некоммерческом проекте с указанием источника. Если вы автор и хотите исправить подпись или убрать фото — <a href="https://www.tiktok.com/@ht_product">напишите мне</a>.</span><span class="i18n-block" lang="en">Archival photos belong to their authors and archives. Used in a non-commercial project with the source credited. If you are the author and want to fix a caption or remove a photo — <a href="https://www.tiktok.com/@ht_product">message me</a>.</span></p>
+    <p class="tiktok"><a class="btn" href="https://www.tiktok.com/@ht_product"><span class="i18n-inline" lang="hy">TikTok-ում</span><span class="i18n-inline" lang="ru">мой TikTok</span><span class="i18n-inline" lang="en">my TikTok</span></a></p>
   </footer>
 
 </main>
