@@ -22,12 +22,14 @@
     var items = [].slice.call(document.querySelectorAll('.g-item'));
     if (!items.length) return;
     var lightbox = document.getElementById('lightbox');
+    var stage = document.getElementById('lbStage');
     var img = document.getElementById('lbImg');
     var cap = document.getElementById('lbCap');
+    var counter = document.getElementById('lbCounter');
     var btnClose = document.getElementById('lbClose');
     var btnPrev = document.getElementById('lbPrev');
     var btnNext = document.getElementById('lbNext');
-    if (!lightbox || !img) return;
+    if (!lightbox || !img || !stage) return;
     var idx = 0;
 
     function labels() {
@@ -45,6 +47,11 @@
       img.src = it.getAttribute('data-full');
       img.alt = capText;
       cap.innerHTML = capText + (credit ? '<br>' + credit : '');
+      if (counter) counter.textContent = (idx + 1) + ' / ' + items.length;
+      scale = 1; panX = 0; panY = 0;
+      stage.classList.remove('animating');
+      stage.style.transform = '';
+      lightbox.style.background = '';
     }
     function open(i) {
       labels();
@@ -71,15 +78,103 @@
       else if (e.key === 'ArrowLeft') show(idx - 1);
       else if (e.key === 'ArrowRight') show(idx + 1);
     });
-    /* свайп внутри лайтбокса */
-    var sx = null;
-    lightbox.addEventListener('touchstart', function (e) { sx = e.touches[0].clientX; }, { passive: true });
-    lightbox.addEventListener('touchend', function (e) {
-      if (sx == null) return;
-      var dx = e.changedTouches[0].clientX - sx;
-      if (Math.abs(dx) > 40) show(idx + (dx < 0 ? 1 : -1));
-      sx = null;
-    }, { passive: true });
+
+    /* ---------- жесты: свайп со следованием пальца, пинч-зум,
+       свайп-вниз чтобы закрыть ---------- */
+
+    var pointers = new Map();
+    var mode = null;
+    var scale = 1, panX = 0, panY = 0;
+    var start = { x: 0, y: 0 }, dragFrom = { x: 0, y: 0 };
+    var pinchStartDist = 0, pinchStartScale = 1;
+
+    function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+    function applyTransform() {
+      stage.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + scale + ')';
+    }
+    function snapBack() {
+      stage.classList.add('animating');
+      applyTransform();
+      lightbox.style.background = '';
+      setTimeout(function () { stage.classList.remove('animating'); }, 280);
+    }
+
+    stage.addEventListener('pointerdown', function (e) {
+      if (e.button != null && e.button !== 0) return;
+      stage.setPointerCapture(e.pointerId);
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size === 1) {
+        mode = null;
+        start.x = e.clientX; start.y = e.clientY;
+        dragFrom.x = panX; dragFrom.y = panY;
+      } else if (pointers.size === 2) {
+        var pts = Array.from(pointers.values());
+        pinchStartDist = dist(pts[0], pts[1]) || 1;
+        pinchStartScale = scale;
+        mode = 'pinch';
+      }
+    });
+
+    stage.addEventListener('pointermove', function (e) {
+      if (!pointers.has(e.pointerId)) return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      if (mode === 'pinch' && pointers.size >= 2) {
+        var pts = Array.from(pointers.values());
+        var d = dist(pts[0], pts[1]) || 1;
+        scale = Math.max(1, Math.min(4, pinchStartScale * (d / pinchStartDist)));
+        applyTransform();
+        return;
+      }
+      if (pointers.size !== 1) return;
+      var dx = e.clientX - start.x, dy = e.clientY - start.y;
+      if (!mode) {
+        if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+        mode = scale > 1.02 ? 'pan' : (Math.abs(dx) > Math.abs(dy) ? 'drag-h' : 'drag-v');
+      }
+      if (mode === 'pan') {
+        panX = dragFrom.x + dx; panY = dragFrom.y + dy;
+        applyTransform();
+      } else if (mode === 'drag-h') {
+        panX = dx;
+        stage.style.transform = 'translateX(' + dx + 'px)';
+      } else if (mode === 'drag-v') {
+        var d2 = dy < 0 ? dy * 0.3 : dy;
+        panY = d2;
+        stage.style.transform = 'translateY(' + d2 + 'px)';
+        var op = Math.max(0.35, 1 - Math.abs(d2) / 380);
+        lightbox.style.background = 'rgba(20, 16, 12, ' + (0.94 * op).toFixed(2) + ')';
+      }
+    });
+
+    function endGesture(e) {
+      pointers.delete(e.pointerId);
+      if (pointers.size >= 1) { mode = 'pinch'; return; }
+      if (mode === 'drag-h') {
+        var w = innerWidth;
+        if (Math.abs(panX) > w * 0.16) {
+          var dir = panX < 0 ? 1 : -1;
+          stage.classList.add('animating');
+          stage.style.transform = 'translateX(' + (panX < 0 ? -w : w) + 'px)';
+          setTimeout(function () { show(idx + dir); }, 220);
+        } else {
+          panX = 0;
+          snapBack();
+        }
+      } else if (mode === 'drag-v') {
+        if (Math.abs(panY) > 90) {
+          close();
+        } else {
+          panY = 0;
+          snapBack();
+        }
+      } else if (mode === 'pinch' || mode === 'pan') {
+        if (scale <= 1.03) { scale = 1; panX = 0; panY = 0; snapBack(); }
+      }
+      mode = null;
+    }
+    stage.addEventListener('pointerup', endGesture);
+    stage.addEventListener('pointercancel', endGesture);
 
     document.addEventListener('chka-lang', function () {
       labels();

@@ -30,7 +30,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Serif+Armenian:wght@300;500&family=Inter:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="../assets/hub.css?v=8">
-<link rel="stylesheet" href="../assets/story.css?v=6">
+<link rel="stylesheet" href="../assets/story.css?v=7">
 </head>
 <body>
 
@@ -178,6 +178,7 @@
   </section>
 
   <div class="lightbox" id="lightbox" hidden>
+    <span class="lb-counter" id="lbCounter" aria-hidden="true"></span>
     <button class="lb-close" id="lbClose" type="button" aria-label="Закрыть">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
     </button>
@@ -185,7 +186,9 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
     </button>
     <figure>
-      <img id="lbImg" src="" alt="">
+      <div class="lb-stage" id="lbStage">
+        <img id="lbImg" src="" alt="">
+      </div>
       <figcaption id="lbCap"></figcaption>
     </figure>
     <button class="lb-nav lb-next" id="lbNext" type="button" aria-label="Следующее фото">
@@ -352,6 +355,6 @@
 </script>
 <script src="../assets/i18n.js?v=1" defer></script>
 <script src="../assets/chka-common.js?v=2" defer></script>
-<script src="../assets/story.js?v=5" defer></script>
+<script src="../assets/story.js?v=6" defer></script>
 </body>
 </html>
