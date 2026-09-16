@@ -478,6 +478,23 @@ h2 .hy, h2 [lang="hy"] { font-family: var(--hy); font-weight: 300; font-size: 24
 
 .card.lift { transform: var(--reveal-t, translateY(0)) translateY(-7px) rotate(0deg) scale(1.025); z-index: 2; }
 
+.card-history {
+  position: absolute;
+  right: 2px;
+  bottom: -22px;
+  color: var(--soft);
+  font-family: var(--sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.card-history .hy, .card-history [lang="hy"] { font-family: var(--hy); font-weight: 500; }
+@media (hover: hover) and (pointer: fine) {
+  .card-history:hover { color: var(--red); }
+}
+
 .card::before {
   content: "";
   position: absolute;

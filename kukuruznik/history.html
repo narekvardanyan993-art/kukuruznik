@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+<meta charset="utf-8">
+<script>
+(function () {
+  try {
+    var K = 'chka-lang', L = ['hy', 'ru', 'en'], l = localStorage.getItem(K);
+    if (!l) {
+      var n = ((navigator.languages && navigator.languages[0]) || navigator.language || '').toLowerCase();
+      for (var i = 0; i < L.length; i++) { if (n.indexOf(L[i]) === 0) { l = L[i]; break; } }
+    }
+    if (L.indexOf(l) === -1) l = 'hy';
+    document.documentElement.setAttribute('data-lang', l);
+    document.documentElement.setAttribute('lang', l);
+  } catch (e) { document.documentElement.setAttribute('data-lang', 'hy'); }
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f1e7d3">
+<title>История Кукурузника | Չկա</title>
+<meta name="description" content="Кукурузник — от идеи Дворца молодёжи в 1970-х до сноса в 2006 году и разговоров о восстановлении. Семь глав истории.">
+<meta property="og:title" content="История Кукурузника | Չկա">
+<meta property="og:description" content="От макета из крышек консервных банок до сноса и разговоров о восстановлении — вся история здания.">
+<meta property="og:type" content="article">
+<link rel="icon" href="../assets/favicon-32.png">
+<link rel="apple-touch-icon" href="../assets/icon-180.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Serif+Armenian:wght@300;500&family=Inter:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="../assets/hub.css?v=9">
+<link rel="stylesheet" href="../assets/story.css?v=8">
+<link rel="stylesheet" href="../assets/history.css?v=1">
+</head>
+<body>
+
+<div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
+
+<a class="topbar reveal" href="./" aria-label="Назад на страницу Кукурузника">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.6 5.4L8 12l6.6 6.6"/></svg>
+  <span class="i18n-inline hy" lang="hy">Կուկուրուզնիկ</span><span class="i18n-inline" lang="ru">Кукурузник</span><span class="i18n-inline" lang="en">The Corncob</span>
+</a>
+<div class="lang-switch-mount" data-lang-switch></div>
+
+<main class="album history">
+
+  <header class="h-head reveal">
+    <p class="h-eyebrow">
+      <span class="i18n-inline hy" lang="hy">յոթ գլուխ</span><span class="i18n-inline" lang="ru">семь глав</span><span class="i18n-inline" lang="en">seven chapters</span>
+    </p>
+    <h1 class="hand">
+      <span class="i18n-inline hy" lang="hy">Կուկուրուզնիկի պատմությունը</span><span class="i18n-inline" lang="ru">История Кукурузника</span><span class="i18n-inline" lang="en">The Corncob's Story</span>
+    </h1>
+    <p class="h-sub">
+      <span class="i18n-block hy" lang="hy">Ինչպես կոնսերվի կափարիչներից մակետը դարձավ Երևանի ամենաճանաչելի շենքերից մեկը, իսկ հետո՝ բացատ Աբովյան փողոցի վրա։</span>
+      <span class="i18n-block" lang="ru">Как макет из крышек от консервных банок стал одним из самых узнаваемых зданий Еревана — а потом пустырём в центре города.</span>
+      <span class="i18n-block" lang="en">How a model built from tin-can lids became one of Yerevan's most recognizable buildings — and later an empty lot downtown.</span>
+    </p>
+  </header>
+
+  <section class="chapter reveal" id="ch1">
+    <p class="ch-num">01</p>
+    <h2 class="hand">
+      <span class="i18n-inline hy" lang="hy">Ասես բոլոր մայրաքաղաքներում մեկը</span><span class="i18n-inline" lang="ru">Такой же, как во всех столицах</span><span class="i18n-inline" lang="en">One in every capital</span>
+    </h2>
+    <div class="ch-text">
+      <p class="i18n-block hy" lang="hy">1970-ականների կեսերին խորհրդային իշխանությունները որոշեցին բոլոր հանրապետությունների մայրաքաղաքներում կառուցել երիտասարդական պալատներ՝ վայրեր, որտեղ երիտասարդությունը կհանդիպի, կզբաղվի սպորտով և արվեստով։ Երևանինը պիտի կանգներ Աբովյան փողոցի վրա գտնվող բլրի վրա, քաղաքի կենտրոնում։</p>
+      <p class="i18n-block" lang="ru">В середине 1970-х советские власти решили построить дворцы молодёжи в столицах всех союзных республик — общее пространство, где молодёжь могла бы собираться, заниматься спортом и творчеством. Ереванскому досталось место на холме у улицы Абовяна, почти в центре города.</p>
+      <p class="i18n-block" lang="en">In the mid-1970s, Soviet authorities decided to build a "Youth Palace" in the capital of every republic — a shared space where young people could gather, play sports and make art. Yerevan's was given a hilltop site on Abovyan Street, close to the city centre.</p>
+    </div>
+  </section>
+
+  <section class="chapter reveal" id="ch2">
+    <p class="ch-num">02</p>
+    <h2 class="hand">
+      <span class="i18n-inline hy" lang="hy">Մակետը կոնսերվի կափարիչներից</span><span class="i18n-inline" lang="ru">Макет из крышек от банок</span><span class="i18n-inline" lang="en">A model made of tin lids</span>
+    </h2>
+    <figure class="ch-fig" data-frame>
+      <img src="gallery/design-plan.webp" alt="Кукурузник, архитектурный проект" loading="lazy" decoding="async">
+      <figcaption>
+        <span class="i18n-inline hy" lang="hy">լուսանկարը՝</span><span class="i18n-inline" lang="ru">фото:</span><span class="i18n-inline" lang="en">photo:</span>
+        <a href="https://commons.wikimedia.org/wiki/File:Youth_Palace_design_plan.jpg" target="_blank" rel="noopener">Karen Demirchyan Museum / Wikimedia Commons</a>,
+        <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a> ·
+        <span class="i18n-inline hy" lang="hy">կրճատված և սեղմված</span><span class="i18n-inline" lang="ru">обрезано и сжато</span><span class="i18n-inline" lang="en">cropped and compressed</span>
+      </figcaption>
+    </figure>
+    <div class="ch-text">
+      <p class="i18n-block hy" lang="hy">Նախագիծը վստահվեց երեք ճարտարապետների՝ Արթուր Թարխանյանին, Հրաչ Պողոսյանին և Սպարտակ Խաչիկյանին։ Նրանք արդեն աշխատել էին միասին և հետո ևս աշխատելու էին՝ Զվարթնոց օդանավակայանի, «Ռուսաստան» կինոթատրոնի շենքերի վրա։ Ցուցադրելու գումար չլինելու պատճառով մակետը հավաքեցին ինչ որ կար ձեռքի տակ՝ պահածոների կափարիչներից և թղթից. հենց այդպիսի լուսանկարով էլ ներկայացրին նախագիծը հաստատողներին։</p>
+      <p class="i18n-block" lang="ru">Проект поручили трём архитекторам — Артуру Тарханяну, Грачу Погосяну и Спартаку Хачикяну. Они и до этого работали вместе, и потом ещё не раз — на здании аэропорта «Звартноц», на кинотеатре «Россия». Показать заказчикам масштаб будущего здания было особо не на чем, поэтому макет собрали из того, что было под рукой — крышек от консервных банок и бумаги, — и с фотографией этого макета пришли утверждать проект.</p>
+      <p class="i18n-block" lang="en">The project was given to three architects — Artur Tarkhanyan, Hrach Poghosyan and Spartak Khachikyan — who had already worked together before and would again, on the Zvartnots airport terminal and the Rossiya cinema. With nothing proper on hand to show the building's scale, they built a model out of tin-can lids and paper, and brought a photo of it to the people who had to approve the project.</p>
+    </div>
+  </section>
+
+  <section class="chapter reveal" id="ch3">
+    <p class="ch-num">03</p>
+    <h2 class="hand">
+      <span class="i18n-inline hy" lang="hy">Աշտարակ, որը պտտվում է</span><span class="i18n-inline" lang="ru">Башня, которая крутится</span><span class="i18n-inline" lang="en">A tower that spins</span>
+    </h2>
+    <figure class="ch-fig" data-frame>
+      <picture>
+        <source type="image/webp" srcset="../assets/hero-photo-720.webp">
+        <img src="../assets/hero-photo-1080.jpg" alt="Кукурузник, общий вид с холма" loading="lazy" decoding="async">
+      </picture>
+      <figcaption>
+        <span class="i18n-inline hy" lang="hy">լուսանկարը՝</span><span class="i18n-inline" lang="ru">фото:</span><span class="i18n-inline" lang="en">photo:</span>
+        <a href="https://commons.wikimedia.org/wiki/File:Youth_Palace_02.tif" target="_blank" rel="noopener">Karen Demirchyan Museum / Wikimedia Commons</a>,
+        <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a> ·
+        <span class="i18n-inline hy" lang="hy">կրճատված և սեղմված</span><span class="i18n-inline" lang="ru">обрезано и сжато</span><span class="i18n-inline" lang="en">cropped and compressed</span>
+      </figcaption>
+    </figure>
+    <div class="ch-text">
+      <p class="i18n-block hy" lang="hy">Համալիրի սիրտը գլանաձև աշտարակն էր՝ մոտ 58 մետր բարձրությամբ, 24 մետր տրամագծով։ Վերևի հարկը պտտվում էր առանցքի շուրջ՝ ժամում մեկ պտույտ, և հենց այնտեղ էր «Յոթերորդ երկինք» սրճարանը՝ մոտ հարյուր տեղով և Երևանի համայնապատկերով։ Շուրջբոլորը՝ հյուրանոց, ռեստորան, լողավազան, գիշերային ակումբ, մարզադահլիճ, ամուսնությունների գրանցման դահլիճ գունավոր ապակիներով և համերգասրահներ։ Դռները բացվեցին 1979 թվականի ապրիլին։</p>
+      <p class="i18n-block" lang="ru">Сердцем комплекса стала цилиндрическая башня высотой около 58 метров и диаметром 24 метра. Верхний этаж вращался вокруг оси — один оборот в час, — и там же работало кафе «Седьмое небо» примерно на сто мест с видом на весь Ереван. Вокруг башни — гостиница, ресторан, бассейн, ночной клуб, спортивный зал, зал регистрации браков с витражами и концертные залы. Двери открылись в апреле 1979 года.</p>
+      <p class="i18n-block" lang="en">At the heart of the complex was a cylindrical tower roughly 58 metres tall and 24 metres in diameter. Its top floor rotated around the axis once an hour, home to the "Seventh Heaven" café — about a hundred seats with a view over all of Yerevan. Around the tower stood a hotel, a restaurant, a pool, a night club, a sports hall, a stained-glass wedding hall and concert halls. It opened its doors in April 1979.</p>
+    </div>
+  </section>
+
+  <section class="chapter reveal" id="ch4">
+    <p class="ch-num">04</p>
+    <h2 class="hand">
+      <span class="i18n-inline hy" lang="hy">Քաղաքի սիրտը մի ամբողջ տասնամյակ</span><span class="i18n-inline" lang="ru">Сердце города на десять лет</span><span class="i18n-inline" lang="en">The city's heartbeat for a decade</span>
+    </h2>
+    <figure class="ch-fig" data-frame>
+      <img src="gallery/sculpture-thumb.webp" alt="Кукурузник, скульптура в вестибюле" loading="lazy" decoding="async">
+      <figcaption>
+        <span class="i18n-inline hy" lang="hy">լուսանկարը՝</span><span class="i18n-inline" lang="ru">фото:</span><span class="i18n-inline" lang="en">photo:</span>
+        <a href="https://commons.wikimedia.org/wiki/File:Youth_Palace_sculpture.tif" target="_blank" rel="noopener">Karen Demirchyan Museum / Wikimedia Commons</a>,
+        <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a> ·
+        <span class="i18n-inline hy" lang="hy">սեղմված</span><span class="i18n-inline" lang="ru">сжато</span><span class="i18n-inline" lang="en">compressed</span>
+      </figcaption>
+    </figure>
+    <div class="ch-text">
+      <p class="i18n-block hy" lang="hy">Մուտքի մոտ միշտ հերթեր էին լինում։ Ինչ-որ մեկն այնտեղ պարում էր դիսկոտեկում, ինչ-որ մեկը գնում էր առաջին ժամադրության, ինչ-որ մեկն ամուսնանում էր հենց նույն օրը հարկից ներքև։ Այնտեղ էր գործում ԽՍՀՄ-ում առաջին պաշտոնապես թույլատրված դիսկոտեկը, հնչում էին ժամանակի ամենահայտնի խմբերի ձայնագրությունները, և հենց այնտեղից են սկիզբ առել հայկական ռոք-երաժշտության շատ պատմություններ։</p>
+      <p class="i18n-block" lang="ru">У входа почти всегда стояла очередь. Кто-то шёл на дискотеку, кто-то — на первое свидание, а этажом ниже в тот же вечер кто-то расписывался в загсе. Здесь работала первая официально разрешённая дискотека в СССР, крутили записи самых модных групп, и с этим местом связана добрая часть истории армянской рок-сцены.</p>
+      <p class="i18n-block" lang="en">There was almost always a line at the entrance. Someone was headed to the disco, someone was on a first date, and a floor below, someone else was getting married that same evening. It housed the first officially sanctioned disco in the USSR, played the most fashionable bands of the day, and its story is woven into a good part of Armenian rock music history.</p>
+    </div>
+  </section>
+
+  <section class="chapter reveal" id="ch5">
+    <p class="ch-num">05</p>
+    <h2 class="hand">
+      <span class="i18n-inline hy" lang="hy">Ապաստան դժվար տարիներին</span><span class="i18n-inline" lang="ru">Убежище в трудные годы</span><span class="i18n-inline" lang="en">A shelter in hard years</span>
+    </h2>
+    <figure class="ch-fig" data-frame>
+      <img src="gallery/hillview-thumb.webp" alt="Кукурузник, общий вид с холма" loading="lazy" decoding="async">
+      <figcaption>
+        <span class="i18n-inline hy" lang="hy">լուսանկարը՝</span><span class="i18n-inline" lang="ru">фото:</span><span class="i18n-inline" lang="en">photo:</span>
+        <a href="https://commons.wikimedia.org/wiki/File:Youth_Palace_02.tif" target="_blank" rel="noopener">Karen Demirchyan Museum / Wikimedia Commons</a>,
+        <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a> ·
+        <span class="i18n-inline hy" lang="hy">սեղմված</span><span class="i18n-inline" lang="ru">сжато</span><span class="i18n-inline" lang="en">compressed</span>
+      </figcaption>
+    </figure>
+    <div class="ch-text">
+      <p class="i18n-block hy" lang="hy">Խորհրդային Միության փլուզումից հետո շենքը սկսեց աստիճանաբար քայքայվել։ 1988 թվականի Սպիտակի երկրաշարժից և 1990-ի իրադարձություններից հետո մի քանի տարի այն ծառայեց որպես ապաստան երկրաշարժից տուժածների և փախստականների համար։ Այն, ինչ մի ժամանակ քաղաքի ամենակենսունակ վայրերից էր, կապվեց լքվածության հետ. ոչ ջեռուցում, ոչ լույս, դատարկ սրահներ։</p>
+      <p class="i18n-block" lang="ru">После распада СССР здание постепенно приходило в упадок. После Спитакского землетрясения 1988 года и событий 1990-го несколько лет оно служило убежищем для пострадавших от землетрясения и беженцев. Место, которое ещё недавно было одним из самых живых в городе, стало ассоциироваться с заброшенностью — без отопления, без света, с пустыми залами.</p>
+      <p class="i18n-block" lang="en">After the Soviet collapse, the building slowly fell into disrepair. Following the 1988 Spitak earthquake and the events of 1990, it served for several years as a shelter for earthquake survivors and refugees. A place that not long before had been one of the liveliest in the city came to be associated with abandonment — no heating, no electricity, empty halls.</p>
+    </div>
+  </section>
+
+  <section class="chapter reveal" id="ch6">
+    <p class="ch-num">06</p>
+    <h2 class="hand">
+      <span class="i18n-inline hy" lang="hy">Վաճառքը, թույլտվությունը, բուլդոզերը</span><span class="i18n-inline" lang="ru">Продажа, разрешение, бульдозер</span><span class="i18n-inline" lang="en">Sold, permitted, demolished</span>
+    </h2>
+    <figure class="ch-fig ch-recon" data-frame>
+      <picture>
+        <source type="image/webp" srcset="../assets/hero-sketch-720.webp">
+        <img src="../assets/hero-sketch-1080.jpg" alt="" loading="lazy" decoding="async">
+      </picture>
+      <figcaption>
+        <span class="i18n-inline hy" lang="hy">Ազատ լուսանկար չկա այս պահի համար․ սա իմ 3D-վերակառուցումն է</span>
+        <span class="i18n-inline" lang="ru">свободного фото этого момента нет — это моя 3D-реконструкция</span>
+        <span class="i18n-inline" lang="en">no free photo of this moment exists — this is my 3D reconstruction</span>
+      </figcaption>
+    </figure>
+    <div class="ch-text">
+      <p class="i18n-block hy" lang="hy">2004 թվականին շենքը վաճառվեց մասնավոր ներդրողի։ 2005 թվականի հոկտեմբերին Երևանի քաղաքապետարանը թիվ 40 որոշմամբ թույլատրեց քանդումը՝ պաշտոնական պատճառը սեյսմակայունության հարցերն էին։ Որոշ մասնագետներ և բնակիչներ դեմ էին քանդմանը, սակայն 2006 թվականին շենքը վերացվեց։ Փոխարենը խոստացված նոր հյուրանոցը երբեք չկառուցվեց. տարածքը երկար մնաց դատարկ։</p>
+      <p class="i18n-block" lang="ru">В 2004 году здание продали частному инвестору. В октябре 2005-го мэрия Еревана постановлением №40 разрешила снос — официальной причиной назвали вопросы сейсмостойкости. Часть специалистов и жителей города были против, но в 2006 году здание всё же снесли. Обещанная новая гостиница на его месте так и не появилась — участок долго простоял пустым.</p>
+      <p class="i18n-block" lang="en">In 2004 the building was sold to a private investor. In October 2005, Yerevan City Hall issued permit No. 40 authorising demolition, citing seismic safety as the official reason. Some experts and residents objected, but the building was torn down in 2006 regardless. The new hotel that was promised in its place was never built, and the lot stood empty for years.</p>
+    </div>
+  </section>
+
+  <section class="chapter reveal" id="ch7">
+    <p class="ch-num">07</p>
+    <h2 class="hand">
+      <span class="i18n-inline hy" lang="hy">Խոսակցություններ վերականգնման մասին</span><span class="i18n-inline" lang="ru">Разговоры о восстановлении</span><span class="i18n-inline" lang="en">Talk of rebuilding it</span>
+    </h2>
+    <div class="ch-text">
+      <p class="i18n-block hy" lang="hy">2023 թվականին հասարակական նախաձեռնություն՝ Արթուր Թարխանյան կենտրոնի մասնակցությամբ, հայտարարեց մտադրության մասին՝ վերականգնել Երիտասարդական պալատը հենց նույն տեղում, արտաքինով նման բնօրինակին, բայց ժամանակակից ինժեներական լուծումներով։ Այդ պահին նախագիծը դեռ գտնվում էր նախնական փուլում, իսկ լավատեսական գնահատականով շինարարությունը կպահանջեր մոտ չորս տարի։ Ավելի թարմ հաստատված տեղեկություն այս էջը գրելու պահին չկա. այսինքն՝ հայտնի է հենց նախաձեռնության հայտարարման փաստը, առայսօր չի հաստատվել, թե ինչ վիճակում է գտնվում այն հիմա։</p>
+      <p class="i18n-block" lang="ru">В 2023 году общественная инициатива, в которой участвует Центр Артура Тарханяна, заявила о намерении восстановить Дворец молодёжи на том же месте — внешне похожим на оригинал, но с современными инженерными решениями. На тот момент проект находился на предварительной стадии, а по оптимистичной оценке на стройку ушло бы около четырёх лет. Более свежих подтверждённых данных на момент написания этой страницы нет — известен сам факт объявления инициативы, а не то, в каком состоянии она находится сейчас.</p>
+      <p class="i18n-block" lang="en">In 2023, a public initiative involving the Artur Tarkhanyan Center announced plans to rebuild the Youth Palace on the same site — similar in appearance to the original, but with modern engineering. At the time, the project was still at a preliminary stage, with an optimistic estimate of around four years of construction. There is no more recent confirmed information as of writing — only the fact that the initiative was announced, not its current status.</p>
+    </div>
+  </section>
+
+  <section class="h-sources reveal">
+    <h2 class="hand">
+      <span class="i18n-inline hy" lang="hy">Աղբյուրներ</span><span class="i18n-inline" lang="ru">Источники</span><span class="i18n-inline" lang="en">Sources</span>
+    </h2>
+    <p class="i18n-block hy" lang="hy">Փաստերը վերապատմված են իմ իսկ բառերով՝ առանց հոդվածների տեքստը կրկնօրինակելու։</p>
+    <p class="i18n-block" lang="ru">Факты пересказаны своими словами, без копирования текста статей.</p>
+    <p class="i18n-block" lang="en">Facts are retold in my own words, without copying the text of the articles.</p>
+    <ul class="h-src-list">
+      <li><a href="https://tarkhanyancenter.am/youth-palace/" target="_blank" rel="noopener">tarkhanyancenter.am/youth-palace</a></li>
+      <li><a href="https://evnreport.com" target="_blank" rel="noopener">evnreport.com</a> — «The Youth Palace: Yerevan's Beloved Ghost»</li>
+      <li><a href="https://armenianbd.com" target="_blank" rel="noopener">armenianbd.com</a></li>
+      <li><a href="https://architectuul.com/architecture/youth-palace" target="_blank" rel="noopener">architectuul.com</a></li>
+    </ul>
+  </section>
+
+  <section class="next-sec reveal">
+    <a class="btn-tiktok" href="./">
+      <span class="i18n-inline hy" lang="hy">← Կուկուրուզնիկի էջ</span><span class="i18n-inline" lang="ru">← на страницу Кукурузника</span><span class="i18n-inline" lang="en">← back to the Corncob page</span>
+    </a>
+  </section>
+
+  <footer class="foot reveal">
+    <p class="hand">
+      <span class="hy">Չկա</span> ·
+      <a href="../">
+        <span class="i18n-inline hy" lang="hy">գլխավոր էջ</span><span class="i18n-inline" lang="ru">на главную альбома</span><span class="i18n-inline" lang="en">back to the album</span>
+      </a>
+    </p>
+    <p class="tiktok"><a href="https://www.tiktok.com/@ht_product">
+      <span class="i18n-inline hy" lang="hy">TikTok-ում</span><span class="i18n-inline" lang="ru">мой TikTok</span><span class="i18n-inline" lang="en">my TikTok</span>
+    </a></p>
+  </footer>
+
+</main>
+
+<script src="../assets/i18n.js?v=1" defer></script>
+<script src="../assets/chka-common.js?v=2" defer></script>
+<script src="../assets/history.js?v=1" defer></script>
+</body>
+</html>
