@@ -81,6 +81,23 @@
   initReveal();
   window.ChkaInitReveal = initReveal;
 
+  /* ---------- порядковая задержка карточек в ряду/сетке ---------- */
+
+  function setStagger(root) {
+    (root || document).querySelectorAll('.cards, .gallery, .g-row').forEach(function (group) {
+      var i = 0;
+      [].forEach.call(group.children, function (child) {
+        if (child.classList && child.classList.contains('reveal') && !child.hasAttribute('data-staggered')) {
+          child.style.setProperty('--stagger', i);
+          child.setAttribute('data-staggered', '');
+        }
+        i++;
+      });
+    });
+  }
+  setStagger();
+  window.ChkaSetStagger = setStagger;
+
   /* ---------- карточки/плитки «приподнимаются» от касания ---------- */
 
   document.querySelectorAll('.card, [data-lift]').forEach(function (card) {

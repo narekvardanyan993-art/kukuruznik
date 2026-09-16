@@ -2,6 +2,20 @@
    карточку здания. Рамки, проявление при прокрутке и приподнятие
    карточек — в assets/chka-common.js, подключённом раньше этого файла. */
 (function () {
+  /* Стопка фото на первом экране разлетается по местам сразу после
+     отрисовки — без reduced-motion она стартует «сложенной» (см.
+     .stack:not(.fanned) в hub.css) и класс .fanned запускает переход. */
+  var stack = document.querySelector('.stack');
+  if (stack) {
+    if (window.ChkaReducedMotion) {
+      stack.classList.add('fanned');
+    } else {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () { stack.classList.add('fanned'); });
+      });
+    }
+  }
+
   document.querySelectorAll('[data-transition]').forEach(function (a) {
     a.addEventListener('click', function (e) {
       if (window.ChkaReducedMotion || e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
