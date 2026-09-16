@@ -168,10 +168,14 @@ img, svg { display: block; max-width: 100%; }
 .sc-pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .sc-pic .ghost { width: 62%; height: 62%; fill: rgba(72, 64, 57, 0.42); filter: blur(2px); }
 
-.sc-a { transform: rotate(-13deg) translate(-16%, 4%); z-index: 1; transition-delay: 0ms; }
-.sc-b { transform: rotate(10deg) translate(15%, 9%); z-index: 2; transition-delay: 90ms; }
-.sc-c { transform: rotate(-5deg) translate(-5%, -10%); z-index: 3; transition-delay: 180ms; }
-.sc-d { transform: rotate(4deg) translate(3%, -2%); z-index: 4; transition-delay: 270ms; }
+.sc-a { transform: translate3d(calc(var(--px, 0) * 0.4px), calc(var(--py, 0) * 0.4px), 0) rotate(-13deg) translate(-16%, 4%); z-index: 1; transition-delay: 0ms; }
+.sc-b { transform: translate3d(calc(var(--px, 0) * 0.6px), calc(var(--py, 0) * 0.6px), 0) rotate(10deg) translate(15%, 9%); z-index: 2; transition-delay: 90ms; }
+.sc-c { transform: translate3d(calc(var(--px, 0) * 0.8px), calc(var(--py, 0) * 0.8px), 0) rotate(-5deg) translate(-5%, -10%); z-index: 3; transition-delay: 180ms; }
+.sc-d { transform: translate3d(calc(var(--px, 0) * 1px), calc(var(--py, 0) * 1px), 0) rotate(4deg) translate(3%, -2%); z-index: 4; transition-delay: 270ms; }
+
+/* Пока не .fanned — переход длинный (разлёт). После — быстрый и
+   линейный, чтобы параллакс мыши/прокрутки откликался без лага. */
+.stack.parallax .stack-card { transition: transform 120ms linear, opacity 550ms var(--ease); }
 
 .plate {
   position: relative;
@@ -564,12 +568,32 @@ h3 {
 /* «скоро» */
 
 .soon .pic {
+  position: relative;
   display: grid;
   place-items: center;
   overflow: hidden;
   background: #e9dfca;
 }
 .soon .pic::after { display: none; }
+
+/* Штриховка внутри «скоро»-карточек будто дорисовывается — здание ещё
+   не начато, но набросок уже идёт. */
+.soon .pic::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(-45deg, rgba(72, 64, 57, 0.15) 0 2px, transparent 2px 10px);
+  background-size: 220% 220%;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .soon .pic::before { animation: chkaHatch 6s linear infinite; }
+}
+@keyframes chkaHatch {
+  0% { background-position: 0% 0%; opacity: 0.45; }
+  50% { background-position: 40% 40%; opacity: 0.85; }
+  100% { background-position: 80% 80%; opacity: 0.45; }
+}
 
 .ghost {
   width: 70%;
