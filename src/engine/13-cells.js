@@ -83,7 +83,7 @@
     var mtx = (dx + cx) * 0.5, mty = (dy + cy) * 0.5;   // верх, середина
     var upx = mtx - mbx, upy = mty - mby;
     ctx.moveTo(ax, ay);
-    ctx.quadraticCurveTo(mbx - upx * 0.20, mby - upy * 0.20, bx, by);
+    ctx.quadraticCurveTo(mbx - upx * 0.30, mby - upy * 0.30, bx, by);
     ctx.quadraticCurveTo(mtx + upx * 0.34, mty + upy * 0.34, ax, ay);
   };
 
