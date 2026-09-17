@@ -32,9 +32,9 @@
       shellIndex: shellIndex,
       partIndex: partIndex,
       flags: flags,
-      sign: sign,
       benches: benches,
       lamps: lamps,
+      galleryPosts: galleryPosts,
       city: city,
       cityCenters: new Float32Array(cityCenters),
       cityParts: cityParts,
@@ -58,17 +58,20 @@
       hallShadow: new Uint16Array(hallShadow),
       wingCenter: [(WX0 + WX1) * 0.5, 0.5 - yCenter, 0],
       wingShadow: new Uint16Array(wingShadow),
-      /* Круги, на которые ложится тень: общая тень здания на земле,
-         тень башни на верхней террасе и контактная — узкое плотное
-         кольцо у самого основания. Последняя почти не сдвинута вбок:
-         у контакта тень не уезжает, и именно она «ставит» здание. */
+      /* Круги, на которые ложится тень: общая тень подиума на земле
+         (круг лишь приближает прямоугольный след — центр сдвинут к
+         середине подиума), тень башни на верхнем ярусе и контактная —
+         узкое плотное кольцо у самого основания. Последняя почти не
+         сдвинута вбок: у контакта тень не уезжает, и именно она
+         «ставит» здание. */
       shadows: [
-        { layer: 0, r: tiers[0].r * 1.16, y: yGround - yCenter,     alpha: 0.20 },
-        { layer: 1, r: R * 1.42,          y: tiers[1].y1 - yCenter, alpha: 0.16 },
-        { layer: 1, r: R * 1.16,          y: tiers[1].y1 - yCenter, alpha: 0.22, off: 0.30 }
+        { layer: 0, r: 3.3, cx: (PODX0 + PODX1) * 0.5, cz: (TIERS3[0].z0 + TIERS3[0].z1) * 0.5,
+          y: yGround - yCenter, alpha: 0.20 },
+        { layer: 1, r: R * 1.42,          y: TIERS3[2].y1 - yCenter, alpha: 0.16 },
+        { layer: 1, r: R * 1.16,          y: TIERS3[2].y1 - yCenter, alpha: 0.22, off: 0.30 }
       ],
       height: capY - yGround,
-      width: tiers[0].r * 2
+      width: PODX1 - PODX0
     };
   }
 

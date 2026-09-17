@@ -63,7 +63,6 @@
     this.buildQueue();
     this.drawQueue();
 
-    this.drawSign();                              // название на крыле
     this.drawAir();       // воздух поверх массы — он касается и линий
     ctx.globalAlpha = 1;
   };

@@ -1,29 +1,21 @@
     /* ======== флаги ========
-       На фотографиях у входа стоят флагштоки. Полотнище само по себе
-       даёт движение — и это движение живое, а не зациклённое. */
+       На фотографиях у входа стоят флагштоки. Раньше — у входа в
+       круглый стилобат; теперь у свободно стоящего портала, тем же
+       рядом из трёх. Полотнище само по себе даёт движение — и это
+       движение живое, а не зациклённое. */
     var flags = [];
     for (var fi = 0; fi < 3; fi++) {
-      var fa2 = FRONT_A + (fi - 1) * 0.30;
-      var fr2 = tiers[1].r + 0.20;
-      var fx2 = Math.cos(fa2) * fr2, fz2 = Math.sin(fa2) * fr2;
+      var ffx = PORTAL_X + (fi - 1) * 0.34;
+      var ffz = PORTAL_Z + 0.55;
       flags.push({
-        b: addXYZ(fx2, tiers[1].y1, fz2),
-        t: addXYZ(fx2, tiers[1].y1 + 0.62, fz2),
+        b: addXYZ(ffx, pgY, ffz),
+        t: addXYZ(ffx, pgY + 0.62, ffz),
         ph: fi * 1.7
       });
     }
 
-    /* ======== надпись на крыле ========
-       Плита с названием на фасаде заднего этажа. Четыре точки — по ним
-       движок и разложит текст в перспективе. */
-    var sgz = WZB - 0.005;
-    var sign = {
-      a: addXYZ(-2.35, WY2 - 0.40, sgz),   // левый низ
-      b: addXYZ(-4.05, WY2 - 0.40, sgz),   // правый низ
-      d: addXYZ(-2.35, WY2 - 0.14, sgz),   // левый верх
-      face: bFront,
-      text: 'ԵՐԻՏԱՍԱՐԴՈՒԹՅԱՆ ՊԱԼԱՏ'
-    };
+    /* Надписи на крыле больше нет — название по фото не подтверждено
+       (см. правило про выдуманные детали в docs/PRAVILA.md). */
 
     /* ======== огни города внизу ========
        Ночью нижняя половина кадра проваливалась в черноту: светилась
@@ -48,60 +40,53 @@
     var lamps = [];
     var LAMP_H = 0.34;
 
-    // мачта не должна вырастать посреди крыши корпуса
+    // мачта не должна вырастать посреди подиума, крыла или свода
     function lampFree(x, z) {
-      if (x > 0.9 && x < 5.0 && Math.abs(z) < 1.5) return false;   // корпус
-      if (x < -1.0 && x > -4.7 && Math.abs(z) < 1.1) return false; // крыло
+      if (x > PODX0 - 0.2 && x < PODX1 + 0.2 && z > -3.3 && z < 0.6) return false;  // подиум
+      if (x > WX1 - 0.2 && x < WX0 + 0.2 && Math.abs(z) < WZ + 0.2) return false;   // крыло
+      if (x > HX1 - 0.2 && x < HX0 + 0.2 && Math.abs(z) < HZ + 0.2) return false;   // свод
       return true;
     }
 
-    // Кольцо вокруг стилобата — по кругу, поэтому с любой стороны
-    // видно неравномерно: то гуще, то реже, смотря по углу обзора.
-    for (var li = 0; li < 14; li++) {
-      var la = (li / 14) * Math.PI * 2 + 0.22;
-      var lr = tiers[0].r + 0.55;
-      var lx2 = Math.cos(la) * lr, lz2 = Math.sin(la) * lr;
+    // Ряд фонарей вдоль открытого паркета перед подиумом.
+    for (var li = 0; li < 10; li++) {
+      var lx2 = PODX0 + (PODX1 - PODX0) * (li / 9);
+      var lz2 = TIERS3[0].z0 - 0.45;
       if (!lampFree(lx2, lz2)) continue;
       lamps.push({
-        b: addXYZ(lx2, groundY(lr), lz2),
-        t: addXYZ(lx2, groundY(lr) + LAMP_H, lz2)
+        b: addXYZ(lx2, groundY(Math.hypot(lx2, lz2)), lz2),
+        t: addXYZ(lx2, groundY(Math.hypot(lx2, lz2)) + LAMP_H, lz2)
       });
     }
 
-    /* У входа — не вразнобой, а двумя чёткими рядами по сторонам от
-       прохода, как и положено на парадном подходе (по описаниям —
-       от подножия холма к зданию вёл длинный марш лестниц; фонари
-       вдоль него стоят по прямой, а не по дуге, как раньше). */
-    var frontDX = -Math.sin(FRONT_A), frontDZ = Math.cos(FRONT_A);
+    /* У портала и вдоль длинной лестницы — двумя чёткими рядами по
+       сторонам от прохода, как и положено на парадном подходе. */
     for (var side = -1; side <= 1; side += 2) {
-      for (var step = 0; step < 3; step++) {
-        var lr2 = tiers[0].r + 0.7 + step * 0.8;
-        var lx3 = Math.cos(FRONT_A) * lr2 + frontDX * side * 0.55;
-        var lz3 = Math.sin(FRONT_A) * lr2 + frontDZ * side * 0.55;
+      for (var step = 0; step < 4; step++) {
+        var lz3 = PORTAL_Z + 0.3 - step * 0.95;
+        var lx3 = PORTAL_X + side * (PORTAL_W * 0.5 + 0.45);
         if (!lampFree(lx3, lz3)) continue;
         lamps.push({
-          b: addXYZ(lx3, groundY(lr2), lz3),
-          t: addXYZ(lx3, groundY(lr2) + LAMP_H, lz3)
+          b: addXYZ(lx3, groundY(Math.hypot(lx3, lz3)), lz3),
+          t: addXYZ(lx3, groundY(Math.hypot(lx3, lz3)) + LAMP_H, lz3)
         });
       }
     }
 
     /* ======== скамейки ========
        Мелочь, которой не замечаешь, но без которой площадь не похожа
-       на место, где бывают люди. */
+       на место, где бывают люди. Стоят вдоль паркета перед подиумом. */
     var benches = [];
-    for (var bi3 = 0; bi3 < 10; bi3++) {
-      var ba = (bi3 / 10) * Math.PI * 2 + 0.5;
-      var br = tiers[0].r + 0.95;
-      var bx3 = Math.cos(ba) * br, bz3 = Math.sin(ba) * br;
+    for (var bi3 = 0; bi3 < 8; bi3++) {
+      var bx3 = HX1 + 0.3 + (PODX1 - HX1 - 0.6) * (bi3 / 7);
+      var bz3 = TIERS3[0].z0 - 0.85;
       if (!lampFree(bx3, bz3)) continue;
-      var byy = groundY(br);
-      var tx3 = -Math.sin(ba) * 0.17, tz3 = Math.cos(ba) * 0.17;
+      var byy = groundY(Math.hypot(bx3, bz3));
       benches.push({
-        a: addXYZ(bx3 - tx3, byy + 0.075, bz3 - tz3),
-        b: addXYZ(bx3 + tx3, byy + 0.075, bz3 + tz3),
-        c: addXYZ(bx3 - tx3, byy, bz3 - tz3),
-        d: addXYZ(bx3 + tx3, byy, bz3 + tz3)
+        a: addXYZ(bx3 - 0.17, byy + 0.075, bz3),
+        b: addXYZ(bx3 + 0.17, byy + 0.075, bz3),
+        c: addXYZ(bx3 - 0.17, byy, bz3),
+        d: addXYZ(bx3 + 0.17, byy, bz3)
       });
     }
 

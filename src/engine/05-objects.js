@@ -110,6 +110,12 @@
     this.fillShells('wing',     C_HALL);
     this.drawCells(5);
     this.fillShells('wingGlass', C_GLASS);
+    /* Задний этаж-уступ — раньше эти грани заводились в модели, но
+       никто их не красил: коробка стояла невидимой, держась на одних
+       линиях. */
+    this.fillShells('wingUp',     C_HALL);
+    this.fillShells('wingUpCorn', C_SLAB);
+    this.fillShells('wingUpTop',  C_DECK);
     this.fillShells('wingCorn', C_SLAB);
     this.fillShells('wingSlab', C_SLAB);
     this.fillShells('wingTop',  C_DECK);

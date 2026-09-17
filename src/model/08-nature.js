@@ -11,13 +11,13 @@
     var trnd = seeded(9091);
 
     function freeSpot(x, z) {
-      /* Сектор перед фасадом держим пустым: там вход, каскад лестниц и
-         подъём с дороги. Роща, посаженная сплошняком, закрывала именно
-         то, ради чего здание и разворачивают к себе. */
-      if (z < 0 && Math.abs(x) < Math.abs(z) * 0.9 + 1.6) return false;
-      if (x * x + z * z < 3.3 * 3.3) return false;              // стилобат
-      if (x > 0.9 && x < 5.3 && Math.abs(z) < 1.9) return false;  // корпус
-      if (x < -1.0 && x > -5.1 && Math.abs(z) < 1.5) return false; // крыло
+      /* Сектор перед фасадом держим пустым: там портал, зигзаг лестниц
+         и длинный подъём с дороги. Роща, посаженная сплошняком,
+         закрывала именно то, ради чего здание и разворачивают к себе. */
+      if (z < 0 && Math.abs(x - 1.4) < Math.abs(z) * 0.55 + 0.9) return false;
+      if (x > PODX0 - 0.3 && x < PODX1 + 0.3 && z > -3.4 && z < 0.6) return false;   // подиум
+      if (x > WX1 - 0.3 && x < WX0 + 0.3 && Math.abs(z) < WZ + 0.35) return false;   // крыло
+      if (x > HX1 - 0.3 && x < HX0 + 0.3 && Math.abs(z) < HZ + 0.35) return false;   // свод
       return true;
     }
 
@@ -41,21 +41,32 @@
       });
     }
 
-    /* ======== мощение ========
-       Трава прямо под зданием выглядела дачей. Вокруг стилобата всегда
-       была асфальтовая площадь, а от лестницы вниз шла дорожка. */
-    curPart = 2;
-    var PAV = 36;
-    var pavIn  = ring(PAV, tiers[0].r - 0.02, yGround + 0.004);
-    var pavOut = ring(PAV, 3.05, yGround + 0.004);
-    band('pave', pavOut, pavIn, 6, true);
+    /* Пара деревьев прямо у длинной лестницы — по бокам подъёма,
+       упрощённо (те же billboard-кроны, что и у остальной рощи). */
+    (function () {
+      var lstMidZ = (PORTAL_Z - 0.55 + (PORTAL_Z - 2.10)) * 0.5;
+      var sideX = [LSTX - LSTHW - 0.45, LSTX + LSTHW + 0.45];
+      for (var si = 0; si < 2; si++) {
+        var sx = sideX[si], sz = lstMidZ + (si - 0.5) * 0.6;
+        var wob2 = new Float32Array(10);
+        for (var w3 = 0; w3 < 10; w3++) wob2[w3] = 0.82 + trnd() * 0.30;
+        trees.push({
+          p: addXYZ(sx, groundY(Math.hypot(sx, sz)), sz),
+          h: 1.5 + trnd() * 0.6, w: 0.18 + trnd() * 0.05, wob: wob2,
+          tone: si, lean: (trnd() - 0.5) * 0.12
+        });
+      }
+    })();
 
-    // дорожка от лестницы к краю площадки
-    var pw = 0.34, pz0 = -(tiers[0].r + 0.36), pz1 = -4.60;
-    var ppa = addXYZ(-pw, groundY(3.0) + 0.005, pz0);
-    var ppb = addXYZ( pw, groundY(3.0) + 0.005, pz0);
-    var ppc = addXYZ( pw * 1.15, groundY(4.7) + 0.005, pz1);
-    var ppd = addXYZ(-pw * 1.15, groundY(4.7) + 0.005, pz1);
-    face('pave', ppa, ppb, ppc, ppd, 0, 1, 0);
+    /* ======== мощение ========
+       Трава прямо под зданием выглядела дачей. Перед подиумом и у
+       портала — простая мощёная площадка (прямоугольная: подиум и сам
+       не круглый). Дальше начинается склон — там уже трава. */
+    curPart = 2;
+    var pv0 = addXYZ(HX1 - 0.4, yGround + 0.004, -4.80);
+    var pv1 = addXYZ(PODX1 + 0.6, yGround + 0.004, -4.80);
+    var pv2 = addXYZ(PODX1 + 0.6, yGround + 0.004, 0.60);
+    var pv3 = addXYZ(HX1 - 0.4, yGround + 0.004, 0.60);
+    face('pave', pv0, pv1, pv2, pv3, 0, 1, 0);
     curPart = 0;
 

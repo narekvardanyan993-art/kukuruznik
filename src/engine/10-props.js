@@ -208,6 +208,25 @@
     ctx.globalAlpha = 1;
   };
 
+  /* Столбики галерей вдоль открытого края каждого яруса подиума —
+     лёгкий навес без своей крыши, тот же приём, что у скамеек: одна
+     заливка-обводка на все столбики сразу. */
+  Engine.prototype.drawGalleryPosts = function () {
+    var G = this.model.galleryPosts;
+    if (!G || !G.length) return;
+    var ctx = this.ctx, px = this.px, py = this.py;
+    ctx.beginPath();
+    for (var i = 0; i < G.length; i++) {
+      ctx.moveTo(px[G[i].b], py[G[i].b]);
+      ctx.lineTo(px[G[i].t], py[G[i].t]);
+    }
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = Math.max(0.8, this.S * 0.008);
+    ctx.globalAlpha = 0.60;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  };
+
   /* Фонари. Днём — тонкая мачта с головкой, ночью ещё и тёплое пятно
      света: без него площадка остаётся чёрной, сколько ни зажигай окон. */
   Engine.prototype.drawLamps = function () {

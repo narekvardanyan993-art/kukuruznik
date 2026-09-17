@@ -57,9 +57,19 @@
 
     // ---- ключевые высоты ----
     var yGround = 0.00;
-    var tiers = [
-      { r: 2.10, y0: 0.00, y1: 0.22 },
-      { r: 1.58, y0: 0.22, y1: 0.50 }
+
+    /* Подиум — большая ПЛОСКАЯ кровля, не круглый ярус: прямоугольная,
+       вытянутая вдоль склона, башня стоит у её задней (верхней,
+       уводящей в горку) кромки, а не в центре. К дороге (−Z) она
+       спускается тремя уступами — прямоугольными ярусами меньше и
+       ниже друг друга. PODX0/PODX1 — общая для всех трёх ширина,
+       поэтому уступ виден только со стороны фасада (−Z), а по бокам
+       и сзади ярусы идут вровень друг над другом. */
+    var PODX0 = -1.35, PODX1 = 3.90;
+    var TIERS3 = [
+      { z0: -3.10, z1: 0.15, y0: 0.00, y1: 0.12 },
+      { z0: -2.05, z1: 0.15, y0: 0.12, y1: 0.30 },
+      { z0: -1.00, z1: 0.15, y0: 0.30, y1: 0.50 }
     ];
     var shaftY0 = 0.50;
     var shaftY1 = shaftY0 + F * fh;     // верх ствола
@@ -183,6 +193,37 @@
       return ids;
     }
 
+    /* Прямоугольный объём (не круглый — башне нужны и такие: подиум,
+       крыло, соседние дома). Четыре стены между двумя прямоугольными
+       контурами на разной высоте; каждая стена — со своей нормалью
+       наружу, а не вычисленной по кругу, как в band(). Возвращает
+       нижнее/верхнее кольцо точек и грани стен по сторонам
+       (0:−Z, 1:+X, 2:+Z, 3:−X), плюс сама ставит рёбра и линии между
+       ними и добавляет вертикальные стыки в контур силуэта. */
+    var RECT_NRM = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+    function rectBox(kind, x0, x1, z0, z1, y0, y1, skipOutline) {
+      var xs = [x0, x1, x1, x0], zs = [z0, z0, z1, z1];
+      var bb = new Array(4), tt = new Array(4);
+      for (var k = 0; k < 4; k++) {
+        bb[k] = addXYZ(xs[k], y0, zs[k]);
+        tt[k] = addXYZ(xs[k], y1, zs[k]);
+      }
+      var faces = new Array(4);
+      for (var k = 0; k < 4; k++) {
+        var k1 = (k + 1) % 4;
+        faces[k] = face(kind, bb[k], bb[k1], tt[k1], tt[k],
+                         RECT_NRM[k][0], 0, RECT_NRM[k][1]);
+      }
+      for (var k = 0; k < 4; k++) {
+        var k1 = (k + 1) % 4, kp = (k + 3) % 4;
+        line(bb[k], bb[k1], MED, faces[k], faces[k]);
+        line(tt[k], tt[k1], MED, faces[k], faces[k]);
+        line(bb[k], tt[k], THIN, faces[kp], faces[k]);
+        if (!skipOutline) { outline.push(bb[k], tt[k], faces[kp], faces[k]); outlineParts.push(curPart); }
+      }
+      return { bb: bb, tt: tt, faces: faces };
+    }
+
     var rnd = seeded(4242);
 
     // ======== земля ========
@@ -195,19 +236,19 @@
        и город лежит НИЖЕ здания, а не рядом с ним. */
     var GN = 48, rGround = 13.0;
 
-    /* Склон срезан каменными подпорными террасами — как на фотографии.
-       Плавный перегиб был слишком робким: на экране он читался просто
-       чуть скошенной травой. Ступени из камня врезаются в глаз сразу
-       и говорят «это вершина» без всяких объяснений. */
+    /* Склон срезан ОДНОЙ каменной подпорной стеной вдоль дороги внизу —
+       не лесенкой в четыре яруса, как раньше. Дальше, между стеной и
+       краем участка, — просто травяной склон без ступеней: рельеф
+       нужен, чтобы город лежал ниже здания, а не как самоцель. */
     /* Масштаб: башня высотой 5.2 единицы — это около 60 метров, значит
        единица примерно 11 метров. Подпорная стенка в жизни метра три,
        то есть 0.27 единицы. Первый заход дал стенки по 1.05 — вышли
-       заборы в четыре этажа, накрывшие треть экрана. */
+       заборы в четыре этажа, накрывшие треть экрана. Радиус первой
+       стены отодвинут за угол прямоугольного подиума и крыла с
+       пристройкой, чтобы они не протыкали склон. */
     var TR = [
-      { r: 4.90, y: yGround },
-      { r: 6.10, y: yGround - 0.28 },
-      { r: 7.40, y: yGround - 0.58 },
-      { r: 8.80, y: yGround - 0.90 }
+      { r: 6.30, y: yGround },
+      { r: 8.20, y: yGround - 0.42 }
     ];
     var hFoot = yGround - 1.75;    // низ склона у края земли
 
@@ -263,127 +304,137 @@
     }
     curPart = 0;
 
-    // ======== стилобат ========
+    // ======== подиум: три прямоугольных уступа к дороге ========
+    /* Большая плоская кровля вместо круглого стилобата. Все три яруса
+       делят одну ширину (PODX0..PODX1) и одну заднюю кромку (z1) —
+       поэтому уступ виден только со стороны фасада (−Z, к дороге), а
+       по бокам и сзади ярусы стоят точно друг над другом, без щелей.
+       Башня стоит на верхнем (третьем) ярусе, у его задней кромки. */
     curPart = 3;
-    var botR = [], topR = [], midR = [], wallIds = [];
-    for (var t = 0; t < tiers.length; t++) {
-      botR[t] = ring(M, tiers[t].r, tiers[t].y0);
-      topR[t] = ring(M, tiers[t].r, tiers[t].y1);
-      midR[t] = ring(M, tiers[t].r, (tiers[t].y0 + tiers[t].y1) * 0.5);
+    var tierBoxes = [];
+    for (var t = 0; t < TIERS3.length; t++) {
+      var tz = TIERS3[t];
+      tierBoxes[t] = rectBox('podium', PODX0, PODX1, tz.z0, tz.z1, tz.y0, tz.y1);
     }
-    for (var t = 0; t < tiers.length; t++) {
-      // Стену стилобата в контур не берём: она низкая, и её «край»
-      // на экране вырождается в одинокую точку.
-      wallIds[t] = band('podium', botR[t], topR[t], 0, true);
+
+    /* Открытая площадка каждого яруса — только та полоса, что не
+       накрыта следующим ярусом сверху (у верхнего яруса открыта вся
+       кровля целиком). */
+    function deckStrip(z0, z1, y) {
+      var a = addXYZ(PODX0, y, z0), b = addXYZ(PODX1, y, z0);
+      var c = addXYZ(PODX1, y, z1), d = addXYZ(PODX0, y, z1);
+      var id = face('deck', a, b, c, d, 0, 1, 0);
+      line(a, b, MED, id, id);
+      line(d, c, MED, id, id);
+      return { id: id, a: a, b: b, c: c, d: d };
     }
-    var deck1Ids = band('deck', topR[0], botR[1], 6);          // площадка нижней террасы
-    var deck2Ids = cap('deck', topR[1], addAxis(tiers[1].y1)); // верхняя площадка
+    var decks = [];
+    for (var t = 0; t < TIERS3.length; t++) {
+      var frontZ = TIERS3[t].z0;
+      var backZ  = (t + 1 < TIERS3.length) ? TIERS3[t + 1].z0 : TIERS3[t].z1;
+      decks[t] = deckStrip(frontZ, backZ, TIERS3[t].y1);
+      // шов между открытой площадкой и стеной яруса
+      line(decks[t].a, decks[t].d, THIN, decks[t].id, decks[t].id);
+      line(decks[t].b, decks[t].c, THIN, decks[t].id, decks[t].id);
+    }
 
-    ringLines(botR[0], MED,  null,      wallIds[0]);
-    ringLines(midR[0], THIN, wallIds[0], wallIds[0]);
-    ringLines(topR[0], MED,  wallIds[0], deck1Ids);
-    ringLines(botR[1], MED,  deck1Ids,  wallIds[1]);
-    ringLines(midR[1], THIN, wallIds[1], wallIds[1]);
-    ringLines(topR[1], MED,  wallIds[1], deck2Ids);
+    /* Галереи — лёгкие навесы вдоль открытого края каждого яруса.
+       Дёшево: столбики и один поручень, без своей крыши. У прохода
+       лестницы столбик пропускаем — иначе он стоит прямо в проёме. */
+    var galleryPosts = [];
+    var STAIR_GAP_X = [1.10, 1.85, 1.10];   // проход на каждом ярусе — см. STX0/STX1 ниже
+    for (var t = 0; t < TIERS3.length; t++) {
+      var gz = TIERS3[t].z0 + 0.03;
+      var gy0 = TIERS3[t].y1, gy1 = gy0 + 0.16;
+      var GP = 9;
+      for (var gi = 0; gi <= GP; gi++) {
+        var gx = PODX0 + (PODX1 - PODX0) * (gi / GP);
+        if (Math.abs(gx - STAIR_GAP_X[t]) < 0.5) continue;
+        galleryPosts.push({
+          b: addXYZ(gx, gy0, gz),
+          t: addXYZ(gx, gy1, gz)
+        });
+      }
+    }
 
-    /* Арочный портал. На фотографии это главный вход: большая арка,
-       врезанная в каменную стену стилобата ровно под башней. */
-    var portalA = FRONT_A - 0.19, portalB = FRONT_A + 0.19;
-    cells.push({
-      grp: 3, arch: true,
-      a: addPt(portalB, tiers[0].r + 0.01, yGround + 0.01),
-      b: addPt(portalA, tiers[0].r + 0.01, yGround + 0.01),
-      c: addPt(portalA, tiers[0].r + 0.01, tiers[0].y1 - 0.01),
-      d: addPt(portalB, tiers[0].r + 0.01, tiers[0].y1 - 0.01),
-      nx: Math.cos(FRONT_A), ny: 0, nz: Math.sin(FRONT_A),
-      vis: false, lit: 0
-    });
+    /* Простые объёмы на кровле верхнего яруса — по фото «Вид с холма»
+       там стоит пара служебных построек, а не голая плита. Обычные
+       коробки с плоской крышей, без окон и лоджий. */
+    var roofBoxes = [
+      { x0: 2.35, x1: 3.55, z0: -0.85, z1: -0.10, h: 0.30 },
+      { x0: 2.55, x1: 3.35, z0: 0.20,  z1: 0.60,  h: 0.20 }
+    ];
+    for (var rb2 = 0; rb2 < roofBoxes.length; rb2++) {
+      var rB = roofBoxes[rb2];
+      var box = rectBox('podium', rB.x0, rB.x1, rB.z0, rB.z1, TIERS3[2].y1, TIERS3[2].y1 + rB.h);
+      var topId = face('deck', box.tt[0], box.tt[1], box.tt[2], box.tt[3], 0, 1, 0);
+      for (var bk = 0; bk < 4; bk++) line(box.tt[bk], box.tt[(bk + 1) % 4], THIN, topId, topId);
+    }
 
-    // ======== лестницы ========
-    /* Два марша уступами. Каждый стоит СНАРУЖИ той террасы, на которую
-       ведёт, и потому нигде не врезается в стилобат. */
-    function stairFlight(xTop, xBot, yTop, yBot, halfW, steps) {
+    // ======== лестницы-зигзаг: земля → ярус 0 → ярус 1 → ярус 2 ========
+    /* Марш идёт вдоль Z (к дороге), а не по кругу, как раньше. Каждый
+       следующий марш сдвинут по X в другую сторону от предыдущего —
+       отсюда и «зигзаг», а не один прямой марш через все три яруса. */
+    function stairFlightZ(xC, halfW, zTop, zBot, yTop, yBot, steps) {
       var rise = (yTop - yBot) / steps;
-      var run  = (xBot - xTop) / steps;
+      var run  = (zBot - zTop) / steps;
       for (var i = 0; i < steps; i++) {
         var yH = yTop - rise * i;
-        var xI = xTop + run * i;
-        var xO = xTop + run * (i + 1);
-
-        var aN = addXYZ(xI, yH, -halfW), aF = addXYZ(xI, yH, halfW);
-        var bN = addXYZ(xO, yH, -halfW), bF = addXYZ(xO, yH, halfW);
-        var cN = addXYZ(xO, yH - rise, -halfW), cF = addXYZ(xO, yH - rise, halfW);
-
-        var tread = face('deck',   aN, bN, bF, aF, 0, 1, 0);
-        var riser = face('podium', bN, cN, cF, bF, -1, 0, 0);
-        line(bN, bF, MED, tread, riser);       // светлый край ступени
+        var zI = zTop + run * i, zO = zTop + run * (i + 1);
+        var aL = addXYZ(xC - halfW, yH, zI), aR = addXYZ(xC + halfW, yH, zI);
+        var bL = addXYZ(xC - halfW, yH, zO), bR = addXYZ(xC + halfW, yH, zO);
+        var cL = addXYZ(xC - halfW, yH - rise, zO), cR = addXYZ(xC + halfW, yH - rise, zO);
+        var tread = face('deck', aR, aL, bL, bR, 0, 1, 0);
+        var riser = face('podium', bL, cL, cR, bR, 0, 0, -1);
+        line(bL, bR, MED, tread, riser);
       }
-      var tN = addXYZ(xTop, yTop, -halfW), tF = addXYZ(xTop, yTop, halfW);
-      var oN = addXYZ(xBot, yBot, -halfW), oF = addXYZ(xBot, yBot, halfW);
-      var gN = addXYZ(xTop, yBot, -halfW), gF = addXYZ(xTop, yBot, halfW);
-      var chN = face('podium', tN, oN, gN, gN, 0, 0, -1);
-      var chF = face('podium', oF, tF, gF, gF, 0, 0, 1);
-      line(tN, oN, MED, chN, chN);
-      line(tF, oF, MED, chF, chF);
+      var tL = addXYZ(xC - halfW, yTop, zTop), tR = addXYZ(xC + halfW, yTop, zTop);
+      var oL = addXYZ(xC - halfW, yBot, zBot), oR = addXYZ(xC + halfW, yBot, zBot);
+      var gL = addXYZ(xC - halfW, yBot, zTop), gR = addXYZ(xC + halfW, yBot, zTop);
+      var chL = face('podium', tL, oL, gL, gL, -1, 0, 0);
+      var chR = face('podium', oR, tR, gR, gR, 1, 0, 0);
+      line(tL, oL, MED, chL, chL);
+      line(tR, oR, MED, chR, chR);
     }
-    /* Лестницы. Террасы круглые, поэтому и марши круглые: прямой
-       марш упирался в дугу и стыковался с ней только серединой, а по
-       краям оставались щели — из-за них лестница выглядела решёткой,
-       лежащей рядом со зданием.
+    var STX0 = 1.10, STX1 = 1.85, STHW = 0.42;
+    stairFlightZ(STX0, STHW, TIERS3[2].z0, TIERS3[1].z0 + 0.55, TIERS3[2].y1, TIERS3[1].y1, 4);
+    stairFlightZ(STX1, STHW, TIERS3[1].z0, TIERS3[0].z0 + 0.55, TIERS3[1].y1, TIERS3[0].y1, 4);
+    stairFlightZ(STX0, STHW, TIERS3[0].z0, TIERS3[0].z0 - 0.90, TIERS3[0].y1, yGround,     3);
 
-       Теперь это ступени-дуги, разбегающиеся наружу по сектору фасада.
-       Каждая ступень — проступь (горизонтальная) и подступёнок
-       (вертикальный), плюс закрытые щёки по краям сектора. */
-    var FRONT = FRONT_A;              // сторона фасада: туда смотрит −Z
-
-    function stairArc(rIn, yTop, yBot, half, steps, depth) {
-      var K = 12;
-      var a0 = FRONT - half, a1 = FRONT + half;
-      var rise = (yTop - yBot) / steps;
-      var run  = depth / steps;
-
-      for (var s2 = 0; s2 < steps; s2++) {
-        var yT = yTop - rise * s2;
-        var r0 = rIn + run * s2, r1 = rIn + run * (s2 + 1);
-        var inner = [], outer = [], down = [];
-        for (var i = 0; i <= K; i++) {
-          var a = a0 + (a1 - a0) * (i / K);
-          inner.push(addPt(a, r0, yT));
-          outer.push(addPt(a, r1, yT));
-          down.push(addPt(a, r1, yT - rise));
-        }
-        for (var i = 0; i < K; i++) {
-          var am = a0 + (a1 - a0) * ((i + 0.5) / K);
-          var tread = face('deck', inner[i], outer[i], outer[i + 1], inner[i + 1],
-                           0, 1, 0);
-          var riser = face('podium', outer[i], down[i], down[i + 1], outer[i + 1],
-                           Math.cos(am), 0, Math.sin(am));
-          /* Кромку ступени привязываем только к подступёнку. Проступь
-             смотрит вверх и «видна» всегда, и из-за неё дальние ступени
-             прочерчивались тёмными закорючками сбоку от башни. */
-          line(outer[i], outer[i + 1], MED, riser, riser);
-        }
-      }
-
-      // щёки по краям сектора — без них марш висит в воздухе
-      for (var e = 0; e < 2; e++) {
-        var ae = e === 0 ? a0 : a1;
-        var sgn = e === 0 ? -1 : 1;
-        var p1 = addPt(ae, rIn, yTop);
-        var p2 = addPt(ae, rIn + depth, yBot);
-        var p3 = addPt(ae, rIn + depth, yBot - 0.001);
-        var p4 = addPt(ae, rIn, yBot);
-        /* Щека только закрывает объём. Линий на ней нет: она стоит
-           почти ребром к глазу, и любая линия на ней превращалась
-           в тёмную закорючку сбоку от башни. */
-        face('podium', p1, p2, p3, p4,
-             -Math.sin(ae) * sgn, 0, Math.cos(ae) * sgn);
-      }
+    // ======== свободно стоящий портал ========
+    /* Арка стоит отдельно от стены, посреди подхода к зданию — как
+       ворота, а не врезанный в стилобат проём. Две тонкие опоры и
+       плоская арочная перемычка между ними, видная с обеих сторон. */
+    var PORTAL_X = STX0, PORTAL_Z = TIERS3[0].z0 - 1.55;
+    var PORTAL_W = 0.95, PORTAL_PW = 0.14, PORTAL_H = 0.62, PORTAL_TOPH = 0.20;
+    var pgY = groundY(Math.hypot(PORTAL_X, PORTAL_Z));
+    for (var ps = -1; ps <= 1; ps += 2) {
+      var pcx = PORTAL_X + ps * PORTAL_W * 0.5;
+      rectBox('podium', pcx - PORTAL_PW * 0.5, pcx + PORTAL_PW * 0.5,
+              PORTAL_Z - PORTAL_PW * 0.5, PORTAL_Z + PORTAL_PW * 0.5,
+              pgY, pgY + PORTAL_H, true);
     }
+    var lintelY0 = pgY + PORTAL_H - 0.02, lintelY1 = pgY + PORTAL_H + PORTAL_TOPH;
+    var lintelX0 = PORTAL_X - PORTAL_W * 0.5 - PORTAL_PW * 0.5;
+    var lintelX1 = PORTAL_X + PORTAL_W * 0.5 + PORTAL_PW * 0.5;
+    cells.push({
+      grp: 3, arch: true,
+      a: addXYZ(lintelX1, lintelY0, PORTAL_Z), b: addXYZ(lintelX0, lintelY0, PORTAL_Z),
+      c: addXYZ(lintelX0, lintelY1, PORTAL_Z), d: addXYZ(lintelX1, lintelY1, PORTAL_Z),
+      nx: 0, ny: 0, nz: -1, vis: false, lit: 0
+    });
+    cells.push({
+      grp: 3, arch: true,
+      a: addXYZ(lintelX0, lintelY0, PORTAL_Z), b: addXYZ(lintelX1, lintelY0, PORTAL_Z),
+      c: addXYZ(lintelX1, lintelY1, PORTAL_Z), d: addXYZ(lintelX0, lintelY1, PORTAL_Z),
+      nx: 0, ny: 0, nz: 1, vis: false, lit: 0
+    });
 
-    stairArc(tiers[1].r, tiers[1].y1, tiers[0].y1, 0.46, 4, 0.34);
-    stairArc(tiers[0].r, tiers[0].y1, yGround,     0.60, 4, 0.40);
-
+    // ======== длинная прямая лестница вверх по склону, к порталу ========
+    var LSTX = PORTAL_X, LSTHW = 0.50;
+    var lstZBot = PORTAL_Z - 2.10;
+    var lstYBot = groundY(Math.hypot(LSTX, lstZBot));
+    stairFlightZ(LSTX, LSTHW, PORTAL_Z - 0.55, lstZBot, pgY, lstYBot, 7);
     // ======== ствол ========
     curPart = 0;
     var pitch = (Math.PI * 2) / N;
@@ -502,82 +553,6 @@
 
     var spin1 = pos.length / 3;
     for (var sp2 = spinShell0; sp2 < shells.length; sp2++) shells[sp2].spin = true;
-
-    // ======== нижний корпус с волнистой крышей ========
-    curPart = 4;
-    var HX0 = 1.32, HX1 = 4.60;     // корпус вытянут вдоль оси X
-    var HZ  = 1.16;                 // половина ширины
-    var HT  = 0.17;                 // толщина плиты кровли
-    var HK  = 26;                   // точек вдоль волны
-
-    // Один плавный период на всю длину: полтора коротких читались
-    // горной грядой, а не кровлей.
-    function roofTopY(u) { return 1.18 + 0.27 * Math.sin(u * 6.6 - 0.8); }
-
-    var hGndN = [], hGndF = [], hBotN = [], hBotF = [], hTopN = [], hTopF = [];
-    var hCrsN = [], hCrsF = [];
-    var hGtN = [], hGtF = [], hGbN = [], hGbF = [];   // лента остекления
-    var hCourse = 0.42;             // ряд кладки по стене
-    for (var i = 0; i <= HK; i++) {
-      var u = i / HK;
-      var hx = HX0 + (HX1 - HX0) * u;
-      var yt = roofTopY(u), yb = yt - HT;
-      hGndN.push(addXYZ(hx, yGround, -HZ));  hGndF.push(addXYZ(hx, yGround, HZ));
-      hCrsN.push(addXYZ(hx, hCourse, -HZ));  hCrsF.push(addXYZ(hx, hCourse, HZ));
-      hBotN.push(addXYZ(hx, yb, -HZ));       hBotF.push(addXYZ(hx, yb, HZ));
-      hTopN.push(addXYZ(hx, yt, -HZ));       hTopF.push(addXYZ(hx, yt, HZ));
-
-      /* Лента остекления идёт под самой кровлей и повторяет волну.
-         Глухая стена без единого окна читается как забор, а не как
-         здание — это и был главный источник «картонности». */
-      var gt = yb - 0.06, gb = yb - 0.40;
-      hGtN.push(addXYZ(hx, gt, -HZ));        hGtF.push(addXYZ(hx, gt, HZ));
-      hGbN.push(addXYZ(hx, gb, -HZ));        hGbF.push(addXYZ(hx, gb, HZ));
-    }
-
-    for (var i = 0; i < HK; i++) {
-      var wN = face('hall', hGndN[i], hGndN[i + 1], hBotN[i + 1], hBotN[i], 0, 0, -1);
-      var wF = face('hall', hGndF[i + 1], hGndF[i], hBotF[i], hBotF[i + 1], 0, 0, 1);
-      var sN = face('slab', hBotN[i], hBotN[i + 1], hTopN[i + 1], hTopN[i], 0, 0, -1);
-      var sF = face('slab', hBotF[i + 1], hBotF[i], hTopF[i], hTopF[i + 1], 0, 0, 1);
-      var rT = face('slabTop', hTopN[i], hTopN[i + 1], hTopF[i + 1], hTopF[i], 0, 1, 0);
-
-      var gN = face('hallGlass', hGbN[i], hGbN[i + 1], hGtN[i + 1], hGtN[i], 0, 0, -1);
-      var gF = face('hallGlass', hGbF[i + 1], hGbF[i], hGtF[i], hGtF[i + 1], 0, 0, 1);
-      line(hGtN[i], hGtN[i + 1], THIN, gN, gN);
-      line(hGbN[i], hGbN[i + 1], THIN, gN, gN);
-      line(hGtF[i], hGtF[i + 1], THIN, gF, gF);
-      line(hGbF[i], hGbF[i + 1], THIN, gF, gF);
-      if (i % 2 === 0) {                       // импосты остекления
-        line(hGbN[i], hGtN[i], THIN, gN, gN);
-        line(hGbF[i], hGtF[i], THIN, gF, gF);
-      }
-
-      line(hTopN[i], hTopN[i + 1], MED,  sN, rT);   // волна, ближняя сторона
-      line(hTopF[i], hTopF[i + 1], MED,  sF, rT);   // волна, дальняя сторона
-      line(hBotN[i], hBotN[i + 1], THIN, wN, sN);
-      line(hBotF[i], hBotF[i + 1], THIN, wF, sF);
-      /* Поперечное ребро кровли. Без него плита — просто белое пятно
-         размером с полздания, и весь корпус выглядит картонным. */
-      if (i % 4 === 2) line(hTopN[i], hTopF[i], MED, rT, rT);
-      line(hGndN[i], hGndN[i + 1], MED,  wN, wN);
-      line(hGndF[i], hGndF[i + 1], MED,  wF, wF);
-      line(hCrsN[i], hCrsN[i + 1], THIN, wN, wN);
-      line(hCrsF[i], hCrsF[i + 1], THIN, wF, wF);
-    }
-
-    for (var e = 0; e < 2; e++) {
-      var k = e === 0 ? 0 : HK;
-      var nx = e === 0 ? -1 : 1;
-      var n0 = e === 0 ? hGndF[0] : hGndN[HK], n1 = e === 0 ? hGndN[0] : hGndF[HK];
-      var n2 = e === 0 ? hBotN[0] : hBotF[HK], n3 = e === 0 ? hBotF[0] : hBotN[HK];
-      var eW = face('hall', n0, n1, n2, n3, nx, 0, 0);
-      var eS = face('slab', hBotF[k], hBotN[k], hTopN[k], hTopF[k], nx, 0, 0);
-      line(hGndN[k], hTopN[k], MED,  eW, eS);
-      line(hGndF[k], hTopF[k], MED,  eW, eS);
-      line(hTopN[k], hTopF[k], MED,  eS, eS);
-      line(hBotN[k], hBotF[k], THIN, eW, eS);
-    }
 
     // ======== длинное низкое крыло с аркадой (слева от башни) ========
     /* На фотографии это самый узнаваемый кусок комплекса после самой
@@ -753,7 +728,7 @@
 
     /* Сами арки. Это те же «чешуйки», что и лоджии на стволе, только
        без балкона: узкий проём с полуовальным верхом, внутри тень. */
-    var AN = 11;
+    var AN = 9;
     var aY0 = 0.10, aY1 = 0.88;
     var aSpan = (WX1 - WX0) / AN;
     for (var i = 0; i < AN; i++) {
@@ -781,171 +756,97 @@
     ];
 
     curPart = 0;
+    /* Тень свода на левом конце крыла (hallShadow) теперь считает сам
+       свод — см. 06-lowblock.js. Он идёт следующим файлом и знает
+       HX0/HX1/HZ, а этот файл про них ничего не знает первым: свод
+       ставится ОТ края крыла (WX1), а не наоборот. */
 
-    /* Тень нижнего корпуса на земле. Сдвиг вбит теми же числами, что
-       и у круглых теней в движке: свет один на всю сцену. */
-    var SHX = 0.30, SHZ = -0.14, gp = 0.10;
-    var hallShadow = [
-      addXYZ(HX0 - gp + SHX, yGround, -HZ - gp + SHZ),
-      addXYZ(HX1 + gp + SHX, yGround, -HZ - gp + SHZ),
-      addXYZ(HX1 + gp + SHX, yGround,  HZ + gp + SHZ),
-      addXYZ(HX0 - gp + SHX, yGround,  HZ + gp + SHZ)
-    ];
+    // ======== торцевой объём со сводом-полуцилиндром ========
+    /* Стоит на левом конце длинного крыла (WX1 из 06-wing.js), продолжая
+       его дальше наружу. Волнистой крыши больше нет: вместо неё —
+       полукруглый свод, а торец, глядящий наружу, — большая остеклённая
+       арка. Ближний торец, что смотрит на крыло, наглухо закрыт стеной:
+       два объёма стоят впритык, а не срослись в один. */
+    curPart = 4;
+    var HX0 = WX1, HX1 = WX1 - 1.35;   // от края крыла — дальше наружу
+    var HZ  = WZ;                        // та же ширина, что у крыла
+    var HWY = WY;                        // высота стен до пят свода
+    var HN  = 8;                         // сечений вдоль длины свода
+    var HK  = 10;                        // граней полукруга свода — чем больше, тем глаже дуга
 
-    /* ======== соседние дома ========
-       Башня стояла одна посреди поля. В жизни она стоит в районе, и
-       именно соседи объясняют глазу, что это город, а не памятник в
-       чистом поле. Дома простые: коробка, плоская кровля, пояс окон.
-       Вдали цвет светлее и холоднее — та же воздушная перспектива,
-       что и у земли. */
-    var city = [], cityCenters = [], cityParts = [];
-    var crnd = seeded(31337);
-
-    /* Раньше дома садились по чистому кругу — угол и радиус оба
-       случайные. На экране это читалось как рулетка, а не район: одни
-       торчали за неровным краем земли (радиус доходил до 12.0, а край
-       на некоторых углах лежит ниже 12.3), другие стояли по одному
-       посреди пустоты. Теперь у района четыре стороны — как кучки
-       соседних дворов, а не забор из коробок по периметру — и радиус
-       не подходит к краю ближе чем на разумный запас. */
-    var CITY_CLUSTERS = [0.35, 2.10, 3.55, 5.15];
-
-    for (var c2 = 0; c2 < 140 && city.length < 14; c2++) {
-      var clusterA = CITY_CLUSTERS[c2 % CITY_CLUSTERS.length];
-      var cang = clusterA + (crnd() - 0.5) * 0.9;
-      var crad = 7.4 + crnd() * 3.4;
-      var ccx = Math.cos(cang) * crad, ccz = Math.sin(cang) * crad;
-      if (ccx > 0.5 && ccx < 6.4 && Math.abs(ccz) < 2.6) continue;   // за корпусом
-      if (ccx < -0.5 && ccx > -6.2 && Math.abs(ccz) < 2.4) continue; // за крылом
-
-      var bi = city.length;
-      curPart = 20 + bi;
-
-      var bw = 0.50 + crnd() * 0.70;      // половина длины
-      var bd = 0.42 + crnd() * 0.45;      // половина ширины
-      var bh = 0.55 + crnd() * 1.05;
-      var brot = crnd() * Math.PI;
-      var ca2 = Math.cos(brot), sa2 = Math.sin(brot);
-
-      function bpt(lx, lz, y) {
-        return addXYZ(ccx + lx * ca2 - lz * sa2, y, ccz + lx * sa2 + lz * ca2);
+    var profiles = [];
+    for (var hi = 0; hi <= HN; hi++) {
+      var hu = hi / HN;
+      var hx = HX0 + (HX1 - HX0) * hu;
+      var prof = [];
+      prof.push(addXYZ(hx, yGround, -HZ));               // 0: низ левой стены
+      for (var hk = 0; hk <= HK; hk++) {
+        var hang = Math.PI - Math.PI * (hk / HK);         // π → 0
+        prof.push(addXYZ(hx, HWY + HZ * Math.sin(hang), HZ * Math.cos(hang)));
       }
-      var lxs = [-bw, bw, bw, -bw], lzs = [-bd, -bd, bd, bd];
-      var nrm = [[0, -1], [1, 0], [0, 1], [-1, 0]];
-
-      /* Дома стоят на склоне, а не на уровне площадки: основание
-         опущено по рельефу. Именно это и читается как «город внизу». */
-      var cby = groundY(crad);
-      var shellStart = shells.length;
-      var bb = [], bt = [];
-      for (var k = 0; k < 4; k++) {
-        bb.push(bpt(lxs[k], lzs[k], cby));
-        bt.push(bpt(lxs[k], lzs[k], cby + bh));
-      }
-
-      var wf = [];
-      for (var k = 0; k < 4; k++) {
-        var k1 = (k + 1) % 4;
-        var nx2 = nrm[k][0] * ca2 - nrm[k][1] * sa2;
-        var nz2 = nrm[k][0] * sa2 + nrm[k][1] * ca2;
-        wf.push(shellRaw('city', bb[k], bb[k1], bt[k1], bt[k], nx2, 0, nz2));
-      }
-      var rf = shellRaw('cityTop', bt[0], bt[1], bt[2], bt[3], 0, 1, 0);
-
-      /* КРЫШИ. Сцену часто смотрят сверху, а плоский четырёхугольник
-         сверху — это просто серое пятно. Поэтому у каждого дома есть
-         парапет по краю и один служебный домик на кровле: выход с
-         лестницы или бак. Два простых объёма, а крыша сразу читается
-         как крыша. */
-      /* ВНИМАНИЕ на высоту. Дома стоят на склоне, их основание опущено
-         на cby. Стены строятся как (cby + bh), и парапет обязан считаться
-         так же. В первом заходе я написал просто bh — и парапет повис
-         на этаж выше крыши пустой рамой, будто футбольные ворота. */
-      var PARA = 0.075, INS = 0.10;
-      var yRoof = cby + bh;
-      var pb = [], pt = [];
-      for (var k2 = 0; k2 < 4; k2++) {
-        pb.push(bpt(lxs[k2] * (1 - INS / bw), lzs[k2] * (1 - INS / bd), yRoof));
-        pt.push(bpt(lxs[k2] * (1 - INS / bw), lzs[k2] * (1 - INS / bd), yRoof + PARA));
-      }
-      var tb = [], tt = [];
-      for (var k3 = 0; k3 < 4; k3++) {
-        tb.push(bpt(lxs[k3], lzs[k3], yRoof));
-        tt.push(bpt(lxs[k3], lzs[k3], yRoof + PARA));
-      }
-      for (var k4 = 0; k4 < 4; k4++) {
-        var k5 = (k4 + 1) % 4;
-        var nxp = nrm[k4][0] * ca2 - nrm[k4][1] * sa2;
-        var nzp = nrm[k4][0] * sa2 + nrm[k4][1] * ca2;
-        shellRaw('cityPara', tb[k4], tb[k5], tt[k5], tt[k4], nxp, 0, nzp);   // наружная стенка
-        shellRaw('cityPara', pt[k4], pt[k5], tt[k5], tt[k4], 0, 1, 0);       // верх парапета
-        shellRaw('cityPara', pb[k4], pb[k5], pt[k5], pt[k4], -nxp, 0, -nzp); // изнанка
-        line(tt[k4], tt[k5], THIN, rf, rf);
-      }
-
-      // служебный домик на кровле
-      var hx0 = bw * (0.12 + crnd() * 0.30), hz0 = bd * (0.10 + crnd() * 0.30);
-      var hw = bw * 0.26, hd = bd * 0.30, hh2 = 0.10 + crnd() * 0.09;
-      var ub = [], ut = [];
-      var uxs = [hx0 - hw, hx0 + hw, hx0 + hw, hx0 - hw];
-      var uzs = [hz0 - hd, hz0 - hd, hz0 + hd, hz0 + hd];
-      for (var k6 = 0; k6 < 4; k6++) {
-        ub.push(bpt(uxs[k6], uzs[k6], yRoof));
-        ut.push(bpt(uxs[k6], uzs[k6], yRoof + hh2));
-      }
-      for (var k7 = 0; k7 < 4; k7++) {
-        var k8 = (k7 + 1) % 4;
-        var nxu = nrm[k7][0] * ca2 - nrm[k7][1] * sa2;
-        var nzu = nrm[k7][0] * sa2 + nrm[k7][1] * ca2;
-        shellRaw('city', ub[k7], ub[k8], ut[k8], ut[k7], nxu, 0, nzu);
-        line(ut[k7], ut[k8], THIN, rf, rf);
-      }
-      shellRaw('cityTop', ut[0], ut[1], ut[2], ut[3], 0, 1, 0);
-
-      for (var k = 0; k < 4; k++) {
-        var k1 = (k + 1) % 4;
-        line(bb[k], bb[k1], MED,  wf[k], wf[k]);
-        line(bt[k], bt[k1], MED,  wf[k], rf);
-        line(bb[k], bt[k], MED,   wf[(k + 3) % 4], wf[k]);
-        /* Жирный контур силуэта дальним домам НЕ даём. Их заливка съедена
-           воздухом и почти сливается со склоном, а тяжёлая обводка
-           поверх превращала дом в пустой каркас — «недорисованное».
-           Обычных линий рёбер им достаточно. */
-      }
-
-      // пояс окон: одна лента на стену, дальше глаз всё равно не читает
-      var gy0 = cby + bh * 0.40, gy1 = cby + bh * 0.66;
-      for (var k = 0; k < 4; k++) {
-        var k1 = (k + 1) % 4;
-        var ix0 = lxs[k] + (lxs[k1] - lxs[k]) * 0.14;
-        var iz0 = lzs[k] + (lzs[k1] - lzs[k]) * 0.14;
-        var ix1 = lxs[k] + (lxs[k1] - lxs[k]) * 0.86;
-        var iz1 = lzs[k] + (lzs[k1] - lzs[k]) * 0.86;
-        var nx2 = nrm[k][0] * ca2 - nrm[k][1] * sa2;
-        var nz2 = nrm[k][0] * sa2 + nrm[k][1] * ca2;
-        var bandId = shellRaw('cityBand',
-                 bpt(ix0, iz0, gy0), bpt(ix1, iz1, gy0),
-                 bpt(ix1, iz1, gy1), bpt(ix0, iz0, gy1), nx2, 0, nz2);
-        var NW = 5;
-        for (var w3 = 1; w3 < NW; w3++) {
-          var tt = w3 / NW;
-          line(bpt(ix0 + (ix1 - ix0) * tt, iz0 + (iz1 - iz0) * tt, gy0),
-               bpt(ix0 + (ix1 - ix0) * tt, iz0 + (iz1 - iz0) * tt, gy1),
-               THIN, bandId, bandId);
-        }
-      }
-
-      // всем граням дома ставим его номер — по нему движок их и соберёт
-      // номер дома ставим ВСЕМ его граням, сколько бы их ни стало
-      for (var q2 = shellStart; q2 < shells.length; q2++) shells[q2].bld = bi;
-      city.push0 = 0;
-
-      city.push({ x: ccx, z: ccz, h: bh, lamp: crnd() });
-      cityCenters.push(ccx, cby + bh * 0.5 - yCenter, ccz);
-      cityParts.push(20 + bi);
+      prof.push(addXYZ(hx, yGround, HZ));                // последний: низ правой стены
+      profiles.push(prof);
     }
-    curPart = 0;
+    var PN = profiles[0].length;                          // = HK + 3
 
+    var hallShellsAt = [];                                 // грани по сечению i (для линий кромки)
+    for (var hi = 0; hi < HN; hi++) {
+      var p0 = profiles[hi], p1 = profiles[hi + 1];
+      var rowShells = [];
+      for (var pj = 0; pj < PN - 1; pj++) {
+        var isWall = (pj === 0 || pj === PN - 2);
+        var kind = isWall ? 'hall' : 'slab';
+        var midAng = Math.PI - Math.PI * ((pj - 0.5) / HK);
+        var nx0 = 0, ny0 = isWall ? 0 : Math.sin(midAng), nz0 = isWall ? (pj === 0 ? -1 : 1) : Math.cos(midAng);
+        var sid = face(kind, p0[pj], p0[pj + 1], p1[pj + 1], p1[pj], nx0, ny0, nz0);
+        rowShells.push(sid);
+        line(p0[pj], p0[pj + 1], THIN, sid, sid);
+      }
+      hallShellsAt.push(rowShells);
+      if (hi % 2 === 1) {
+        for (var pj2 = 1; pj2 < PN - 1; pj2++) line(p0[pj2], p1[pj2], THIN, rowShells[pj2 - 1], rowShells[pj2]);
+      }
+    }
+    // продольная кромка пят свода — там, где стена переходит в свод
+    for (var hi2 = 0; hi2 < HN; hi2++) {
+      line(profiles[hi2][1], profiles[hi2 + 1][1], MED, hallShellsAt[hi2][0], hallShellsAt[hi2][1]);
+      line(profiles[hi2][PN - 2], profiles[hi2 + 1][PN - 2], MED, hallShellsAt[hi2][PN - 3], hallShellsAt[hi2][PN - 2]);
+    }
+    // веер-заглушка: fan-триангуляция выпуклого профиля от точки 0
+    function fanCap(kind, prof, nx) {
+      var ids = [];
+      for (var i = 1; i < prof.length - 1; i++) {
+        ids.push(face(kind, prof[0], prof[i], prof[i + 1], prof[i + 1], nx, 0, 0));
+      }
+      return ids;
+    }
+    // ближний торец (к крылу) — глухая стена
+    var nearIds = fanCap('hall', profiles[0], 1);
+    for (var ni = 0; ni < profiles[0].length - 1; ni++) {
+      line(profiles[0][ni], profiles[0][ni + 1], THIN, nearIds[Math.max(0, ni - 1)], nearIds[Math.min(nearIds.length - 1, ni)]);
+    }
+    // дальний торец (наружу) — большая остеклённая арка
+    var farIds = fanCap('hallGlass', profiles[HN], -1);
+    for (var fi = 0; fi < profiles[HN].length - 1; fi++) {
+      line(profiles[HN][fi], profiles[HN][fi + 1], THIN, farIds[Math.max(0, fi - 1)], farIds[Math.min(farIds.length - 1, fi)]);
+    }
+
+    var hallShadow = [
+      addXYZ(HX0 + 0.30, yGround, -HZ - 0.10 - 0.14),
+      addXYZ(HX1 - 0.10 + 0.30, yGround, -HZ - 0.10 - 0.14),
+      addXYZ(HX1 - 0.10 + 0.30, yGround,  HZ + 0.10 - 0.14),
+      addXYZ(HX0 + 0.30, yGround,  HZ + 0.10 - 0.14)
+    ];
+    curPart = 0;
+    /* ======== соседние дома ========
+       По прямому указанию в задании на финальный вид сцены — соседние
+       дома НЕ делать (как и интерьеры, и склон ущелья). Раньше здесь
+       стояли 14 случайных коробок вокруг участка; теперь массив пуст,
+       а движок и без них корректно рисует пустые списки (проверено —
+       буквально везде идёт `if (!list) return` / `for (...; i<0; ...)`
+       по length). Дальний свет города внизу (см. 09-props.js, glow)
+       остаётся: это не объёмы, а точки тёплого света на склоне. */
+    var city = [], cityCenters = [], cityParts = [];
     /* ======== деревья вокруг ========
        Здание стояло на голой лужайке, и от этого вся сцена читалась
        макетом. Деревья — не украшение: они дают масштаб (глаз меряет
@@ -959,13 +860,13 @@
     var trnd = seeded(9091);
 
     function freeSpot(x, z) {
-      /* Сектор перед фасадом держим пустым: там вход, каскад лестниц и
-         подъём с дороги. Роща, посаженная сплошняком, закрывала именно
-         то, ради чего здание и разворачивают к себе. */
-      if (z < 0 && Math.abs(x) < Math.abs(z) * 0.9 + 1.6) return false;
-      if (x * x + z * z < 3.3 * 3.3) return false;              // стилобат
-      if (x > 0.9 && x < 5.3 && Math.abs(z) < 1.9) return false;  // корпус
-      if (x < -1.0 && x > -5.1 && Math.abs(z) < 1.5) return false; // крыло
+      /* Сектор перед фасадом держим пустым: там портал, зигзаг лестниц
+         и длинный подъём с дороги. Роща, посаженная сплошняком,
+         закрывала именно то, ради чего здание и разворачивают к себе. */
+      if (z < 0 && Math.abs(x - 1.4) < Math.abs(z) * 0.55 + 0.9) return false;
+      if (x > PODX0 - 0.3 && x < PODX1 + 0.3 && z > -3.4 && z < 0.6) return false;   // подиум
+      if (x > WX1 - 0.3 && x < WX0 + 0.3 && Math.abs(z) < WZ + 0.35) return false;   // крыло
+      if (x > HX1 - 0.3 && x < HX0 + 0.3 && Math.abs(z) < HZ + 0.35) return false;   // свод
       return true;
     }
 
@@ -989,50 +890,53 @@
       });
     }
 
-    /* ======== мощение ========
-       Трава прямо под зданием выглядела дачей. Вокруг стилобата всегда
-       была асфальтовая площадь, а от лестницы вниз шла дорожка. */
-    curPart = 2;
-    var PAV = 36;
-    var pavIn  = ring(PAV, tiers[0].r - 0.02, yGround + 0.004);
-    var pavOut = ring(PAV, 3.05, yGround + 0.004);
-    band('pave', pavOut, pavIn, 6, true);
+    /* Пара деревьев прямо у длинной лестницы — по бокам подъёма,
+       упрощённо (те же billboard-кроны, что и у остальной рощи). */
+    (function () {
+      var lstMidZ = (PORTAL_Z - 0.55 + (PORTAL_Z - 2.10)) * 0.5;
+      var sideX = [LSTX - LSTHW - 0.45, LSTX + LSTHW + 0.45];
+      for (var si = 0; si < 2; si++) {
+        var sx = sideX[si], sz = lstMidZ + (si - 0.5) * 0.6;
+        var wob2 = new Float32Array(10);
+        for (var w3 = 0; w3 < 10; w3++) wob2[w3] = 0.82 + trnd() * 0.30;
+        trees.push({
+          p: addXYZ(sx, groundY(Math.hypot(sx, sz)), sz),
+          h: 1.5 + trnd() * 0.6, w: 0.18 + trnd() * 0.05, wob: wob2,
+          tone: si, lean: (trnd() - 0.5) * 0.12
+        });
+      }
+    })();
 
-    // дорожка от лестницы к краю площадки
-    var pw = 0.34, pz0 = -(tiers[0].r + 0.36), pz1 = -4.60;
-    var ppa = addXYZ(-pw, groundY(3.0) + 0.005, pz0);
-    var ppb = addXYZ( pw, groundY(3.0) + 0.005, pz0);
-    var ppc = addXYZ( pw * 1.15, groundY(4.7) + 0.005, pz1);
-    var ppd = addXYZ(-pw * 1.15, groundY(4.7) + 0.005, pz1);
-    face('pave', ppa, ppb, ppc, ppd, 0, 1, 0);
+    /* ======== мощение ========
+       Трава прямо под зданием выглядела дачей. Перед подиумом и у
+       портала — простая мощёная площадка (прямоугольная: подиум и сам
+       не круглый). Дальше начинается склон — там уже трава. */
+    curPart = 2;
+    var pv0 = addXYZ(HX1 - 0.4, yGround + 0.004, -4.80);
+    var pv1 = addXYZ(PODX1 + 0.6, yGround + 0.004, -4.80);
+    var pv2 = addXYZ(PODX1 + 0.6, yGround + 0.004, 0.60);
+    var pv3 = addXYZ(HX1 - 0.4, yGround + 0.004, 0.60);
+    face('pave', pv0, pv1, pv2, pv3, 0, 1, 0);
     curPart = 0;
 
     /* ======== флаги ========
-       На фотографиях у входа стоят флагштоки. Полотнище само по себе
-       даёт движение — и это движение живое, а не зациклённое. */
+       На фотографиях у входа стоят флагштоки. Раньше — у входа в
+       круглый стилобат; теперь у свободно стоящего портала, тем же
+       рядом из трёх. Полотнище само по себе даёт движение — и это
+       движение живое, а не зациклённое. */
     var flags = [];
     for (var fi = 0; fi < 3; fi++) {
-      var fa2 = FRONT_A + (fi - 1) * 0.30;
-      var fr2 = tiers[1].r + 0.20;
-      var fx2 = Math.cos(fa2) * fr2, fz2 = Math.sin(fa2) * fr2;
+      var ffx = PORTAL_X + (fi - 1) * 0.34;
+      var ffz = PORTAL_Z + 0.55;
       flags.push({
-        b: addXYZ(fx2, tiers[1].y1, fz2),
-        t: addXYZ(fx2, tiers[1].y1 + 0.62, fz2),
+        b: addXYZ(ffx, pgY, ffz),
+        t: addXYZ(ffx, pgY + 0.62, ffz),
         ph: fi * 1.7
       });
     }
 
-    /* ======== надпись на крыле ========
-       Плита с названием на фасаде заднего этажа. Четыре точки — по ним
-       движок и разложит текст в перспективе. */
-    var sgz = WZB - 0.005;
-    var sign = {
-      a: addXYZ(-2.35, WY2 - 0.40, sgz),   // левый низ
-      b: addXYZ(-4.05, WY2 - 0.40, sgz),   // правый низ
-      d: addXYZ(-2.35, WY2 - 0.14, sgz),   // левый верх
-      face: bFront,
-      text: 'ԵՐԻՏԱՍԱՐԴՈՒԹՅԱՆ ՊԱԼԱՏ'
-    };
+    /* Надписи на крыле больше нет — название по фото не подтверждено
+       (см. правило про выдуманные детали в docs/PRAVILA.md). */
 
     /* ======== огни города внизу ========
        Ночью нижняя половина кадра проваливалась в черноту: светилась
@@ -1057,60 +961,53 @@
     var lamps = [];
     var LAMP_H = 0.34;
 
-    // мачта не должна вырастать посреди крыши корпуса
+    // мачта не должна вырастать посреди подиума, крыла или свода
     function lampFree(x, z) {
-      if (x > 0.9 && x < 5.0 && Math.abs(z) < 1.5) return false;   // корпус
-      if (x < -1.0 && x > -4.7 && Math.abs(z) < 1.1) return false; // крыло
+      if (x > PODX0 - 0.2 && x < PODX1 + 0.2 && z > -3.3 && z < 0.6) return false;  // подиум
+      if (x > WX1 - 0.2 && x < WX0 + 0.2 && Math.abs(z) < WZ + 0.2) return false;   // крыло
+      if (x > HX1 - 0.2 && x < HX0 + 0.2 && Math.abs(z) < HZ + 0.2) return false;   // свод
       return true;
     }
 
-    // Кольцо вокруг стилобата — по кругу, поэтому с любой стороны
-    // видно неравномерно: то гуще, то реже, смотря по углу обзора.
-    for (var li = 0; li < 14; li++) {
-      var la = (li / 14) * Math.PI * 2 + 0.22;
-      var lr = tiers[0].r + 0.55;
-      var lx2 = Math.cos(la) * lr, lz2 = Math.sin(la) * lr;
+    // Ряд фонарей вдоль открытого паркета перед подиумом.
+    for (var li = 0; li < 10; li++) {
+      var lx2 = PODX0 + (PODX1 - PODX0) * (li / 9);
+      var lz2 = TIERS3[0].z0 - 0.45;
       if (!lampFree(lx2, lz2)) continue;
       lamps.push({
-        b: addXYZ(lx2, groundY(lr), lz2),
-        t: addXYZ(lx2, groundY(lr) + LAMP_H, lz2)
+        b: addXYZ(lx2, groundY(Math.hypot(lx2, lz2)), lz2),
+        t: addXYZ(lx2, groundY(Math.hypot(lx2, lz2)) + LAMP_H, lz2)
       });
     }
 
-    /* У входа — не вразнобой, а двумя чёткими рядами по сторонам от
-       прохода, как и положено на парадном подходе (по описаниям —
-       от подножия холма к зданию вёл длинный марш лестниц; фонари
-       вдоль него стоят по прямой, а не по дуге, как раньше). */
-    var frontDX = -Math.sin(FRONT_A), frontDZ = Math.cos(FRONT_A);
+    /* У портала и вдоль длинной лестницы — двумя чёткими рядами по
+       сторонам от прохода, как и положено на парадном подходе. */
     for (var side = -1; side <= 1; side += 2) {
-      for (var step = 0; step < 3; step++) {
-        var lr2 = tiers[0].r + 0.7 + step * 0.8;
-        var lx3 = Math.cos(FRONT_A) * lr2 + frontDX * side * 0.55;
-        var lz3 = Math.sin(FRONT_A) * lr2 + frontDZ * side * 0.55;
+      for (var step = 0; step < 4; step++) {
+        var lz3 = PORTAL_Z + 0.3 - step * 0.95;
+        var lx3 = PORTAL_X + side * (PORTAL_W * 0.5 + 0.45);
         if (!lampFree(lx3, lz3)) continue;
         lamps.push({
-          b: addXYZ(lx3, groundY(lr2), lz3),
-          t: addXYZ(lx3, groundY(lr2) + LAMP_H, lz3)
+          b: addXYZ(lx3, groundY(Math.hypot(lx3, lz3)), lz3),
+          t: addXYZ(lx3, groundY(Math.hypot(lx3, lz3)) + LAMP_H, lz3)
         });
       }
     }
 
     /* ======== скамейки ========
        Мелочь, которой не замечаешь, но без которой площадь не похожа
-       на место, где бывают люди. */
+       на место, где бывают люди. Стоят вдоль паркета перед подиумом. */
     var benches = [];
-    for (var bi3 = 0; bi3 < 10; bi3++) {
-      var ba = (bi3 / 10) * Math.PI * 2 + 0.5;
-      var br = tiers[0].r + 0.95;
-      var bx3 = Math.cos(ba) * br, bz3 = Math.sin(ba) * br;
+    for (var bi3 = 0; bi3 < 8; bi3++) {
+      var bx3 = HX1 + 0.3 + (PODX1 - HX1 - 0.6) * (bi3 / 7);
+      var bz3 = TIERS3[0].z0 - 0.85;
       if (!lampFree(bx3, bz3)) continue;
-      var byy = groundY(br);
-      var tx3 = -Math.sin(ba) * 0.17, tz3 = Math.cos(ba) * 0.17;
+      var byy = groundY(Math.hypot(bx3, bz3));
       benches.push({
-        a: addXYZ(bx3 - tx3, byy + 0.075, bz3 - tz3),
-        b: addXYZ(bx3 + tx3, byy + 0.075, bz3 + tz3),
-        c: addXYZ(bx3 - tx3, byy, bz3 - tz3),
-        d: addXYZ(bx3 + tx3, byy, bz3 + tz3)
+        a: addXYZ(bx3 - 0.17, byy + 0.075, bz3),
+        b: addXYZ(bx3 + 0.17, byy + 0.075, bz3),
+        c: addXYZ(bx3 - 0.17, byy, bz3),
+        d: addXYZ(bx3 + 0.17, byy, bz3)
       });
     }
 
@@ -1163,9 +1060,9 @@
       shellIndex: shellIndex,
       partIndex: partIndex,
       flags: flags,
-      sign: sign,
       benches: benches,
       lamps: lamps,
+      galleryPosts: galleryPosts,
       city: city,
       cityCenters: new Float32Array(cityCenters),
       cityParts: cityParts,
@@ -1189,17 +1086,20 @@
       hallShadow: new Uint16Array(hallShadow),
       wingCenter: [(WX0 + WX1) * 0.5, 0.5 - yCenter, 0],
       wingShadow: new Uint16Array(wingShadow),
-      /* Круги, на которые ложится тень: общая тень здания на земле,
-         тень башни на верхней террасе и контактная — узкое плотное
-         кольцо у самого основания. Последняя почти не сдвинута вбок:
-         у контакта тень не уезжает, и именно она «ставит» здание. */
+      /* Круги, на которые ложится тень: общая тень подиума на земле
+         (круг лишь приближает прямоугольный след — центр сдвинут к
+         середине подиума), тень башни на верхнем ярусе и контактная —
+         узкое плотное кольцо у самого основания. Последняя почти не
+         сдвинута вбок: у контакта тень не уезжает, и именно она
+         «ставит» здание. */
       shadows: [
-        { layer: 0, r: tiers[0].r * 1.16, y: yGround - yCenter,     alpha: 0.20 },
-        { layer: 1, r: R * 1.42,          y: tiers[1].y1 - yCenter, alpha: 0.16 },
-        { layer: 1, r: R * 1.16,          y: tiers[1].y1 - yCenter, alpha: 0.22, off: 0.30 }
+        { layer: 0, r: 3.3, cx: (PODX0 + PODX1) * 0.5, cz: (TIERS3[0].z0 + TIERS3[0].z1) * 0.5,
+          y: yGround - yCenter, alpha: 0.20 },
+        { layer: 1, r: R * 1.42,          y: TIERS3[2].y1 - yCenter, alpha: 0.16 },
+        { layer: 1, r: R * 1.16,          y: TIERS3[2].y1 - yCenter, alpha: 0.22, off: 0.30 }
       ],
       height: capY - yGround,
-      width: tiers[0].r * 2
+      width: PODX1 - PODX0
     };
   }
 

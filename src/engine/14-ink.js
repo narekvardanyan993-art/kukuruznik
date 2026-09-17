@@ -157,11 +157,12 @@
       var sh = list[s];
       if (sh.layer !== layer) continue;
       var kOff = sh.off === undefined ? 1 : sh.off;
+      var scx = sh.cx || 0, scz = sh.cz || 0;
       ctx.beginPath();
       for (var i = 0; i < N; i++) {
         var a = (i / N) * Math.PI * 2;
-        var x = Math.cos(a) * sh.r + offX * kOff;
-        var z = Math.sin(a) * sh.r + offZ * kOff;
+        var x = scx + Math.cos(a) * sh.r + offX * kOff;
+        var z = scz + Math.sin(a) * sh.r + offZ * kOff;
 
         var x1 = x * cy + z * sy;
         var z1 = -x * sy + z * cy;
