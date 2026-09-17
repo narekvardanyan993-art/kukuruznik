@@ -27,9 +27,6 @@
         r: rRim * 0.90,
         y: (rimY + glassY) * 0.5 - yCenter
       },
-      /* Табличка кафе на бортике над остеклением. Настоящее название
-         подставится одной строкой, когда владелец его узнает. */
-      cafeSign: cafeSign,
       spinRange: [spin0, spin1],
       glow: new Uint16Array(glow),
       shellIndex: shellIndex,

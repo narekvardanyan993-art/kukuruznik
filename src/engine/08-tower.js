@@ -13,6 +13,9 @@
     this.fillShells('shaft',   C_SHAFT);
     this.fillShaftShade();
     this.drawCells();
+    /* Светлые пояса между этажами — после тени на стволе, иначе
+       направленная светотень перекрасит их обратно в цвет ствола. */
+    this.fillShells('floorBelt', C_FLOOR_BELT);
     this.fillShells('rail',    C_RAIL);
     this.strokeBody(0);
 

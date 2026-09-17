@@ -26,6 +26,7 @@
 </div>
 
 <div id="fps">— fps</div>
+<div id="spinNote"></div>
 <a id="toHub" class="lg" href="./" aria-label="Закрыть 3D"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.6 5.4L8 12l6.6 6.6"/></svg><span lang="hy">Չկա</span></a>
 <button id="soundBtn" class="lg" type="button" aria-pressed="true" aria-label="Звук" data-cap="Звук"><svg class="on-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4h3.6L13 18V6L7.6 10H4z"/><g class="waves"><path d="M16.2 9.2a4 4 0 0 1 0 5.6M18.6 6.8a7.6 7.6 0 0 1 0 10.4"/></g></svg><svg class="off-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4h3.6L13 18V6L7.6 10H4z"/><path d="M16 9.5l4.6 4.6M20.6 9.5L16 14.1"/></svg></button>
 <div id="hint">Крути пальцем · два пальца — приблизить</div>
@@ -88,6 +89,26 @@
   }
   window.addEventListener('pointerdown', hide, true);
   window.addEventListener('touchstart', hide, { capture: true, passive: true });
+})();
+</script>
+
+<!-- Верх крутится за 4.5 минуты — быстрее настоящего часового оборота
+     кафе, чтобы движение было видно, пока смотришь. Честно говорим
+     об этом мелкой подписью, на том же языке, что выбран на сайте. -->
+<script>
+(function () {
+  var T = {
+    hy: 'Պտույտն արագացված է',
+    ru: 'Вращение ускорено',
+    en: 'Rotation is sped up'
+  };
+  var l = 'hy';
+  try {
+    l = localStorage.getItem('chka-lang') || ((navigator.languages && navigator.languages[0]) || navigator.language || '').slice(0, 2).toLowerCase();
+  } catch (e) {}
+  if (!T[l]) l = 'hy';
+  var el = document.getElementById('spinNote');
+  if (el) { el.textContent = T[l]; el.lang = l; }
 })();
 </script>
 
@@ -158,7 +179,7 @@
      появлялась вовсе. Постоянная версия даёт взять файлы из кэша, а
      после новой сборки номер меняется — и телефон честно скачивает
      свежие. */
-  var VERSION = '62';                     /* build.py перепишет сам */
+  var VERSION = '63';                     /* build.py перепишет сам */
   var q = '?v=' + VERSION;
 
   /* Самообновление. Внутри iframe не нужно: родительская страница

@@ -46,8 +46,9 @@
      Слои копятся в общие пути и кладутся четырьмя заливками на всё
      здание разом — по одной на слой и по одной на теневую сторону. */
 
-  // Кладёт в текущий путь арку ячейки: плоский низ, полуовальный верх.
-  // inset < 1 — та же арка, ужатая к своему центру (это окно в глубине).
+  // Кладёт в текущий путь фигуру ячейки. У арок крыла/портала —
+  // плоский низ, полуовальный верх. inset < 1 — та же фигура, ужатая
+  // к своему центру (это окно в глубине).
   Engine.prototype.archPath = function (f, inset) {
     var ctx = this.ctx, px = this.px, py = this.py;
     var ax = px[f.a], ay = py[f.a];
@@ -63,26 +64,27 @@
       dx = mx + (dx - mx) * inset; dy = my + (dy - my) * inset;
     }
 
-    // Два опорных плеча вверх от нижних углов — так получается овал,
-    // а не остриё, как выходит у простой дуги.
-    ctx.moveTo(ax, ay);
-    ctx.lineTo(bx, by);
-    ctx.bezierCurveTo(bx + (cx - bx) * 1.32, by + (cy - by) * 1.32,
-                      ax + (dx - ax) * 1.32, ay + (dy - ay) * 1.32, ax, ay);
-  };
+    if (f.arch) {
+      // Арки крыла и портал — плоский низ, стрельчатый верх.
+      // Два опорных плеча вверх от нижних углов — так получается овал,
+      // а не остриё, как выходит у простой дуги.
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(bx, by);
+      ctx.bezierCurveTo(bx + (cx - bx) * 1.32, by + (cy - by) * 1.32,
+                        ax + (dx - ax) * 1.32, ay + (dy - ay) * 1.32, ax, ay);
+      return;
+    }
 
-  // Балкон: плита, выступающая ниже проёма, с круглой передней кромкой
-  Engine.prototype.balconyPath = function (f) {
-    var ctx = this.ctx, px = this.px, py = this.py;
-    var ax = px[f.a], ay = py[f.a];
-    var bx = px[f.b], by = py[f.b];
-    var tx = (px[f.c] + px[f.d]) * 0.5, ty = (py[f.c] + py[f.d]) * 0.5;
-    var bxm = (ax + bx) * 0.5, bym = (ay + by) * 0.5;
-    var vx = bxm - tx, vy = bym - ty;          // вектор «вниз» ростом в ячейку
-
+    /* Лоджии ствола: приплюснутый овал «початка» — обе стороны дугой,
+       а не арка с плоским полом. Низ прогибается полого, верх сильнее:
+       так овал не выглядит перевёрнутой каплей. a/b — левая/правая
+       точки овала (боковины ячейки), c/d — верхние. */
+    var mbx = (ax + bx) * 0.5, mby = (ay + by) * 0.5;   // низ, середина
+    var mtx = (dx + cx) * 0.5, mty = (dy + cy) * 0.5;   // верх, середина
+    var upx = mtx - mbx, upy = mty - mby;
     ctx.moveTo(ax, ay);
-    ctx.lineTo(bx, by);
-    ctx.quadraticCurveTo(bxm + vx * 0.72, bym + vy * 0.72, ax, ay);
+    ctx.quadraticCurveTo(mbx - upx * 0.20, mby - upy * 0.20, bx, by);
+    ctx.quadraticCurveTo(mtx + upx * 0.34, mty + upy * 0.34, ax, ay);
   };
 
   Engine.prototype.drawCells = function (grp) {
@@ -160,40 +162,9 @@
       }
     }
 
-    // 3. балконы — поверх проёмов, они и вправду выступают вперёд
-    for (var pass = 0; pass < 2; pass++) {
-      var any2 = false;
-      ctx.beginPath();
-      for (var i = 0; i < n; i++) {
-        var f = cells[i];
-        if (!f.vis || (f.grp || 0) !== grp || f.arch) continue;
-        if (f.face < 0.34) continue;          // балкон у края — белая щепка
-        if ((pass === 1) !== (f.lit <= 0.05)) continue;
-        this.balconyPath(f);
-        any2 = true;
-      }
-      if (any2) {
-        ctx.fillStyle = pass === 1 ? C_BALC_DRK : C_BALC_LIT;
-        ctx.fill();
-      }
-    }
-
-    // Обводка балконов — кромка плиты
-    var any3 = false;
-    ctx.beginPath();
-    for (var i = 0; i < n; i++) {
-      var f = cells[i];
-      if (!f.vis || (f.grp || 0) !== grp || f.arch) continue;
-      if (f.face < 0.34) continue;
-      this.balconyPath(f);
-      any3 = true;
-    }
-    if (any3) {
-      ctx.globalAlpha = 0.62;
-      ctx.lineWidth = 0.75;
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-    }
+    /* Балконов у лоджий больше нет — вместо выступающей плиты теперь
+       светлый пояс между этажами (см. модель, floorBelt). Арки крыла
+       и портала их и раньше не рисовали. */
   };
 
   /* Штрихи на той стороне, что отвернулась от света */

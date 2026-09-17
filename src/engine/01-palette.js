@@ -1,6 +1,6 @@
   'use strict';
 
-  var BUILD = '62';     // видно на самой странице — чтобы не гадать, свежая ли версия
+  var BUILD = '63';     // видно на самой странице — чтобы не гадать, свежая ли версия
 
   var PAPER = '#f5ecda';
   var INK   = '#2f2a25';
@@ -30,6 +30,7 @@
   var C_SLABTOP = 'rgb(215, 208, 187)';   // её верх, смотрит в небо
   var C_DECK    = 'rgb(186, 184, 177)';   // площадки террас
   var C_SHAFT   = 'rgb(242, 227, 188)';   // травертин ствола
+  var C_FLOOR_BELT = 'rgb(250, 244, 222)'; // светлый пояс между этажами
   var C_NECK    = 'rgb(193, 184, 162)';
   var C_GLASS   = 'rgb(74, 104, 100)';    // остекление ресторана
   var C_PARAPET = 'rgb(198, 190, 170)';   // колпак
@@ -130,6 +131,7 @@
   grab('PODIUM', C_PODIUM);    grab('HALL', C_HALL);
   grab('SLAB', C_SLAB);        grab('SLABTOP', C_SLABTOP);
   grab('DECK', C_DECK);        grab('SHAFT', C_SHAFT);
+  grab('FLOOR_BELT', C_FLOOR_BELT);
   grab('NECK', C_NECK);        grab('GLASS', C_GLASS);
   grab('PARAPET', C_PARAPET);  grab('RAIL', C_RAIL);
   grab('ROOF', C_ROOF);        grab('FLARE', C_FLARE);

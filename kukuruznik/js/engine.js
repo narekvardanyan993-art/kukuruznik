@@ -10,7 +10,7 @@
 (function (global) {
   'use strict';
 
-  var BUILD = '62';     // видно на самой странице — чтобы не гадать, свежая ли версия
+  var BUILD = '63';     // видно на самой странице — чтобы не гадать, свежая ли версия
 
   var PAPER = '#f5ecda';
   var INK   = '#2f2a25';
@@ -40,6 +40,7 @@
   var C_SLABTOP = 'rgb(215, 208, 187)';   // её верх, смотрит в небо
   var C_DECK    = 'rgb(186, 184, 177)';   // площадки террас
   var C_SHAFT   = 'rgb(242, 227, 188)';   // травертин ствола
+  var C_FLOOR_BELT = 'rgb(250, 244, 222)'; // светлый пояс между этажами
   var C_NECK    = 'rgb(193, 184, 162)';
   var C_GLASS   = 'rgb(74, 104, 100)';    // остекление ресторана
   var C_PARAPET = 'rgb(198, 190, 170)';   // колпак
@@ -140,6 +141,7 @@
   grab('PODIUM', C_PODIUM);    grab('HALL', C_HALL);
   grab('SLAB', C_SLAB);        grab('SLABTOP', C_SLABTOP);
   grab('DECK', C_DECK);        grab('SHAFT', C_SHAFT);
+  grab('FLOOR_BELT', C_FLOOR_BELT);
   grab('NECK', C_NECK);        grab('GLASS', C_GLASS);
   grab('PARAPET', C_PARAPET);  grab('RAIL', C_RAIL);
   grab('ROOF', C_ROOF);        grab('FLARE', C_FLARE);
@@ -183,6 +185,7 @@
     C_PODIUM = tint(B.PODIUM);     C_HALL = tint(B.HALL);
     C_SLAB = tint(B.SLAB);         C_SLABTOP = tint(B.SLABTOP);
     C_DECK = tint(B.DECK);         C_SHAFT = tint(B.SHAFT);
+    C_FLOOR_BELT = tint(B.FLOOR_BELT);
     C_NECK = tint(B.NECK);         C_PARAPET = tint(B.PARAPET);
     C_RAIL = tint(B.RAIL);         C_ROOF = tint(B.ROOF);
     C_FLARE = tint(B.FLARE);
@@ -456,10 +459,10 @@
     ctx.clearRect(0, 0, this.w, this.h);
     this.time = state.time || 0;
     this._yaw = state.yaw; this._pitch = state.pitch;
-    /* Угол вращения кафе. Оборот примерно за семьдесят секунд: в жизни
-       зал поворачивался куда медленнее, но на экране движение должно
-       читаться за те несколько секунд, что человек смотрит. */
-    this.spin = (state.time || 0) * 0.055;   // оборот примерно за две минуты
+    /* Угол вращения кафе: оборот за 4.5 минуты (270 секунд) — быстрее
+       настоящего часового оборота, чтобы движение читалось за то время,
+       что человек смотрит на сцену. Подпись об этом — в scene.html. */
+    this.spin = (state.time || 0) * (Math.PI * 2 / 270);
     this.drawSky();
 
     var r = this.rot;
@@ -514,7 +517,6 @@
     this.drawQueue();
 
     this.drawSign();                              // название на крыле
-    this.drawSign(m.cafeSign, false);             // табличка кафе на бортике
     this.drawAir();       // воздух поверх массы — он касается и линий
     ctx.globalAlpha = 1;
   };
@@ -864,6 +866,9 @@
     this.fillShells('shaft',   C_SHAFT);
     this.fillShaftShade();
     this.drawCells();
+    /* Светлые пояса между этажами — после тени на стволе, иначе
+       направленная светотень перекрасит их обратно в цвет ствола. */
+    this.fillShells('floorBelt', C_FLOOR_BELT);
     this.fillShells('rail',    C_RAIL);
     this.strokeBody(0);
 
@@ -2070,8 +2075,9 @@
      Слои копятся в общие пути и кладутся четырьмя заливками на всё
      здание разом — по одной на слой и по одной на теневую сторону. */
 
-  // Кладёт в текущий путь арку ячейки: плоский низ, полуовальный верх.
-  // inset < 1 — та же арка, ужатая к своему центру (это окно в глубине).
+  // Кладёт в текущий путь фигуру ячейки. У арок крыла/портала —
+  // плоский низ, полуовальный верх. inset < 1 — та же фигура, ужатая
+  // к своему центру (это окно в глубине).
   Engine.prototype.archPath = function (f, inset) {
     var ctx = this.ctx, px = this.px, py = this.py;
     var ax = px[f.a], ay = py[f.a];
@@ -2087,26 +2093,27 @@
       dx = mx + (dx - mx) * inset; dy = my + (dy - my) * inset;
     }
 
-    // Два опорных плеча вверх от нижних углов — так получается овал,
-    // а не остриё, как выходит у простой дуги.
-    ctx.moveTo(ax, ay);
-    ctx.lineTo(bx, by);
-    ctx.bezierCurveTo(bx + (cx - bx) * 1.32, by + (cy - by) * 1.32,
-                      ax + (dx - ax) * 1.32, ay + (dy - ay) * 1.32, ax, ay);
-  };
+    if (f.arch) {
+      // Арки крыла и портал — плоский низ, стрельчатый верх.
+      // Два опорных плеча вверх от нижних углов — так получается овал,
+      // а не остриё, как выходит у простой дуги.
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(bx, by);
+      ctx.bezierCurveTo(bx + (cx - bx) * 1.32, by + (cy - by) * 1.32,
+                        ax + (dx - ax) * 1.32, ay + (dy - ay) * 1.32, ax, ay);
+      return;
+    }
 
-  // Балкон: плита, выступающая ниже проёма, с круглой передней кромкой
-  Engine.prototype.balconyPath = function (f) {
-    var ctx = this.ctx, px = this.px, py = this.py;
-    var ax = px[f.a], ay = py[f.a];
-    var bx = px[f.b], by = py[f.b];
-    var tx = (px[f.c] + px[f.d]) * 0.5, ty = (py[f.c] + py[f.d]) * 0.5;
-    var bxm = (ax + bx) * 0.5, bym = (ay + by) * 0.5;
-    var vx = bxm - tx, vy = bym - ty;          // вектор «вниз» ростом в ячейку
-
+    /* Лоджии ствола: приплюснутый овал «початка» — обе стороны дугой,
+       а не арка с плоским полом. Низ прогибается полого, верх сильнее:
+       так овал не выглядит перевёрнутой каплей. a/b — левая/правая
+       точки овала (боковины ячейки), c/d — верхние. */
+    var mbx = (ax + bx) * 0.5, mby = (ay + by) * 0.5;   // низ, середина
+    var mtx = (dx + cx) * 0.5, mty = (dy + cy) * 0.5;   // верх, середина
+    var upx = mtx - mbx, upy = mty - mby;
     ctx.moveTo(ax, ay);
-    ctx.lineTo(bx, by);
-    ctx.quadraticCurveTo(bxm + vx * 0.72, bym + vy * 0.72, ax, ay);
+    ctx.quadraticCurveTo(mbx - upx * 0.20, mby - upy * 0.20, bx, by);
+    ctx.quadraticCurveTo(mtx + upx * 0.34, mty + upy * 0.34, ax, ay);
   };
 
   Engine.prototype.drawCells = function (grp) {
@@ -2184,40 +2191,9 @@
       }
     }
 
-    // 3. балконы — поверх проёмов, они и вправду выступают вперёд
-    for (var pass = 0; pass < 2; pass++) {
-      var any2 = false;
-      ctx.beginPath();
-      for (var i = 0; i < n; i++) {
-        var f = cells[i];
-        if (!f.vis || (f.grp || 0) !== grp || f.arch) continue;
-        if (f.face < 0.34) continue;          // балкон у края — белая щепка
-        if ((pass === 1) !== (f.lit <= 0.05)) continue;
-        this.balconyPath(f);
-        any2 = true;
-      }
-      if (any2) {
-        ctx.fillStyle = pass === 1 ? C_BALC_DRK : C_BALC_LIT;
-        ctx.fill();
-      }
-    }
-
-    // Обводка балконов — кромка плиты
-    var any3 = false;
-    ctx.beginPath();
-    for (var i = 0; i < n; i++) {
-      var f = cells[i];
-      if (!f.vis || (f.grp || 0) !== grp || f.arch) continue;
-      if (f.face < 0.34) continue;
-      this.balconyPath(f);
-      any3 = true;
-    }
-    if (any3) {
-      ctx.globalAlpha = 0.62;
-      ctx.lineWidth = 0.75;
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-    }
+    /* Балконов у лоджий больше нет — вместо выступающей плиты теперь
+       светлый пояс между этажами (см. модель, floorBelt). Арки крыла
+       и портала их и раньше не рисовали. */
   };
 
   /* Штрихи на той стороне, что отвернулась от света */
@@ -2489,7 +2465,7 @@
     var resetBtn = document.getElementById('resetBtn');
     var hint = document.getElementById('hint');
 
-    var model = global.Model.build({ ribs: 16, floors: 15 });
+    var model = global.Model.build({ ribs: 16, floors: 14 });
     var engine = new Engine(sceneCanvas, paperCanvas, model);
 
     /* Страховка на холодный запуск отдельным приложением: если самый

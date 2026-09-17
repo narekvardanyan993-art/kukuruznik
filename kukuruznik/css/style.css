@@ -475,6 +475,7 @@ body.night { background: #0d1230; }
 
 body.ui-off #hud,
 body.ui-off #fps,
+body.ui-off #spinNote,
 body.ui-off #soundBtn,
 body.ui-off #hint { opacity: 0; pointer-events: none; }
 
@@ -628,6 +629,19 @@ body.ui-off #hint { opacity: 0; pointer-events: none; }
   letter-spacing: 0.04em;
   color: var(--g-text);
   opacity: 0.45;
+  pointer-events: none;
+  transition: opacity 320ms ease;
+}
+
+#spinNote {
+  position: fixed;
+  left: 14px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+  z-index: 10;
+  font: 11px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Armenian", sans-serif;
+  color: var(--g-text);
+  opacity: 0.42;
+  max-width: 46vw;
   pointer-events: none;
   transition: opacity 320ms ease;
 }

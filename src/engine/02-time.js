@@ -30,6 +30,7 @@
     C_PODIUM = tint(B.PODIUM);     C_HALL = tint(B.HALL);
     C_SLAB = tint(B.SLAB);         C_SLABTOP = tint(B.SLABTOP);
     C_DECK = tint(B.DECK);         C_SHAFT = tint(B.SHAFT);
+    C_FLOOR_BELT = tint(B.FLOOR_BELT);
     C_NECK = tint(B.NECK);         C_PARAPET = tint(B.PARAPET);
     C_RAIL = tint(B.RAIL);         C_ROOF = tint(B.ROOF);
     C_FLARE = tint(B.FLARE);

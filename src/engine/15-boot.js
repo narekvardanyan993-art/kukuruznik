@@ -9,7 +9,7 @@
     var resetBtn = document.getElementById('resetBtn');
     var hint = document.getElementById('hint');
 
-    var model = global.Model.build({ ribs: 16, floors: 15 });
+    var model = global.Model.build({ ribs: 16, floors: 14 });
     var engine = new Engine(sceneCanvas, paperCanvas, model);
 
     /* Страховка на холодный запуск отдельным приложением: если самый

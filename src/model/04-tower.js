@@ -29,14 +29,19 @@
     }
 
     // ======== чешуйки: лоджии между рёбрами ========
+    /* Приплюснутый овал вместо высокой арки: ячейка ниже (margin у пола
+       и потолка заметно больше, чем раньше), а освободившийся зазор
+       между этажами становится светлым поясом — эффект «початка».
+       Движок (archPath, без f.arch) сам рисует внутри овал, а не арку. */
+    var loggiaBot = 0.20, loggiaTop = 0.20;    // доля этажа под/над овалом
     for (var f = 0; f < F; f++) {
-      var yb = shaftY0 + f * fh + fh * 0.13;
-      var yt = shaftY0 + (f + 1) * fh - fh * 0.02;
-      var rb = shaftR(yb) * 0.90;
-      var rt = shaftR(yt) * 0.90;
+      var yb = shaftY0 + f * fh + fh * loggiaBot;
+      var yt = shaftY0 + (f + 1) * fh - fh * loggiaTop;
+      var rb = shaftR(yb) * 0.92;
+      var rt = shaftR(yt) * 0.92;
       for (var i = 0; i < N; i++) {
-        var a0 = i * pitch + pitch * 0.12;
-        var a1 = i * pitch + pitch * 0.88;
+        var a0 = i * pitch + pitch * 0.10;
+        var a1 = i * pitch + pitch * 0.90;
         cells.push({
           a: addPt(a0, rb, yb), b: addPt(a1, rb, yb),
           c: addPt(a1, rt, yt), d: addPt(a0, rt, yt),
@@ -45,6 +50,21 @@
           lamp: rnd()          // горит ли окно ночью
         });
       }
+    }
+
+    /* Светлые горизонтальные пояса между этажами — та самая ребристость
+       «початка». Пояс кольцевой (не по чешуйкам), поэтому не пропадает
+       на стыках лоджий и читается как непрерывная линия вокруг ствола.
+       Раскраска — отдельным проходом в движке, ПОСЛЕ тени на стволе,
+       иначе направленная светотень ствола перекрасит светлый пояс. */
+    for (var f = 0; f < F - 1; f++) {
+      var ybBelt = shaftY0 + (f + 1) * fh - fh * loggiaTop;
+      var ytBelt = shaftY0 + (f + 1) * fh + fh * loggiaBot;
+      var beltLo = ring(N, shaftR(ybBelt), ybBelt);
+      var beltHi = ring(N, shaftR(ytBelt), ytBelt);
+      var beltId = band('floorBelt', beltLo, beltHi, 0, true);
+      ringLines(beltLo, THIN, shaftIds[f], beltId);
+      ringLines(beltHi, THIN, beltId, shaftIds[f + 1]);
     }
 
     /* ======== тарелка ========
@@ -90,18 +110,9 @@
       line(rimRing[i], glassRing[i], THIN, glassIds[j], glassIds[i]);  // импосты
     }
 
-    /* Табличка кафе висит на самом барабане, поэтому её точки создаются
-       здесь же — чтобы уехать вместе с ним. */
-    var cafeSign = {
-      a: addPt(FRONT_A + 0.32, rRim * 1.01, glassY + 0.02),
-      b: addPt(FRONT_A - 0.32, rRim * 1.01, glassY + 0.02),
-      d: addPt(FRONT_A + 0.32, rRim * 1.01, glassY + 0.14),
-      text: 'ԿԱՖԵ',
-      /* Куда смотрит табличка. Без этого она рисовалась и тогда, когда
-         уезжала на обратную сторону барабана — и читалась зеркально
-         поверх стекла. */
-      nx: Math.cos(FRONT_A), nz: Math.sin(FRONT_A), spin: true
-    };
+    /* Таблички «КАФЕ» на барабане больше нет — название по фото не
+       подтверждено, а выдумывать подписи на здании было решено не
+       делать (см. docs/PRAVILA.md). */
 
     var spin1 = pos.length / 3;
     for (var sp2 = spinShell0; sp2 < shells.length; sp2++) shells[sp2].spin = true;
