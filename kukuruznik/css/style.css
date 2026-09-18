@@ -20,6 +20,7 @@
   --g-bot: rgba(255, 255, 255, 0.16);
   --g-drop: 0 10px 30px rgba(66, 54, 38, 0.22);
   --g-text: #2b2621;
+  --g-text-sub: #423b33;
   --g-on-bg: rgba(255, 255, 255, 0.62);
   --g-on-text: #1d1a16;
   --cap-sh: 0 1px 3px rgba(255, 255, 255, 0.65);
@@ -33,6 +34,7 @@ body.night {
   --g-bot: rgba(150, 176, 230, 0.10);
   --g-drop: 0 14px 36px rgba(0, 0, 0, 0.50);
   --g-text: #e9edf7;
+  --g-text-sub: #bac2d6;
   --g-on-bg: rgba(150, 178, 240, 0.30);
   --g-on-text: #ffffff;
   --cap-sh: 0 1px 4px rgba(0, 0, 0, 0.75);
@@ -344,11 +346,12 @@ body.night { background: #0d1230; }
   left: 0;
   bottom: 78px;
   z-index: 5;
-  max-width: 148px;
-  padding: 7px 13px;
+  max-width: 200px;
+  padding: 8px 15px;
   border-radius: 999px;
-  font-size: 11.5px;
-  line-height: 1.15;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -410,11 +413,12 @@ body.night { background: #0d1230; }
 #hud.subOut #sub > :nth-child(3) { transition-delay: 90ms; }
 
 .sub-head {
-  font-size: 11px;
-  letter-spacing: 0.07em;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  opacity: 0.6;
-  margin: 0 2px 7px;
+  color: var(--g-text-sub);
+  margin: 0 2px 8px;
 }
 
 #tod-row { display: flex; align-items: center; gap: 9px; }
@@ -429,14 +433,15 @@ body.night { background: #0d1230; }
   appearance: none;
   -webkit-appearance: none;
   flex: 1 1 0;
-  height: 30px;
+  height: 34px;
   padding: 0;
   border: 1px solid var(--g-line);
-  border-radius: 11px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.10);
   color: inherit;
   font: inherit;
-  font-size: 11.5px;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
   touch-action: manipulation;
   transition: background 260ms ease, color 260ms ease, transform 160ms ease,
@@ -528,9 +533,10 @@ body.ui-off #hint { opacity: 0; pointer-events: none; }
     left: 50%;
     transform: translateX(-50%) translateY(4px) scale(0.9);
     white-space: nowrap;
-    font-size: 11.5px;
-    padding: 5px 11px;
-    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 6px 13px;
+    border-radius: 12px;
     background: var(--g-bg);
     border: 1px solid var(--g-line);
     color: var(--g-text);
@@ -625,12 +631,15 @@ body.ui-off #hint { opacity: 0; pointer-events: none; }
   top: calc(env(safe-area-inset-top, 0px) + 10px);
   right: 14px;
   z-index: 10;
-  font: 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 14px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
   letter-spacing: 0.04em;
-  color: var(--g-text);
-  opacity: 0.45;
+  color: var(--g-text-sub);
   pointer-events: none;
   transition: opacity 320ms ease;
+}
+
+@media (max-width: 768px) {
+  #fps { display: none; }
 }
 
 #spinNote {
@@ -638,24 +647,24 @@ body.ui-off #hint { opacity: 0; pointer-events: none; }
   left: 14px;
   bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
   z-index: 10;
-  font: 11px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Armenian", sans-serif;
-  color: var(--g-text);
-  opacity: 0.42;
-  max-width: 46vw;
+  font: 500 14px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Armenian", sans-serif;
+  color: var(--g-text-sub);
+  max-width: min(220px, calc(50vw - 24px));
   pointer-events: none;
   transition: opacity 320ms ease;
 }
 
 #hint {
   position: fixed;
-  left: 0;
-  right: 0;
+  left: 16px;
+  right: 16px;
   bottom: calc(env(safe-area-inset-bottom, 0px) + 92px);
   z-index: 10;
   text-align: center;
-  font-size: 12px;
-  color: var(--g-text);
-  opacity: 0.5;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--g-text-sub);
   pointer-events: none;
   transition: opacity 500ms ease, color 450ms ease;
 }
@@ -672,11 +681,23 @@ body.menu #hint { opacity: 0; }
   transform: translateX(-50%);
   bottom: calc(env(safe-area-inset-bottom, 0px) + 26px);
   z-index: 11;
-  padding: 8px 16px;
+  padding: 9px 18px;
   border-radius: 999px;
-  font-size: 12.5px;
+  font-size: 14px;
+  font-weight: 500;
+  max-width: calc(100vw - 32px);
   opacity: 0;
   pointer-events: none;
+}
+
+html.fs-big #toast,
+html.fs-big .sub-head,
+html.fs-big .chip,
+html.fs-big .rs::before,
+html.fs-big #spinNote,
+html.fs-big #hint,
+html.fs-big #back-tip {
+  font-size: 16px;
 }
 
 body.ui-off #back-tip { animation: tip 3.4s ease forwards; }
