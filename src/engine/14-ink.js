@@ -1,4 +1,4 @@
-  Engine.prototype.hatch = function () {
+  Engine.prototype.hatch = function (scope) {
     var ctx = this.ctx, shells = this.model.shells;
     var px = this.px, py = this.py;
     var any = false;
@@ -7,7 +7,13 @@
     for (var i = 0; i < shells.length; i++) {
       var f = shells[i];
       if (!f.vis) continue;
-      if (f.kind !== 'podium') continue;   // на колпаке штрихи читались как мусор
+      if (scope === 'hall') {
+        if (f.kind !== 'hall') continue;
+      } else if (scope === 'wing') {
+        if (f.kind !== 'wing' && f.kind !== 'wingUp') continue;
+      } else {
+        if (f.kind !== 'podium') continue;   // на колпаке штрихи читались как мусор
+      }
       if (f.lit > 0.08) continue;
 
       var strength = Math.min(1, (0.08 - f.lit) * 2.0);
@@ -103,7 +109,7 @@
       ctx.moveTo(px[ws[0]], py[ws[0]]);
       for (var q2 = 1; q2 < ws.length; q2++) ctx.lineTo(px[ws[q2]], py[ws[q2]]);
       ctx.closePath();
-      ctx.globalAlpha = 0.17;
+      ctx.globalAlpha = 0.24;
       ctx.fillStyle = C_SHADOW;
       ctx.fill();
       ctx.globalAlpha = 1;

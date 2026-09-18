@@ -5,8 +5,8 @@
        движение живое, а не зациклённое. */
     var flags = [];
     for (var fi = 0; fi < 3; fi++) {
-      var ffx = PORTAL_X + (fi - 1) * 0.34;
-      var ffz = PORTAL_Z + 0.55;
+      var ffx = PORTAL_X + PORTAL_W * 0.5 + 0.28 + fi * 0.20;
+      var ffz = PORTAL_Z - 0.10;
       flags.push({
         b: addXYZ(ffx, pgY, ffz),
         t: addXYZ(ffx, pgY + 0.62, ffz),
@@ -40,11 +40,12 @@
     var lamps = [];
     var LAMP_H = 0.34;
 
-    // мачта не должна вырастать посреди подиума, крыла или свода
+    // мачта не должна вырастать посреди подиума, крыла, свода или лестницы
     function lampFree(x, z) {
-      if (x > PODX0 - 0.2 && x < PODX1 + 0.2 && z > -3.3 && z < 0.6) return false;  // подиум
+      if (x > PODX0 - 0.2 && x < PODX1 + 0.2 && z > -3.3 && z < 1.45) return false;  // подиум
       if (x > WX1 - 0.2 && x < WX0 + 0.2 && Math.abs(z) < WZ + 0.2) return false;   // крыло
       if (x > HX1 - 0.2 && x < HX0 + 0.2 && Math.abs(z) < HZ + 0.2) return false;   // свод
+      if (Math.abs(x - STX0) < 0.65 && z < TIERS3[0].z0 + 0.1 && z > -6.8) return false; // лестница
       return true;
     }
 
@@ -63,9 +64,8 @@
        сторонам от прохода, как и положено на парадном подходе. */
     for (var side = -1; side <= 1; side += 2) {
       for (var step = 0; step < 4; step++) {
-        var lz3 = PORTAL_Z + 0.3 - step * 0.95;
-        var lx3 = PORTAL_X + side * (PORTAL_W * 0.5 + 0.45);
-        if (!lampFree(lx3, lz3)) continue;
+        var lz3 = PORTAL_Z - 0.45 - step * 0.50;
+        var lx3 = PORTAL_X + side * (PORTAL_W * 0.5 + 0.35);
         lamps.push({
           b: addXYZ(lx3, groundY(Math.hypot(lx3, lz3)), lz3),
           t: addXYZ(lx3, groundY(Math.hypot(lx3, lz3)) + LAMP_H, lz3)

@@ -99,6 +99,7 @@
     this.fillShells('hall',      C_HALL);
     this.fillShells('hallGlass', C_GLASS);
     this.fillShells('slab',      C_SLAB);
+    this.hatch('hall');
     this.strokeBody(4);
     this.drawOutline(4);
   };
@@ -115,9 +116,9 @@
     /* Задний этаж-уступ — ПОСЛЕ террасы и бортика (wingTop/wingRail),
        иначе плита террасы закрашивает его стены и оставляет один каркас! */
     this.fillShells('wingUp',     C_HALL);
-    this.fillShells('wingGlass',  C_GLASS);
     this.fillShells('wingUpCorn', C_SLAB);
     this.fillShells('wingUpTop',  C_DECK);
+    this.hatch('wing');
     this.strokeBody(5);
     this.drawOutline(5);
   };

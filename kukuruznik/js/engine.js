@@ -10,7 +10,7 @@
 (function (global) {
   'use strict';
 
-  var BUILD = '65';     // видно на самой странице — чтобы не гадать, свежая ли версия
+  var BUILD = '66';     // видно на самой странице — чтобы не гадать, свежая ли версия
 
   var PAPER = '#f5ecda';
   var INK   = '#2f2a25';
@@ -503,12 +503,16 @@
 
     // 1. поверхность: земля и склон — то, на чём всё стоит
     this.drawGround();
-    this.drawShadows(0);
     this.fillShells('terrTop', C_TERRTOP);
     this.fillShells('terr',    C_TERR);
     this.fillShells('pave',    C_PAVE);
+    this.drawShadows(0);
     this.strokeBody(2);
     this.drawOutline(2);
+
+    // Дальний план: силуэт города и Мать-Армения на горизонте
+    this.drawSkyline();
+    this.drawMotherArmenia();
 
     this.drawCityGlow();   // огни города внизу — лежат на земле, до предметов
 
@@ -625,6 +629,7 @@
     this.fillShells('hall',      C_HALL);
     this.fillShells('hallGlass', C_GLASS);
     this.fillShells('slab',      C_SLAB);
+    this.hatch('hall');
     this.strokeBody(4);
     this.drawOutline(4);
   };
@@ -641,9 +646,9 @@
     /* Задний этаж-уступ — ПОСЛЕ террасы и бортика (wingTop/wingRail),
        иначе плита террасы закрашивает его стены и оставляет один каркас! */
     this.fillShells('wingUp',     C_HALL);
-    this.fillShells('wingGlass',  C_GLASS);
     this.fillShells('wingUpCorn', C_SLAB);
     this.fillShells('wingUpTop',  C_DECK);
+    this.hatch('wing');
     this.strokeBody(5);
     this.drawOutline(5);
   };
@@ -1832,10 +1837,8 @@
       }
     }
 
-    this.drawMotherArmenia();
-    /* Условный дальний город (силуэт кровель на горизонте) убран по
-       тому же пункту задания, что и Арарат — на фото «Вид с холма»
-       вместо него дымка и монумент, а не зубчатая застройка. */
+    /* Дальний план (город и Мать-Армения) рисуется в render() после земли
+       и до предметов, чтобы здания естественно закрывали его. */
 
     /* Птицы. Три галочки, скользящие поперёк неба; взмах — изменение
        угла галочки. Дёшево, а небо перестаёт быть неподвижным. */
@@ -2188,7 +2191,7 @@
   };
 
   /* Штрихи на той стороне, что отвернулась от света */
-  Engine.prototype.hatch = function () {
+  Engine.prototype.hatch = function (scope) {
     var ctx = this.ctx, shells = this.model.shells;
     var px = this.px, py = this.py;
     var any = false;
@@ -2197,7 +2200,13 @@
     for (var i = 0; i < shells.length; i++) {
       var f = shells[i];
       if (!f.vis) continue;
-      if (f.kind !== 'podium') continue;   // на колпаке штрихи читались как мусор
+      if (scope === 'hall') {
+        if (f.kind !== 'hall') continue;
+      } else if (scope === 'wing') {
+        if (f.kind !== 'wing' && f.kind !== 'wingUp') continue;
+      } else {
+        if (f.kind !== 'podium') continue;   // на колпаке штрихи читались как мусор
+      }
       if (f.lit > 0.08) continue;
 
       var strength = Math.min(1, (0.08 - f.lit) * 2.0);
@@ -2293,7 +2302,7 @@
       ctx.moveTo(px[ws[0]], py[ws[0]]);
       for (var q2 = 1; q2 < ws.length; q2++) ctx.lineTo(px[ws[q2]], py[ws[q2]]);
       ctx.closePath();
-      ctx.globalAlpha = 0.17;
+      ctx.globalAlpha = 0.24;
       ctx.fillStyle = C_SHADOW;
       ctx.fill();
       ctx.globalAlpha = 1;

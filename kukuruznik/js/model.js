@@ -69,11 +69,11 @@
        3-4 диаметра ствола, как в задании. Было 4.8 при PODX1=3.90. */
     var PODX0 = -1.35, PODX1 = 2.30;
     var TIERS3 = [
-      { z0: -3.10, z1: 0.15, y0: 0.00, y1: 0.12 },
-      { z0: -2.05, z1: 0.15, y0: 0.12, y1: 0.30 },
-      { z0: -1.00, z1: 0.15, y0: 0.30, y1: 0.50 }
+      { z0: -3.10, z1: 1.30, y0: 0.00, y1: 0.12 },
+      { z0: -2.05, z1: 1.30, y0: 0.12, y1: 0.30 },
+      { z0: -1.15, z1: 1.30, y0: 0.30, y1: 0.50 }
     ];
-    var shaftY0 = 0.50;
+    var shaftY0 = 0.46;
     var shaftY1 = shaftY0 + F * fh;     // верх ствола
 
     var railY   = shaftY1 + 0.12;       // верх парапета кровли
@@ -401,13 +401,11 @@
     var STX0 = 1.10, STX1 = 1.85, STHW = 0.42;
     stairFlightZ(STX0, STHW, TIERS3[2].z0, TIERS3[1].z0 + 0.55, TIERS3[2].y1, TIERS3[1].y1, 4);
     stairFlightZ(STX1, STHW, TIERS3[1].z0, TIERS3[0].z0 + 0.55, TIERS3[1].y1, TIERS3[0].y1, 4);
-    stairFlightZ(STX0, STHW, TIERS3[0].z0, TIERS3[0].z0 - 0.90, TIERS3[0].y1, yGround,     3);
 
     // ======== свободно стоящий портал ========
-    /* Арка стоит отдельно от стены, посреди подхода к зданию — как
-       ворота, а не врезанный в стилобат проём. Две тонкие опоры и
-       плоская арочная перемычка между ними, видная с обеих сторон. */
-    var PORTAL_X = STX0, PORTAL_Z = TIERS3[0].z0 - 1.55;
+    /* Арка стоит посреди подхода к зданию — как ворота над широкой
+       лестницей. Две тонкие опоры и плоская арочная перемычка. */
+    var PORTAL_X = STX0, PORTAL_Z = -4.50;
     var PORTAL_W = 0.95, PORTAL_PW = 0.14, PORTAL_H = 0.62, PORTAL_TOPH = 0.20;
     var pgY = groundY(Math.hypot(PORTAL_X, PORTAL_Z));
     for (var ps = -1; ps <= 1; ps += 2) {
@@ -432,11 +430,14 @@
       nx: 0, ny: 0, nz: 1, vis: false, lit: 0
     });
 
-    // ======== длинная прямая лестница вверх по склону, к порталу ========
-    var LSTX = PORTAL_X, LSTHW = 0.50;
-    var lstZBot = PORTAL_Z - 2.10;
-    var lstYBot = groundY(Math.hypot(LSTX, lstZBot));
-    stairFlightZ(LSTX, LSTHW, PORTAL_Z - 0.55, lstZBot, pgY, lstYBot, 7);
+    // Марш от портала прямо в подиум (без зазоров)
+    stairFlightZ(STX0, 0.44, TIERS3[0].z0, PORTAL_Z, TIERS3[0].y1, pgY, 5);
+
+    // ======== широкая прямая лестница снизу от дороги к порталу ========
+    var LSTX = PORTAL_X, LSTHW = 0.46;
+    var zRoad = -6.60;
+    var yRoad = groundY(Math.hypot(LSTX, zRoad));
+    stairFlightZ(LSTX, LSTHW, PORTAL_Z, zRoad, pgY, yRoad, 9);
     // ======== ствол ========
     curPart = 0;
     var pitch = (Math.PI * 2) / N;
@@ -638,7 +639,7 @@
     var wg0 = WY2 - 0.34, wg1 = WY2 - 0.08;
     var gN0 = addXYZ(WX0 + 0.12, wg0, WZB), gN1 = addXYZ(WX1 + 0.10, wg0, WZB);
     var gT0 = addXYZ(WX0 + 0.12, wg1, WZB), gT1 = addXYZ(WX1 + 0.10, wg1, WZB);
-    var bGlass = face('wingGlass', gN0, gN1, gT1, gT0, 0, 0, -1);
+    var bGlass = face('wingUp', gN0, gN1, gT1, gT0, 0, 0, -1);
     line(wl(wg0, WZB), gN1, THIN, bGlass, bGlass);
     line(wl(wg1, WZB), gT1, THIN, bGlass, bGlass);
     var MU = 9;
@@ -866,7 +867,7 @@
          и длинный подъём с дороги. Роща, посаженная сплошняком,
          закрывала именно то, ради чего здание и разворачивают к себе. */
       if (z < 0 && Math.abs(x - 1.4) < Math.abs(z) * 0.55 + 0.9) return false;
-      if (x > PODX0 - 0.3 && x < PODX1 + 0.3 && z > -3.4 && z < 0.6) return false;   // подиум
+      if (x > PODX0 - 0.3 && x < PODX1 + 0.3 && z > -3.4 && z < 1.45) return false;   // подиум
       if (x > WX1 - 0.3 && x < WX0 + 0.3 && Math.abs(z) < WZ + 0.35) return false;   // крыло
       if (x > HX1 - 0.3 && x < HX0 + 0.3 && Math.abs(z) < HZ + 0.35) return false;   // свод
       return true;
@@ -895,7 +896,7 @@
     /* Пара деревьев прямо у длинной лестницы — по бокам подъёма,
        упрощённо (те же billboard-кроны, что и у остальной рощи). */
     (function () {
-      var lstMidZ = (PORTAL_Z - 0.55 + (PORTAL_Z - 2.10)) * 0.5;
+      var lstMidZ = (PORTAL_Z + zRoad) * 0.5;
       var sideX = [LSTX - LSTHW - 0.45, LSTX + LSTHW + 0.45];
       for (var si = 0; si < 2; si++) {
         var sx = sideX[si], sz = lstMidZ + (si - 0.5) * 0.6;
@@ -914,10 +915,10 @@
        портала — простая мощёная площадка (прямоугольная: подиум и сам
        не круглый). Дальше начинается склон — там уже трава. */
     curPart = 2;
-    var pv0 = addXYZ(HX1 - 0.4, yGround + 0.004, -4.80);
-    var pv1 = addXYZ(PODX1 + 0.6, yGround + 0.004, -4.80);
-    var pv2 = addXYZ(PODX1 + 0.6, yGround + 0.004, 0.60);
-    var pv3 = addXYZ(HX1 - 0.4, yGround + 0.004, 0.60);
+    var pv0 = addXYZ(PODX0 - 0.25, yGround + 0.004, -4.80);
+    var pv1 = addXYZ(PODX1 + 0.40, yGround + 0.004, -4.80);
+    var pv2 = addXYZ(PODX1 + 0.40, yGround + 0.004, TIERS3[0].z0);
+    var pv3 = addXYZ(PODX0 - 0.25, yGround + 0.004, TIERS3[0].z0);
     face('pave', pv0, pv1, pv2, pv3, 0, 1, 0);
     curPart = 0;
 
@@ -928,8 +929,8 @@
        движение живое, а не зациклённое. */
     var flags = [];
     for (var fi = 0; fi < 3; fi++) {
-      var ffx = PORTAL_X + (fi - 1) * 0.34;
-      var ffz = PORTAL_Z + 0.55;
+      var ffx = PORTAL_X + PORTAL_W * 0.5 + 0.28 + fi * 0.20;
+      var ffz = PORTAL_Z - 0.10;
       flags.push({
         b: addXYZ(ffx, pgY, ffz),
         t: addXYZ(ffx, pgY + 0.62, ffz),
@@ -963,11 +964,12 @@
     var lamps = [];
     var LAMP_H = 0.34;
 
-    // мачта не должна вырастать посреди подиума, крыла или свода
+    // мачта не должна вырастать посреди подиума, крыла, свода или лестницы
     function lampFree(x, z) {
-      if (x > PODX0 - 0.2 && x < PODX1 + 0.2 && z > -3.3 && z < 0.6) return false;  // подиум
+      if (x > PODX0 - 0.2 && x < PODX1 + 0.2 && z > -3.3 && z < 1.45) return false;  // подиум
       if (x > WX1 - 0.2 && x < WX0 + 0.2 && Math.abs(z) < WZ + 0.2) return false;   // крыло
       if (x > HX1 - 0.2 && x < HX0 + 0.2 && Math.abs(z) < HZ + 0.2) return false;   // свод
+      if (Math.abs(x - STX0) < 0.65 && z < TIERS3[0].z0 + 0.1 && z > -6.8) return false; // лестница
       return true;
     }
 
@@ -986,9 +988,8 @@
        сторонам от прохода, как и положено на парадном подходе. */
     for (var side = -1; side <= 1; side += 2) {
       for (var step = 0; step < 4; step++) {
-        var lz3 = PORTAL_Z + 0.3 - step * 0.95;
-        var lx3 = PORTAL_X + side * (PORTAL_W * 0.5 + 0.45);
-        if (!lampFree(lx3, lz3)) continue;
+        var lz3 = PORTAL_Z - 0.45 - step * 0.50;
+        var lx3 = PORTAL_X + side * (PORTAL_W * 0.5 + 0.35);
         lamps.push({
           b: addXYZ(lx3, groundY(Math.hypot(lx3, lz3)), lz3),
           t: addXYZ(lx3, groundY(Math.hypot(lx3, lz3)) + LAMP_H, lz3)

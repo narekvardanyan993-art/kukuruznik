@@ -93,13 +93,11 @@
     var STX0 = 1.10, STX1 = 1.85, STHW = 0.42;
     stairFlightZ(STX0, STHW, TIERS3[2].z0, TIERS3[1].z0 + 0.55, TIERS3[2].y1, TIERS3[1].y1, 4);
     stairFlightZ(STX1, STHW, TIERS3[1].z0, TIERS3[0].z0 + 0.55, TIERS3[1].y1, TIERS3[0].y1, 4);
-    stairFlightZ(STX0, STHW, TIERS3[0].z0, TIERS3[0].z0 - 0.90, TIERS3[0].y1, yGround,     3);
 
     // ======== свободно стоящий портал ========
-    /* Арка стоит отдельно от стены, посреди подхода к зданию — как
-       ворота, а не врезанный в стилобат проём. Две тонкие опоры и
-       плоская арочная перемычка между ними, видная с обеих сторон. */
-    var PORTAL_X = STX0, PORTAL_Z = TIERS3[0].z0 - 1.55;
+    /* Арка стоит посреди подхода к зданию — как ворота над широкой
+       лестницей. Две тонкие опоры и плоская арочная перемычка. */
+    var PORTAL_X = STX0, PORTAL_Z = -4.50;
     var PORTAL_W = 0.95, PORTAL_PW = 0.14, PORTAL_H = 0.62, PORTAL_TOPH = 0.20;
     var pgY = groundY(Math.hypot(PORTAL_X, PORTAL_Z));
     for (var ps = -1; ps <= 1; ps += 2) {
@@ -124,8 +122,11 @@
       nx: 0, ny: 0, nz: 1, vis: false, lit: 0
     });
 
-    // ======== длинная прямая лестница вверх по склону, к порталу ========
-    var LSTX = PORTAL_X, LSTHW = 0.50;
-    var lstZBot = PORTAL_Z - 2.10;
-    var lstYBot = groundY(Math.hypot(LSTX, lstZBot));
-    stairFlightZ(LSTX, LSTHW, PORTAL_Z - 0.55, lstZBot, pgY, lstYBot, 7);
+    // Марш от портала прямо в подиум (без зазоров)
+    stairFlightZ(STX0, 0.44, TIERS3[0].z0, PORTAL_Z, TIERS3[0].y1, pgY, 5);
+
+    // ======== широкая прямая лестница снизу от дороги к порталу ========
+    var LSTX = PORTAL_X, LSTHW = 0.46;
+    var zRoad = -6.60;
+    var yRoad = groundY(Math.hypot(LSTX, zRoad));
+    stairFlightZ(LSTX, LSTHW, PORTAL_Z, zRoad, pgY, yRoad, 9);

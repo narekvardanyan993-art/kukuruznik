@@ -50,12 +50,16 @@
 
     // 1. поверхность: земля и склон — то, на чём всё стоит
     this.drawGround();
-    this.drawShadows(0);
     this.fillShells('terrTop', C_TERRTOP);
     this.fillShells('terr',    C_TERR);
     this.fillShells('pave',    C_PAVE);
+    this.drawShadows(0);
     this.strokeBody(2);
     this.drawOutline(2);
+
+    // Дальний план: силуэт города и Мать-Армения на горизонте
+    this.drawSkyline();
+    this.drawMotherArmenia();
 
     this.drawCityGlow();   // огни города внизу — лежат на земле, до предметов
 

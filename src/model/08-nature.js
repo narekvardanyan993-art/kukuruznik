@@ -15,7 +15,7 @@
          и длинный подъём с дороги. Роща, посаженная сплошняком,
          закрывала именно то, ради чего здание и разворачивают к себе. */
       if (z < 0 && Math.abs(x - 1.4) < Math.abs(z) * 0.55 + 0.9) return false;
-      if (x > PODX0 - 0.3 && x < PODX1 + 0.3 && z > -3.4 && z < 0.6) return false;   // подиум
+      if (x > PODX0 - 0.3 && x < PODX1 + 0.3 && z > -3.4 && z < 1.45) return false;   // подиум
       if (x > WX1 - 0.3 && x < WX0 + 0.3 && Math.abs(z) < WZ + 0.35) return false;   // крыло
       if (x > HX1 - 0.3 && x < HX0 + 0.3 && Math.abs(z) < HZ + 0.35) return false;   // свод
       return true;
@@ -44,7 +44,7 @@
     /* Пара деревьев прямо у длинной лестницы — по бокам подъёма,
        упрощённо (те же billboard-кроны, что и у остальной рощи). */
     (function () {
-      var lstMidZ = (PORTAL_Z - 0.55 + (PORTAL_Z - 2.10)) * 0.5;
+      var lstMidZ = (PORTAL_Z + zRoad) * 0.5;
       var sideX = [LSTX - LSTHW - 0.45, LSTX + LSTHW + 0.45];
       for (var si = 0; si < 2; si++) {
         var sx = sideX[si], sz = lstMidZ + (si - 0.5) * 0.6;
@@ -63,10 +63,10 @@
        портала — простая мощёная площадка (прямоугольная: подиум и сам
        не круглый). Дальше начинается склон — там уже трава. */
     curPart = 2;
-    var pv0 = addXYZ(HX1 - 0.4, yGround + 0.004, -4.80);
-    var pv1 = addXYZ(PODX1 + 0.6, yGround + 0.004, -4.80);
-    var pv2 = addXYZ(PODX1 + 0.6, yGround + 0.004, 0.60);
-    var pv3 = addXYZ(HX1 - 0.4, yGround + 0.004, 0.60);
+    var pv0 = addXYZ(PODX0 - 0.25, yGround + 0.004, -4.80);
+    var pv1 = addXYZ(PODX1 + 0.40, yGround + 0.004, -4.80);
+    var pv2 = addXYZ(PODX1 + 0.40, yGround + 0.004, TIERS3[0].z0);
+    var pv3 = addXYZ(PODX0 - 0.25, yGround + 0.004, TIERS3[0].z0);
     face('pave', pv0, pv1, pv2, pv3, 0, 1, 0);
     curPart = 0;
 

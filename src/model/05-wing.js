@@ -80,7 +80,7 @@
     var wg0 = WY2 - 0.34, wg1 = WY2 - 0.08;
     var gN0 = addXYZ(WX0 + 0.12, wg0, WZB), gN1 = addXYZ(WX1 + 0.10, wg0, WZB);
     var gT0 = addXYZ(WX0 + 0.12, wg1, WZB), gT1 = addXYZ(WX1 + 0.10, wg1, WZB);
-    var bGlass = face('wingGlass', gN0, gN1, gT1, gT0, 0, 0, -1);
+    var bGlass = face('wingUp', gN0, gN1, gT1, gT0, 0, 0, -1);
     line(wl(wg0, WZB), gN1, THIN, bGlass, bGlass);
     line(wl(wg1, WZB), gT1, THIN, bGlass, bGlass);
     var MU = 9;
