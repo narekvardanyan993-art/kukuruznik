@@ -96,10 +96,9 @@
      а не ярус башни, и его очередь зависит от того, ближе он к нам
      или дальше. */
   Engine.prototype.drawHall = function () {
-    this.fillShells('hall',    C_HALL);
+    this.fillShells('hall',      C_HALL);
     this.fillShells('hallGlass', C_GLASS);
-    this.fillShells('slab',    C_SLAB);
-    this.fillShells('slabTop', C_SLABTOP);
+    this.fillShells('slab',      C_SLAB);
     this.strokeBody(4);
     this.drawOutline(4);
   };
@@ -109,18 +108,18 @@
   Engine.prototype.drawWing = function () {
     this.fillShells('wing',     C_HALL);
     this.drawCells(5);
-    this.fillShells('wingGlass', C_GLASS);
-    /* Задний этаж-уступ — раньше эти грани заводились в модели, но
-       никто их не красил: коробка стояла невидимой, держась на одних
-       линиях. */
-    this.fillShells('wingUp',     C_HALL);
-    this.fillShells('wingUpCorn', C_SLAB);
-    this.fillShells('wingUpTop',  C_DECK);
     this.fillShells('wingCorn', C_SLAB);
     this.fillShells('wingSlab', C_SLAB);
     this.fillShells('wingTop',  C_DECK);
     this.fillShells('wingRail', C_SLAB);
+    /* Задний этаж-уступ — ПОСЛЕ террасы и бортика (wingTop/wingRail),
+       иначе плита террасы закрашивает его стены и оставляет один каркас! */
+    this.fillShells('wingUp',     C_HALL);
+    this.fillShells('wingGlass',  C_GLASS);
+    this.fillShells('wingUpCorn', C_SLAB);
+    this.fillShells('wingUpTop',  C_DECK);
     this.strokeBody(5);
+    this.drawOutline(5);
   };
 
   // Ближние линии одного этажа: два прохода — отсюда «двойная обводка»

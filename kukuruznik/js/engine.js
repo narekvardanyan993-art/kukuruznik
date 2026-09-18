@@ -10,7 +10,7 @@
 (function (global) {
   'use strict';
 
-  var BUILD = '64';     // видно на самой странице — чтобы не гадать, свежая ли версия
+  var BUILD = '65';     // видно на самой странице — чтобы не гадать, свежая ли версия
 
   var PAPER = '#f5ecda';
   var INK   = '#2f2a25';
@@ -56,12 +56,12 @@
   var C_FLARE   = 'rgb(146, 128, 104)';
 
   // Лоджия в три слоя: тень проёма, окно в глубине, белая плита балкона
-  var C_CELL_LIT = 'rgba(112, 97, 73, 0.62)';    // проём на свету
-  var C_CELL_DRK = 'rgba(64, 65, 77, 0.74)';     // проём в тени
-  var C_WIN_LIT  = 'rgba(74, 100, 102, 0.80)';   // окно на свету
-  var C_WIN_DRK  = 'rgba(46, 61, 74, 0.85)';     // окно в тени
-  var C_BALC_LIT = 'rgba(250, 243, 222, 0.97)';  // балкон на свету
-  var C_BALC_DRK = 'rgba(187, 189, 199, 0.97)';  // балкон в тени
+  var C_CELL_LIT = 'rgb(98, 85, 66)';       // проём на свету
+  var C_CELL_DRK = 'rgb(44, 46, 56)';       // проём в тени
+  var C_WIN_LIT  = 'rgb(58, 80, 82)';       // окно на свету
+  var C_WIN_DRK  = 'rgb(32, 44, 54)';       // окно в тени
+  var C_BALC_LIT = 'rgb(250, 243, 222)';    // балкон на свету
+  var C_BALC_DRK = 'rgb(187, 189, 199)';    // балкон в тени
 
   /* ГЛАВНОЕ ПРАВИЛО ЦВЕТА: свет тёплый — тень холодная.
      Солнце жёлтое, а теневую сторону освещает синее небо. Поэтому
@@ -622,10 +622,9 @@
      а не ярус башни, и его очередь зависит от того, ближе он к нам
      или дальше. */
   Engine.prototype.drawHall = function () {
-    this.fillShells('hall',    C_HALL);
+    this.fillShells('hall',      C_HALL);
     this.fillShells('hallGlass', C_GLASS);
-    this.fillShells('slab',    C_SLAB);
-    this.fillShells('slabTop', C_SLABTOP);
+    this.fillShells('slab',      C_SLAB);
     this.strokeBody(4);
     this.drawOutline(4);
   };
@@ -635,18 +634,18 @@
   Engine.prototype.drawWing = function () {
     this.fillShells('wing',     C_HALL);
     this.drawCells(5);
-    this.fillShells('wingGlass', C_GLASS);
-    /* Задний этаж-уступ — раньше эти грани заводились в модели, но
-       никто их не красил: коробка стояла невидимой, держась на одних
-       линиях. */
-    this.fillShells('wingUp',     C_HALL);
-    this.fillShells('wingUpCorn', C_SLAB);
-    this.fillShells('wingUpTop',  C_DECK);
     this.fillShells('wingCorn', C_SLAB);
     this.fillShells('wingSlab', C_SLAB);
     this.fillShells('wingTop',  C_DECK);
     this.fillShells('wingRail', C_SLAB);
+    /* Задний этаж-уступ — ПОСЛЕ террасы и бортика (wingTop/wingRail),
+       иначе плита террасы закрашивает его стены и оставляет один каркас! */
+    this.fillShells('wingUp',     C_HALL);
+    this.fillShells('wingGlass',  C_GLASS);
+    this.fillShells('wingUpCorn', C_SLAB);
+    this.fillShells('wingUpTop',  C_DECK);
     this.strokeBody(5);
+    this.drawOutline(5);
   };
 
   // Ближние линии одного этажа: два прохода — отсюда «двойная обводка»
@@ -813,12 +812,12 @@
     var wc = m.wingCenter; add(depth(wc[0], wc[1], wc[2]), 1);
 
     var cc = m.cityCenters;
-    var nCity = cc ? Math.max(4, Math.round(m.city.length * lod)) : 0;
+    var nCity = (cc && m.city && m.city.length) ? Math.max(4, Math.round(m.city.length * lod)) : 0;
     for (var i = 0; i < nCity; i++) {
       add(depth(cc[i * 3], cc[i * 3 + 1], cc[i * 3 + 2]), 2, i);
     }
     var T = m.trees;
-    var nTree = T ? Math.max(10, Math.round(T.length * lod)) : 0;
+    var nTree = (T && T.length) ? Math.max(10, Math.round(T.length * lod)) : 0;
     for (var j = 0; j < nTree; j++) add(pz[T[j].p], 3, j);
 
     var LP = m.lamps;

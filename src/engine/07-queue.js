@@ -19,12 +19,12 @@
     var wc = m.wingCenter; add(depth(wc[0], wc[1], wc[2]), 1);
 
     var cc = m.cityCenters;
-    var nCity = cc ? Math.max(4, Math.round(m.city.length * lod)) : 0;
+    var nCity = (cc && m.city && m.city.length) ? Math.max(4, Math.round(m.city.length * lod)) : 0;
     for (var i = 0; i < nCity; i++) {
       add(depth(cc[i * 3], cc[i * 3 + 1], cc[i * 3 + 2]), 2, i);
     }
     var T = m.trees;
-    var nTree = T ? Math.max(10, Math.round(T.length * lod)) : 0;
+    var nTree = (T && T.length) ? Math.max(10, Math.round(T.length * lod)) : 0;
     for (var j = 0; j < nTree; j++) add(pz[T[j].p], 3, j);
 
     var LP = m.lamps;
