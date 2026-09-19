@@ -175,27 +175,32 @@ export function buildHead() {
   return g;
 }
 
-export function buildGround() {
+export function buildEnvironment() {
   const g = new THREE.Group();
   const v3 = (x, y, z) => new THREE.Vector3(x, y, z);
-  const { yCenter, C, R, shaftY0 } = P;
+  const { yCenter, C, R, shaftY0, fh } = P;
+  
+  // Base dimensions
+  const D = 2.00; // Tower diameter
 
-  const groundGeo = new THREE.CircleGeometry(12, 48);
-  groundGeo.rotateX(-Math.PI / 2);
-  g.add(new THREE.Mesh(groundGeo, toon(C.ground)));
-  g.children[g.children.length - 1].position.y = -yCenter - 0.01;
-
-  const PODX0 = -1.35, PODX1 = 2.30;
+  // 1. PODIUM
+  // Podium: 3 tiers (0.5*fh, 1.15*fh, 1.92*fh). Width 1.5 D = 3.00.
+  // Tower is at the back.
+  const POD_W = 1.5 * D; // 3.00
+  const POD_X0 = -POD_W / 2;
+  const POD_X1 = POD_W / 2;
+  // Let tower radius=1. Back edge = 1.1 to ensure intersection without gap
+  const POD_Z1 = 1.1;
   const tiers = [
-    { z0: -3.10, z1: 0.15, y0: 0.00, y1: 0.12 },
-    { z0: -2.05, z1: 0.15, y0: 0.12, y1: 0.30 },
-    { z0: -1.00, z1: 0.15, y0: 0.30, y1: 0.50 },
+    { z0: -3.20, z1: POD_Z1, y0: 0.00, y1: 0.5 * fh },
+    { z0: -2.15, z1: POD_Z1, y0: 0.5 * fh, y1: 1.15 * fh },
+    { z0: -1.10, z1: POD_Z1, y0: 1.15 * fh, y1: 1.92 * fh },
   ];
 
   for (const t of tiers) {
-    const w = PODX1 - PODX0, d = t.z1 - t.z0, h = t.y1 - t.y0;
+    const w = POD_X1 - POD_X0, d = t.z1 - t.z0, h = t.y1 - t.y0;
     const geo = new THREE.BoxGeometry(w, h, d);
-    const pos = v3((PODX0+PODX1)/2, (t.y0+t.y1)/2 - yCenter, (t.z0+t.z1)/2);
+    const pos = v3((POD_X0+POD_X1)/2, (t.y0+t.y1)/2 - yCenter, (t.z0+t.z1)/2);
     const m = new THREE.Mesh(geo, toon(C.podium));
     m.position.copy(pos);
     g.add(m);
@@ -204,16 +209,243 @@ export function buildGround() {
     const dg = new THREE.PlaneGeometry(w, d);
     dg.rotateX(-Math.PI / 2);
     const dm = new THREE.Mesh(dg, toon(C.deck));
-    dm.position.copy(v3((PODX0+PODX1)/2, t.y1 - yCenter + 0.002, (t.z0+t.z1)/2));
+    dm.position.copy(v3((POD_X0+POD_X1)/2, t.y1 - yCenter + 0.002, (t.z0+t.z1)/2));
     g.add(dm);
   }
 
+  // 2. SIDE BUILDING (WING + VAULT)
+  const wingGroup = new THREE.Group();
+  // Wing: wall height 4*fh = 1.04, width 0.8 D = 1.60. Length 1.1 D = 2.20
+  const WING_W = 0.8 * D; // 1.60
+  const WING_L = 1.1 * D; // 2.20
+  const WING_H = 4 * fh; // 1.04
+  const WING_X0 = -1.50 - WING_L; // Starts at podium edge -1.50, goes left to -3.70
+  const WING_X1 = -1.50;
+  const WING_Z0 = -WING_W / 2;
+  const WING_Z1 = WING_W / 2;
+
+  // Main block
+  const wGeo = new THREE.BoxGeometry(WING_L, WING_H, WING_W);
+  const wPos = v3((WING_X0+WING_X1)/2, WING_H/2 - yCenter, 0);
+  const wMesh = new THREE.Mesh(wGeo, toon(C.hall)); // армянский туф" -> Wait, C.podium is cold grey. Let's use C.parapet or create C.hall
+  wMesh.position.copy(wPos);
+  wingGroup.add(wMesh);
+  addEdges(wingGroup, wGeo, wPos, C.ink, 15);
+
+  // Roof of wing
+  const wrGeo = new THREE.PlaneGeometry(WING_L, WING_W);
+  wrGeo.rotateX(-Math.PI / 2);
+  const wrMesh = new THREE.Mesh(wrGeo, toon(C.roof));
+  wrMesh.position.copy(v3((WING_X0+WING_X1)/2, WING_H - yCenter + 0.002, 0));
+  wingGroup.add(wrMesh);
+
+    // Arcade (8 arches on front facade)
+  const arches = 8;
+  const archStep = WING_L / arches;
+  const aw = archStep * 0.6;
+  const ah = WING_H * 0.7;
+  const ar = aw / 2;
+  
+  // Arch shape
+  const aShape = new THREE.Shape();
+  aShape.moveTo(-aw/2, 0);
+  aShape.lineTo(-aw/2, ah - ar);
+  aShape.absarc(0, ah - ar, ar, Math.PI, 0, true);
+  aShape.lineTo(aw/2, 0);
+  aShape.lineTo(-aw/2, 0);
+  
+  const aExt = { depth: 0.1, bevelEnabled: false };
+  const aGeo = new THREE.ExtrudeGeometry(aShape, aExt);
+  
+  for (let i = 0; i < arches; i++) {
+    const ax = WING_X1 - archStep/2 - i * archStep;
+    const aMesh = new THREE.Mesh(aGeo, toon(C.cellDrk, { hatch: false }));
+    aMesh.position.set(ax, -yCenter, WING_Z1);
+    wingGroup.add(aMesh);
+  }
+
+  // Vault (semi-cylinder on the end)
+  // Radius HZ = 0.80, length 0.6 D = 1.20
+  const V_RAD = 0.80;
+  const V_LEN = 0.6 * D; // 1.20
+  const V_X0 = WING_X0 - V_LEN; // -3.70 - 1.20 = -4.90
+  
+  const vGeo = new THREE.CylinderGeometry(V_RAD, V_RAD, V_LEN, 16, 1, false, 0, Math.PI);
+  vGeo.rotateZ(Math.PI / 2); // Lay flat
+  const vPos = v3(V_X0 + V_LEN/2, WING_H - yCenter, 0);
+  const vMesh = new THREE.Mesh(vGeo, toon(C.hall)); // Roof
+  vMesh.position.copy(vPos);
+  wingGroup.add(vMesh);
+  addEdges(wingGroup, vGeo, vPos, C.ink, 20);
+  
+  // Vault side walls
+  const vwGeo = new THREE.BoxGeometry(V_LEN, WING_H, V_RAD * 2);
+  const vwPos = v3(V_X0 + V_LEN/2, WING_H/2 - yCenter, 0);
+  const vwMesh = new THREE.Mesh(vwGeo, toon(C.hall));
+  vwMesh.position.copy(vwPos);
+  wingGroup.add(vwMesh);
+  addEdges(wingGroup, vwGeo, vwPos, C.ink, 15);
+  
+  // Glazed arch at the end (X = V_X0)
+  const gGeo = new THREE.CylinderGeometry(V_RAD*0.9, V_RAD*0.9, 0.1, 16, 1, false, 0, Math.PI);
+  gGeo.rotateZ(Math.PI / 2);
+  const gPos = v3(V_X0 + 0.05, WING_H - yCenter, 0);
+  const gMesh = new THREE.Mesh(gGeo, toon(C.winDrk, { hatch: false }));
+  gMesh.position.copy(gPos);
+  wingGroup.add(gMesh);
+
+  const gwGeo = new THREE.BoxGeometry(0.1, WING_H, V_RAD*1.8);
+  const gwPos = v3(V_X0 + 0.05, WING_H/2 - yCenter, 0);
+  const gwMesh = new THREE.Mesh(gwGeo, toon(C.winDrk, { hatch: false }));
+  gwMesh.position.copy(gwPos);
+  wingGroup.add(gwMesh);
+  
+  g.add(wingGroup);
+
+    // 3. PORTAL
+  const P_W = 1.4, P_H = 0.65, P_D = 0.3, P_T = 0.15; 
+  const P_Z = -3.15; // Directly on the edge of podium
+  const portalG = new THREE.Group();
+  
+  const pp1 = new THREE.BoxGeometry(P_T, P_H, P_D);
+  const pm1 = new THREE.Mesh(pp1, toon(C.podium));
+  pm1.position.set(-P_W/2 + P_T/2, P_H/2 - yCenter, P_Z);
+  portalG.add(pm1);
+  addEdges(portalG, pp1, pm1.position, C.ink, 15);
+  
+  const pm2 = new THREE.Mesh(pp1, toon(C.podium));
+  pm2.position.set(P_W/2 - P_T/2, P_H/2 - yCenter, P_Z);
+  portalG.add(pm2);
+  addEdges(portalG, pp1, pm2.position, C.ink, 15);
+  
+  const pt = new THREE.BoxGeometry(P_W, P_T, P_D);
+  const ptm = new THREE.Mesh(pt, toon(C.podium));
+  ptm.position.set(0, P_H + P_T/2 - yCenter, P_Z);
+  portalG.add(ptm);
+  addEdges(portalG, pt, ptm.position, C.ink, 15);
+  g.add(portalG);
+
+      // 4. STAIRS
+  const ST_Z0 = -5.0, ST_Z1 = -3.20; // Goes exactly to the podium edge
+  const ST_W = 1.2;
+  const ST_Y0 = -0.6; // Road level
+  const ST_Y1 = tiers[0].y1; // Podium level
+  
+  // We'll build stairs as individual steps to look much better
+  const stepsG = new THREE.Group();
+  const stepCount = 12;
+  const stepD = (ST_Z1 - ST_Z0) / stepCount;
+  const stepH = (ST_Y1 - ST_Y0) / stepCount;
+  
+  for(let i=0; i<stepCount; i++) {
+    // Each step is a solid block down to Y0
+    const h = stepH * (i + 1);
+    const sGeo = new THREE.BoxGeometry(ST_W, h, stepD);
+    const sMesh = new THREE.Mesh(sGeo, toon(C.podium));
+    sMesh.position.set(0, ST_Y0 + h/2 - yCenter, ST_Z0 + i * stepD + stepD/2);
+    stepsG.add(sMesh);
+    addEdges(stepsG, sGeo, sMesh.position, C.ink, 15);
+  }
+  g.add(stepsG);
+  
+  // 5. ENVIRONMENT (Hill, road, trees, benches, trash cans, lamps)
+    // Hill
+  const hGeo = new THREE.PlaneGeometry(30, 30, 32, 32);
+  hGeo.rotateX(-Math.PI / 2);
+  const hPos = hGeo.attributes.position.array;
+  for(let i=0; i<hPos.length; i+=3) {
+    const x = hPos[i], z = hPos[i+2];
+    // Gentle slope up towards +Z. At z = -3, y = 0. At z = -5.5 (road), y = -0.5
+    const y = (z + 3.2) * 0.2; 
+    hPos[i+1] = y + Math.sin(x*2)*0.05 + Math.sin(z*2)*0.05;
+  }
+  hGeo.computeVertexNormals();
+  const hMesh = new THREE.Mesh(hGeo, toon(C.ground));
+  hMesh.position.set(0, -yCenter - 0.02, 0);
+  g.add(hMesh);
+
+  // Road
+  const rdGeo = new THREE.PlaneGeometry(30, 3);
+  rdGeo.rotateX(-Math.PI / 2);
+  const rdMesh = new THREE.Mesh(rdGeo, toon(C.podium)); 
+  rdMesh.position.set(0, -0.6 - yCenter, -5.5);
+  g.add(rdMesh);
+  
+  // Trees
+  const treeG = new THREE.Group();
+  function addTree(type, x, z, s) {
+    let geo;
+    const green = toon(C.groundFar);
+    if (type === 0) { // Cypress
+      geo = new THREE.ConeGeometry(0.2*s, 1.2*s, 8);
+      geo.translate(0, 0.6*s, 0);
+    } else if (type === 1) { // Spreading
+      geo = new THREE.DodecahedronGeometry(0.5*s, 1);
+      geo.scale(1.5, 0.8, 1.2);
+      geo.translate(0, 0.6*s, 0);
+    } else if (type === 2) { // Round
+      geo = new THREE.IcosahedronGeometry(0.4*s, 1);
+      geo.translate(0, 0.5*s, 0);
+    } else { // Bush
+      geo = new THREE.SphereGeometry(0.2*s, 7, 7);
+      geo.scale(1.5, 0.8, 1.0);
+      geo.translate(0, 0.1*s, 0);
+    }
+    // Trunks
+    if (type !== 3) {
+      const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.05*s, 0.05*s, 0.5*s), toon(C.cellDrk, {hatch:false}));
+      tr.position.set(x, 0.25*s - yCenter, z);
+      treeG.add(tr);
+    }
+    const yBase = (z > -3 ? (z + 3) * 0.15 : 0) - 0.2;
+    const tm = new THREE.Mesh(geo, green);
+    tm.position.set(x, yBase - yCenter + (type!==3?0.3*s:0), z);
+    treeG.add(tm);
+    addOutline(treeG, geo, tm.position, C.ink, 0.02);
+  }
+  // Add some trees
+  addTree(0, -4, -2, 1.2);
+  addTree(0, -4.5, -1, 1.5);
+  addTree(1, 3, -2, 2.0);
+  addTree(2, 4, 1, 1.5);
+  addTree(3, -2, 2, 1.5);
+  addTree(3, 2, 2, 1.2);
+  g.add(treeG);
+
+  // Lamps, Benches, Trash cans
+  function addProp(type, x, y, z) {
+    if (type === 'lamp') {
+      const p = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.6), toon(C.podium));
+      p.position.set(x, y + 0.3 - yCenter, z);
+      const h = new THREE.Mesh(new THREE.SphereGeometry(0.06), toon(C.glassLit, {hatch:false}));
+      h.position.set(x, y + 0.6 - yCenter, z);
+      h.userData.isGlass = true;
+      g.add(p, h);
+    } else if (type === 'bench') {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, 0.2), toon(C.deck));
+      b.position.set(x, y + 0.1 - yCenter, z);
+      g.add(b);
+    } else if (type === 'trash') {
+      const c = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.15), toon(C.cellDrk, {hatch:false}));
+      c.position.set(x, y + 0.075 - yCenter, z);
+      g.add(c);
+    }
+  }
+  addProp('lamp', -0.8, -0.15, -4.0);
+  addProp('lamp', 0.8, -0.15, -4.0);
+  addProp('lamp', -0.8, -0.45, -4.8);
+  addProp('lamp', 0.8, -0.45, -4.8);
+  
+  addProp('bench', -2.0, tiers[1].y1, -2.0);
+  addProp('trash', -2.3, tiers[1].y1, -2.0);
+
+  // Shadows
   const shGeo = new THREE.CircleGeometry(R * 1.6, 32);
   shGeo.rotateX(-Math.PI / 2);
   const shM = new THREE.Mesh(shGeo, new THREE.MeshBasicMaterial({
     color: C.shadow, transparent: true, opacity: 0.18, depthWrite: false
   }));
-  shM.position.set(0.3, -yCenter + 0.003, -0.2);
+  shM.position.set(0.3, tiers[2].y1 - yCenter + 0.003, -0.2);
   shM.renderOrder = -1;
   g.add(shM);
   shM.userData.isShadow = true;
@@ -223,7 +455,7 @@ export function buildGround() {
   const csM = new THREE.Mesh(csGeo, new THREE.MeshBasicMaterial({
     color: C.shadow, transparent: true, opacity: 0.22, depthWrite: false
   }));
-  csM.position.set(0, shaftY0 - yCenter + 0.003, 0);
+  csM.position.set(0, tiers[2].y1 - yCenter + 0.003, 0);
   csM.renderOrder = -1;
   g.add(csM);
 
@@ -233,7 +465,7 @@ export function buildGround() {
 export function setupBuilding(engine) {
   const shaftGroup = buildShaft();
   const headGroup = buildHead();
-  const groundGroup = buildGround();
+  const groundGroup = buildEnvironment();
   
   engine.scene.add(shaftGroup, headGroup, groundGroup);
 

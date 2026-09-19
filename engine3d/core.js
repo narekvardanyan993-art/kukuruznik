@@ -184,7 +184,7 @@ export function initEngine(canvas, { targetY = 0, initialTOD = 0.3 } = {}) {
   const camera = new THREE.PerspectiveCamera(
     18, window.innerWidth / window.innerHeight, 0.1, 100
   );
-  camera.position.set(8, 4, 12);
+  camera.position.set(-9, 4, -13);
 
   const controls = new OrbitControls(camera, canvas);
   controls.target.set(0, targetY, 0);

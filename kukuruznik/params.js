@@ -29,6 +29,7 @@ export const C = {
   rail:     new THREE.Color(180/255, 172/255, 152/255),
   roof:     new THREE.Color(231/255, 224/255, 203/255),
   podium:   new THREE.Color(152/255, 152/255, 157/255),
+  hall:     new THREE.Color(126/255, 128/255, 132/255),
   deck:     new THREE.Color(186/255, 184/255, 177/255),
   ground:   new THREE.Color(163/255, 189/255, 122/255),
   groundFar:new THREE.Color(198/255, 208/255, 166/255),
