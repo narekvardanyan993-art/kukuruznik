@@ -8,7 +8,9 @@
 .s-head h1 { font-size: clamp(2.625rem, calc(12vw * var(--fs)), 4.5rem); }
 .s-head h1 [lang="hy"] { font-size: 0.82em; }
 .s-head .meta { font-size: 1.0625rem; margin-top: 8px; }
-.btn-3d { width: 100%; margin-top: 18px; }
+.s-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+
+.btn-3d { width: 100%; }
 .btn-3d .cube-i { width: 24px; height: 24px; }
 .hint { margin: 10px 2px 0; color: var(--faint); font-size: 0.875rem; }
 
@@ -73,7 +75,7 @@
 .tag-l { left: 12px; }
 .tag-r { right: 12px; }
 .note { padding: 12px 8px 4px; }
-.cred { margin: 0; color: var(--faint); font-size: 0.875rem; line-height: 1.5; }
+.cred { margin: 0; color: var(--faint); font-size: 0.875rem; line-height: 1.5; overflow-wrap: break-word; word-wrap: break-word; }
 .cred a { color: inherit; text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; }
 .restore-note { margin: 8px 8px 8px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 1rem; line-height: 1.55; }
 .restore-note p { margin: 0; }
@@ -231,6 +233,12 @@
   border-radius: var(--r-lg);
   background: var(--next-bg, var(--accent-soft));
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
 }
 .next-sec h2 { font-size: clamp(1.625rem, calc(7vw * var(--fs)), 2.25rem); margin-bottom: 10px; }
 .next-sec p { margin: 0 0 20px; color: var(--muted); }
@@ -339,7 +347,7 @@ html.gx-lock, html.gx-lock body { overflow: hidden; overscroll-behavior: none; }
 /* нижняя панель */
 .gx-bar {
   position: absolute; z-index: 4; left: 0; right: 0; bottom: 0;
-  padding: 0 max(12px, env(safe-area-inset-right)) calc(env(safe-area-inset-bottom, 0px) + 12px) max(12px, env(safe-area-inset-left));
+  padding: 0 calc(env(safe-area-inset-right) + 68px) calc(env(safe-area-inset-bottom, 0px) + 12px) calc(env(safe-area-inset-left) + 68px);
   pointer-events: none;
 }
 .gx-bar-in {
@@ -377,8 +385,18 @@ html.gx-lock, html.gx-lock body { overflow: hidden; overscroll-behavior: none; }
 /* ---------- детали «светлого музея» ---------- */
 
 .sec { margin-top: 72px; }
-.btn-history { margin-top: 10px; width: 100%; }
+.btn-history { width: 100%; }
 .btn-history svg { transition: transform 200ms var(--ease); }
 @media (hover: hover) and (pointer: fine) { .btn-history:hover svg { transform: translateX(3px); } }
-@media (min-width: 560px) { .btn-history { width: auto; margin-left: 8px; } }
+
 .gx-count { color: var(--accent); }
+
+@media (min-width: 768px) {
+  .s-head { display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .s-actions { width: max-content; margin-left: auto; margin-right: auto; }
+  .plate {
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
