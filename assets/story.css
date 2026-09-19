@@ -231,6 +231,12 @@
   border-radius: var(--r-lg);
   background: var(--next-bg, var(--accent-soft));
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
 }
 .next-sec h2 { font-size: clamp(1.625rem, calc(7vw * var(--fs)), 2.25rem); margin-bottom: 10px; }
 .next-sec p { margin: 0 0 20px; color: var(--muted); }
@@ -339,7 +345,7 @@ html.gx-lock, html.gx-lock body { overflow: hidden; overscroll-behavior: none; }
 /* нижняя панель */
 .gx-bar {
   position: absolute; z-index: 4; left: 0; right: 0; bottom: 0;
-  padding: 0 max(12px, env(safe-area-inset-right)) calc(env(safe-area-inset-bottom, 0px) + 12px) max(12px, env(safe-area-inset-left));
+  padding: 0 calc(env(safe-area-inset-right) + 68px) calc(env(safe-area-inset-bottom, 0px) + 12px) calc(env(safe-area-inset-left) + 68px);
   pointer-events: none;
 }
 .gx-bar-in {
@@ -382,3 +388,12 @@ html.gx-lock, html.gx-lock body { overflow: hidden; overscroll-behavior: none; }
 @media (hover: hover) and (pointer: fine) { .btn-history:hover svg { transform: translateX(3px); } }
 @media (min-width: 560px) { .btn-history { width: auto; margin-left: 8px; } }
 .gx-count { color: var(--accent); }
+
+@media (min-width: 768px) {
+  .plate {
+    max-width: 420px;
+    max-height: 65vh;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
