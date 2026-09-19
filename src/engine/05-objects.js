@@ -97,7 +97,7 @@
      или дальше. */
   Engine.prototype.drawHall = function () {
     this.fillShells('hall',      C_HALL);
-    this.fillShells('hallGlass', C_GLASS);
+    this.fillShells('hallGlass', C_WIN_DRK);
     this.fillShells('slab',      C_SLAB);
     this.hatch('hall');
     this.strokeBody(4);

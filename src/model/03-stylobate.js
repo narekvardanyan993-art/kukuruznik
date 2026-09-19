@@ -32,24 +32,9 @@
       line(decks[t].b, decks[t].c, THIN, decks[t].id, decks[t].id);
     }
 
-    /* Галереи — лёгкие навесы вдоль открытого края каждого яруса.
-       Дёшево: столбики и один поручень, без своей крыши. У прохода
-       лестницы столбик пропускаем — иначе он стоит прямо в проёме. */
+    /* Столбики галерей убраны — они читались как висящий в воздухе
+       проволочный мусор. Террасы подиума чистые. */
     var galleryPosts = [];
-    var STAIR_GAP_X = [1.10, 1.85, 1.10];   // проход на каждом ярусе — см. STX0/STX1 ниже
-    for (var t = 0; t < TIERS3.length; t++) {
-      var gz = TIERS3[t].z0 + 0.03;
-      var gy0 = TIERS3[t].y1, gy1 = gy0 + 0.16;
-      var GP = 9;
-      for (var gi = 0; gi <= GP; gi++) {
-        var gx = PODX0 + (PODX1 - PODX0) * (gi / GP);
-        if (Math.abs(gx - STAIR_GAP_X[t]) < 0.5) continue;
-        galleryPosts.push({
-          b: addXYZ(gx, gy0, gz),
-          t: addXYZ(gx, gy1, gz)
-        });
-      }
-    }
 
     /* Простые объёмы на кровле верхнего яруса — по фото «Вид с холма»
        там стоит пара служебных построек, а не голая плита. Обычные
@@ -67,8 +52,11 @@
 
     // ======== лестницы-зигзаг: земля → ярус 0 → ярус 1 → ярус 2 ========
     /* Марш идёт вдоль Z (к дороге), а не по кругу, как раньше. Каждый
-       следующий марш сдвинут по X в другую сторону от предыдущего —
-       отсюда и «зигзаг», а не один прямой марш через все три яруса. */
+       следующий марш сдвинут по X в другую сторону от предыдущего.
+       Марш формируется как сплошной монолитный блок: ступени сверху,
+       глухие боковые щёки, глухая задняя стенка, сплошная подшивка
+       снизу и заглублённый цоколь. Снизу сквозь ступени ничего не
+       просвечивает. */
     function stairFlightZ(xC, halfW, zTop, zBot, yTop, yBot, steps) {
       var rise = (yTop - yBot) / steps;
       var run  = (zBot - zTop) / steps;
@@ -82,13 +70,32 @@
         var riser = face('podium', bL, cL, cR, bR, 0, 0, -1);
         line(bL, bR, MED, tread, riser);
       }
+      var yPlinth = yBot - 0.16;
       var tL = addXYZ(xC - halfW, yTop, zTop), tR = addXYZ(xC + halfW, yTop, zTop);
       var oL = addXYZ(xC - halfW, yBot, zBot), oR = addXYZ(xC + halfW, yBot, zBot);
       var gL = addXYZ(xC - halfW, yBot, zTop), gR = addXYZ(xC + halfW, yBot, zTop);
-      var chL = face('podium', tL, oL, gL, gL, -1, 0, 0);
-      var chR = face('podium', oR, tR, gR, gR, 1, 0, 0);
+      var pL = addXYZ(xC - halfW, yPlinth, zBot), pR = addXYZ(xC + halfW, yPlinth, zBot);
+      var pgL = addXYZ(xC - halfW, yPlinth, zTop), pgR = addXYZ(xC + halfW, yPlinth, zTop);
+
+      // Боковые щёки (монолитные стены марша до цоколя)
+      var chL = face('podium', tL, oL, pL, pgL, -1, 0, 0);
+      face('podium', tL, oL, gL, gL, -1, 0, 0);
+      var chR = face('podium', oR, tR, pgR, pR, 1, 0, 0);
+      face('podium', oR, tR, gR, gR, 1, 0, 0);
       line(tL, oL, MED, chL, chL);
       line(tR, oR, MED, chR, chR);
+
+      // Задняя глухая стенка марша (к верхнему ярусу/подиуму)
+      face('podium', tR, tL, pgL, pgR, 0, 0, 1);
+      face('podium', tR, tL, gL, gR, 0, 0, 1);
+
+      // Сплошная наклонная подшивка снизу (soffit) + горизонтальное дно цоколя
+      face('podium', oL, oR, tR, tL, 0, -1, -0.6);
+      face('podium', pL, pR, pgR, pgL, 0, -1, 0);
+
+      // Цокольная подпорная стенка под нижней ступенью
+      var fPlinth = face('podium', oL, pL, pR, oR, 0, 0, -1);
+      line(oL, oR, MED, fPlinth, fPlinth);
     }
     var STX0 = 1.10, STX1 = 1.85, STHW = 0.42;
     stairFlightZ(STX0, STHW, TIERS3[2].z0, TIERS3[1].z0 + 0.55, TIERS3[2].y1, TIERS3[1].y1, 4);

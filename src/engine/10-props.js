@@ -1,12 +1,12 @@
 
   /* Скамейки. Сиденье и две ножки, все разом одним путём. */
 
-  /* Фонари. Днём — тонкая мачта с головкой, ночью ещё и тёплое пятно
-     света: без него площадка остаётся чёрной, сколько ни зажигай окон. */
+  /* Фонари. Днём — тонкая мачта с опорой и плафоном, ночью — тёплый свет. */
   Engine.prototype.drawOneLamp = function (i) {
     var L = this.model.lamps[i];
+    if (!L) return;
     var ctx = this.ctx, px = this.px, py = this.py, pz = this.pz;
-    var tp = L.t;
+    var tp = L.t, bp = L.b;
     var k = FOCAL / Math.max(1, CAM_DIST - pz[tp]) * this.S;
 
     // свет кладём ПОД мачту, иначе он ложится поверх неё молочным пятном
@@ -25,34 +25,44 @@
       ctx.globalCompositeOperation = 'source-over';
     }
 
+    var headR = Math.max(2.0, k * 0.024);
+    var baseW = Math.max(2.4, k * 0.026);
+
+    // Опора/цоколь на земле
     ctx.beginPath();
-    ctx.moveTo(px[L.b], py[L.b]);
+    ctx.moveTo(px[bp] - baseW, py[bp]);
+    ctx.lineTo(px[bp] + baseW, py[bp]);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = Math.max(1.4, this.S * 0.013);
+    ctx.stroke();
+
+    // Мачта
+    ctx.beginPath();
+    ctx.moveTo(px[bp], py[bp]);
     ctx.lineTo(px[tp], py[tp]);
     ctx.strokeStyle = INK;
-    ctx.lineWidth = Math.max(0.9, this.S * 0.010);
-    ctx.globalAlpha = 0.78;
+    ctx.lineWidth = Math.max(1.0, this.S * 0.009);
     ctx.stroke();
-    ctx.globalAlpha = 1;
 
+    // Плафон светильника
     ctx.beginPath();
-    ctx.arc(px[tp], py[tp], k * 0.022, 0, Math.PI * 2);
-    ctx.fillStyle = NIGHT > 0.2 ? 'rgb(255, 226, 164)' : C_RAIL;
+    ctx.arc(px[tp], py[tp] - headR * 0.3, headR, 0, Math.PI * 2);
+    ctx.fillStyle = NIGHT > 0.2 ? 'rgb(255, 226, 164)' : '#dedad0';
     ctx.fill();
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = Math.max(0.8, this.S * 0.006);
+    ctx.stroke();
+
+    // Колпак фонаря сверху
+    ctx.beginPath();
+    ctx.moveTo(px[tp] - headR * 1.3, py[tp] - headR * 0.8);
+    ctx.lineTo(px[tp] + headR * 1.3, py[tp] - headR * 0.8);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = Math.max(1.2, this.S * 0.009);
+    ctx.stroke();
   };
 
-  Engine.prototype.drawOneBench = function (i) {
-    var f = this.model.benches[i];
-    var ctx = this.ctx, px = this.px, py = this.py;
-    ctx.beginPath();
-    ctx.moveTo(px[f.a], py[f.a]); ctx.lineTo(px[f.b], py[f.b]);
-    ctx.moveTo(px[f.a], py[f.a]); ctx.lineTo(px[f.c], py[f.c]);
-    ctx.moveTo(px[f.b], py[f.b]); ctx.lineTo(px[f.d], py[f.d]);
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = Math.max(1.1, this.S * 0.013);
-    ctx.globalAlpha = 0.72;
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-  };
+  Engine.prototype.drawOneBench = function () {};
 
   Engine.prototype.drawOneFlag = function (i) {
     var f = this.model.flags[i];
@@ -189,43 +199,8 @@
     ctx.globalCompositeOperation = 'source-over';
   };
 
-  /* Скамейки. Сиденье и две ножки, все разом одним путём. */
-  Engine.prototype.drawBenches = function () {
-    var Bc = this.model.benches;
-    if (!Bc || !Bc.length) return;
-    var ctx = this.ctx, px = this.px, py = this.py;
-    ctx.beginPath();
-    for (var i = 0; i < Bc.length; i++) {
-      var f = Bc[i];
-      ctx.moveTo(px[f.a], py[f.a]); ctx.lineTo(px[f.b], py[f.b]);
-      ctx.moveTo(px[f.a], py[f.a]); ctx.lineTo(px[f.c], py[f.c]);
-      ctx.moveTo(px[f.b], py[f.b]); ctx.lineTo(px[f.d], py[f.d]);
-    }
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = Math.max(1.1, this.S * 0.013);
-    ctx.globalAlpha = 0.72;
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-  };
-
-  /* Столбики галерей вдоль открытого края каждого яруса подиума —
-     лёгкий навес без своей крыши, тот же приём, что у скамеек: одна
-     заливка-обводка на все столбики сразу. */
-  Engine.prototype.drawGalleryPosts = function () {
-    var G = this.model.galleryPosts;
-    if (!G || !G.length) return;
-    var ctx = this.ctx, px = this.px, py = this.py;
-    ctx.beginPath();
-    for (var i = 0; i < G.length; i++) {
-      ctx.moveTo(px[G[i].b], py[G[i].b]);
-      ctx.lineTo(px[G[i].t], py[G[i].t]);
-    }
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = Math.max(0.8, this.S * 0.008);
-    ctx.globalAlpha = 0.60;
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-  };
+  Engine.prototype.drawBenches = function () {};
+  Engine.prototype.drawGalleryPosts = function () {};
 
   /* Фонари. Днём — тонкая мачта с головкой, ночью ещё и тёплое пятно
      света: без него площадка остаётся чёрной, сколько ни зажигай окон. */

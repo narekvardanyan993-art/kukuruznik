@@ -31,7 +31,7 @@
     var nLamp = LP ? (lod < 0.7 ? Math.round(LP.length * 0.6) : LP.length) : 0;
     for (var l = 0; l < nLamp; l++) add(pz[LP[l].b], 6, l);
     var BN = m.benches;
-    if (BN) for (var n = 0; n < BN.length; n++) add(pz[BN[n].a], 7, n);
+    if (BN && BN.length) for (var n = 0; n < BN.length; n++) add(pz[BN[n].a], 7, n);
     var FL = m.flags;
     if (FL) for (var f = 0; f < FL.length; f++) add(pz[FL[f].b], 8, f);
 

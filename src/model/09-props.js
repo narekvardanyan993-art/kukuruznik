@@ -34,38 +34,16 @@
     }
 
     /* ======== фонари ========
-       На фотографии у входа стоят фонари на тонких мачтах. Ночью они
-       единственное, что светит на площадку — без них терраса остаётся
-       чёрным пятном, даже когда в окнах горит свет. */
+       На фотографии у входа стоят фонари на тонких мачтах.
+       Два чётких ряда по сторонам от парадной лестницы к порталу (всего 8).
+       Освещают парадный подход, не засоряя террасы подиума. */
     var lamps = [];
-    var LAMP_H = 0.34;
+    var LAMP_H = 0.38;
 
-    // мачта не должна вырастать посреди подиума, крыла, свода или лестницы
-    function lampFree(x, z) {
-      if (x > PODX0 - 0.2 && x < PODX1 + 0.2 && z > -3.3 && z < 1.45) return false;  // подиум
-      if (x > WX1 - 0.2 && x < WX0 + 0.2 && Math.abs(z) < WZ + 0.2) return false;   // крыло
-      if (x > HX1 - 0.2 && x < HX0 + 0.2 && Math.abs(z) < HZ + 0.2) return false;   // свод
-      if (Math.abs(x - STX0) < 0.65 && z < TIERS3[0].z0 + 0.1 && z > -6.8) return false; // лестница
-      return true;
-    }
-
-    // Ряд фонарей вдоль открытого паркета перед подиумом.
-    for (var li = 0; li < 10; li++) {
-      var lx2 = PODX0 + (PODX1 - PODX0) * (li / 9);
-      var lz2 = TIERS3[0].z0 - 0.45;
-      if (!lampFree(lx2, lz2)) continue;
-      lamps.push({
-        b: addXYZ(lx2, groundY(Math.hypot(lx2, lz2)), lz2),
-        t: addXYZ(lx2, groundY(Math.hypot(lx2, lz2)) + LAMP_H, lz2)
-      });
-    }
-
-    /* У портала и вдоль длинной лестницы — двумя чёткими рядами по
-       сторонам от прохода, как и положено на парадном подходе. */
     for (var side = -1; side <= 1; side += 2) {
       for (var step = 0; step < 4; step++) {
-        var lz3 = PORTAL_Z - 0.45 - step * 0.50;
-        var lx3 = PORTAL_X + side * (PORTAL_W * 0.5 + 0.35);
+        var lz3 = PORTAL_Z - 0.40 - step * 0.52;
+        var lx3 = PORTAL_X + side * (PORTAL_W * 0.5 + 0.38);
         lamps.push({
           b: addXYZ(lx3, groundY(Math.hypot(lx3, lz3)), lz3),
           t: addXYZ(lx3, groundY(Math.hypot(lx3, lz3)) + LAMP_H, lz3)
@@ -73,22 +51,9 @@
       }
     }
 
-    /* ======== скамейки ========
-       Мелочь, которой не замечаешь, но без которой площадь не похожа
-       на место, где бывают люди. Стоят вдоль паркета перед подиумом. */
+    /* Проволочные скамейки убраны — они читались как мусорные рамки
+       на земле. Земля и террасы вокруг здания чистые. */
     var benches = [];
-    for (var bi3 = 0; bi3 < 8; bi3++) {
-      var bx3 = HX1 + 0.3 + (PODX1 - HX1 - 0.6) * (bi3 / 7);
-      var bz3 = TIERS3[0].z0 - 0.85;
-      if (!lampFree(bx3, bz3)) continue;
-      var byy = groundY(Math.hypot(bx3, bz3));
-      benches.push({
-        a: addXYZ(bx3 - 0.17, byy + 0.075, bz3),
-        b: addXYZ(bx3 + 0.17, byy + 0.075, bz3),
-        c: addXYZ(bx3 - 0.17, byy, bz3),
-        d: addXYZ(bx3 + 0.17, byy, bz3)
-      });
-    }
 
     /* ======== кусты у подножия ======== */
     for (var bu = 0; bu < 14; bu++) {

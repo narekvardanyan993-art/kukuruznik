@@ -5,7 +5,6 @@
     this.hatch();
     this.strokeBody(3);
     this.drawOutline(3);
-    this.drawGalleryPosts();
     this.drawShadows(1);
   };
 
