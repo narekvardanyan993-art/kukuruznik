@@ -192,9 +192,9 @@ export function buildEnvironment() {
   // Let tower radius=1. Back edge = 1.1 to ensure intersection without gap
   const POD_Z1 = 1.1;
   const tiers = [
-    { z0: -3.20, z1: POD_Z1, y0: 0.00, y1: 0.5 * fh },
-    { z0: -2.15, z1: POD_Z1, y0: 0.5 * fh, y1: 1.15 * fh },
-    { z0: -1.10, z1: POD_Z1, y0: 1.15 * fh, y1: 1.92 * fh },
+    { z0: -3.10, z1: POD_Z1, y0: -1.0, y1: 0.5 * fh },
+    { z0: -2.15, z1: POD_Z1, y0: -1.0, y1: 1.15 * fh },
+    { z0: -1.10, z1: POD_Z1, y0: -1.0, y1: 1.92 * fh },
   ];
 
   for (const t of tiers) {
@@ -213,21 +213,22 @@ export function buildEnvironment() {
     g.add(dm);
   }
 
-  // 2. SIDE BUILDING (WING + VAULT)
+    // 2. SIDE BUILDING (WING + VAULT)
   const wingGroup = new THREE.Group();
-  // Wing: wall height 4*fh = 1.04, width 0.8 D = 1.60. Length 1.1 D = 2.20
   const WING_W = 0.8 * D; // 1.60
   const WING_L = 1.1 * D; // 2.20
   const WING_H = 4 * fh; // 1.04
-  const WING_X0 = -1.50 - WING_L; // Starts at podium edge -1.50, goes left to -3.70
+  const WING_BASE = -1.0; // Extend deep underground to merge with podium
+  const WING_TOTAL_H = WING_H - WING_BASE;
+  const WING_X0 = -1.50 - WING_L; 
   const WING_X1 = -1.50;
   const WING_Z0 = -WING_W / 2;
   const WING_Z1 = WING_W / 2;
 
   // Main block
-  const wGeo = new THREE.BoxGeometry(WING_L, WING_H, WING_W);
-  const wPos = v3((WING_X0+WING_X1)/2, WING_H/2 - yCenter, 0);
-  const wMesh = new THREE.Mesh(wGeo, toon(C.hall)); // армянский туф" -> Wait, C.podium is cold grey. Let's use C.parapet or create C.hall
+  const wGeo = new THREE.BoxGeometry(WING_L, WING_TOTAL_H, WING_W);
+  const wPos = v3((WING_X0+WING_X1)/2, WING_BASE + WING_TOTAL_H/2 - yCenter, 0);
+  const wMesh = new THREE.Mesh(wGeo, toon(C.hall)); 
   wMesh.position.copy(wPos);
   wingGroup.add(wMesh);
   addEdges(wingGroup, wGeo, wPos, C.ink, 15);
@@ -239,14 +240,13 @@ export function buildEnvironment() {
   wrMesh.position.copy(v3((WING_X0+WING_X1)/2, WING_H - yCenter + 0.002, 0));
   wingGroup.add(wrMesh);
 
-    // Arcade (8 arches on front facade)
+  // Arcade (8 arches on front facade)
   const arches = 8;
   const archStep = WING_L / arches;
   const aw = archStep * 0.6;
   const ah = WING_H * 0.7;
   const ar = aw / 2;
   
-  // Arch shape
   const aShape = new THREE.Shape();
   aShape.moveTo(-aw/2, 0);
   aShape.lineTo(-aw/2, ah - ar);
@@ -260,18 +260,18 @@ export function buildEnvironment() {
   for (let i = 0; i < arches; i++) {
     const ax = WING_X1 - archStep/2 - i * archStep;
     const aMesh = new THREE.Mesh(aGeo, toon(C.cellDrk, { hatch: false }));
+    // Arcade starts at Y=0
     aMesh.position.set(ax, -yCenter, WING_Z1);
     wingGroup.add(aMesh);
   }
 
   // Vault (semi-cylinder on the end)
-  // Radius HZ = 0.80, length 0.6 D = 1.20
   const V_RAD = 0.80;
   const V_LEN = 0.6 * D; // 1.20
-  const V_X0 = WING_X0 - V_LEN; // -3.70 - 1.20 = -4.90
+  const V_X0 = WING_X0 - V_LEN; // -4.90
   
   const vGeo = new THREE.CylinderGeometry(V_RAD, V_RAD, V_LEN, 16, 1, false, 0, Math.PI);
-  vGeo.rotateZ(Math.PI / 2); // Lay flat
+  vGeo.rotateZ(Math.PI / 2);
   const vPos = v3(V_X0 + V_LEN/2, WING_H - yCenter, 0);
   const vMesh = new THREE.Mesh(vGeo, toon(C.hall)); // Roof
   vMesh.position.copy(vPos);
@@ -279,8 +279,8 @@ export function buildEnvironment() {
   addEdges(wingGroup, vGeo, vPos, C.ink, 20);
   
   // Vault side walls
-  const vwGeo = new THREE.BoxGeometry(V_LEN, WING_H, V_RAD * 2);
-  const vwPos = v3(V_X0 + V_LEN/2, WING_H/2 - yCenter, 0);
+  const vwGeo = new THREE.BoxGeometry(V_LEN, WING_TOTAL_H, V_RAD * 2);
+  const vwPos = v3(V_X0 + V_LEN/2, WING_BASE + WING_TOTAL_H/2 - yCenter, 0);
   const vwMesh = new THREE.Mesh(vwGeo, toon(C.hall));
   vwMesh.position.copy(vwPos);
   wingGroup.add(vwMesh);
@@ -294,6 +294,8 @@ export function buildEnvironment() {
   gMesh.position.copy(gPos);
   wingGroup.add(gMesh);
 
+  // Glazed window wall under the arch
+  // Arcade starts at Y=0, so window wall should go from Y=0 to WING_H
   const gwGeo = new THREE.BoxGeometry(0.1, WING_H, V_RAD*1.8);
   const gwPos = v3(V_X0 + 0.05, WING_H/2 - yCenter, 0);
   const gwMesh = new THREE.Mesh(gwGeo, toon(C.winDrk, { hatch: false }));
@@ -302,47 +304,61 @@ export function buildEnvironment() {
   
   g.add(wingGroup);
 
-    // 3. PORTAL
-  const P_W = 1.4, P_H = 0.65, P_D = 0.3, P_T = 0.15; 
-  const P_Z = -3.15; // Directly on the edge of podium
+      // 3. PORTAL
+  const P_W = 1.4, P_H = 0.55, P_D = 0.3, P_T = 0.15; 
+  // Portal is right in front of the podium (which starts at -3.10)
+  // Let portal center be -3.25. Depth is 0.3, so it spans -3.40 to -3.10.
+  const P_Z = -3.25; 
   const portalG = new THREE.Group();
+  
+  // Base of portal is exactly tier[0].y1 ? Or ground?
+  // If stairs lead to portal, portal is AT the top of the stairs, so base is tier[0].y1
+  const P_BASE = tiers[0].y1; // 0.13
   
   const pp1 = new THREE.BoxGeometry(P_T, P_H, P_D);
   const pm1 = new THREE.Mesh(pp1, toon(C.podium));
-  pm1.position.set(-P_W/2 + P_T/2, P_H/2 - yCenter, P_Z);
+  pm1.position.set(-P_W/2 + P_T/2, P_BASE + P_H/2 - yCenter, P_Z);
   portalG.add(pm1);
   addEdges(portalG, pp1, pm1.position, C.ink, 15);
   
   const pm2 = new THREE.Mesh(pp1, toon(C.podium));
-  pm2.position.set(P_W/2 - P_T/2, P_H/2 - yCenter, P_Z);
+  pm2.position.set(P_W/2 - P_T/2, P_BASE + P_H/2 - yCenter, P_Z);
   portalG.add(pm2);
   addEdges(portalG, pp1, pm2.position, C.ink, 15);
   
   const pt = new THREE.BoxGeometry(P_W, P_T, P_D);
   const ptm = new THREE.Mesh(pt, toon(C.podium));
-  ptm.position.set(0, P_H + P_T/2 - yCenter, P_Z);
+  ptm.position.set(0, P_BASE + P_H + P_T/2 - yCenter, P_Z);
   portalG.add(ptm);
   addEdges(portalG, pt, ptm.position, C.ink, 15);
+  
+  // A slab under the portal to connect stairs to podium
+  const pSlabGeo = new THREE.BoxGeometry(P_W, 0.2, P_D);
+  const pSlab = new THREE.Mesh(pSlabGeo, toon(C.podium));
+  pSlab.position.set(0, P_BASE - 0.1 - yCenter, P_Z);
+  portalG.add(pSlab);
+  addEdges(portalG, pSlabGeo, pSlab.position, C.ink, 15);
+
   g.add(portalG);
 
-      // 4. STAIRS
-  const ST_Z0 = -5.0, ST_Z1 = -3.20; // Goes exactly to the podium edge
-  const ST_W = 1.2;
+        // 4. STAIRS
+  const ST_Z0 = -5.0, ST_Z1 = -3.40; // Goes exactly to the front of the portal
+  const ST_W = 1.4;
   const ST_Y0 = -0.6; // Road level
-  const ST_Y1 = tiers[0].y1; // Podium level
+  const ST_Y1 = tiers[0].y1; // Podium level (top of stairs)
   
-  // We'll build stairs as individual steps to look much better
   const stepsG = new THREE.Group();
   const stepCount = 12;
   const stepD = (ST_Z1 - ST_Z0) / stepCount;
   const stepH = (ST_Y1 - ST_Y0) / stepCount;
   
   for(let i=0; i<stepCount; i++) {
-    // Each step is a solid block down to Y0
-    const h = stepH * (i + 1);
+    // Each step is a solid block from Y = -1.0 up to the step level
+    const topY = ST_Y0 + stepH * (i + 1);
+    const h = topY - (-1.0); // Solid down into the ground
     const sGeo = new THREE.BoxGeometry(ST_W, h, stepD);
     const sMesh = new THREE.Mesh(sGeo, toon(C.podium));
-    sMesh.position.set(0, ST_Y0 + h/2 - yCenter, ST_Z0 + i * stepD + stepD/2);
+    sMesh.position.set(0, -1.0 + h/2 - yCenter, ST_Z0 + i * stepD + stepD/2);
     stepsG.add(sMesh);
     addEdges(stepsG, sGeo, sMesh.position, C.ink, 15);
   }
@@ -404,12 +420,12 @@ export function buildEnvironment() {
     addOutline(treeG, geo, tm.position, C.ink, 0.02);
   }
   // Add some trees
-  addTree(0, -4, -2, 1.2);
-  addTree(0, -4.5, -1, 1.5);
-  addTree(1, 3, -2, 2.0);
-  addTree(2, 4, 1, 1.5);
-  addTree(3, -2, 2, 1.5);
-  addTree(3, 2, 2, 1.2);
+  addTree(0, -4, -2, 0.4);
+  addTree(0, -4.5, -1, 0.5);
+  addTree(1, 3.5, -2, 0.6);
+  addTree(2, 4, 1, 0.5);
+  addTree(3, -2.5, 2, 0.4);
+  addTree(3, 2.5, 2, 0.35);
   g.add(treeG);
 
   // Lamps, Benches, Trash cans

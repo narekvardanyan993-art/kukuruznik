@@ -192,8 +192,8 @@ export function initEngine(canvas, { targetY = 0, initialTOD = 0.3 } = {}) {
   controls.dampingFactor = 0.08;
   controls.minDistance = 5;
   controls.maxDistance = 30;
-  controls.maxPolarAngle = Math.PI * 0.92;
-  controls.minPolarAngle = Math.PI * 0.05;
+  controls.maxPolarAngle = Math.PI / 2 + 0.15;
+  controls.minPolarAngle = 0;
   controls.update();
 
   const sunLight = new THREE.DirectionalLight(0xfff0c4, 1.3);
