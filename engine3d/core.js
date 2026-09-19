@@ -30,7 +30,7 @@ export const toonGrad5 = makeToonGradient(5);
 export const toonGrad3 = makeToonGradient(3);
 
 export function toon(color, opts = {}) {
-  return new THREE.MeshToonMaterial({
+  const m = new THREE.MeshToonMaterial({
     color: color.clone(),
     gradientMap: opts.grad || toonGrad5,
     side: opts.side || THREE.FrontSide,
@@ -38,6 +38,37 @@ export function toon(color, opts = {}) {
     opacity: opts.alpha || 1.0,
     depthWrite: opts.depthWrite !== undefined ? opts.depthWrite : true,
   });
+  
+  m.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <common>',
+      '#include <common>\n varying vec3 vLocalPos;'
+    );
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <begin_vertex>',
+      '#include <begin_vertex>\n vLocalPos = position;'
+    );
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <common>',
+      '#include <common>\n varying vec3 vLocalPos;'
+    );
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <dithering_fragment>',
+      `#include <dithering_fragment>
+       float luma = dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114));
+       if (luma < 0.6) {
+           float scale = 80.0;
+           float hatch = sin((vLocalPos.x + vLocalPos.y - vLocalPos.z) * scale);
+           if (luma < 0.35) {
+               hatch = min(hatch, sin((vLocalPos.x - vLocalPos.y + vLocalPos.z) * scale));
+           }
+           if (hatch < 0.0) {
+               gl_FragColor.rgb *= 0.65;
+           }
+       }`
+    );
+  };
+  return m;
 }
 
 // ======================== OUTLINE & EDGES ========================
@@ -45,12 +76,17 @@ export function makeOutlineShader(color, thickness) {
   return new THREE.ShaderMaterial({
     uniforms: {
       color: { value: color.clone() },
-      thick: { value: thickness },
+      thick: { value: thickness }, time: { value: 0 }
     },
     vertexShader: `
       uniform float thick;
+      uniform float time;
       void main() {
-        vec3 p = position + normal * thick;
+        
+        float j = sin(position.x * 20.0) * sin(position.y * 35.0) * sin(position.z * 15.0);
+        float th = thick * (0.8 + 0.5 * j);
+        vec3 p = position + normal * th;
+
         gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
       }
     `,
@@ -77,10 +113,46 @@ export function addOutline(parent, geo, pos, color, thickness, rotation) {
 
 export function addEdges(parent, geo, pos, color, threshold) {
   const eg = new THREE.EdgesGeometry(geo, threshold || 15);
+  const posArr = eg.attributes.position.array;
+  const newPositions = [];
+  const rng = seedRng(12345);
+  const segments = 4;
+  for (let i = 0; i < posArr.length; i += 6) {
+    const ax = posArr[i], ay = posArr[i+1], az = posArr[i+2];
+    const bx = posArr[i+3], by = posArr[i+4], bz = posArr[i+5];
+    const dx = bx - ax, dy = by - ay, dz = bz - az;
+    const len = Math.sqrt(dx*dx + dy*dy + dz*dz);
+    if (len === 0) continue;
+    
+    const os = 0.03 + rng() * 0.04;
+    const p0x = ax - dx * os, p0y = ay - dy * os, p0z = az - dz * os;
+    const p1x = bx + dx * os, p1y = by + dy * os, p1z = bz + dz * os;
+    
+    let prevX = p0x, prevY = p0y, prevZ = p0z;
+    for (let s = 1; s <= segments; s++) {
+      const t = s / segments;
+      let nx = p0x + (p1x - p0x) * t;
+      let ny = p0y + (p1y - p0y) * t;
+      let nz = p0z + (p1z - p0z) * t;
+      
+      if (s < segments) {
+        const j = 0.01 + rng() * 0.015;
+        nx += (rng() - 0.5) * j;
+        ny += (rng() - 0.5) * j;
+        nz += (rng() - 0.5) * j;
+      }
+      newPositions.push(prevX, prevY, prevZ, nx, ny, nz);
+      prevX = nx; prevY = ny; prevZ = nz;
+    }
+  }
+  
+  const sketchyGeo = new THREE.BufferGeometry();
+  sketchyGeo.setAttribute('position', new THREE.Float32BufferAttribute(newPositions, 3));
+  
   const mat = new THREE.LineBasicMaterial({
-    color: color.clone(), transparent: true, opacity: 0.55, linewidth: 1
+    color: color.clone(), transparent: true, opacity: 0.65, linewidth: 1
   });
-  const lines = new THREE.LineSegments(eg, mat);
+  const lines = new THREE.LineSegments(sketchyGeo, mat);
   lines.position.copy(pos);
   lines.userData.isEdge = true;
   parent.add(lines);
@@ -92,7 +164,7 @@ export function initEngine(canvas, { targetY = 0, initialTOD = 0.3 } = {}) {
   const renderer = new THREE.WebGLRenderer({
     canvas,
     antialias: true,
-    alpha: false,
+    alpha: true,
     powerPreference: 'high-performance',
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 3));
@@ -136,7 +208,7 @@ export function initEngine(canvas, { targetY = 0, initialTOD = 0.3 } = {}) {
   const updateListeners = [];
 
   function bakePaperOverlay(tod) {
-    const cv = document.getElementById('paper-overlay');
+    const cv = document.getElementById('paper-bg');
     if (!cv) return;
     const w = window.innerWidth, h = window.innerHeight;
     const dpr = Math.min(window.devicePixelRatio, 2);
@@ -180,7 +252,7 @@ export function initEngine(canvas, { targetY = 0, initialTOD = 0.3 } = {}) {
     const night = tod < 0.46 ? 0 : Math.min(1, (tod - 0.46) / 0.40);
     const dusk = Math.max(0, 1 - Math.abs(tod - 0.50) / 0.22);
 
-    const pr = 245 - night * 230, pg = 236 - night * 222, pb = 218 - night * 188;
+    const pr = 255, pg = 255, pb = 255;
     ctx.fillStyle = `rgb(${pr|0},${pg|0},${pb|0})`;
     ctx.fillRect(0, 0, size, size);
 

@@ -12,12 +12,10 @@ html, body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: #0d1230;
 }
-#c { display: block; width: 100%; height: 100%; touch-action: none; }
-#paper-overlay {
+#c { display: block; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; mix-blend-mode: multiply;  touch-action: none; }
+#paper-bg {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  pointer-events: none; z-index: 1;
-  mix-blend-mode: multiply;
-  opacity: 0.35;
+  pointer-events: none; z-index: 0; opacity: 1;
 }
 #fps {
   position: fixed; top: env(safe-area-inset-top, 8px); right: 12px;
@@ -50,8 +48,9 @@ body.night #label { color: rgba(186,194,214,0.5); }
 </style>
 </head>
 <body>
+<div id="stage" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; isolation: isolate; z-index: 0;">
 <canvas id="c"></canvas>
-<canvas id="paper-overlay"></canvas>
+<canvas id="paper-bg"></canvas>
 <div id="fps">-- fps</div>
 <div id="label">Three.js POC · только башня</div>
 <div id="controls">
@@ -108,5 +107,6 @@ engine.onUpdate(() => {
 
 engine.start();
 </script>
+</div>
 </body>
 </html>
