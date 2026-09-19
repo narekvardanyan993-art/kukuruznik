@@ -125,7 +125,7 @@ export function buildHead() {
 
   const glassGeo = new THREE.CylinderGeometry(rRim, rRim, glassY - rimY, NS, 1, false);
   const glassPos = v3(0, (rimY + glassY) / 2 - yCenter, 0);
-  const glassM = new THREE.Mesh(glassGeo, toon(C.glass));
+  const glassM = new THREE.Mesh(glassGeo, toon(C.glass, { hatch: false }));
   glassM.position.copy(glassPos);
   glassM.userData.isGlass = true;
   g.add(glassM);

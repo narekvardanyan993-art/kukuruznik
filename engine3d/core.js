@@ -40,6 +40,7 @@ export function toon(color, opts = {}) {
   });
   
   m.onBeforeCompile = (shader) => {
+    if (opts.hatch === false) return;
     shader.vertexShader = shader.vertexShader.replace(
       '#include <common>',
       '#include <common>\n varying vec3 vLocalPos;'
@@ -56,14 +57,21 @@ export function toon(color, opts = {}) {
       '#include <dithering_fragment>',
       `#include <dithering_fragment>
        float luma = dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114));
-       if (luma < 0.6) {
-           float scale = 80.0;
+       if (luma < 0.55) { // Only in shadows and dark areas
+           float scale = 40.0;
            float hatch = sin((vLocalPos.x + vLocalPos.y - vLocalPos.z) * scale);
            if (luma < 0.35) {
                hatch = min(hatch, sin((vLocalPos.x - vLocalPos.y + vLocalPos.z) * scale));
            }
-           if (hatch < 0.0) {
-               gl_FragColor.rgb *= 0.65;
+           
+           // Distance fade (gl_FragCoord.z / gl_FragCoord.w is distance in view space)
+           float dist = gl_FragCoord.z / gl_FragCoord.w;
+           float hatchIntensity = 1.0 - smoothstep(10.0, 30.0, dist);
+           
+           if (hatch < 0.2 && hatchIntensity > 0.0) {
+               // Mix towards ink color instead of just multiplying
+               vec3 ink = vec3(0.18, 0.16, 0.14);
+               gl_FragColor.rgb = mix(gl_FragColor.rgb, ink, 0.5 * hatchIntensity);
            }
        }`
     );
@@ -207,7 +215,7 @@ export function initEngine(canvas, { targetY = 0, initialTOD = 0.3 } = {}) {
   const timeListeners = [];
   const updateListeners = [];
 
-  function bakePaperOverlay(tod) {
+    function bakePaperOverlay(tod) {
     const cv = document.getElementById('paper-bg');
     if (!cv) return;
     const w = window.innerWidth, h = window.innerHeight;
@@ -219,28 +227,47 @@ export function initEngine(canvas, { targetY = 0, initialTOD = 0.3 } = {}) {
 
     const night = tod < 0.46 ? 0 : Math.min(1, (tod - 0.46) / 0.40);
 
-    const pr = 245 - night * 200, pg = 236 - night * 196, pb = 218 - night * 160;
-    ctx.fillStyle = `rgb(${pr|0},${pg|0},${pb|0})`;
+    // 1. Opaque paper base
+    ctx.fillStyle = '#f5ecda';
     ctx.fillRect(0, 0, w, h);
 
-    const rng = seedRng(7);
-    const dots = Math.min(5000, Math.round(w * h / 200));
-    const ga = 0.055 + night * 0.04;
-    ctx.fillStyle = `rgba(120, 100, 74, ${ga})`;
-    for (let i = 0; i < dots; i++) {
-      ctx.fillRect(rng() * w, rng() * h, rng() * 1.6 + 0.4, rng() * 1.6 + 0.4);
+    // 2. Sky gradient
+    const dusk = Math.max(0, 1 - Math.abs(tod - 0.50) / 0.22);
+    function blend(dR,dG,dB, nR,nG,nB, dA, nA) {
+      const r = Math.round(dR + (nR - dR) * night);
+      const g = Math.round(dG + (nG - dG) * night);
+      const b = Math.round(dB + (nB - dB) * night);
+      const a = dA + (nA - dA) * night;
+      return `rgba(${r},${g},${b},${a.toFixed(3)})`;
+    }
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0.00, blend(96,142,186, 10,14,40, 0.60, 0.94));
+    grad.addColorStop(0.30, blend(142,180,206, 20,26,58, 0.34, 0.86));
+    grad.addColorStop(0.55, blend(214,200,172, 46,40,70, 0.20, 0.66));
+    grad.addColorStop(0.72, blend(226,206,168, 40,36,66, 0.00, 0.62));
+    grad.addColorStop(1.00, blend(226,206,168, 16,20,44, 0.00, 0.78));
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    if (dusk > 0.01) {
+      const dg = ctx.createLinearGradient(0, h * 0.40, 0, h * 0.72);
+      dg.addColorStop(0, 'rgba(236,150,88,0)');
+      dg.addColorStop(1, `rgba(240,146,84,${(0.38 * dusk).toFixed(3)})`);
+      ctx.fillStyle = dg;
+      ctx.fillRect(0, 0, w, h);
     }
 
-    const vig = ctx.createRadialGradient(w/2, h*0.44, Math.min(w,h)*0.2,
-                                          w/2, h*0.5, Math.max(w,h)*0.78);
-    vig.addColorStop(0, 'rgba(0,0,0,0)');
-    const vigA = 0.10 + night * 0.08;
-    vig.addColorStop(1, `rgba(${night > 0.5 ? '10,12,30' : '92,72,46'},${vigA})`);
-    ctx.fillStyle = vig;
-    ctx.fillRect(0, 0, w, h);
+    // 3. Paper grain
+    const rng = seedRng(7);
+    const dots = Math.min(8000, Math.round(w * h / 150));
+    ctx.fillStyle = 'rgba(120, 100, 74, 0.06)';
+    for (let i = 0; i < dots; i++) {
+      ctx.fillRect(rng()*w, rng()*h, rng()*1.5+0.5, rng()*1.5+0.5);
+    }
 
-    cv.style.opacity = night > 0.5 ? '0.15' : '0.32';
-    cv.style.mixBlendMode = night > 0.5 ? 'soft-light' : 'multiply';
+    // Reset styles that might have been applied before
+    cv.style.opacity = '1';
+    cv.style.mixBlendMode = 'normal';
   }
 
   function makeSkyBg(tod) {
@@ -318,8 +345,7 @@ export function initEngine(canvas, { targetY = 0, initialTOD = 0.3 } = {}) {
     ambientLight.intensity = 0.55 - 0.15 * night;
     fillLight.intensity = 0.15 * (1 - night * 0.8);
 
-    scene.background = makeSkyBg(t);
-    bakePaperOverlay(t);
+    scene.background = null; bakePaperOverlay(t);
     document.body.classList.toggle('night', night > 0.5);
 
     const lightDir = { lx, ly, lz, ln };
