@@ -62,7 +62,264 @@
     ctx.stroke();
   };
 
-  Engine.prototype.drawOneBench = function () {};
+  /* Скамейки в скетч-стиле: сиденье и спинка из деревянных реек, чугунные опоры. */
+  Engine.prototype.drawOneBench = function (i) {
+    var b = this.model.benches && this.model.benches[i];
+    if (!b) return;
+    var ctx = this.ctx, px = this.px, py = this.py, pz = this.pz;
+    var p = b.p;
+    var k = FOCAL / Math.max(1, CAM_DIST - pz[p]) * this.S;
+    if (k < 1.5) return;
+    var x = px[p], y = py[p];
+    var bw = b.w * k, bh = b.h * k;
+
+    // Мягкая контактная тень на покрытии
+    ctx.beginPath();
+    ctx.ellipse(x, y + 0.6, bw * 0.52, bw * 0.14, 0, 0, Math.PI * 2);
+    ctx.fillStyle = C_SHADOW;
+    ctx.globalAlpha = 0.24;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Чугунные боковые ножки
+    var legW = bw * 0.38;
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = Math.max(0.9, k * 0.011);
+    ctx.beginPath();
+    // Левая ножка со спинкой
+    ctx.moveTo(x - legW, y);
+    ctx.lineTo(x - legW, y - bh * 0.45);
+    ctx.lineTo(x - legW - bw * 0.06, y - bh);
+    ctx.moveTo(x - legW + bw * 0.08, y);
+    ctx.lineTo(x - legW, y - bh * 0.45);
+    // Правая ножка со спинкой
+    ctx.moveTo(x + legW, y);
+    ctx.lineTo(x + legW, y - bh * 0.45);
+    ctx.lineTo(x + legW - bw * 0.06, y - bh);
+    ctx.moveTo(x + legW + bw * 0.08, y);
+    ctx.lineTo(x + legW, y - bh * 0.45);
+    ctx.stroke();
+
+    // Деревянные рейки сиденья
+    var plankCol = NIGHT > 0.3 ? 'rgb(108, 92, 78)' : 'rgb(172, 138, 106)';
+    ctx.fillStyle = plankCol;
+    ctx.fillRect(x - bw * 0.46, y - bh * 0.50, bw * 0.92, bh * 0.15);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = Math.max(0.7, k * 0.007);
+    ctx.strokeRect(x - bw * 0.46, y - bh * 0.50, bw * 0.92, bh * 0.15);
+
+    // Деревянные рейки спинки
+    ctx.fillRect(x - bw * 0.46, y - bh * 0.95, bw * 0.92, bh * 0.20);
+    ctx.strokeRect(x - bw * 0.46, y - bh * 0.95, bw * 0.92, bh * 0.20);
+  };
+
+  /* Урны в скетч-стиле: каменный/чугунный цилиндр. */
+  Engine.prototype.drawOneUrn = function (i) {
+    var u = this.model.urns && this.model.urns[i];
+    if (!u) return;
+    var ctx = this.ctx, px = this.px, py = this.py, pz = this.pz;
+    var p = u.p;
+    var k = FOCAL / Math.max(1, CAM_DIST - pz[p]) * this.S;
+    if (k < 1.5) return;
+    var x = px[p], y = py[p];
+    var ur = Math.max(1.8, u.r * k);
+    var uh = Math.max(3.2, u.h * k);
+
+    // Тень под урной
+    ctx.beginPath();
+    ctx.ellipse(x, y + 0.4, ur * 1.1, ur * 0.38, 0, 0, Math.PI * 2);
+    ctx.fillStyle = C_SHADOW;
+    ctx.globalAlpha = 0.22;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Корпус урны
+    ctx.fillStyle = C_PODIUM;
+    ctx.fillRect(x - ur, y - uh, ur * 2, uh);
+
+    // Контур корпуса тушью
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = Math.max(0.8, k * 0.008);
+    ctx.strokeRect(x - ur, y - uh, ur * 2, uh);
+
+    // Верхнее отверстие урны
+    ctx.beginPath();
+    ctx.ellipse(x, y - uh, ur, ur * 0.32, 0, 0, Math.PI * 2);
+    ctx.fillStyle = INK;
+    ctx.globalAlpha = 0.65;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.stroke();
+  };
+
+  /* Автомобили 1970-х на подъездной дороге в скетч-стиле:
+     Седан («Волга» ГАЗ-24) и автобус/микроавтобус (РАФ-2203 / ПАЗ). */
+  Engine.prototype.drawOneCar = function (i) {
+    var c = this.model.cars && this.model.cars[i];
+    if (!c) return;
+    var ctx = this.ctx, px = this.px, py = this.py, pz = this.pz;
+    var p = c.p;
+    var k = FOCAL / Math.max(1, CAM_DIST - pz[p]) * this.S;
+    if (k < 1.2) return;
+    var x = px[p], y = py[p];
+    var len = c.len * k, hgt = c.hgt * k;
+    var dir = c.dir || 1; // 1 = едет направо, -1 = налево
+
+    // Тень под машиной
+    ctx.beginPath();
+    ctx.ellipse(x, y + 0.8, len * 0.52, len * 0.12, 0, 0, Math.PI * 2);
+    ctx.fillStyle = C_SHADOW;
+    ctx.globalAlpha = 0.28;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    var inkW = Math.max(0.8, k * 0.009);
+    var colBody = c.col;
+    if (NIGHT > 0.2) {
+      colBody = tintNight(c.type === 'sedan' ? [84, 118, 128, 1] : [222, 210, 180, 1], [30, 36, 42, 1]);
+    }
+
+    ctx.save();
+    ctx.translate(x, y);
+    if (dir < 0) ctx.scale(-1, 1);
+
+    var wheelR = hgt * 0.23;
+    var wFrontX = len * 0.30, wRearX = -len * 0.30;
+    var wheelY = -wheelR * 0.7;
+
+    if (c.type === 'sedan') {
+      // Нижний пояс кузова
+      var bH = hgt * 0.44;
+      ctx.beginPath();
+      ctx.moveTo(-len * 0.48, 0);
+      ctx.lineTo(len * 0.48, 0);
+      ctx.lineTo(len * 0.48, -bH);
+      ctx.lineTo(-len * 0.48, -bH);
+      ctx.closePath();
+      ctx.fillStyle = colBody;
+      ctx.fill();
+
+      // Кабина («теплица») седана
+      var cH = hgt * 0.52;
+      ctx.beginPath();
+      ctx.moveTo(-len * 0.24, -bH);
+      ctx.lineTo(-len * 0.16, -bH - cH);
+      ctx.lineTo(len * 0.14, -bH - cH);
+      ctx.lineTo(len * 0.26, -bH);
+      ctx.closePath();
+      ctx.fillStyle = colBody;
+      ctx.fill();
+
+      // Окна кабины (тёмные стёкла)
+      ctx.beginPath();
+      ctx.moveTo(-len * 0.20, -bH - 1);
+      ctx.lineTo(-len * 0.13, -bH - cH + 1.5);
+      ctx.lineTo(len * 0.11, -bH - cH + 1.5);
+      ctx.lineTo(len * 0.22, -bH - 1);
+      ctx.closePath();
+      ctx.fillStyle = NIGHT > 0.2 ? 'rgb(24, 28, 34)' : C_WIN_DRK;
+      ctx.fill();
+
+      // Стойка между окнами (B-pillar)
+      ctx.strokeStyle = colBody;
+      ctx.lineWidth = Math.max(1.1, k * 0.010);
+      ctx.beginPath();
+      ctx.moveTo(0, -bH);
+      ctx.lineTo(0, -bH - cH + 1);
+      ctx.stroke();
+
+      // Контур кузова тушью
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = inkW;
+      ctx.beginPath();
+      // Линия крыши и капота
+      ctx.moveTo(-len * 0.48, -bH * 0.6);
+      ctx.lineTo(-len * 0.48, -bH);
+      ctx.lineTo(-len * 0.24, -bH);
+      ctx.lineTo(-len * 0.16, -bH - cH);
+      ctx.lineTo(len * 0.14, -bH - cH);
+      ctx.lineTo(len * 0.26, -bH);
+      ctx.lineTo(len * 0.48, -bH);
+      ctx.lineTo(len * 0.48, -bH * 0.6);
+      ctx.stroke();
+
+      // Фары / фонари
+      if (NIGHT > 0.2) {
+        ctx.fillStyle = 'rgb(255, 238, 170)';
+        ctx.fillRect(len * 0.47, -bH * 0.85, len * 0.03, bH * 0.4);
+      } else {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(len * 0.47, -bH * 0.85, len * 0.02, bH * 0.35);
+      }
+      ctx.fillStyle = '#d92626';
+      ctx.fillRect(-len * 0.49, -bH * 0.85, len * 0.02, bH * 0.35);
+    } else {
+      // Фургон / автобус РАФ / ПАЗ
+      var vH = hgt * 0.90;
+      ctx.beginPath();
+      ctx.moveTo(-len * 0.48, 0);
+      ctx.lineTo(len * 0.44, 0);
+      ctx.lineTo(len * 0.48, -vH * 0.4);
+      ctx.lineTo(len * 0.42, -vH);
+      ctx.lineTo(-len * 0.46, -vH);
+      ctx.lineTo(-len * 0.48, -vH * 0.2);
+      ctx.closePath();
+      ctx.fillStyle = colBody;
+      ctx.fill();
+
+      // Ряд боковых окон автобуса
+      var winY0 = -vH * 0.50, winY1 = -vH * 0.88;
+      ctx.beginPath();
+      ctx.moveTo(-len * 0.42, winY0);
+      ctx.lineTo(-len * 0.42, winY1);
+      ctx.lineTo(len * 0.38, winY1);
+      ctx.lineTo(len * 0.44, winY0);
+      ctx.closePath();
+      ctx.fillStyle = NIGHT > 0.2 ? 'rgb(24, 28, 34)' : C_WIN_DRK;
+      ctx.fill();
+
+      // Переплёты окон (3 стойки)
+      ctx.strokeStyle = colBody;
+      ctx.lineWidth = Math.max(1.2, k * 0.012);
+      ctx.beginPath();
+      for (var sp = -1; sp <= 1; sp++) {
+        var sx = sp * len * 0.18;
+        ctx.moveTo(sx, winY0);
+        ctx.lineTo(sx, winY1);
+      }
+      ctx.stroke();
+
+      // Контур автобуса
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = inkW;
+      ctx.strokeRect(-len * 0.46, -vH, len * 0.88, vH);
+
+      // Фара
+      ctx.fillStyle = NIGHT > 0.2 ? 'rgb(255, 238, 170)' : '#ffffff';
+      ctx.fillRect(len * 0.46, -vH * 0.35, len * 0.025, vH * 0.20);
+    }
+
+    // Колёса с хромированными колпаками
+    function drawWheel(wx) {
+      ctx.beginPath();
+      ctx.arc(wx, wheelY, wheelR, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgb(34, 34, 38)';
+      ctx.fill();
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = inkW * 0.9;
+      ctx.stroke();
+
+      // Хромированный колпак в центре
+      ctx.beginPath();
+      ctx.arc(wx, wheelY, wheelR * 0.45, 0, Math.PI * 2);
+      ctx.fillStyle = '#dedad0';
+      ctx.fill();
+    }
+    drawWheel(wRearX);
+    drawWheel(wFrontX);
+
+    ctx.restore();
+  };
 
   Engine.prototype.drawOneFlag = function (i) {
     var f = this.model.flags[i];

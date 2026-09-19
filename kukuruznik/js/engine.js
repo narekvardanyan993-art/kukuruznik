@@ -10,36 +10,33 @@
 (function (global) {
   'use strict';
 
-  var BUILD = '67';     // видно на самой странице — чтобы не гадать, свежая ли версия
+  var BUILD = '68';     // видно на самой странице — чтобы не гадать, свежая ли версия
 
   var PAPER = '#f5ecda';
   var INK   = '#2f2a25';
 
   /* Краска поверх рисунка. Каждый цвет — один слой, одна заливка.
-     Цвета взяты с фотографий: тёплый травертин стен, серый базальт
-     стилобата, зеленоватое остекление ресторана, трава вокруг.
-
-     Наружные поверхности намеренно НЕПРОЗРАЧНЫЕ. Полупрозрачные
-     стены давали рентген: сквозь башню просвечивала её же изнанка,
-     и сверху казалось, что здание пустое. */
+     Цвета взяты с фотографий: тёплый травертин стен башни, тёплый розовый
+     туф бокового крыла, холодный серый базальт подиума, остекление
+     ресторана, трава вокруг. */
   var C_TERR     = 'rgb(124, 122, 116)';   // камень подпорных стен
   var C_TERRTOP  = 'rgb(150, 176, 114)';   // трава на террасе
-  var C_PAVE     = 'rgb(138, 136, 132)';   // асфальт площади
+  var C_PAVE     = 'rgb(140, 136, 130)';   // асфальт площади
   var C_CITY     = 'rgb(176, 174, 168)';   // соседние дома: вдали цвет светлее
   var C_CITY_TOP = 'rgb(192, 190, 180)';
   var C_CITY_BND = 'rgb(126, 136, 138)';
-  var C_TREE_A   = 'rgb(146, 166, 108)';   // крона на свету
-  var C_TREE_B   = 'rgb(126, 150, 100)';   // второй оттенок, чтобы не было ковра
-  var C_TREE_DRK = 'rgb(96, 116, 78)';     // теневая половина кроны
-  var C_TRUNK    = 'rgb(104, 90, 72)';
-  var C_GROUND     = 'rgb(163, 189, 122)';  // трава вблизи
-  var C_GROUND_FAR = 'rgb(198, 208, 166)';  // она же вдали, съеденная воздухом
-  var C_PODIUM  = 'rgb(152, 152, 157)';   // базальт стилобата
-  var C_HALL    = 'rgb(126, 128, 132)';   // стены нижнего корпуса, тёмный туф
-  var C_SLAB    = 'rgb(198, 191, 171)';   // торец волнистой плиты
+  var C_TREE_A   = 'rgb(142, 168, 104)';   // крона на свету
+  var C_TREE_B   = 'rgb(122, 150, 96)';    // второй оттенок, чтобы не было ковра
+  var C_TREE_DRK = 'rgb(88, 112, 72)';     // теневая половина кроны
+  var C_TRUNK    = 'rgb(104, 88, 70)';
+  var C_GROUND     = 'rgb(160, 188, 118)'; // трава вблизи
+  var C_GROUND_FAR = 'rgb(196, 206, 164)'; // она же вдали, съеденная воздухом
+  var C_PODIUM  = 'rgb(156, 158, 166)';   // холодный базальт стилобата и ступеней
+  var C_HALL    = 'rgb(144, 128, 118)';   // тёплый армянский туф крыла и свода
+  var C_SLAB    = 'rgb(198, 191, 171)';   // торец плиты
   var C_SLABTOP = 'rgb(215, 208, 187)';   // её верх, смотрит в небо
-  var C_DECK    = 'rgb(186, 184, 177)';   // площадки террас
-  var C_SHAFT   = 'rgb(242, 227, 188)';   // травертин ствола
+  var C_DECK    = 'rgb(182, 182, 186)';   // площадки террас подиума
+  var C_SHAFT   = 'rgb(244, 230, 196)';   // тёплый травертин ствола башни
   var C_FLOOR_BELT = 'rgb(250, 244, 222)'; // светлый пояс между этажами
   var C_NECK    = 'rgb(193, 184, 162)';
   var C_GLASS   = 'rgb(74, 104, 100)';    // остекление ресторана
@@ -554,47 +551,93 @@
 
   /* Деревья. Два захода: дальние ложатся до здания, ближние — после.
      Всё сводится к пяти заливкам на всю рощу, а не к пяти на дерево. */
-  /* Одно дерево: ствол, крона, теневая долька, обводка. */
+  /* Деревья. Скетч-стиль: 4 разных силуэта (кипарисы, лиственные, округлые, кусты),
+     текстурный ствол с ветвлением, мягкая тень на траве, штриховка тушью в тени. */
   Engine.prototype.drawOneTree = function (f) {
     var ctx = this.ctx, pz = this.pz, px = this.px, py = this.py;
     var b = f.p;
     var k = FOCAL / Math.max(1, CAM_DIST - pz[b]) * this.S;
     var x = px[b], y = py[b];
 
+    // Мягкое пятно тени на земле под деревом
+    ctx.beginPath();
+    var gsw = f.w * k * 0.95, gsh = gsw * 0.32;
+    ctx.ellipse(x - gsw * 0.20, y + 1.2, gsw, gsh, 0, 0, Math.PI * 2);
+    ctx.fillStyle = C_SHADOW;
+    ctx.globalAlpha = 0.18;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Ствол с лёгким ветвлением
     ctx.lineJoin = 'round';
     ctx.beginPath();
     ctx.moveTo(x, y);
-    ctx.lineTo(x + f.lean * k * 0.5, y - f.h * k * 0.62);
+    ctx.lineTo(x + f.lean * k * 0.5, y - f.h * k * 0.58);
+    if (f.kind === 1 || f.kind === 2) {
+      ctx.moveTo(x + f.lean * k * 0.25, y - f.h * k * 0.30);
+      ctx.lineTo(x + f.lean * k * 0.50 + f.w * k * 0.22, y - f.h * k * 0.44);
+    }
     ctx.strokeStyle = C_TRUNK;
-    ctx.lineWidth = Math.max(1, k * 0.020);
+    ctx.lineWidth = Math.max(1.1, k * 0.020);
     ctx.stroke();
 
-    ctx.beginPath(); this.crownPath(f, 1);
+    // Основная масса кроны
+    ctx.beginPath();
+    this.crownPath(f, 1);
     ctx.fillStyle = f.tone ? C_TREE_B : C_TREE_A;
     ctx.fill();
 
-    ctx.beginPath(); this.crownPath(f, 2);
+    // Теневая долька
+    ctx.beginPath();
+    this.crownPath(f, 2);
     ctx.globalAlpha = 0.55;
     ctx.fillStyle = C_TREE_DRK;
     ctx.fill();
     ctx.globalAlpha = 1;
 
-    ctx.beginPath(); this.crownPath(f, 1);
+    // Архитектурная штриховка тушью в тени (карандашный скетч-стиль)
+    var ph = f.wob[0] * 12.7;
+    var cx = x + f.lean * k;
+    var cy = y - f.h * k * 0.74;
+    var rx = f.w * k, ry = f.h * k * 0.40;
+    var hx0 = cx, hx1 = cx + rx * 0.85;
+    var hy0 = cy - ry * 0.20, hy1 = cy + ry * 0.75;
+    var nHatch = f.kind === 0 ? 5 : 4;
+    ctx.beginPath();
+    for (var hk = 0; hk < nHatch; hk++) {
+      var hu = hk / (nHatch - 1);
+      var sx = hx0 + (hx1 - hx0) * hu;
+      var sy = hy0 + (hy1 - hy0) * hu;
+      var hLen = rx * 0.40;
+      ctx.moveTo(sx - hLen * 0.6, sy - hLen * 0.6);
+      ctx.lineTo(sx + hLen * 0.6, sy + hLen * 0.6);
+    }
     ctx.strokeStyle = INK;
-    ctx.lineWidth = Math.max(0.8, k * 0.013);
-    ctx.globalAlpha = 0.70;
+    ctx.lineWidth = Math.max(0.7, k * 0.008);
+    ctx.globalAlpha = 0.32;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Контур кроны тушью
+    ctx.beginPath();
+    this.crownPath(f, 1);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = Math.max(0.85, k * 0.013);
+    ctx.globalAlpha = 0.72;
     ctx.stroke();
     ctx.globalAlpha = 1;
   };
 
-  /* Контур кроны: десятиугольник с заранее заданной неровностью.
-     mode 2 — теневая долька: та же форма, сдвинутая от света. */
+  /* Контур кроны по типам:
+     0 — стройный пирамидальный кипарис/тополь
+     1 — раскидистое лиственное дерево (облачная крона)
+     2 — компактное округлое дерево
+     3 — стелющийся низкий кустарник */
   Engine.prototype.crownPath = function (f, mode) {
     var ctx = this.ctx, px = this.px, py = this.py, pz = this.pz;
     var b = f.p;
     var k = FOCAL / Math.max(1, CAM_DIST - pz[b]) * this.S;
-    /* Лёгкое качание. Амплитуда крошечная — полпроцента ширины кроны:
-       больше выглядит как шторм, а не как ветер. */
+
     var ph2 = f.wob[0] * 12.7 + f.wob[3] * 5.1;
     var sway = Math.sin(this.time * 0.62 + ph2) * k * 0.030
              + Math.sin(this.time * 1.35 + ph2 * 1.7) * k * 0.012;
@@ -602,29 +645,65 @@
     var cy = py[b] - f.h * k * 0.74;
     var breath = 1 + Math.sin(this.time * 0.5 + f.wob[1] * 8.1) * 0.022;
     var rx = f.w * k * breath, ry = f.h * k * 0.40 * (2 - breath);
-    if (mode === 2) { cx += rx * 0.30; cy += ry * 0.18; rx *= 0.80; ry *= 0.80; }
+    if (mode === 2) { cx += rx * 0.28; cy += ry * 0.16; rx *= 0.78; ry *= 0.78; }
 
-    /* Ведём кривую через середины отрезков: каждая вершина становится
-       изгибом, и крона перестаёт быть десятиугольником. */
-    var X = this.crX || (this.crX = new Float32Array(10));
-    var Y = this.crY || (this.crY = new Float32Array(10));
-    for (var i = 0; i < 10; i++) {
-      var a = i / 10 * Math.PI * 2;
-      var w = f.wob[i];
-      X[i] = cx + Math.cos(a) * rx * w;
-      Y[i] = cy + Math.sin(a) * ry * w;
+    var kind = f.kind || 0;
+    if (kind === 0) {
+      // Пирамидальный кипарис / тополь
+      var topY = cy - ry * 1.25, botY = cy + ry * 1.15;
+      var midY = cy + ry * 0.10;
+      var wL = rx * 0.95 * f.wob[2], wR = rx * 0.95 * f.wob[5];
+      ctx.moveTo(cx, topY);
+      ctx.bezierCurveTo(cx + wR * 0.5, topY + ry * 0.5,
+                        cx + wR, midY - ry * 0.3,
+                        cx + wR, midY);
+      ctx.bezierCurveTo(cx + wR * 0.9, midY + ry * 0.6,
+                        cx + wR * 0.3, botY,
+                        cx, botY);
+      ctx.bezierCurveTo(cx - wL * 0.3, botY,
+                        cx - wL * 0.9, midY + ry * 0.6,
+                        cx - wL, midY);
+      ctx.bezierCurveTo(cx - wL, midY - ry * 0.3,
+                        cx - wL * 0.5, topY + ry * 0.5,
+                        cx, topY);
+      ctx.closePath();
+      return;
     }
-    ctx.moveTo((X[9] + X[0]) * 0.5, (Y[9] + Y[0]) * 0.5);
-    for (var i = 0; i < 10; i++) {
-      var j = (i + 1) % 10;
+
+    if (kind === 1) {
+      // Широкое лиственное дерево: трёхлопастной облачный контур
+      var r0 = rx * 0.65, r1 = rx * 0.60, r2 = rx * 0.72;
+      var c0x = cx,                  c0y = cy - ry * 0.35;
+      var c1x = cx - rx * 0.45,      c1y = cy + ry * 0.25;
+      var c2x = cx + rx * 0.45,      c2y = cy + ry * 0.22;
+      ctx.moveTo(c0x, c0y - r0 * 1.05);
+      ctx.bezierCurveTo(c0x + r0 * 1.1, c0y - r0 * 0.9, c2x + r2 * 0.6, c2y - r2 * 0.9, c2x + r2, c2y);
+      ctx.bezierCurveTo(c2x + r2 * 1.1, c2y + r2 * 0.9, c0x + r0 * 0.4, cy + ry * 1.05, cx, cy + ry * 1.05);
+      ctx.bezierCurveTo(c0x - r0 * 0.4, cy + ry * 1.05, c1x - r1 * 1.1, c1y + r1 * 0.9, c1x - r1, c1y);
+      ctx.bezierCurveTo(c1x - r1 * 0.9, c1y - r1 * 0.9, c0x - r0 * 1.1, c0y - r0 * 0.9, c0x, c0y - r0 * 1.05);
+      ctx.closePath();
+      return;
+    }
+
+    // Округлая крона (kind 2 и 3): органический контур с дрожанием
+    var ptsCount = 12;
+    var X = this.crX || (this.crX = new Float32Array(12));
+    var Y = this.crY || (this.crY = new Float32Array(12));
+    for (var i = 0; i < ptsCount; i++) {
+      var a = (i / ptsCount) * Math.PI * 2;
+      var w = f.wob[i] || 1;
+      X[i] = cx + Math.cos(a) * rx * w;
+      Y[i] = cy + Math.sin(a) * ry * w * (kind === 3 ? 0.70 : 1.0);
+    }
+    ctx.moveTo((X[ptsCount - 1] + X[0]) * 0.5, (Y[ptsCount - 1] + Y[0]) * 0.5);
+    for (var i = 0; i < ptsCount; i++) {
+      var j = (i + 1) % ptsCount;
       ctx.quadraticCurveTo(X[i], Y[i], (X[i] + X[j]) * 0.5, (Y[i] + Y[j]) * 0.5);
     }
     ctx.closePath();
   };
 
-  /* Нижний корпус. Рисуется целиком за один заход: он отдельный объём,
-     а не ярус башни, и его очередь зависит от того, ближе он к нам
-     или дальше. */
+  /* Нижний корпус. */
   Engine.prototype.drawHall = function () {
     this.fillShells('hall',      C_HALL);
     this.fillShells('hallGlass', C_WIN_DRK);
@@ -634,8 +713,7 @@
     this.drawOutline(4);
   };
 
-  /* Длинное низкое крыло с аркадой. Своя очередь, как и у корпуса:
-     оно стоит сбоку от башни, а не над ней. */
+  /* Длинное прямоугольное крыло с аркадой. */
   Engine.prototype.drawWing = function () {
     this.fillShells('wing',     C_HALL);
     this.drawCells(5);
@@ -643,11 +721,6 @@
     this.fillShells('wingSlab', C_SLAB);
     this.fillShells('wingTop',  C_DECK);
     this.fillShells('wingRail', C_SLAB);
-    /* Задний этаж-уступ — ПОСЛЕ террасы и бортика (wingTop/wingRail),
-       иначе плита террасы закрашивает его стены и оставляет один каркас! */
-    this.fillShells('wingUp',     C_HALL);
-    this.fillShells('wingUpCorn', C_SLAB);
-    this.fillShells('wingUpTop',  C_DECK);
     this.hatch('wing');
     this.strokeBody(5);
     this.drawOutline(5);
@@ -829,9 +902,13 @@
     var nLamp = LP ? (lod < 0.7 ? Math.round(LP.length * 0.6) : LP.length) : 0;
     for (var l = 0; l < nLamp; l++) add(pz[LP[l].b], 6, l);
     var BN = m.benches;
-    if (BN && BN.length) for (var n = 0; n < BN.length; n++) add(pz[BN[n].a], 7, n);
+    if (BN && BN.length) for (var n = 0; n < BN.length; n++) add(pz[BN[n].p], 7, n);
     var FL = m.flags;
     if (FL) for (var f = 0; f < FL.length; f++) add(pz[FL[f].b], 8, f);
+    var UN = m.urns;
+    if (UN && UN.length) for (var u = 0; u < UN.length; u++) add(pz[UN[u].p], 9, u);
+    var CR = m.cars;
+    if (CR && CR.length) for (var c = 0; c < CR.length; c++) add(pz[CR[c].p], 10, c);
 
     Q.sort(function (a, b) { return a.z - b.z; });
   };
@@ -855,6 +932,8 @@
         case 6: this.drawOneLamp(e.i); break;
         case 7: this.drawOneBench(e.i); break;
         case 8: this.drawOneFlag(e.i); break;
+        case 9: this.drawOneUrn(e.i); break;
+        case 10: this.drawOneCar(e.i); break;
       }
     }
   };
@@ -1360,7 +1439,264 @@
     ctx.stroke();
   };
 
-  Engine.prototype.drawOneBench = function () {};
+  /* Скамейки в скетч-стиле: сиденье и спинка из деревянных реек, чугунные опоры. */
+  Engine.prototype.drawOneBench = function (i) {
+    var b = this.model.benches && this.model.benches[i];
+    if (!b) return;
+    var ctx = this.ctx, px = this.px, py = this.py, pz = this.pz;
+    var p = b.p;
+    var k = FOCAL / Math.max(1, CAM_DIST - pz[p]) * this.S;
+    if (k < 1.5) return;
+    var x = px[p], y = py[p];
+    var bw = b.w * k, bh = b.h * k;
+
+    // Мягкая контактная тень на покрытии
+    ctx.beginPath();
+    ctx.ellipse(x, y + 0.6, bw * 0.52, bw * 0.14, 0, 0, Math.PI * 2);
+    ctx.fillStyle = C_SHADOW;
+    ctx.globalAlpha = 0.24;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Чугунные боковые ножки
+    var legW = bw * 0.38;
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = Math.max(0.9, k * 0.011);
+    ctx.beginPath();
+    // Левая ножка со спинкой
+    ctx.moveTo(x - legW, y);
+    ctx.lineTo(x - legW, y - bh * 0.45);
+    ctx.lineTo(x - legW - bw * 0.06, y - bh);
+    ctx.moveTo(x - legW + bw * 0.08, y);
+    ctx.lineTo(x - legW, y - bh * 0.45);
+    // Правая ножка со спинкой
+    ctx.moveTo(x + legW, y);
+    ctx.lineTo(x + legW, y - bh * 0.45);
+    ctx.lineTo(x + legW - bw * 0.06, y - bh);
+    ctx.moveTo(x + legW + bw * 0.08, y);
+    ctx.lineTo(x + legW, y - bh * 0.45);
+    ctx.stroke();
+
+    // Деревянные рейки сиденья
+    var plankCol = NIGHT > 0.3 ? 'rgb(108, 92, 78)' : 'rgb(172, 138, 106)';
+    ctx.fillStyle = plankCol;
+    ctx.fillRect(x - bw * 0.46, y - bh * 0.50, bw * 0.92, bh * 0.15);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = Math.max(0.7, k * 0.007);
+    ctx.strokeRect(x - bw * 0.46, y - bh * 0.50, bw * 0.92, bh * 0.15);
+
+    // Деревянные рейки спинки
+    ctx.fillRect(x - bw * 0.46, y - bh * 0.95, bw * 0.92, bh * 0.20);
+    ctx.strokeRect(x - bw * 0.46, y - bh * 0.95, bw * 0.92, bh * 0.20);
+  };
+
+  /* Урны в скетч-стиле: каменный/чугунный цилиндр. */
+  Engine.prototype.drawOneUrn = function (i) {
+    var u = this.model.urns && this.model.urns[i];
+    if (!u) return;
+    var ctx = this.ctx, px = this.px, py = this.py, pz = this.pz;
+    var p = u.p;
+    var k = FOCAL / Math.max(1, CAM_DIST - pz[p]) * this.S;
+    if (k < 1.5) return;
+    var x = px[p], y = py[p];
+    var ur = Math.max(1.8, u.r * k);
+    var uh = Math.max(3.2, u.h * k);
+
+    // Тень под урной
+    ctx.beginPath();
+    ctx.ellipse(x, y + 0.4, ur * 1.1, ur * 0.38, 0, 0, Math.PI * 2);
+    ctx.fillStyle = C_SHADOW;
+    ctx.globalAlpha = 0.22;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Корпус урны
+    ctx.fillStyle = C_PODIUM;
+    ctx.fillRect(x - ur, y - uh, ur * 2, uh);
+
+    // Контур корпуса тушью
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = Math.max(0.8, k * 0.008);
+    ctx.strokeRect(x - ur, y - uh, ur * 2, uh);
+
+    // Верхнее отверстие урны
+    ctx.beginPath();
+    ctx.ellipse(x, y - uh, ur, ur * 0.32, 0, 0, Math.PI * 2);
+    ctx.fillStyle = INK;
+    ctx.globalAlpha = 0.65;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.stroke();
+  };
+
+  /* Автомобили 1970-х на подъездной дороге в скетч-стиле:
+     Седан («Волга» ГАЗ-24) и автобус/микроавтобус (РАФ-2203 / ПАЗ). */
+  Engine.prototype.drawOneCar = function (i) {
+    var c = this.model.cars && this.model.cars[i];
+    if (!c) return;
+    var ctx = this.ctx, px = this.px, py = this.py, pz = this.pz;
+    var p = c.p;
+    var k = FOCAL / Math.max(1, CAM_DIST - pz[p]) * this.S;
+    if (k < 1.2) return;
+    var x = px[p], y = py[p];
+    var len = c.len * k, hgt = c.hgt * k;
+    var dir = c.dir || 1; // 1 = едет направо, -1 = налево
+
+    // Тень под машиной
+    ctx.beginPath();
+    ctx.ellipse(x, y + 0.8, len * 0.52, len * 0.12, 0, 0, Math.PI * 2);
+    ctx.fillStyle = C_SHADOW;
+    ctx.globalAlpha = 0.28;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    var inkW = Math.max(0.8, k * 0.009);
+    var colBody = c.col;
+    if (NIGHT > 0.2) {
+      colBody = tintNight(c.type === 'sedan' ? [84, 118, 128, 1] : [222, 210, 180, 1], [30, 36, 42, 1]);
+    }
+
+    ctx.save();
+    ctx.translate(x, y);
+    if (dir < 0) ctx.scale(-1, 1);
+
+    var wheelR = hgt * 0.23;
+    var wFrontX = len * 0.30, wRearX = -len * 0.30;
+    var wheelY = -wheelR * 0.7;
+
+    if (c.type === 'sedan') {
+      // Нижний пояс кузова
+      var bH = hgt * 0.44;
+      ctx.beginPath();
+      ctx.moveTo(-len * 0.48, 0);
+      ctx.lineTo(len * 0.48, 0);
+      ctx.lineTo(len * 0.48, -bH);
+      ctx.lineTo(-len * 0.48, -bH);
+      ctx.closePath();
+      ctx.fillStyle = colBody;
+      ctx.fill();
+
+      // Кабина («теплица») седана
+      var cH = hgt * 0.52;
+      ctx.beginPath();
+      ctx.moveTo(-len * 0.24, -bH);
+      ctx.lineTo(-len * 0.16, -bH - cH);
+      ctx.lineTo(len * 0.14, -bH - cH);
+      ctx.lineTo(len * 0.26, -bH);
+      ctx.closePath();
+      ctx.fillStyle = colBody;
+      ctx.fill();
+
+      // Окна кабины (тёмные стёкла)
+      ctx.beginPath();
+      ctx.moveTo(-len * 0.20, -bH - 1);
+      ctx.lineTo(-len * 0.13, -bH - cH + 1.5);
+      ctx.lineTo(len * 0.11, -bH - cH + 1.5);
+      ctx.lineTo(len * 0.22, -bH - 1);
+      ctx.closePath();
+      ctx.fillStyle = NIGHT > 0.2 ? 'rgb(24, 28, 34)' : C_WIN_DRK;
+      ctx.fill();
+
+      // Стойка между окнами (B-pillar)
+      ctx.strokeStyle = colBody;
+      ctx.lineWidth = Math.max(1.1, k * 0.010);
+      ctx.beginPath();
+      ctx.moveTo(0, -bH);
+      ctx.lineTo(0, -bH - cH + 1);
+      ctx.stroke();
+
+      // Контур кузова тушью
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = inkW;
+      ctx.beginPath();
+      // Линия крыши и капота
+      ctx.moveTo(-len * 0.48, -bH * 0.6);
+      ctx.lineTo(-len * 0.48, -bH);
+      ctx.lineTo(-len * 0.24, -bH);
+      ctx.lineTo(-len * 0.16, -bH - cH);
+      ctx.lineTo(len * 0.14, -bH - cH);
+      ctx.lineTo(len * 0.26, -bH);
+      ctx.lineTo(len * 0.48, -bH);
+      ctx.lineTo(len * 0.48, -bH * 0.6);
+      ctx.stroke();
+
+      // Фары / фонари
+      if (NIGHT > 0.2) {
+        ctx.fillStyle = 'rgb(255, 238, 170)';
+        ctx.fillRect(len * 0.47, -bH * 0.85, len * 0.03, bH * 0.4);
+      } else {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(len * 0.47, -bH * 0.85, len * 0.02, bH * 0.35);
+      }
+      ctx.fillStyle = '#d92626';
+      ctx.fillRect(-len * 0.49, -bH * 0.85, len * 0.02, bH * 0.35);
+    } else {
+      // Фургон / автобус РАФ / ПАЗ
+      var vH = hgt * 0.90;
+      ctx.beginPath();
+      ctx.moveTo(-len * 0.48, 0);
+      ctx.lineTo(len * 0.44, 0);
+      ctx.lineTo(len * 0.48, -vH * 0.4);
+      ctx.lineTo(len * 0.42, -vH);
+      ctx.lineTo(-len * 0.46, -vH);
+      ctx.lineTo(-len * 0.48, -vH * 0.2);
+      ctx.closePath();
+      ctx.fillStyle = colBody;
+      ctx.fill();
+
+      // Ряд боковых окон автобуса
+      var winY0 = -vH * 0.50, winY1 = -vH * 0.88;
+      ctx.beginPath();
+      ctx.moveTo(-len * 0.42, winY0);
+      ctx.lineTo(-len * 0.42, winY1);
+      ctx.lineTo(len * 0.38, winY1);
+      ctx.lineTo(len * 0.44, winY0);
+      ctx.closePath();
+      ctx.fillStyle = NIGHT > 0.2 ? 'rgb(24, 28, 34)' : C_WIN_DRK;
+      ctx.fill();
+
+      // Переплёты окон (3 стойки)
+      ctx.strokeStyle = colBody;
+      ctx.lineWidth = Math.max(1.2, k * 0.012);
+      ctx.beginPath();
+      for (var sp = -1; sp <= 1; sp++) {
+        var sx = sp * len * 0.18;
+        ctx.moveTo(sx, winY0);
+        ctx.lineTo(sx, winY1);
+      }
+      ctx.stroke();
+
+      // Контур автобуса
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = inkW;
+      ctx.strokeRect(-len * 0.46, -vH, len * 0.88, vH);
+
+      // Фара
+      ctx.fillStyle = NIGHT > 0.2 ? 'rgb(255, 238, 170)' : '#ffffff';
+      ctx.fillRect(len * 0.46, -vH * 0.35, len * 0.025, vH * 0.20);
+    }
+
+    // Колёса с хромированными колпаками
+    function drawWheel(wx) {
+      ctx.beginPath();
+      ctx.arc(wx, wheelY, wheelR, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgb(34, 34, 38)';
+      ctx.fill();
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = inkW * 0.9;
+      ctx.stroke();
+
+      // Хромированный колпак в центре
+      ctx.beginPath();
+      ctx.arc(wx, wheelY, wheelR * 0.45, 0, Math.PI * 2);
+      ctx.fillStyle = '#dedad0';
+      ctx.fill();
+    }
+    drawWheel(wRearX);
+    drawWheel(wFrontX);
+
+    ctx.restore();
+  };
 
   Engine.prototype.drawOneFlag = function (i) {
     var f = this.model.flags[i];
@@ -2165,10 +2501,13 @@
   };
 
   /* Штрихи на той стороне, что отвернулась от света */
+  /* Штриховка теней на зданиях параллельными линиями под 45° тушью,
+     единая плотность, строго без перекрещиваний. */
   Engine.prototype.hatch = function (scope) {
     var ctx = this.ctx, shells = this.model.shells;
     var px = this.px, py = this.py;
     var any = false;
+    var minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
 
     ctx.beginPath();
     for (var i = 0; i < shells.length; i++) {
@@ -2177,34 +2516,45 @@
       if (scope === 'hall') {
         if (f.kind !== 'hall') continue;
       } else if (scope === 'wing') {
-        if (f.kind !== 'wing' && f.kind !== 'wingUp') continue;
+        if (f.kind !== 'wing') continue;
       } else {
-        if (f.kind !== 'podium') continue;   // на колпаке штрихи читались как мусор
+        if (f.kind !== 'podium') continue;
       }
       if (f.lit > 0.08) continue;
-
-      var strength = Math.min(1, (0.08 - f.lit) * 2.0);
-      var count = strength > 0.5 ? 3 : 2;
 
       var ax = px[f.a], ay = py[f.a];
       var bx = px[f.b], by = py[f.b];
       var cx = px[f.c], cy = py[f.c];
       var dx = px[f.d], dy = py[f.d];
 
-      for (var k = 1; k <= count; k++) {
-        var t = k / (count + 1);
-        var t2 = Math.min(1, t + 0.34);
-        ctx.moveTo(ax + (bx - ax) * t, ay + (by - ay) * t);
-        ctx.lineTo(dx + (cx - dx) * t2, dy + (cy - dy) * t2);
-        any = true;
-      }
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(bx, by);
+      ctx.lineTo(cx, cy);
+      ctx.lineTo(dx, dy);
+      ctx.closePath();
+
+      if (ax < minX) minX = ax; if (bx < minX) minX = bx; if (cx < minX) minX = cx; if (dx < minX) minX = dx;
+      if (ax > maxX) maxX = maxX; if (bx > maxX) maxX = bx; if (cx > maxX) maxX = cx; if (dx > maxX) maxX = dx;
+      if (ay < minY) minY = ay; if (by < minY) minY = by; if (cy < minY) minY = cy; if (dy < minY) minY = dy;
+      if (ay > maxY) maxY = ay; if (by > maxY) maxY = by; if (cy > maxY) maxY = cy; if (dy > maxY) maxY = dy;
+      any = true;
     }
-    if (any) {
-      ctx.globalAlpha = 0.24;
-      ctx.lineWidth = 0.85;
-      ctx.stroke();
-      ctx.globalAlpha = 1;
+    if (!any) return;
+
+    ctx.save();
+    ctx.clip();
+    ctx.beginPath();
+    var step = Math.max(7, Math.round(this.S * 0.068));
+    var h = maxY - minY;
+    for (var x = minX - h; x <= maxX + step; x += step) {
+      ctx.moveTo(x, maxY);
+      ctx.lineTo(x + h, minY);
     }
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 0.85;
+    ctx.globalAlpha = 0.22;
+    ctx.stroke();
+    ctx.restore();
   };
 
   /* Контур здания.
@@ -2316,8 +2666,11 @@
         var tf = TT[ti], tb = tf.p;
         var tk = FOCAL / Math.max(1, CAM_DIST - pzz[tb]) * this.S;
         var trx = tf.w * tk * 1.05;
-        ctx.moveTo(pxx[tb] + trx, pyy[tb]);
-        ctx.ellipse(pxx[tb] - trx * 0.35, pyy[tb] + trx * 0.10,
+        // Единый угол солнца для деревьев
+        var trOffX = offX * tk * 0.35;
+        var trOffY = -offZ * tk * 0.20;
+        ctx.moveTo(pxx[tb] + trOffX + trx, pyy[tb] + trOffY);
+        ctx.ellipse(pxx[tb] + trOffX, pyy[tb] + trOffY,
                     trx, trx * 0.34, 0, 0, Math.PI * 2);
       }
       ctx.globalAlpha = 0.15;
@@ -2331,6 +2684,43 @@
       if (sh.layer !== layer) continue;
       var kOff = sh.off === undefined ? 1 : sh.off;
       var scx = sh.cx || 0, scz = sh.cz || 0;
+
+      if (sh.isTower) {
+        // Вытянутая тень башни от основания в сторону тени
+        var tipX = scx + offX * kOff * 1.8;
+        var tipZ = scz + offZ * kOff * 1.8;
+        var rBase = sh.r * 0.95, rTip = sh.r * 1.25;
+        var angLight = Math.atan2(tipZ - scz, tipX - scx);
+        var p90 = Math.PI * 0.5;
+        ctx.beginPath();
+        for (var a1 = -p90; a1 <= p90; a1 += 0.2) {
+          var ang = angLight + a1;
+          var x = tipX + Math.cos(ang) * rTip;
+          var z = tipZ + Math.sin(ang) * rTip;
+          var x1 = x * cy + z * sy, z1 = -x * sy + z * cy;
+          var y2 = sh.y * cp - z1 * sp, z2 = sh.y * sp + z1 * cp;
+          var d = Math.max(1, CAM_DIST - z2);
+          var k = FOCAL / d * S;
+          if (a1 === -p90) ctx.moveTo(ox + x1 * k, oy - y2 * k);
+          else ctx.lineTo(ox + x1 * k, oy - y2 * k);
+        }
+        for (var a2 = p90; a2 <= p90 * 3; a2 += 0.2) {
+          var ang2 = angLight + a2;
+          var x2 = scx + Math.cos(ang2) * rBase;
+          var z2b = scz + Math.sin(ang2) * rBase;
+          var x1b = x2 * cy + z2b * sy, z1b = -x2 * sy + z2b * cy;
+          var y2b = sh.y * cp - z1b * sp, z2c = sh.y * sp + z1b * cp;
+          var d2 = Math.max(1, CAM_DIST - z2c);
+          var k2 = FOCAL / d2 * S;
+          ctx.lineTo(ox + x1b * k2, oy - y2b * k2);
+        }
+        ctx.closePath();
+        ctx.globalAlpha = sh.alpha;
+        ctx.fillStyle = C_SHADOW;
+        ctx.fill();
+        continue;
+      }
+
       ctx.beginPath();
       for (var i = 0; i < N; i++) {
         var a = (i / N) * Math.PI * 2;

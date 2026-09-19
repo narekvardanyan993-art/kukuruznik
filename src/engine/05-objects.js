@@ -24,47 +24,93 @@
 
   /* Деревья. Два захода: дальние ложатся до здания, ближние — после.
      Всё сводится к пяти заливкам на всю рощу, а не к пяти на дерево. */
-  /* Одно дерево: ствол, крона, теневая долька, обводка. */
+  /* Деревья. Скетч-стиль: 4 разных силуэта (кипарисы, лиственные, округлые, кусты),
+     текстурный ствол с ветвлением, мягкая тень на траве, штриховка тушью в тени. */
   Engine.prototype.drawOneTree = function (f) {
     var ctx = this.ctx, pz = this.pz, px = this.px, py = this.py;
     var b = f.p;
     var k = FOCAL / Math.max(1, CAM_DIST - pz[b]) * this.S;
     var x = px[b], y = py[b];
 
+    // Мягкое пятно тени на земле под деревом
+    ctx.beginPath();
+    var gsw = f.w * k * 0.95, gsh = gsw * 0.32;
+    ctx.ellipse(x - gsw * 0.20, y + 1.2, gsw, gsh, 0, 0, Math.PI * 2);
+    ctx.fillStyle = C_SHADOW;
+    ctx.globalAlpha = 0.18;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Ствол с лёгким ветвлением
     ctx.lineJoin = 'round';
     ctx.beginPath();
     ctx.moveTo(x, y);
-    ctx.lineTo(x + f.lean * k * 0.5, y - f.h * k * 0.62);
+    ctx.lineTo(x + f.lean * k * 0.5, y - f.h * k * 0.58);
+    if (f.kind === 1 || f.kind === 2) {
+      ctx.moveTo(x + f.lean * k * 0.25, y - f.h * k * 0.30);
+      ctx.lineTo(x + f.lean * k * 0.50 + f.w * k * 0.22, y - f.h * k * 0.44);
+    }
     ctx.strokeStyle = C_TRUNK;
-    ctx.lineWidth = Math.max(1, k * 0.020);
+    ctx.lineWidth = Math.max(1.1, k * 0.020);
     ctx.stroke();
 
-    ctx.beginPath(); this.crownPath(f, 1);
+    // Основная масса кроны
+    ctx.beginPath();
+    this.crownPath(f, 1);
     ctx.fillStyle = f.tone ? C_TREE_B : C_TREE_A;
     ctx.fill();
 
-    ctx.beginPath(); this.crownPath(f, 2);
+    // Теневая долька
+    ctx.beginPath();
+    this.crownPath(f, 2);
     ctx.globalAlpha = 0.55;
     ctx.fillStyle = C_TREE_DRK;
     ctx.fill();
     ctx.globalAlpha = 1;
 
-    ctx.beginPath(); this.crownPath(f, 1);
+    // Архитектурная штриховка тушью в тени (карандашный скетч-стиль)
+    var ph = f.wob[0] * 12.7;
+    var cx = x + f.lean * k;
+    var cy = y - f.h * k * 0.74;
+    var rx = f.w * k, ry = f.h * k * 0.40;
+    var hx0 = cx, hx1 = cx + rx * 0.85;
+    var hy0 = cy - ry * 0.20, hy1 = cy + ry * 0.75;
+    var nHatch = f.kind === 0 ? 5 : 4;
+    ctx.beginPath();
+    for (var hk = 0; hk < nHatch; hk++) {
+      var hu = hk / (nHatch - 1);
+      var sx = hx0 + (hx1 - hx0) * hu;
+      var sy = hy0 + (hy1 - hy0) * hu;
+      var hLen = rx * 0.40;
+      ctx.moveTo(sx - hLen * 0.6, sy - hLen * 0.6);
+      ctx.lineTo(sx + hLen * 0.6, sy + hLen * 0.6);
+    }
     ctx.strokeStyle = INK;
-    ctx.lineWidth = Math.max(0.8, k * 0.013);
-    ctx.globalAlpha = 0.70;
+    ctx.lineWidth = Math.max(0.7, k * 0.008);
+    ctx.globalAlpha = 0.32;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Контур кроны тушью
+    ctx.beginPath();
+    this.crownPath(f, 1);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = Math.max(0.85, k * 0.013);
+    ctx.globalAlpha = 0.72;
     ctx.stroke();
     ctx.globalAlpha = 1;
   };
 
-  /* Контур кроны: десятиугольник с заранее заданной неровностью.
-     mode 2 — теневая долька: та же форма, сдвинутая от света. */
+  /* Контур кроны по типам:
+     0 — стройный пирамидальный кипарис/тополь
+     1 — раскидистое лиственное дерево (облачная крона)
+     2 — компактное округлое дерево
+     3 — стелющийся низкий кустарник */
   Engine.prototype.crownPath = function (f, mode) {
     var ctx = this.ctx, px = this.px, py = this.py, pz = this.pz;
     var b = f.p;
     var k = FOCAL / Math.max(1, CAM_DIST - pz[b]) * this.S;
-    /* Лёгкое качание. Амплитуда крошечная — полпроцента ширины кроны:
-       больше выглядит как шторм, а не как ветер. */
+
     var ph2 = f.wob[0] * 12.7 + f.wob[3] * 5.1;
     var sway = Math.sin(this.time * 0.62 + ph2) * k * 0.030
              + Math.sin(this.time * 1.35 + ph2 * 1.7) * k * 0.012;
@@ -72,29 +118,65 @@
     var cy = py[b] - f.h * k * 0.74;
     var breath = 1 + Math.sin(this.time * 0.5 + f.wob[1] * 8.1) * 0.022;
     var rx = f.w * k * breath, ry = f.h * k * 0.40 * (2 - breath);
-    if (mode === 2) { cx += rx * 0.30; cy += ry * 0.18; rx *= 0.80; ry *= 0.80; }
+    if (mode === 2) { cx += rx * 0.28; cy += ry * 0.16; rx *= 0.78; ry *= 0.78; }
 
-    /* Ведём кривую через середины отрезков: каждая вершина становится
-       изгибом, и крона перестаёт быть десятиугольником. */
-    var X = this.crX || (this.crX = new Float32Array(10));
-    var Y = this.crY || (this.crY = new Float32Array(10));
-    for (var i = 0; i < 10; i++) {
-      var a = i / 10 * Math.PI * 2;
-      var w = f.wob[i];
-      X[i] = cx + Math.cos(a) * rx * w;
-      Y[i] = cy + Math.sin(a) * ry * w;
+    var kind = f.kind || 0;
+    if (kind === 0) {
+      // Пирамидальный кипарис / тополь
+      var topY = cy - ry * 1.25, botY = cy + ry * 1.15;
+      var midY = cy + ry * 0.10;
+      var wL = rx * 0.95 * f.wob[2], wR = rx * 0.95 * f.wob[5];
+      ctx.moveTo(cx, topY);
+      ctx.bezierCurveTo(cx + wR * 0.5, topY + ry * 0.5,
+                        cx + wR, midY - ry * 0.3,
+                        cx + wR, midY);
+      ctx.bezierCurveTo(cx + wR * 0.9, midY + ry * 0.6,
+                        cx + wR * 0.3, botY,
+                        cx, botY);
+      ctx.bezierCurveTo(cx - wL * 0.3, botY,
+                        cx - wL * 0.9, midY + ry * 0.6,
+                        cx - wL, midY);
+      ctx.bezierCurveTo(cx - wL, midY - ry * 0.3,
+                        cx - wL * 0.5, topY + ry * 0.5,
+                        cx, topY);
+      ctx.closePath();
+      return;
     }
-    ctx.moveTo((X[9] + X[0]) * 0.5, (Y[9] + Y[0]) * 0.5);
-    for (var i = 0; i < 10; i++) {
-      var j = (i + 1) % 10;
+
+    if (kind === 1) {
+      // Широкое лиственное дерево: трёхлопастной облачный контур
+      var r0 = rx * 0.65, r1 = rx * 0.60, r2 = rx * 0.72;
+      var c0x = cx,                  c0y = cy - ry * 0.35;
+      var c1x = cx - rx * 0.45,      c1y = cy + ry * 0.25;
+      var c2x = cx + rx * 0.45,      c2y = cy + ry * 0.22;
+      ctx.moveTo(c0x, c0y - r0 * 1.05);
+      ctx.bezierCurveTo(c0x + r0 * 1.1, c0y - r0 * 0.9, c2x + r2 * 0.6, c2y - r2 * 0.9, c2x + r2, c2y);
+      ctx.bezierCurveTo(c2x + r2 * 1.1, c2y + r2 * 0.9, c0x + r0 * 0.4, cy + ry * 1.05, cx, cy + ry * 1.05);
+      ctx.bezierCurveTo(c0x - r0 * 0.4, cy + ry * 1.05, c1x - r1 * 1.1, c1y + r1 * 0.9, c1x - r1, c1y);
+      ctx.bezierCurveTo(c1x - r1 * 0.9, c1y - r1 * 0.9, c0x - r0 * 1.1, c0y - r0 * 0.9, c0x, c0y - r0 * 1.05);
+      ctx.closePath();
+      return;
+    }
+
+    // Округлая крона (kind 2 и 3): органический контур с дрожанием
+    var ptsCount = 12;
+    var X = this.crX || (this.crX = new Float32Array(12));
+    var Y = this.crY || (this.crY = new Float32Array(12));
+    for (var i = 0; i < ptsCount; i++) {
+      var a = (i / ptsCount) * Math.PI * 2;
+      var w = f.wob[i] || 1;
+      X[i] = cx + Math.cos(a) * rx * w;
+      Y[i] = cy + Math.sin(a) * ry * w * (kind === 3 ? 0.70 : 1.0);
+    }
+    ctx.moveTo((X[ptsCount - 1] + X[0]) * 0.5, (Y[ptsCount - 1] + Y[0]) * 0.5);
+    for (var i = 0; i < ptsCount; i++) {
+      var j = (i + 1) % ptsCount;
       ctx.quadraticCurveTo(X[i], Y[i], (X[i] + X[j]) * 0.5, (Y[i] + Y[j]) * 0.5);
     }
     ctx.closePath();
   };
 
-  /* Нижний корпус. Рисуется целиком за один заход: он отдельный объём,
-     а не ярус башни, и его очередь зависит от того, ближе он к нам
-     или дальше. */
+  /* Нижний корпус. */
   Engine.prototype.drawHall = function () {
     this.fillShells('hall',      C_HALL);
     this.fillShells('hallGlass', C_WIN_DRK);
@@ -104,8 +186,7 @@
     this.drawOutline(4);
   };
 
-  /* Длинное низкое крыло с аркадой. Своя очередь, как и у корпуса:
-     оно стоит сбоку от башни, а не над ней. */
+  /* Длинное прямоугольное крыло с аркадой. */
   Engine.prototype.drawWing = function () {
     this.fillShells('wing',     C_HALL);
     this.drawCells(5);
@@ -113,11 +194,6 @@
     this.fillShells('wingSlab', C_SLAB);
     this.fillShells('wingTop',  C_DECK);
     this.fillShells('wingRail', C_SLAB);
-    /* Задний этаж-уступ — ПОСЛЕ террасы и бортика (wingTop/wingRail),
-       иначе плита террасы закрашивает его стены и оставляет один каркас! */
-    this.fillShells('wingUp',     C_HALL);
-    this.fillShells('wingUpCorn', C_SLAB);
-    this.fillShells('wingUpTop',  C_DECK);
     this.hatch('wing');
     this.strokeBody(5);
     this.drawOutline(5);

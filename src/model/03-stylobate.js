@@ -36,23 +36,11 @@
        проволочный мусор. Террасы подиума чистые. */
     var galleryPosts = [];
 
-    /* Простые объёмы на кровле верхнего яруса — по фото «Вид с холма»
-       там стоит пара служебных построек, а не голая плита. Обычные
-       коробки с плоской крышей, без окон и лоджий. */
-    var roofBoxes = [
-      { x0: 1.30, x1: 2.05, z0: -0.85, z1: -0.10, h: 0.30 },
-      { x0: 1.40, x1: 2.05, z0: 0.20,  z1: 0.60,  h: 0.20 }
-    ];
-    for (var rb2 = 0; rb2 < roofBoxes.length; rb2++) {
-      var rB = roofBoxes[rb2];
-      var box = rectBox('podium', rB.x0, rB.x1, rB.z0, rB.z1, TIERS3[2].y1, TIERS3[2].y1 + rB.h);
-      var topId = face('deck', box.tt[0], box.tt[1], box.tt[2], box.tt[3], 0, 1, 0);
-      for (var bk = 0; bk < 4; bk++) line(box.tt[bk], box.tt[(bk + 1) % 4], THIN, topId, topId);
-    }
+    /* Кровля верхнего яруса чистая, без посторонних надстроек,
+       в строгом соответствии с архивными фотографиями. */
 
-    // ======== лестницы-зигзаг: земля → ярус 0 → ярус 1 → ярус 2 ========
-    /* Марш идёт вдоль Z (к дороге), а не по кругу, как раньше. Каждый
-       следующий марш сдвинут по X в другую сторону от предыдущего.
+    // ======== парадная лестница: дорога → ярус 0 → ярус 1 → ярус 2 ========
+    /* Марш идёт строго вдоль единой композиционной оси входа к порталу.
        Марш формируется как сплошной монолитный блок: ступени сверху,
        глухие боковые щёки, глухая задняя стенка, сплошная подшивка
        снизу и заглублённый цоколь. Снизу сквозь ступени ничего не
@@ -97,43 +85,79 @@
       var fPlinth = face('podium', oL, pL, pR, oR, 0, 0, -1);
       line(oL, oR, MED, fPlinth, fPlinth);
     }
-    var STX0 = 1.10, STX1 = 1.85, STHW = 0.42;
-    stairFlightZ(STX0, STHW, TIERS3[2].z0, TIERS3[1].z0 + 0.55, TIERS3[2].y1, TIERS3[1].y1, 4);
-    stairFlightZ(STX1, STHW, TIERS3[1].z0, TIERS3[0].z0 + 0.55, TIERS3[1].y1, TIERS3[0].y1, 4);
 
-    // ======== свободно стоящий портал ========
-    /* Арка стоит посреди подхода к зданию — как ворота над широкой
-       лестницей. Две тонкие опоры и плоская арочная перемычка. */
-    var PORTAL_X = STX0, PORTAL_Z = -4.50;
-    var PORTAL_W = 0.95, PORTAL_PW = 0.14, PORTAL_H = 0.62, PORTAL_TOPH = 0.20;
-    var pgY = groundY(Math.hypot(PORTAL_X, PORTAL_Z));
-    for (var ps = -1; ps <= 1; ps += 2) {
-      var pcx = PORTAL_X + ps * PORTAL_W * 0.5;
-      rectBox('podium', pcx - PORTAL_PW * 0.5, pcx + PORTAL_PW * 0.5,
-              PORTAL_Z - PORTAL_PW * 0.5, PORTAL_Z + PORTAL_PW * 0.5,
-              pgY, pgY + PORTAL_H, true);
+    // ======== трёхмерный арочный портал входа ========
+    /* Стоит на парадной входной площадке подиума (по фото «Фасад» и
+       «У входа»), опирается на подиум и землю, имеет полноценный объём
+       (массивные пилоны с глубиной по Z, каменный архивольт с двух
+       сторон, интрадос и экстрадос). Проём открыт насквозь. Виден со
+       всех 360° ракурсов без исчезающих плоскостей. */
+    var PORTAL_X = 0.85;                // по оси парадного входа
+    var PORTAL_Z = TIERS3[0].z0;        // на кромке первого яруса подиума (= -3.10)
+    var PORTAL_W = 0.90;                // ширина арочного проёма
+    var PORTAL_PW = 0.18;               // толщина каменных пилонов
+    var PORTAL_PD = 0.24;               // глубина пилонов и арки по Z
+    var pz0 = PORTAL_Z - PORTAL_PD * 0.5, pz1 = PORTAL_Z + PORTAL_PD * 0.5;
+    var pyBase = yGround;               // заглубление в основание
+    var pyLanding = TIERS3[0].y1;       // отметка площадки подиума (= 0.13)
+    var pySpring = pyLanding + 0.62;    // высота пят арки (= 0.75)
+    var rArchIn = PORTAL_W * 0.5;       // внутренний радиус (= 0.45)
+    var rArchOut = rArchIn + PORTAL_PW; // наружный радиус (= 0.63)
+
+    // Лестничные марши между ярусами подиума по единой оси входа
+    var STHW = 0.44;
+    stairFlightZ(PORTAL_X, STHW, TIERS3[2].z0, TIERS3[1].z0 + 0.35, TIERS3[2].y1, TIERS3[1].y1, 4);
+    stairFlightZ(PORTAL_X, STHW, TIERS3[1].z0, TIERS3[0].z0 + 0.35, TIERS3[1].y1, TIERS3[0].y1, 4);
+
+    // Левый и правый каменные пилоны
+    var lx0 = PORTAL_X - rArchOut, lx1 = PORTAL_X - rArchIn;
+    var rx0 = PORTAL_X + rArchIn,  rx1 = PORTAL_X + rArchOut;
+    rectBox('podium', lx0, lx1, pz0, pz1, pyBase, pySpring);
+    rectBox('podium', rx0, rx1, pz0, pz1, pyBase, pySpring);
+
+    // Каменная 3D арка над проёмом
+    var AK = 8;
+    var ptsArchFrontIn = [], ptsArchFrontOut = [];
+    var ptsArchBackIn = [], ptsArchBackOut = [];
+    for (var ak = 0; ak <= AK; ak++) {
+      var aAng = Math.PI - Math.PI * (ak / AK);
+      var cAng = Math.cos(aAng), sAng = Math.sin(aAng);
+      ptsArchFrontIn.push(addXYZ(PORTAL_X + rArchIn * cAng, pySpring + rArchIn * sAng, pz0));
+      ptsArchFrontOut.push(addXYZ(PORTAL_X + rArchOut * cAng, pySpring + rArchOut * sAng, pz0));
+      ptsArchBackIn.push(addXYZ(PORTAL_X + rArchIn * cAng, pySpring + rArchIn * sAng, pz1));
+      ptsArchBackOut.push(addXYZ(PORTAL_X + rArchOut * cAng, pySpring + rArchOut * sAng, pz1));
     }
-    var lintelY0 = pgY + PORTAL_H - 0.02, lintelY1 = pgY + PORTAL_H + PORTAL_TOPH;
-    var lintelX0 = PORTAL_X - PORTAL_W * 0.5 - PORTAL_PW * 0.5;
-    var lintelX1 = PORTAL_X + PORTAL_W * 0.5 + PORTAL_PW * 0.5;
-    cells.push({
-      grp: 3, arch: true,
-      a: addXYZ(lintelX1, lintelY0, PORTAL_Z), b: addXYZ(lintelX0, lintelY0, PORTAL_Z),
-      c: addXYZ(lintelX0, lintelY1, PORTAL_Z), d: addXYZ(lintelX1, lintelY1, PORTAL_Z),
-      nx: 0, ny: 0, nz: -1, vis: false, lit: 0
-    });
-    cells.push({
-      grp: 3, arch: true,
-      a: addXYZ(lintelX0, lintelY0, PORTAL_Z), b: addXYZ(lintelX1, lintelY0, PORTAL_Z),
-      c: addXYZ(lintelX1, lintelY1, PORTAL_Z), d: addXYZ(lintelX0, lintelY1, PORTAL_Z),
-      nx: 0, ny: 0, nz: 1, vis: false, lit: 0
-    });
+    for (var ak = 0; ak < AK; ak++) {
+      // Лицевая сторона архивольта (nx=0, nz=-1)
+      var fArchF = face('podium', ptsArchFrontOut[ak], ptsArchFrontOut[ak + 1],
+                                  ptsArchFrontIn[ak + 1], ptsArchFrontIn[ak], 0, 0, -1);
+      line(ptsArchFrontOut[ak], ptsArchFrontOut[ak + 1], BOLD, fArchF, fArchF);
+      line(ptsArchFrontIn[ak],  ptsArchFrontIn[ak + 1],  MED,  fArchF, fArchF);
 
-    // Марш от портала прямо в подиум (без зазоров)
-    stairFlightZ(STX0, 0.44, TIERS3[0].z0, PORTAL_Z, TIERS3[0].y1, pgY, 5);
+      // Задняя сторона архивольта (nx=0, nz=1)
+      var fArchB = face('podium', ptsArchBackIn[ak], ptsArchBackIn[ak + 1],
+                                  ptsArchBackOut[ak + 1], ptsArchBackOut[ak], 0, 0, 1);
+      line(ptsArchBackOut[ak], ptsArchBackOut[ak + 1], BOLD, fArchB, fArchB);
+      line(ptsArchBackIn[ak],  ptsArchBackIn[ak + 1],  MED,  fArchB, fArchB);
 
-    // ======== широкая прямая лестница снизу от дороги к порталу ========
-    var LSTX = PORTAL_X, LSTHW = 0.46;
+      // Нижний свод (интрадос проёма)
+      var fIntrados = face('podium', ptsArchFrontIn[ak], ptsArchFrontIn[ak + 1],
+                                     ptsArchBackIn[ak + 1], ptsArchBackIn[ak],
+                                     0, -Math.sin(Math.PI * (ak + 0.5) / AK), 0);
+      if (ak === 0 || ak === AK - 1) {
+        line(ptsArchFrontIn[ak], ptsArchBackIn[ak], THIN, fArchF, fIntrados);
+      }
+
+      // Верхний свод (экстрадос)
+      var fExtrados = face('podium', ptsArchFrontOut[ak + 1], ptsArchFrontOut[ak],
+                                     ptsArchBackOut[ak], ptsArchBackOut[ak + 1],
+                                     0, Math.sin(Math.PI * (ak + 0.5) / AK), 0);
+      if (ak === 0 || ak === AK - 1) {
+        line(ptsArchFrontOut[ak], ptsArchBackOut[ak], THIN, fArchF, fExtrados);
+      }
+    }
+
+    // ======== широкая парадная лестница снизу от дороги к порталу ========
     var zRoad = -6.60;
-    var yRoad = groundY(Math.hypot(LSTX, zRoad));
-    stairFlightZ(LSTX, LSTHW, PORTAL_Z, zRoad, pgY, yRoad, 9);
+    var yRoad = groundY(Math.hypot(PORTAL_X, zRoad));
+    stairFlightZ(PORTAL_X, 0.48, pz0, zRoad, pyLanding, yRoad, 12);

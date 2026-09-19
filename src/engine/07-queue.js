@@ -31,9 +31,13 @@
     var nLamp = LP ? (lod < 0.7 ? Math.round(LP.length * 0.6) : LP.length) : 0;
     for (var l = 0; l < nLamp; l++) add(pz[LP[l].b], 6, l);
     var BN = m.benches;
-    if (BN && BN.length) for (var n = 0; n < BN.length; n++) add(pz[BN[n].a], 7, n);
+    if (BN && BN.length) for (var n = 0; n < BN.length; n++) add(pz[BN[n].p], 7, n);
     var FL = m.flags;
     if (FL) for (var f = 0; f < FL.length; f++) add(pz[FL[f].b], 8, f);
+    var UN = m.urns;
+    if (UN && UN.length) for (var u = 0; u < UN.length; u++) add(pz[UN[u].p], 9, u);
+    var CR = m.cars;
+    if (CR && CR.length) for (var c = 0; c < CR.length; c++) add(pz[CR[c].p], 10, c);
 
     Q.sort(function (a, b) { return a.z - b.z; });
   };
@@ -57,6 +61,8 @@
         case 6: this.drawOneLamp(e.i); break;
         case 7: this.drawOneBench(e.i); break;
         case 8: this.drawOneFlag(e.i); break;
+        case 9: this.drawOneUrn(e.i); break;
+        case 10: this.drawOneCar(e.i); break;
       }
     }
   };

@@ -1,7 +1,10 @@
+  /* Штриховка теней на зданиях параллельными линиями под 45° тушью,
+     единая плотность, строго без перекрещиваний. */
   Engine.prototype.hatch = function (scope) {
     var ctx = this.ctx, shells = this.model.shells;
     var px = this.px, py = this.py;
     var any = false;
+    var minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
 
     ctx.beginPath();
     for (var i = 0; i < shells.length; i++) {
@@ -10,34 +13,45 @@
       if (scope === 'hall') {
         if (f.kind !== 'hall') continue;
       } else if (scope === 'wing') {
-        if (f.kind !== 'wing' && f.kind !== 'wingUp') continue;
+        if (f.kind !== 'wing') continue;
       } else {
-        if (f.kind !== 'podium') continue;   // на колпаке штрихи читались как мусор
+        if (f.kind !== 'podium') continue;
       }
       if (f.lit > 0.08) continue;
-
-      var strength = Math.min(1, (0.08 - f.lit) * 2.0);
-      var count = strength > 0.5 ? 3 : 2;
 
       var ax = px[f.a], ay = py[f.a];
       var bx = px[f.b], by = py[f.b];
       var cx = px[f.c], cy = py[f.c];
       var dx = px[f.d], dy = py[f.d];
 
-      for (var k = 1; k <= count; k++) {
-        var t = k / (count + 1);
-        var t2 = Math.min(1, t + 0.34);
-        ctx.moveTo(ax + (bx - ax) * t, ay + (by - ay) * t);
-        ctx.lineTo(dx + (cx - dx) * t2, dy + (cy - dy) * t2);
-        any = true;
-      }
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(bx, by);
+      ctx.lineTo(cx, cy);
+      ctx.lineTo(dx, dy);
+      ctx.closePath();
+
+      if (ax < minX) minX = ax; if (bx < minX) minX = bx; if (cx < minX) minX = cx; if (dx < minX) minX = dx;
+      if (ax > maxX) maxX = maxX; if (bx > maxX) maxX = bx; if (cx > maxX) maxX = cx; if (dx > maxX) maxX = dx;
+      if (ay < minY) minY = ay; if (by < minY) minY = by; if (cy < minY) minY = cy; if (dy < minY) minY = dy;
+      if (ay > maxY) maxY = ay; if (by > maxY) maxY = by; if (cy > maxY) maxY = cy; if (dy > maxY) maxY = dy;
+      any = true;
     }
-    if (any) {
-      ctx.globalAlpha = 0.24;
-      ctx.lineWidth = 0.85;
-      ctx.stroke();
-      ctx.globalAlpha = 1;
+    if (!any) return;
+
+    ctx.save();
+    ctx.clip();
+    ctx.beginPath();
+    var step = Math.max(7, Math.round(this.S * 0.068));
+    var h = maxY - minY;
+    for (var x = minX - h; x <= maxX + step; x += step) {
+      ctx.moveTo(x, maxY);
+      ctx.lineTo(x + h, minY);
     }
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 0.85;
+    ctx.globalAlpha = 0.22;
+    ctx.stroke();
+    ctx.restore();
   };
 
   /* Контур здания.
@@ -149,8 +163,11 @@
         var tf = TT[ti], tb = tf.p;
         var tk = FOCAL / Math.max(1, CAM_DIST - pzz[tb]) * this.S;
         var trx = tf.w * tk * 1.05;
-        ctx.moveTo(pxx[tb] + trx, pyy[tb]);
-        ctx.ellipse(pxx[tb] - trx * 0.35, pyy[tb] + trx * 0.10,
+        // Единый угол солнца для деревьев
+        var trOffX = offX * tk * 0.35;
+        var trOffY = -offZ * tk * 0.20;
+        ctx.moveTo(pxx[tb] + trOffX + trx, pyy[tb] + trOffY);
+        ctx.ellipse(pxx[tb] + trOffX, pyy[tb] + trOffY,
                     trx, trx * 0.34, 0, 0, Math.PI * 2);
       }
       ctx.globalAlpha = 0.15;
@@ -164,6 +181,43 @@
       if (sh.layer !== layer) continue;
       var kOff = sh.off === undefined ? 1 : sh.off;
       var scx = sh.cx || 0, scz = sh.cz || 0;
+
+      if (sh.isTower) {
+        // Вытянутая тень башни от основания в сторону тени
+        var tipX = scx + offX * kOff * 1.8;
+        var tipZ = scz + offZ * kOff * 1.8;
+        var rBase = sh.r * 0.95, rTip = sh.r * 1.25;
+        var angLight = Math.atan2(tipZ - scz, tipX - scx);
+        var p90 = Math.PI * 0.5;
+        ctx.beginPath();
+        for (var a1 = -p90; a1 <= p90; a1 += 0.2) {
+          var ang = angLight + a1;
+          var x = tipX + Math.cos(ang) * rTip;
+          var z = tipZ + Math.sin(ang) * rTip;
+          var x1 = x * cy + z * sy, z1 = -x * sy + z * cy;
+          var y2 = sh.y * cp - z1 * sp, z2 = sh.y * sp + z1 * cp;
+          var d = Math.max(1, CAM_DIST - z2);
+          var k = FOCAL / d * S;
+          if (a1 === -p90) ctx.moveTo(ox + x1 * k, oy - y2 * k);
+          else ctx.lineTo(ox + x1 * k, oy - y2 * k);
+        }
+        for (var a2 = p90; a2 <= p90 * 3; a2 += 0.2) {
+          var ang2 = angLight + a2;
+          var x2 = scx + Math.cos(ang2) * rBase;
+          var z2b = scz + Math.sin(ang2) * rBase;
+          var x1b = x2 * cy + z2b * sy, z1b = -x2 * sy + z2b * cy;
+          var y2b = sh.y * cp - z1b * sp, z2c = sh.y * sp + z1b * cp;
+          var d2 = Math.max(1, CAM_DIST - z2c);
+          var k2 = FOCAL / d2 * S;
+          ctx.lineTo(ox + x1b * k2, oy - y2b * k2);
+        }
+        ctx.closePath();
+        ctx.globalAlpha = sh.alpha;
+        ctx.fillStyle = C_SHADOW;
+        ctx.fill();
+        continue;
+      }
+
       ctx.beginPath();
       for (var i = 0; i < N; i++) {
         var a = (i / N) * Math.PI * 2;
