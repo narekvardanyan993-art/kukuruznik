@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Кукурузник — Three.js POC</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%; height: -webkit-fill-available; height: 100dvh;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #0d1230;
+}
+#c { display: block; width: 100%; height: 100%; touch-action: none; }
+/* Paper texture overlay — sits on top of WebGL canvas, blend with multiply */
+#paper-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 1;
+  mix-blend-mode: multiply;
+  opacity: 0.35;
+}
+#fps {
+  position: fixed; top: env(safe-area-inset-top, 8px); right: 12px;
+  color: rgba(47,42,37,0.5); font: 500 13px/1 monospace;
+  z-index: 10; pointer-events: none;
+}
+#controls {
+  position: fixed; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; border-radius: 20px;
+  background: rgba(255,255,255,0.28);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  z-index: 10; flex-wrap: wrap; justify-content: center;
+}
+#controls label { font-size: 13px; color: #2f2a25; white-space: nowrap; }
+#tod { width: 130px; accent-color: #a3472a; }
+.chip {
+  border: none; padding: 5px 10px; border-radius: 10px; font-size: 12px;
+  background: rgba(255,255,255,0.45); color: #2f2a25; cursor: pointer;
+}
+.chip:active { background: rgba(163,71,42,0.2); }
+#label { position: fixed; top: env(safe-area-inset-top, 8px); left: 12px;
+  font-size: 13px; color: rgba(47,42,37,0.5); z-index: 10; pointer-events: none; }
+body.night #controls { background: rgba(18,24,46,0.50); }
+body.night #controls label { color: #bac2d6; }
+body.night .chip { background: rgba(150,178,240,0.20); color: #e9edf7; }
+body.night #fps { color: rgba(186,194,214,0.5); }
+body.night #label { color: rgba(186,194,214,0.5); }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<canvas id="paper-overlay"></canvas>
+<div id="fps">-- fps</div>
+<div id="label">Three.js POC · только башня</div>
+<div id="controls">
+  <label>☀️</label>
+  <input type="range" id="tod" min="0" max="100" value="30">
+  <label>🌙</label>
+  <button class="chip" data-v="12">Утро</button>
+  <button class="chip" data-v="30">День</button>
+  <button class="chip" data-v="50">Закат</button>
+  <button class="chip" data-v="92">Ночь</button>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+
+// ======================== MODEL CONSTANTS ========================
+const R = 1.00, N = 16, F = 14, fh = 0.260, NS = 32;
+const shaftY0 = 0.50;
+const shaftY1 = shaftY0 + F * fh;
+const railY   = shaftY1 + 0.12;
+const neckY   = shaftY1 + 0.21;
+const rimY    = shaftY1 + 0.29;
+const glassY  = shaftY1 + 0.58;
+const capY    = shaftY1 + 0.84;
+const mastY   = shaftY1 + 0.97;
+const rNeck = 0.52, rRim = 0.80, rCap = 0.62;
+const yCenter = (0.0 + capY) * 0.52;
+const loggiaBot = 0.20, loggiaTop = 0.20;
+
+// ======================== SEEDED RNG ========================
+function seedRng(seed) {
+  return function() {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+// ======================== COLOR PALETTE ========================
+const C = {
+  paper:    '#f5ecda',
+  ink:      new THREE.Color(0x2f2a25),
+  inkNight: new THREE.Color(0xa8b2ca),
+  shaft:    new THREE.Color(242/255, 227/255, 188/255),
+  belt:     new THREE.Color(250/255, 244/255, 222/255),
+  neck:     new THREE.Color(193/255, 184/255, 162/255),
+  glass:    new THREE.Color(74/255, 104/255, 100/255),
+  glassLit: new THREE.Color(236/255, 196/255, 118/255),
+  flare:    new THREE.Color(146/255, 128/255, 104/255),
+  parapet:  new THREE.Color(198/255, 190/255, 170/255),
+  rail:     new THREE.Color(180/255, 172/255, 152/255),
+  roof:     new THREE.Color(231/255, 224/255, 203/255),
+  podium:   new THREE.Color(152/255, 152/255, 157/255),
+  deck:     new THREE.Color(186/255, 184/255, 177/255),
+  ground:   new THREE.Color(163/255, 189/255, 122/255),
+  groundFar:new THREE.Color(198/255, 208/255, 166/255),
+  shadow:   new THREE.Color(78/255, 86/255, 124/255),
+  cellLit:  new THREE.Color(112/255, 97/255, 73/255),
+  cellDrk:  new THREE.Color(64/255, 65/255, 77/255),
+  winLit:   new THREE.Color(74/255, 100/255, 102/255),
+  winDrk:   new THREE.Color(46/255, 61/255, 74/255),
+  balcLit:  new THREE.Color(250/255, 243/255, 222/255),
+  balcDrk:  new THREE.Color(187/255, 189/255, 199/255),
+};
+
+// ======================== TOON GRADIENT MAP ========================
+function makeToonGradient(steps) {
+  const c = document.createElement('canvas');
+  c.width = steps; c.height = 1;
+  const ctx = c.getContext('2d');
+  // Stepped: each pixel is one "step" — creates banded watercolor look
+  for (let i = 0; i < steps; i++) {
+    const v = Math.round((i / (steps - 1)) * 255);
+    ctx.fillStyle = `rgb(${v},${v},${v})`;
+    ctx.fillRect(i, 0, 1, 1);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.minFilter = THREE.NearestFilter;
+  tex.magFilter = THREE.NearestFilter;
+  return tex;
+}
+const toonGrad5 = makeToonGradient(5);
+const toonGrad3 = makeToonGradient(3);
+
+// ======================== MATERIALS ========================
+function toon(color, opts = {}) {
+  return new THREE.MeshToonMaterial({
+    color: color.clone(),
+    gradientMap: opts.grad || toonGrad5,
+    side: opts.side || THREE.FrontSide,
+    transparent: !!opts.alpha,
+    opacity: opts.alpha || 1.0,
+    depthWrite: opts.depthWrite !== undefined ? opts.depthWrite : true,
+  });
+}
+
+// ======================== OUTLINE (INVERTED HULL) ========================
+function makeOutlineShader(color, thickness) {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      color: { value: color.clone() },
+      thick: { value: thickness },
+    },
+    vertexShader: `
+      uniform float thick;
+      void main() {
+        vec3 p = position + normal * thick;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 color;
+      void main() {
+        gl_FragColor = vec4(color, 0.85);
+      }
+    `,
+    side: THREE.BackSide,
+    transparent: true,
+    depthWrite: false,
+  });
+}
+
+function addOutline(parent, geo, pos, color, thickness, rotation) {
+  const m = new THREE.Mesh(geo, makeOutlineShader(color, thickness));
+  m.position.copy(pos);
+  if (rotation) m.rotation.copy(rotation);
+  m.userData.outline = true;
+  parent.add(m);
+  return m;
+}
+
+// ======================== EDGE LINES ========================
+function addEdges(parent, geo, pos, color, threshold) {
+  const eg = new THREE.EdgesGeometry(geo, threshold || 15);
+  const mat = new THREE.LineBasicMaterial({
+    color: color.clone(), transparent: true, opacity: 0.55, linewidth: 1
+  });
+  const lines = new THREE.LineSegments(eg, mat);
+  lines.position.copy(pos);
+  lines.userData.isEdge = true;
+  parent.add(lines);
+  return lines;
+}
+
+// ======================== BUILD TOWER SHAFT ========================
+function buildShaft() {
+  const g = new THREE.Group();
+  const v3 = (x, y, z) => new THREE.Vector3(x, y, z);
+
+  // Main shaft cylinder
+  const shaftGeo = new THREE.CylinderGeometry(R, R, F * fh, N, F, false);
+  const shaftPos = v3(0, shaftY0 + (F * fh) / 2 - yCenter, 0);
+  g.add(new THREE.Mesh(shaftGeo, toon(C.shaft)));
+  g.children[g.children.length - 1].position.copy(shaftPos);
+
+  // Bold outline on shaft
+  addOutline(g, shaftGeo, shaftPos, C.ink, 0.022);
+  addEdges(g, shaftGeo, shaftPos, C.ink, 12);
+
+  // Floor belts — lighter horizontal rings, slightly proud of shaft
+  for (let f = 0; f < F - 1; f++) {
+    const yb = shaftY0 + (f + 1) * fh - fh * loggiaTop;
+    const yt = shaftY0 + (f + 1) * fh + fh * loggiaBot;
+    const h = yt - yb;
+    const beltGeo = new THREE.CylinderGeometry(R * 1.008, R * 1.008, h, N, 1, false);
+    const pos = v3(0, (yb + yt) / 2 - yCenter, 0);
+    const m = new THREE.Mesh(beltGeo, toon(C.belt));
+    m.position.copy(pos);
+    m.renderOrder = 1;
+    g.add(m);
+  }
+
+  // Loggia cells on each floor, between each pair of ribs
+  const pitch = (Math.PI * 2) / N;
+  for (let f = 0; f < F; f++) {
+    const yb = shaftY0 + f * fh + fh * loggiaBot;
+    const yt = shaftY0 + (f + 1) * fh - fh * loggiaTop;
+    const rb = R * 0.92;
+    const cellH = yt - yb;
+
+    for (let i = 0; i < N; i++) {
+      const a0 = i * pitch + pitch * 0.10;
+      const a1 = i * pitch + pitch * 0.90;
+      const aMid = (a0 + a1) / 2;
+      const arcSpan = (a1 - a0) * rb;
+
+      // Loggia group — oriented to face outward
+      const lg = new THREE.Group();
+
+      // 1) Dark recess (the shadow behind the window)
+      const recessW = arcSpan * 0.88;
+      const recessH = cellH * 0.80;
+      const shape = new THREE.Shape();
+      // Flattened oval (bottom straight, top arched)
+      shape.moveTo(-recessW / 2, 0);
+      shape.lineTo(-recessW / 2, recessH * 0.55);
+      shape.quadraticCurveTo(-recessW / 2, recessH, 0, recessH);
+      shape.quadraticCurveTo(recessW / 2, recessH, recessW / 2, recessH * 0.55);
+      shape.lineTo(recessW / 2, 0);
+      shape.lineTo(-recessW / 2, 0);
+
+      const recessGeo = new THREE.ShapeGeometry(shape, 6);
+      const recessMat = toon(C.cellDrk, { alpha: 0.78, grad: toonGrad3 });
+      const recessMesh = new THREE.Mesh(recessGeo, recessMat);
+      recessMesh.position.set(0, -cellH * 0.38, -0.025);
+      lg.add(recessMesh);
+      recessMesh.userData.cellRecess = true;
+
+      // 2) Window inside (greenish glass)
+      const winW = recessW * 0.70;
+      const winH = recessH * 0.60;
+      const winGeo = new THREE.PlaneGeometry(winW, winH);
+      const winMat = toon(C.winDrk, { alpha: 0.82, grad: toonGrad3 });
+      const winMesh = new THREE.Mesh(winGeo, winMat);
+      winMesh.position.set(0, -cellH * 0.15, -0.035);
+      lg.add(winMesh);
+      winMesh.userData.cellWindow = true;
+
+      // 3) Balcony plate (white ledge sticking out)
+      const balcW = recessW * 0.92;
+      const balcH = cellH * 0.14;
+      const balcGeo = new THREE.BoxGeometry(balcW, balcH, 0.035);
+      const balcMat = toon(C.balcLit, { alpha: 0.95 });
+      const balcMesh = new THREE.Mesh(balcGeo, balcMat);
+      balcMesh.position.set(0, -cellH * 0.40, 0.012);
+      lg.add(balcMesh);
+      balcMesh.userData.cellBalcony = true;
+
+      // Position on cylinder
+      lg.position.set(
+        Math.cos(aMid) * rb,
+        (yb + yt) / 2 - yCenter,
+        Math.sin(aMid) * rb
+      );
+      lg.rotation.y = -aMid + Math.PI / 2;
+      g.add(lg);
+    }
+  }
+
+  // Roof deck
+  const deckGeo = new THREE.CylinderGeometry(R * 0.98, R * 0.98, 0.03, N, 1, false);
+  const deckPos = v3(0, shaftY1 - yCenter + 0.015, 0);
+  const deckM = new THREE.Mesh(deckGeo, toon(C.deck));
+  deckM.position.copy(deckPos);
+  g.add(deckM);
+
+  // Parapet rail
+  const railGeo = new THREE.CylinderGeometry(R * 0.99, R, railY - shaftY1, N, 1, false);
+  const railPos = v3(0, (shaftY1 + railY) / 2 - yCenter, 0);
+  const railM = new THREE.Mesh(railGeo, toon(C.rail));
+  railM.position.copy(railPos);
+  g.add(railM);
+  addEdges(g, railGeo, railPos, C.ink, 15);
+
+  return g;
+}
+
+// ======================== BUILD MUSHROOM HEAD ========================
+function buildHead() {
+  const g = new THREE.Group();
+  const v3 = (x, y, z) => new THREE.Vector3(x, y, z);
+
+  // Neck
+  const neckGeo = new THREE.CylinderGeometry(rNeck, rNeck, neckY - shaftY1, NS, 1, false);
+  const neckPos = v3(0, (shaftY1 + neckY) / 2 - yCenter, 0);
+  g.add(new THREE.Mesh(neckGeo, toon(C.neck)));
+  g.children[g.children.length - 1].position.copy(neckPos);
+
+  // Flare — neck opens out to rim (underside of saucer)
+  const flarePts = [];
+  for (let i = 0; i <= 10; i++) {
+    const t = i / 10;
+    const r = rNeck + (rRim - rNeck) * (1 - Math.pow(1 - t, 2.5));
+    flarePts.push(new THREE.Vector2(r, neckY + (rimY - neckY) * t - yCenter));
+  }
+  const flareGeo = new THREE.LatheGeometry(flarePts, NS);
+  g.add(new THREE.Mesh(flareGeo, toon(C.flare)));
+  addOutline(g, flareGeo, v3(0,0,0), C.ink, 0.012);
+
+  // Glazing drum
+  const glassGeo = new THREE.CylinderGeometry(rRim, rRim, glassY - rimY, NS, 1, false);
+  const glassPos = v3(0, (rimY + glassY) / 2 - yCenter, 0);
+  const glassM = new THREE.Mesh(glassGeo, toon(C.glass));
+  glassM.position.copy(glassPos);
+  glassM.userData.isGlass = true;
+  g.add(glassM);
+  addOutline(g, glassGeo, glassPos, C.ink, 0.016);
+  addEdges(g, glassGeo, glassPos, C.ink, 8);
+
+  // Glass imposts
+  for (let i = 0; i < NS; i += 2) {
+    const ang = (i / NS) * Math.PI * 2;
+    const x = Math.cos(ang) * rRim * 1.004;
+    const z = Math.sin(ang) * rRim * 1.004;
+    const pts = [v3(x, rimY - yCenter, z), v3(x, glassY - yCenter, z)];
+    const lg = new THREE.BufferGeometry().setFromPoints(pts);
+    const lm = new THREE.LineBasicMaterial({
+      color: C.ink.clone(), transparent: true, opacity: 0.45
+    });
+    g.add(new THREE.Line(lg, lm));
+  }
+
+  // Cone / parapet
+  const conePts = [];
+  for (let i = 0; i <= 8; i++) {
+    const t = i / 8;
+    const r = rRim + (rCap - rRim) * t;
+    conePts.push(new THREE.Vector2(r, glassY + (capY - glassY) * t - yCenter));
+  }
+  const coneGeo = new THREE.LatheGeometry(conePts, NS);
+  g.add(new THREE.Mesh(coneGeo, toon(C.parapet)));
+  addOutline(g, coneGeo, v3(0,0,0), C.ink, 0.014);
+  addEdges(g, coneGeo, v3(0,0,0), C.ink, 20);
+
+  // Crest
+  const crestGeo = new THREE.CylinderGeometry(rCap * 0.94, rCap, mastY - capY, NS, 1, false);
+  const crestPos = v3(0, (capY + mastY) / 2 - yCenter, 0);
+  g.add(new THREE.Mesh(crestGeo, toon(C.rail)));
+  g.children[g.children.length - 1].position.copy(crestPos);
+  addEdges(g, crestGeo, crestPos, C.ink, 15);
+
+  // Roof cap
+  const roofGeo = new THREE.CircleGeometry(rCap * 0.94, NS);
+  roofGeo.rotateX(-Math.PI / 2);
+  const roofPos = v3(0, mastY - yCenter + 0.001, 0);
+  g.add(new THREE.Mesh(roofGeo, toon(C.roof)));
+  g.children[g.children.length - 1].position.copy(roofPos);
+
+  // Inner circle on roof
+  const innerGeo = new THREE.RingGeometry(rCap * 0.48, rCap * 0.55, NS);
+  innerGeo.rotateX(-Math.PI / 2);
+  g.add(new THREE.Mesh(innerGeo, toon(C.deck)));
+  g.children[g.children.length - 1].position.copy(v3(0, mastY - yCenter + 0.003, 0));
+
+  return g;
+}
+
+// ======================== BUILD GROUND ========================
+function buildGround() {
+  const g = new THREE.Group();
+  const v3 = (x, y, z) => new THREE.Vector3(x, y, z);
+
+  // Ground disk — with gradient from near to far
+  const groundGeo = new THREE.CircleGeometry(12, 48);
+  groundGeo.rotateX(-Math.PI / 2);
+  g.add(new THREE.Mesh(groundGeo, toon(C.ground)));
+  g.children[g.children.length - 1].position.y = -yCenter - 0.01;
+
+  // Podium tiers
+  const PODX0 = -1.35, PODX1 = 2.30;
+  const tiers = [
+    { z0: -3.10, z1: 0.15, y0: 0.00, y1: 0.12 },
+    { z0: -2.05, z1: 0.15, y0: 0.12, y1: 0.30 },
+    { z0: -1.00, z1: 0.15, y0: 0.30, y1: 0.50 },
+  ];
+
+  for (const t of tiers) {
+    const w = PODX1 - PODX0, d = t.z1 - t.z0, h = t.y1 - t.y0;
+    const geo = new THREE.BoxGeometry(w, h, d);
+    const pos = v3((PODX0+PODX1)/2, (t.y0+t.y1)/2 - yCenter, (t.z0+t.z1)/2);
+    const m = new THREE.Mesh(geo, toon(C.podium));
+    m.position.copy(pos);
+    g.add(m);
+    addEdges(g, geo, pos, C.ink, 15);
+
+    // Deck surface
+    const dg = new THREE.PlaneGeometry(w, d);
+    dg.rotateX(-Math.PI / 2);
+    const dm = new THREE.Mesh(dg, toon(C.deck));
+    dm.position.copy(v3((PODX0+PODX1)/2, t.y1 - yCenter + 0.002, (t.z0+t.z1)/2));
+    g.add(dm);
+  }
+
+  // Cast shadow under building
+  const shGeo = new THREE.CircleGeometry(R * 1.6, 32);
+  shGeo.rotateX(-Math.PI / 2);
+  const shM = new THREE.Mesh(shGeo, new THREE.MeshBasicMaterial({
+    color: C.shadow, transparent: true, opacity: 0.18, depthWrite: false
+  }));
+  shM.position.set(0.3, -yCenter + 0.003, -0.2);
+  shM.renderOrder = -1;
+  g.add(shM);
+  shM.userData.isShadow = true;
+
+  // Contact shadow — tight ring at base
+  const csGeo = new THREE.RingGeometry(R * 0.85, R * 1.15, 32);
+  csGeo.rotateX(-Math.PI / 2);
+  const csM = new THREE.Mesh(csGeo, new THREE.MeshBasicMaterial({
+    color: C.shadow, transparent: true, opacity: 0.22, depthWrite: false
+  }));
+  csM.position.set(0, shaftY0 - yCenter + 0.003, 0);
+  csM.renderOrder = -1;
+  g.add(csM);
+
+  return g;
+}
+
+// ======================== PAPER TEXTURE ========================
+function bakePaperOverlay(tod) {
+  const cv = document.getElementById('paper-overlay');
+  const w = window.innerWidth, h = window.innerHeight;
+  const dpr = Math.min(window.devicePixelRatio, 2);
+  cv.width = w * dpr; cv.height = h * dpr;
+  cv.style.width = w + 'px'; cv.style.height = h + 'px';
+  const ctx = cv.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const night = tod < 0.46 ? 0 : Math.min(1, (tod - 0.46) / 0.40);
+
+  // Fill with paper base
+  const pr = 245 - night * 200, pg = 236 - night * 196, pb = 218 - night * 160;
+  ctx.fillStyle = `rgb(${pr|0},${pg|0},${pb|0})`;
+  ctx.fillRect(0, 0, w, h);
+
+  // Paper grain (deterministic)
+  const rng = seedRng(7);
+  const dots = Math.min(5000, Math.round(w * h / 200));
+  const ga = 0.055 + night * 0.04;
+  ctx.fillStyle = `rgba(120, 100, 74, ${ga})`;
+  for (let i = 0; i < dots; i++) {
+    ctx.fillRect(rng() * w, rng() * h, rng() * 1.6 + 0.4, rng() * 1.6 + 0.4);
+  }
+
+  // Vignette
+  const vig = ctx.createRadialGradient(w/2, h*0.44, Math.min(w,h)*0.2,
+                                        w/2, h*0.5, Math.max(w,h)*0.78);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  const vigA = 0.10 + night * 0.08;
+  vig.addColorStop(1, `rgba(${night > 0.5 ? '10,12,30' : '92,72,46'},${vigA})`);
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, w, h);
+
+  // Adjust overlay opacity based on time of day
+  cv.style.opacity = night > 0.5 ? '0.15' : '0.32';
+  cv.style.mixBlendMode = night > 0.5 ? 'soft-light' : 'multiply';
+}
+
+// ======================== SKY BACKGROUND TEXTURE ========================
+function makeSkyBg(tod) {
+  const size = 512;
+  const c = document.createElement('canvas');
+  c.width = size; c.height = size;
+  const ctx = c.getContext('2d');
+
+  const night = tod < 0.46 ? 0 : Math.min(1, (tod - 0.46) / 0.40);
+  const dusk = Math.max(0, 1 - Math.abs(tod - 0.50) / 0.22);
+
+  // Paper base
+  const pr = 245 - night * 230, pg = 236 - night * 222, pb = 218 - night * 188;
+  ctx.fillStyle = `rgb(${pr|0},${pg|0},${pb|0})`;
+  ctx.fillRect(0, 0, size, size);
+
+  // Sky gradient
+  function blend(dR,dG,dB, nR,nG,nB, dA, nA) {
+    const r = Math.round(dR + (nR - dR) * night);
+    const g = Math.round(dG + (nG - dG) * night);
+    const b = Math.round(dB + (nB - dB) * night);
+    const a = dA + (nA - dA) * night;
+    return `rgba(${r},${g},${b},${a.toFixed(3)})`;
+  }
+
+  const grad = ctx.createLinearGradient(0, 0, 0, size);
+  grad.addColorStop(0.00, blend(96,142,186, 10,14,40, 0.60, 0.94));
+  grad.addColorStop(0.30, blend(142,180,206, 20,26,58, 0.34, 0.86));
+  grad.addColorStop(0.55, blend(214,200,172, 46,40,70, 0.20, 0.66));
+  grad.addColorStop(0.72, blend(226,206,168, 40,36,66, 0.00, 0.62));
+  grad.addColorStop(1.00, blend(226,206,168, 16,20,44, 0.00, 0.78));
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+
+  // Dusk warm band
+  if (dusk > 0.01) {
+    const dg = ctx.createLinearGradient(0, size * 0.40, 0, size * 0.72);
+    dg.addColorStop(0, 'rgba(236,150,88,0)');
+    dg.addColorStop(1, `rgba(240,146,84,${(0.38 * dusk).toFixed(3)})`);
+    ctx.fillStyle = dg;
+    ctx.fillRect(0, 0, size, size);
+  }
+
+  // Grain on background
+  const rng = seedRng(42);
+  ctx.fillStyle = 'rgba(120,100,74,0.04)';
+  for (let i = 0; i < 1600; i++) {
+    ctx.fillRect(rng()*size, rng()*size, rng()*1.4+0.3, rng()*1.4+0.3);
+  }
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+// ======================== RENDERER ========================
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({
+  canvas,
+  antialias: true,
+  alpha: false,
+  powerPreference: 'high-performance',
+});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 3));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+scene.background = makeSkyBg(0.30);
+
+const camera = new THREE.PerspectiveCamera(
+  18, window.innerWidth / window.innerHeight, 0.1, 100
+);
+camera.position.set(8, 4, 12);
+
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, (shaftY1 * 0.45) - yCenter, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 5;
+controls.maxDistance = 30;
+controls.maxPolarAngle = Math.PI * 0.92;
+controls.minPolarAngle = Math.PI * 0.05;
+controls.update();
+
+// ======================== LIGHTING ========================
+const sunLight = new THREE.DirectionalLight(0xfff0c4, 1.3);
+sunLight.position.set(-4.6, 5.8, 6.7);
+scene.add(sunLight);
+
+const ambientLight = new THREE.HemisphereLight(
+  new THREE.Color(160/255, 180/255, 220/255),
+  new THREE.Color(120/255, 110/255, 90/255),
+  0.55
+);
+scene.add(ambientLight);
+
+// Subtle fill from below (ground bounce)
+const fillLight = new THREE.DirectionalLight(0xe8d8b8, 0.15);
+fillLight.position.set(0, -3, 2);
+scene.add(fillLight);
+
+// ======================== SCENE ASSEMBLY ========================
+const shaftGroup = buildShaft();
+scene.add(shaftGroup);
+
+const headGroup = buildHead();
+scene.add(headGroup);
+
+const groundGroup = buildGround();
+scene.add(groundGroup);
+
+// ======================== TIME OF DAY ========================
+let currentTOD = 0.30;
+
+function applyTOD(t) {
+  currentTOD = t;
+  const night = t < 0.46 ? 0 : Math.min(1, (t - 0.46) / 0.40);
+  const dusk = Math.max(0, 1 - Math.abs(t - 0.50) / 0.22);
+
+  // Sun position
+  const ang = Math.PI * (0.14 + t * 0.74);
+  const ly = Math.max(0.20, Math.sin(ang));
+  const lx = Math.cos(ang) * 0.92, lz = 0.52;
+  const ln = Math.sqrt(lx*lx + ly*ly + lz*lz);
+  sunLight.position.set(lx/ln * 10, ly/ln * 10, lz/ln * 10);
+  sunLight.intensity = Math.max(0.15, 1.3 * (1 - night * 0.85));
+
+  // Dusk warmth
+  if (dusk > 0) {
+    sunLight.color.setRGB(1 + 0.06 * dusk, 0.94 - 0.06 * dusk, 0.77 - 0.16 * dusk);
+  } else {
+    sunLight.color.setRGB(1, 0.94, 0.77);
+  }
+
+  // Ambient at night
+  ambientLight.color.setRGB(
+    (160 - 114 * night) / 255,
+    (180 - 128 * night) / 255,
+    (220 - 146 * night) / 255
+  );
+  ambientLight.intensity = 0.55 - 0.15 * night;
+  fillLight.intensity = 0.15 * (1 - night * 0.8);
+
+  // Ink color
+  const inkR = C.ink.r + (C.inkNight.r - C.ink.r) * night * 0.62;
+  const inkG = C.ink.g + (C.inkNight.g - C.ink.g) * night * 0.62;
+  const inkB = C.ink.b + (C.inkNight.b - C.ink.b) * night * 0.62;
+  const inkC = new THREE.Color(inkR, inkG, inkB);
+
+  scene.traverse(obj => {
+    // Update outline color
+    if (obj.userData.outline && obj.material.uniforms) {
+      obj.material.uniforms.color.value.copy(inkC);
+    }
+    // Update edge line colors
+    if (obj.userData.isEdge && obj.material.color) {
+      obj.material.color.copy(inkC);
+    }
+    // Glass glow at night
+    if (obj.userData.isGlass && obj.material) {
+      const glow = night * 0.9;
+      obj.material.color.copy(C.glass.clone().lerp(C.glassLit, glow));
+      obj.material.emissive = C.glassLit.clone().multiplyScalar(glow * 0.3);
+    }
+    // Window cells glow at night
+    if (obj.userData.cellWindow && obj.material && night > 0.15) {
+      const rng = seedRng(obj.id);
+      const lamp = rng() < 0.45;
+      if (lamp) {
+        const glow = Math.min(1, (night - 0.15) / 0.35);
+        obj.material.color.copy(C.winDrk.clone().lerp(C.glassLit, glow * 0.7));
+        obj.material.emissive = C.glassLit.clone().multiplyScalar(glow * 0.25);
+      }
+    }
+  });
+
+  // Shadow shift
+  scene.traverse(obj => {
+    if (obj.userData.isShadow) {
+      obj.position.x = -lx/ln * 1.3 * 0.3;
+      obj.position.z = -lz/ln * 0.4 * 0.3;
+      obj.material.opacity = 0.18 * (1 - night * 0.6);
+    }
+  });
+
+  // Update backgrounds
+  scene.background = makeSkyBg(t);
+  bakePaperOverlay(t);
+
+  // Body class for UI
+  document.body.classList.toggle('night', night > 0.5);
+}
+
+// ======================== UI ========================
+const todSlider = document.getElementById('tod');
+todSlider.addEventListener('input', () => applyTOD(todSlider.value / 100));
+document.querySelectorAll('.chip').forEach(btn => {
+  btn.addEventListener('click', () => {
+    todSlider.value = btn.dataset.v;
+    applyTOD(parseInt(btn.dataset.v) / 100);
+  });
+});
+
+// ======================== RESIZE ========================
+function onResize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+  bakePaperOverlay(currentTOD);
+}
+window.addEventListener('resize', onResize);
+
+// ======================== RENDER LOOP ========================
+const fpsEl = document.getElementById('fps');
+let frameCount = 0, lastFpsTime = performance.now();
+
+function animate(time) {
+  requestAnimationFrame(animate);
+
+  // Head rotation: full turn in 270 seconds (4.5 minutes)
+  headGroup.rotation.y = (time / 1000) * (Math.PI * 2 / 270);
+
+  controls.update();
+  renderer.render(scene, camera);
+
+  // FPS
+  frameCount++;
+  const now = performance.now();
+  if (now - lastFpsTime >= 250) {
+    fpsEl.textContent = Math.round(frameCount / ((now - lastFpsTime) / 1000)) + ' fps';
+    frameCount = 0;
+    lastFpsTime = now;
+  }
+}
+
+// ======================== INIT ========================
+applyTOD(0.30);
+animate(0);
+
+</script>
+</body>
+</html>
