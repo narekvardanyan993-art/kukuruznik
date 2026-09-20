@@ -189,9 +189,9 @@ export function buildEnvironment() {
   const POD_X1 = 2.30;
   const POD_Z1 = 0.15;
   const tiers = [
-    { z0: -3.10, z1: POD_Z1, y0: -1.0, y1: 0.12 },
-    { z0: -2.05, z1: POD_Z1, y0: -1.0, y1: 0.30 },
-    { z0: -1.00, z1: POD_Z1, y0: -1.0, y1: 0.50 },
+    { z0: -3.10, z1: POD_Z1, y0: -2.5, y1: 0.12 },
+    { z0: -2.05, z1: POD_Z1, y0: -2.5, y1: 0.30 },
+    { z0: -1.00, z1: POD_Z1, y0: -2.5, y1: 0.50 },
   ];
 
   for (const t of tiers) {
@@ -284,8 +284,8 @@ export function buildEnvironment() {
   addEdges(wingGroup, vGeo, vPos, C.ink, 20);
   
   // Vault side walls
-  const vwGeo = new THREE.BoxGeometry(V_LEN, WING_TOTAL_H, V_RAD * 2);
-  const vwPos = v3(V_X0 + V_LEN/2, WING_BASE + WING_TOTAL_H/2 - yCenter, 0);
+  const vwGeo = new THREE.BoxGeometry(V_LEN, WING_H - (-2.50), V_RAD * 2);
+  const vwPos = v3(V_X0 + V_LEN/2, -2.50 + (WING_H - (-2.50))/2 - yCenter, 0);
   const vwMesh = new THREE.Mesh(vwGeo, toon(C.hall));
   vwMesh.position.copy(vwPos);
   wingGroup.add(vwMesh);
@@ -300,8 +300,8 @@ export function buildEnvironment() {
   wingGroup.add(gMesh);
 
   // Glazed window wall under the arch
-  const gwGeo = new THREE.BoxGeometry(0.1, WING_H, V_RAD*1.8);
-  const gwPos = v3(V_X0 + 0.05, WING_H/2 - yCenter, 0);
+  const gwGeo = new THREE.BoxGeometry(0.1, WING_H - (-2.50), V_RAD*1.8);
+  const gwPos = v3(V_X0 + 0.05, -2.50 + (WING_H - (-2.50))/2 - yCenter, 0);
   const gwMesh = new THREE.Mesh(gwGeo, toon(C.winDrk, { hatch: false }));
   gwMesh.position.copy(gwPos);
   wingGroup.add(gwMesh);
@@ -347,24 +347,68 @@ export function buildEnvironment() {
       const topZ = zTop - i * dz;
       const botZ = topZ - dz;
       const stepYTop = yTop - i * dy;
-      const h = stepYTop - (-1.0); // solid down into ground
+      const h = stepYTop - (-2.5); // solid down into ground
       const sGeo = new THREE.BoxGeometry(halfW * 2, h, dz);
       const sMesh = new THREE.Mesh(sGeo, toon(C.podium));
-      sMesh.position.set(stX, -1.0 + h/2 - yCenter, (topZ + botZ)/2);
+      sMesh.position.set(stX, -2.5 + h/2 - yCenter, (topZ + botZ)/2);
       stepsG.add(sMesh);
       addEdges(stepsG, sGeo, sMesh.position, C.ink, 15);
     }
   }
 
+  
+  // Deck under stairs 3->2
+  const p32Geo = new THREE.BoxGeometry(0.84, 1.0, 0.55);
+  const p32Mesh = new THREE.Mesh(p32Geo, toon(C.podium));
+  p32Mesh.position.set(1.10, -2.0 + 0.5 - yCenter, tiers[1].z0 + 0.55/2);
+  stepsG.add(p32Mesh);
+  
   // Zigzag flights
   addFlight(1.10, 0.42, tiers[2].z0, tiers[1].z0 + 0.55, tiers[2].y1, tiers[1].y1, 4); // 3->2
   addFlight(1.85, 0.42, tiers[1].z0, tiers[0].z0 + 0.55, tiers[1].y1, tiers[0].y1, 4); // 2->1
   addFlight(1.10, 0.42, tiers[0].z0, tiers[0].z0 - 0.90, tiers[0].y1, 0.00, 3); // 1->ground
 
-  // Long flight to portal
-  // y lower is groundY for r=6.83 -> -0.42
-  addFlight(1.10, 0.50, PORTAL_Z - 0.55, PORTAL_Z - 2.10, 0.00, -0.42, 7);
   
+  // Platform 3->2 (at tiers[1].y1)
+  // Connects flight 3->2 (X=1.10, Z=-1.50) to flight 2->1 (X=1.85, Z=-2.05)
+  // Let's make a big rectangular landing covering both X and Z gaps
+  const L32_Z0 = -2.05; // start of 2->1
+  const L32_Z1 = -1.50; // end of 3->2
+  const L32_X0 = 1.10 - 0.42;
+  const L32_X1 = 1.85 + 0.42;
+  const p32G = new THREE.BoxGeometry(L32_X1 - L32_X0, 0.4, L32_Z1 - L32_Z0);
+  const p32 = new THREE.Mesh(p32G, toon(C.podium));
+  p32.position.set((L32_X0+L32_X1)/2, tiers[1].y1 - 0.2 - yCenter, (L32_Z0+L32_Z1)/2);
+  stepsG.add(p32);
+
+  // Platform 2->1 (at tiers[0].y1)
+  // Connects flight 2->1 (X=1.85, Z=-2.55) to flight 1->ground (X=1.10, Z=-3.10)
+  const L21_Z0 = -3.10;
+  const L21_Z1 = -2.55;
+  const L21_X0 = 1.10 - 0.42;
+  const L21_X1 = 1.85 + 0.42;
+  const p21G = new THREE.BoxGeometry(L21_X1 - L21_X0, 0.4, L21_Z1 - L21_Z0);
+  const p21 = new THREE.Mesh(p21G, toon(C.podium));
+  p21.position.set((L21_X0+L21_X1)/2, tiers[0].y1 - 0.2 - yCenter, (L21_Z0+L21_Z1)/2);
+  stepsG.add(p21);
+
+  // Platform 1->ground (at groundY)
+  // Connects flight 1->ground (X=1.10, Z=-4.00) to Portal (X=1.10, Z=-4.65)
+  const L10_Z0 = -4.65 + 0.15; // Back of portal
+  const L10_Z1 = -4.00;
+  const L10_X0 = 1.10 - 0.42;
+  const L10_X1 = 1.10 + 0.42;
+  const p10G = new THREE.BoxGeometry(L10_X1 - L10_X0, 0.4, L10_Z1 - L10_Z0);
+  const p10 = new THREE.Mesh(p10G, toon(C.podium));
+  p10.position.set((L10_X0+L10_X1)/2, 0.00 - 0.2 - yCenter, (L10_Z0+L10_Z1)/2);
+  stepsG.add(p10);
+
+  // Long flight to road
+  // Starts directly after portal
+  const rz0 = PORTAL_Z - 0.55;
+  const rz1 = -11.0;
+  addFlight(1.10, 0.50, rz0, rz1, 0.00, groundY(11.05), 18);
+
   g.add(stepsG);
   
   // 5. ENVIRONMENT (Hill, road, trees, benches, trash cans, lamps)
@@ -389,12 +433,25 @@ export function buildEnvironment() {
   hMesh.position.set(0, -yCenter - 0.02, 0);
   g.add(hMesh);
 
-  // Road
-  const rdGeo = new THREE.PlaneGeometry(30, 3);
+  
+  
+  // Curved road matching terrain
+  const rdGeo = new THREE.RingGeometry(11, 14, 64, 4, Math.PI/2 - 0.5, 1.0);
   rdGeo.rotateX(-Math.PI / 2);
-  const rdMesh = new THREE.Mesh(rdGeo, toon(C.podium)); 
-  rdMesh.position.set(0, -0.6 - yCenter, -5.5);
+  const rdPos = rdGeo.attributes.position.array;
+  for(let i=0; i<rdPos.length; i+=3) {
+    const x = rdPos[i], z = rdPos[i+2];
+    const r = Math.sqrt(x*x + z*z);
+    // Add a tiny offset so it sits just above the grass
+    rdPos[i+1] = groundY(r) + 0.02;
+  }
+  rdGeo.computeVertexNormals();
+  const rdMesh = new THREE.Mesh(rdGeo, toon(C.deck)); 
+  rdMesh.position.set(0, -yCenter, 0);
   g.add(rdMesh);
+  rdMesh.receiveShadow = true;
+
+
   
   // Trees
   const treeG = new THREE.Group();
@@ -431,12 +488,27 @@ export function buildEnvironment() {
     addOutline(treeG, geo, tm.position, C.ink, 0.02);
   }
   // Add some trees
-  addTree(0, -4, -2, 0.4);
-  addTree(0, -4.5, -1, 0.5);
-  addTree(1, 3.5, -2, 0.6);
-  addTree(2, 4, 1, 0.5);
-  addTree(3, -2.5, 2, 0.4);
-  addTree(3, 2.5, 2, 0.35);
+  addTree(0, -4, -2, 1.2000000000000002);
+  addTree(0, -4.5, -1, 1.5);
+  addTree(1, 3.5, -2, 1.7999999999999998);
+  addTree(2, 4, 1, 1.5);
+  addTree(3, -2.5, 2, 1.2000000000000002);
+  addTree(3, 2.5, 2, 1.0499999999999998);
+  
+  addTree(0, -5, -4, 2.5);
+  addTree(0, -6, -3, 2.0);
+  addTree(0, -7, -2, 2.2);
+  addTree(1, -5, 4, 3.0);
+  addTree(1, -7, 6, 2.5);
+  addTree(2, 6, -3, 3.0);
+  addTree(2, 7, -1, 2.5);
+  addTree(3, 4, 4, 2.0);
+  addTree(3, 5, 5, 1.8);
+  addTree(1, -9, 0, 3.5);
+  addTree(2, -10, -5, 4.0);
+  addTree(0, 9, -5, 2.5);
+  addTree(0, 10, -3, 2.5);
+
   g.add(treeG);
 
   // Lamps, Benches, Trash cans
@@ -466,35 +538,43 @@ export function buildEnvironment() {
   addProp('bench', -2.0, tiers[1].y1, -2.0);
   addProp('trash', -2.3, tiers[1].y1, -2.0);
 
-  // Shadows
-  const shGeo = new THREE.CircleGeometry(R * 1.6, 32);
-  shGeo.rotateX(-Math.PI / 2);
-  const shM = new THREE.Mesh(shGeo, new THREE.MeshBasicMaterial({
-    color: C.shadow, transparent: true, opacity: 0.18, depthWrite: false
-  }));
-  shM.position.set(0.3, tiers[2].y1 - yCenter + 0.003, -0.2);
-  shM.renderOrder = -1;
-  g.add(shM);
-  shM.userData.isShadow = true;
-
-  const csGeo = new THREE.RingGeometry(R * 0.85, R * 1.15, 32);
-  csGeo.rotateX(-Math.PI / 2);
-  const csM = new THREE.Mesh(csGeo, new THREE.MeshBasicMaterial({
-    color: C.shadow, transparent: true, opacity: 0.22, depthWrite: false
-  }));
-  csM.position.set(0, tiers[2].y1 - yCenter + 0.003, 0);
-  csM.renderOrder = -1;
-  g.add(csM);
+  
+  // Enable real shadows
+  
 
   return g;
 }
 
 export function setupBuilding(engine) {
+  engine.renderer.shadowMap.enabled = true;
+  engine.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  const sunLight = engine.scene.children.find(c => c.isDirectionalLight && c.intensity > 1);
+  if (sunLight) {
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.width = 2048;
+    sunLight.shadow.mapSize.height = 2048;
+    sunLight.shadow.camera.near = 0.5;
+    sunLight.shadow.camera.far = 40;
+    sunLight.shadow.camera.left = -15;
+    sunLight.shadow.camera.right = 15;
+    sunLight.shadow.camera.top = 15;
+    sunLight.shadow.camera.bottom = -15;
+    sunLight.shadow.bias = -0.001;
+  }
+
   const shaftGroup = buildShaft();
   const headGroup = buildHead();
   const groundGroup = buildEnvironment();
   
   engine.scene.add(shaftGroup, headGroup, groundGroup);
+  
+  engine.scene.traverse(c => {
+    if (c.isMesh && !c.userData.isShadow && !c.userData.isEdge && !c.userData.outline && !c.userData.isGlass) {
+      c.castShadow = true;
+      c.receiveShadow = true;
+    }
+  });
+
 
   // Register animation
   engine.onUpdate((time) => {
@@ -538,3 +618,5 @@ export function setupBuilding(engine) {
     });
   });
 }
+
+// Additional trees
