@@ -189,9 +189,9 @@ export function buildEnvironment() {
   const POD_X1 = 2.30;
   const POD_Z1 = 0.15;
   const tiers = [
-    { z0: -3.10, z1: POD_Z1, y0: -2.5, y1: 0.12 },
-    { z0: -2.05, z1: POD_Z1, y0: -2.5, y1: 0.30 },
-    { z0: -1.00, z1: POD_Z1, y0: -2.5, y1: 0.50 },
+    { z0: -3.10, z1: POD_Z1, y0: -0.30, y1: 0.12 },
+    { z0: -2.05, z1: POD_Z1, y0: -0.30, y1: 0.30 },
+    { z0: -1.00, z1: POD_Z1, y0: -0.30, y1: 0.50 },
   ];
 
   for (const t of tiers) {
@@ -284,8 +284,8 @@ export function buildEnvironment() {
   addEdges(wingGroup, vGeo, vPos, C.ink, 20);
   
   // Vault side walls
-  const vwGeo = new THREE.BoxGeometry(V_LEN, WING_H - (-2.50), V_RAD * 2);
-  const vwPos = v3(V_X0 + V_LEN/2, -2.50 + (WING_H - (-2.50))/2 - yCenter, 0);
+  const vwGeo = new THREE.BoxGeometry(V_LEN, WING_H - (-0.30), V_RAD * 2);
+  const vwPos = v3(V_X0 + V_LEN/2, -0.30 + (WING_H - (-0.30))/2 - yCenter, 0);
   const vwMesh = new THREE.Mesh(vwGeo, toon(C.hall));
   vwMesh.position.copy(vwPos);
   wingGroup.add(vwMesh);
@@ -300,8 +300,8 @@ export function buildEnvironment() {
   wingGroup.add(gMesh);
 
   // Glazed window wall under the arch
-  const gwGeo = new THREE.BoxGeometry(0.1, WING_H - (-2.50), V_RAD*1.8);
-  const gwPos = v3(V_X0 + 0.05, -2.50 + (WING_H - (-2.50))/2 - yCenter, 0);
+  const gwGeo = new THREE.BoxGeometry(0.1, WING_H - (-0.30), V_RAD*1.8);
+  const gwPos = v3(V_X0 + 0.05, -0.30 + (WING_H - (-0.30))/2 - yCenter, 0);
   const gwMesh = new THREE.Mesh(gwGeo, toon(C.winDrk, { hatch: false }));
   gwMesh.position.copy(gwPos);
   wingGroup.add(gwMesh);
@@ -340,74 +340,75 @@ export function buildEnvironment() {
 
   // 4. STAIRS
   const stepsG = new THREE.Group();
-  function addFlight(stX, halfW, zTop, zBot, yTop, yBot, steps) {
-    const dz = Math.abs(zTop - zBot) / steps;
-    const dy = (yTop - yBot) / steps;
+  
+  const halfW = 0.42;
+  const w = halfW * 2;
+  
+  function addStairMesh(x, z0, z1, y0, y1, steps, yBase) {
+    const dz = Math.abs(z1 - z0) / steps;
+    const dy = (y1 - y0) / steps;
     for(let i=0; i<steps; i++) {
-      const topZ = zTop - i * dz;
-      const botZ = topZ - dz;
-      const stepYTop = yTop - i * dy;
-      const h = stepYTop - (-2.5); // solid down into ground
-      const sGeo = new THREE.BoxGeometry(halfW * 2, h, dz);
-      const sMesh = new THREE.Mesh(sGeo, toon(C.podium));
-      sMesh.position.set(stX, -2.5 + h/2 - yCenter, (topZ + botZ)/2);
-      stepsG.add(sMesh);
-      addEdges(stepsG, sGeo, sMesh.position, C.ink, 15);
+      const topZ = Math.max(z0, z1) - i * dz;
+      const stepYTop = Math.max(y0, y1) - i * dy;
+      const h = stepYTop - yBase;
+      const geo = new THREE.BoxGeometry(w, h, dz);
+      const mesh = new THREE.Mesh(geo, toon(C.podium));
+      mesh.position.set(x, yBase + h/2 - yCenter, topZ - dz/2);
+      stepsG.add(mesh);
+      addEdges(stepsG, geo, mesh.position, C.ink, 15);
     }
   }
 
-  
-  // Deck under stairs 3->2
-  const p32Geo = new THREE.BoxGeometry(0.84, 1.0, 0.55);
-  const p32Mesh = new THREE.Mesh(p32Geo, toon(C.podium));
-  p32Mesh.position.set(1.10, -2.0 + 0.5 - yCenter, tiers[1].z0 + 0.55/2);
-  stepsG.add(p32Mesh);
-  
-  // Zigzag flights
-  addFlight(1.10, 0.42, tiers[2].z0, tiers[1].z0 + 0.55, tiers[2].y1, tiers[1].y1, 4); // 3->2
-  addFlight(1.85, 0.42, tiers[1].z0, tiers[0].z0 + 0.55, tiers[1].y1, tiers[0].y1, 4); // 2->1
-  addFlight(1.10, 0.42, tiers[0].z0, tiers[0].z0 - 0.90, tiers[0].y1, 0.00, 3); // 1->ground
+  function addDeck(x0, x1, z0, z1, y, yBase) {
+    const cx = (x0 + x1) / 2;
+    const dx = Math.abs(x1 - x0) + w;
+    const dz = Math.abs(z1 - z0);
+    const cz = (z0 + z1) / 2;
+    const h = y - yBase;
+    const geo = new THREE.BoxGeometry(dx, h, dz);
+    const mesh = new THREE.Mesh(geo, toon(C.podium));
+    mesh.position.set(cx, yBase + h/2 - yCenter, cz);
+    stepsG.add(mesh);
+    addEdges(stepsG, geo, mesh.position, C.ink, 15);
+  }
 
+  // Y Bases for each part (from table 1)
+  const ybLong = -1.45;
+  const ybDeck = -0.30;
   
-  // Platform 3->2 (at tiers[1].y1)
-  // Connects flight 3->2 (X=1.10, Z=-1.50) to flight 2->1 (X=1.85, Z=-2.05)
-  // Let's make a big rectangular landing covering both X and Z gaps
-  const L32_Z0 = -2.05; // start of 2->1
-  const L32_Z1 = -1.50; // end of 3->2
-  const L32_X0 = 1.10 - 0.42;
-  const L32_X1 = 1.85 + 0.42;
-  const p32G = new THREE.BoxGeometry(L32_X1 - L32_X0, 0.4, L32_Z1 - L32_Z0);
-  const p32 = new THREE.Mesh(p32G, toon(C.podium));
-  p32.position.set((L32_X0+L32_X1)/2, tiers[1].y1 - 0.2 - yCenter, (L32_Z0+L32_Z1)/2);
-  stepsG.add(p32);
+  // 1. Long Flight (Road to Portal)
+  // X = 1.10, Z = -11.0 to -4.80, Y = groundY(-11) to 0.00
+  addStairMesh(1.10, -11.00, -4.80, groundY(11.05), 0.00, 18, ybLong);
 
-  // Platform 2->1 (at tiers[0].y1)
-  // Connects flight 2->1 (X=1.85, Z=-2.55) to flight 1->ground (X=1.10, Z=-3.10)
-  const L21_Z0 = -3.10;
-  const L21_Z1 = -2.55;
-  const L21_X0 = 1.10 - 0.42;
-  const L21_X1 = 1.85 + 0.42;
-  const p21G = new THREE.BoxGeometry(L21_X1 - L21_X0, 0.4, L21_Z1 - L21_Z0);
-  const p21 = new THREE.Mesh(p21G, toon(C.podium));
-  p21.position.set((L21_X0+L21_X1)/2, tiers[0].y1 - 0.2 - yCenter, (L21_Z0+L21_Z1)/2);
-  stepsG.add(p21);
+  // 2. Deck through portal and to Zigzag 1
+  // X = 1.10, Z = -4.80 to -4.00, Y = 0.00
+  addDeck(1.10, 1.10, -4.80, -4.00, 0.00, ybDeck);
 
-  // Platform 1->ground (at groundY)
-  // Connects flight 1->ground (X=1.10, Z=-4.00) to Portal (X=1.10, Z=-4.65)
-  const L10_Z0 = -4.65 + 0.15; // Back of portal
-  const L10_Z1 = -4.00;
-  const L10_X0 = 1.10 - 0.42;
-  const L10_X1 = 1.10 + 0.42;
-  const p10G = new THREE.BoxGeometry(L10_X1 - L10_X0, 0.4, L10_Z1 - L10_Z0);
-  const p10 = new THREE.Mesh(p10G, toon(C.podium));
-  p10.position.set((L10_X0+L10_X1)/2, 0.00 - 0.2 - yCenter, (L10_Z0+L10_Z1)/2);
-  stepsG.add(p10);
+  // 3. Zigzag 1 (1->ground)
+  // X = 1.10, Z = -4.00 to -3.10, Y = 0.00 to 0.12
+  addStairMesh(1.10, -4.00, -3.10, 0.00, 0.12, 3, ybDeck);
+
+  // 4. Deck Tier 0 (Landing 1)
+  // X from 1.10 to 1.85, Z = -3.10 to -2.55, Y = 0.12
+  addDeck(1.10, 1.85, -3.10, -2.55, 0.12, ybDeck);
+
+  // 5. Zigzag 2 (2->1)
+  // X = 1.85, Z = -2.55 to -2.05, Y = 0.12 to 0.30
+  addStairMesh(1.85, -2.55, -2.05, 0.12, 0.30, 4, ybDeck);
+
+  // 6. Deck Tier 1 (Landing 2)
+  // X from 1.85 to 1.10, Z = -2.05 to -1.50, Y = 0.30
+  addDeck(1.85, 1.10, -2.05, -1.50, 0.30, ybDeck);
+
+  // 7. Zigzag 3 (3->2)
+  // X = 1.10, Z = -1.50 to -1.00, Y = 0.30 to 0.50
+  addStairMesh(1.10, -1.50, -1.00, 0.30, 0.50, 4, ybDeck);
 
   // Long flight to road
   // Starts directly after portal
   const rz0 = PORTAL_Z - 0.55;
   const rz1 = -11.0;
-  addFlight(1.10, 0.50, rz0, rz1, 0.00, groundY(11.05), 18);
+  
 
   g.add(stepsG);
   
