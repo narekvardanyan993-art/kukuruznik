@@ -385,13 +385,18 @@ function updateFx() {
     }
   }
   if (currentMode === 'night') {
-    for(let i=0; i<30; i++) {
-      fxLayer.appendChild(createEl('window-light', {
-        left: (35 + Math.random()*30) + 'vw',
-        top: (20 + Math.random()*60) + 'vh',
+    for(let i=0; i<40; i++) {
+      const el = createEl('star', {
+        position: 'absolute', width: '3px', height: '3px', background: '#fff', borderRadius: '50%',
+        top: (Math.random()*12) + 'vh',
+        opacity: 0.5 + Math.random()*0.5,
+        boxShadow: '0 0 5px rgba(255,255,255,0.8)',
         animationDuration: (1 + Math.random()*3) + 's',
         animationDelay: -(Math.random()*3) + 's'
-      }));
+      });
+      el.style.animation = 'flapBird ' + el.style.animationDuration + ' infinite alternate'; // flicker effect reuse
+      fxLayer.appendChild(el);
+      window.fxItems.push({ el, type: 'star', x: Math.random()*120 - 10, speed: 0, parallax: 0.3 });
     }
   }
 }
