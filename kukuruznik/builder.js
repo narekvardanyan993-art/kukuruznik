@@ -189,9 +189,9 @@ export function buildEnvironment() {
   const POD_X1 = 2.30;
   const POD_Z1 = 0.15;
   const tiers = [
-    { z0: -3.10, z1: POD_Z1, y0: -0.30, y1: 0.12 },
-    { z0: -2.05, z1: POD_Z1, y0: -0.30, y1: 0.30 },
-    { z0: -1.00, z1: POD_Z1, y0: -0.30, y1: 0.50 },
+    { z0: -3.10, z1: POD_Z1, y0: -1.00, y1: 0.12 },
+    { z0: -2.05, z1: POD_Z1, y0: -1.00, y1: 0.30 },
+    { z0: -1.00, z1: 1.10, y0: -1.00, y1: 0.50 },
   ];
 
   for (const t of tiers) {
@@ -346,17 +346,37 @@ export function buildEnvironment() {
   
   function addStairMesh(x, z0, z1, y0, y1, steps, yBase) {
     const dz = Math.abs(z1 - z0) / steps;
-    const dy = (y1 - y0) / steps;
-    for(let i=0; i<steps; i++) {
-      const topZ = Math.max(z0, z1) - i * dz;
-      const stepYTop = Math.max(y0, y1) - i * dy;
-      const h = stepYTop - yBase;
-      const geo = new THREE.BoxGeometry(w, h, dz);
-      const mesh = new THREE.Mesh(geo, toon(C.podium));
-      mesh.position.set(x, yBase + h/2 - yCenter, topZ - dz/2);
-      stepsG.add(mesh);
-      addEdges(stepsG, geo, mesh.position, C.ink, 15);
+    const dy = Math.abs(y1 - y0) / steps;
+    
+    const shape = new THREE.Shape();
+    const lenZ = Math.abs(z1 - z0);
+    const topY = Math.max(y0, y1);
+    const botY = Math.min(y0, y1);
+    
+    shape.moveTo(0, yBase);
+    shape.lineTo(lenZ, yBase);
+    shape.lineTo(lenZ, topY - dy);
+    
+    for (let i = 0; i < steps; i++) {
+      const curZ = lenZ - (i + 1) * dz;
+      const curY = topY - (i + 1) * dy;
+      shape.lineTo(curZ, curY);
+      if (i < steps - 1) {
+        shape.lineTo(curZ, curY - dy);
+      }
     }
+    
+    shape.lineTo(0, yBase);
+    
+    const ext = { depth: w, bevelEnabled: false };
+    const geo = new THREE.ExtrudeGeometry(shape, ext);
+    geo.rotateY(-Math.PI / 2);
+    
+    const minZ = Math.min(z0, z1);
+    const mesh = new THREE.Mesh(geo, toon(C.podium));
+    mesh.position.set(x + w/2, -yCenter, minZ);
+    stepsG.add(mesh);
+    addEdges(stepsG, geo, mesh.position, C.ink, 15);
   }
 
   function addDeck(x0, x1, z0, z1, y, yBase) {
@@ -373,8 +393,8 @@ export function buildEnvironment() {
   }
 
   // Y Bases for each part (from table 1)
-  const ybLong = -1.45;
-  const ybDeck = -0.30;
+  const ybLong = -2.00;
+  const ybDeck = -2.00;
   
   // 1. Long Flight (Road to Portal)
   // X = 1.10, Z = -11.0 to -4.80, Y = groundY(-11) to 0.00
@@ -536,8 +556,8 @@ export function buildEnvironment() {
   addProp('lamp', -0.8, -0.45, -4.8);
   addProp('lamp', 0.8, -0.45, -4.8);
   
-  addProp('bench', -2.0, tiers[1].y1, -2.0);
-  addProp('trash', -2.3, tiers[1].y1, -2.0);
+  addProp('bench', -2.0, 0.00, -2.0);
+  addProp('trash', -2.3, 0.00, -2.0);
 
   
   // Enable real shadows
