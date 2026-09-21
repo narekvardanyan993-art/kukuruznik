@@ -445,42 +445,90 @@ export function buildEnvironment() {
   const treePositions = []; // To use for ground shadows
   
   const trnd = seedRng(9091);
+  const C_TREE = new THREE.Color('#7a855e'); // warm muted green
+  
   function addTree(type, x, z, s) {
     let geo;
-    const green = toon(C.groundFar);
-    if (type === 0) { // Cypress
-      geo = new THREE.ConeGeometry(0.2*s, 1.2*s, 8);
+    
+    // Vary tree color slightly
+    const green = toon(C_TREE.clone().lerp(new THREE.Color('#8b9964'), trnd() * 0.6));
+    
+    if (type === 0) { // Poplar / Cypress (tall, narrow, jagged)
+      geo = new THREE.CylinderGeometry(0.05*s, 0.2*s, 1.4*s, 7, 3);
+      const pos = geo.attributes.position.array;
+      for (let j = 0; j < pos.length; j += 3) {
+        if (pos[j+1] > -0.6*s) { // don't deform the very bottom too much
+          const bump = 0.85 + trnd() * 0.3;
+          pos[j] *= bump; pos[j+2] *= bump;
+        }
+      }
+      geo.translate(0, 0.7*s, 0);
+    } else if (type === 1) { // Plane tree (Platanus) (wide, massive, bumpy)
+      geo = new THREE.IcosahedronGeometry(0.55*s, 2);
+      geo.scale(1.4, 0.9, 1.2);
+      const pos = geo.attributes.position.array;
+      for (let j = 0; j < pos.length; j += 3) {
+        const bump = 0.8 + trnd() * 0.4;
+        pos[j] *= bump; pos[j+1] *= bump; pos[j+2] *= bump;
+      }
       geo.translate(0, 0.6*s, 0);
-    } else if (type === 1) { // Spreading
-      geo = new THREE.DodecahedronGeometry(0.5*s, 1);
-      geo.scale(1.5, 0.8, 1.2);
-      geo.translate(0, 0.6*s, 0);
-    } else if (type === 2) { // Round
+    } else if (type === 2) { // Apricot / Fruit (rounded, irregular)
       geo = new THREE.IcosahedronGeometry(0.4*s, 1);
+      const pos = geo.attributes.position.array;
+      for (let j = 0; j < pos.length; j += 3) {
+        const bump = 0.85 + trnd() * 0.3;
+        pos[j] *= bump; pos[j+1] *= bump; pos[j+2] *= bump;
+      }
       geo.translate(0, 0.5*s, 0);
-    } else { // Bush
-      geo = new THREE.SphereGeometry(0.2*s, 7, 7);
-      geo.scale(1.5, 0.8, 1.0);
-      geo.translate(0, 0.1*s, 0);
+    } else { // Pine (umbrella top, tall trunk)
+      geo = new THREE.ConeGeometry(0.4*s, 0.5*s, 7, 2);
+      const pos = geo.attributes.position.array;
+      for (let j = 0; j < pos.length; j += 3) {
+        const bump = 0.9 + trnd() * 0.2;
+        pos[j] *= bump; pos[j+1] *= bump; pos[j+2] *= bump;
+      }
+      geo.scale(1.2, 0.6, 1.1);
+      geo.translate(0, 0.9*s, 0);
     }
+    geo.computeVertexNormals();
     
     const baseR = Math.sqrt(x*x + z*z);
     const yBase = groundY(baseR);
     
-    const tiltX = (trnd() - 0.5) * 0.2;
-    const tiltZ = (trnd() - 0.5) * 0.2;
+    const tiltX = (trnd() - 0.5) * 0.15;
+    const tiltZ = (trnd() - 0.5) * 0.15;
     const rotY = trnd() * Math.PI * 2;
     
-    // Trunks
-    if (type !== 3) {
-      const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.05*s, 0.05*s, 0.5*s), toon(C.cellDrk, {hatch:false}));
-      tr.position.set(x, yBase + 0.25*s - yCenter, z);
+    // Trunks (visible branching for types 1 and 2)
+    const trunkMat = toon(new THREE.Color('#5c5346'), {hatch:false});
+    if (type === 1 || type === 2) {
+      // Y-shaped trunk
+      const geo1 = new THREE.CylinderGeometry(0.04*s, 0.06*s, 0.6*s, 5);
+      geo1.translate(0, 0.3*s, 0);
+      const tr1 = new THREE.Mesh(geo1, trunkMat);
+      tr1.position.set(x, yBase - yCenter, z);
+      tr1.rotation.set(tiltX, rotY, tiltZ + 0.25);
+      treeG.add(tr1);
+      
+      const geo2 = new THREE.CylinderGeometry(0.03*s, 0.05*s, 0.5*s, 5);
+      geo2.translate(0, 0.25*s, 0);
+      const tr2 = new THREE.Mesh(geo2, trunkMat);
+      tr2.position.set(x, yBase - yCenter, z);
+      tr2.rotation.set(tiltX, rotY + Math.PI, tiltZ + 0.35);
+      treeG.add(tr2);
+    } else {
+      // Single straight trunk (Pine has longer trunk)
+      const th = type === 3 ? 0.8*s : 0.5*s;
+      const geo = new THREE.CylinderGeometry(0.04*s, 0.06*s, th, 5);
+      geo.translate(0, th/2, 0);
+      const tr = new THREE.Mesh(geo, trunkMat);
+      tr.position.set(x, yBase - yCenter, z);
       tr.rotation.set(tiltX, rotY, tiltZ);
       treeG.add(tr);
     }
     
     const tm = new THREE.Mesh(geo, green);
-    tm.position.set(x, yBase - yCenter + (type!==3?0.3*s:0), z);
+    tm.position.set(x, yBase - yCenter, z);
     tm.rotation.set(tiltX, rotY, tiltZ);
     treeG.add(tm);
     addOutline(treeG, geo, tm.position, C.ink, 0.02);

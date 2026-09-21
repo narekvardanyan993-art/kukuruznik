@@ -192,7 +192,7 @@ export function initEngine(canvas, { targetY = 0, initialTOD = 0.3 } = {}) {
   controls.dampingFactor = 0.08;
   controls.minDistance = 5;
   controls.maxDistance = 30;
-  controls.maxPolarAngle = Math.PI / 2 + 0.15;
+  controls.maxPolarAngle = Math.PI / 2 - 0.02;
   controls.minPolarAngle = 0;
   controls.update();
 
