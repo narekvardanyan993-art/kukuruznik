@@ -355,11 +355,11 @@ export function buildEnvironment() {
     
     shape.moveTo(0, yBase);
     shape.lineTo(lenZ, yBase);
-    shape.lineTo(lenZ, topY - dy);
+    shape.lineTo(lenZ, topY);
     
     for (let i = 0; i < steps; i++) {
       const curZ = lenZ - (i + 1) * dz;
-      const curY = topY - (i + 1) * dy;
+      const curY = topY - i * dy;
       shape.lineTo(curZ, curY);
       if (i < steps - 1) {
         shape.lineTo(curZ, curY - dy);
@@ -440,17 +440,140 @@ export function buildEnvironment() {
     return -0.42 + (-1.75 - -0.42) * ((r - 8.20) / (13.0 - 8.20));
   }
 
+  // Trees
+  const treeG = new THREE.Group();
+  const treePositions = []; // To use for ground shadows
+  
+  const trnd = seedRng(9091);
+  function addTree(type, x, z, s) {
+    let geo;
+    const green = toon(C.groundFar);
+    if (type === 0) { // Cypress
+      geo = new THREE.ConeGeometry(0.2*s, 1.2*s, 8);
+      geo.translate(0, 0.6*s, 0);
+    } else if (type === 1) { // Spreading
+      geo = new THREE.DodecahedronGeometry(0.5*s, 1);
+      geo.scale(1.5, 0.8, 1.2);
+      geo.translate(0, 0.6*s, 0);
+    } else if (type === 2) { // Round
+      geo = new THREE.IcosahedronGeometry(0.4*s, 1);
+      geo.translate(0, 0.5*s, 0);
+    } else { // Bush
+      geo = new THREE.SphereGeometry(0.2*s, 7, 7);
+      geo.scale(1.5, 0.8, 1.0);
+      geo.translate(0, 0.1*s, 0);
+    }
+    
+    const baseR = Math.sqrt(x*x + z*z);
+    const yBase = groundY(baseR);
+    
+    const tiltX = (trnd() - 0.5) * 0.2;
+    const tiltZ = (trnd() - 0.5) * 0.2;
+    const rotY = trnd() * Math.PI * 2;
+    
+    // Trunks
+    if (type !== 3) {
+      const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.05*s, 0.05*s, 0.5*s), toon(C.cellDrk, {hatch:false}));
+      tr.position.set(x, yBase + 0.25*s - yCenter, z);
+      tr.rotation.set(tiltX, rotY, tiltZ);
+      treeG.add(tr);
+    }
+    
+    const tm = new THREE.Mesh(geo, green);
+    tm.position.set(x, yBase - yCenter + (type!==3?0.3*s:0), z);
+    tm.rotation.set(tiltX, rotY, tiltZ);
+    treeG.add(tm);
+    addOutline(treeG, geo, tm.position, C.ink, 0.02);
+    
+    treePositions.push({ x, z, r: baseR, s, type });
+  }
+
+  // Generate trees procedurally
+  for (let i = 0; i < 150; i++) {
+    const ang = trnd() * Math.PI * 2;
+    const r = 6.0 + trnd() * 8.0; // mostly outside the 6.30 platform, up to road (14.0)
+    
+    // Fewer trees on the main plaza side (Z < -3 and X > -2) where portal/stairs are
+    const x = Math.cos(ang) * r;
+    const z = Math.sin(ang) * r;
+    
+    if (z < -3.0 && x > -1.5 && x < 3.0) {
+      if (trnd() > 0.1) continue; // Keep stairs and portal clear
+    }
+    
+    // Small bushes can be closer
+    if (r < 7.0 && trnd() > 0.3) continue;
+    
+    const type = Math.floor(trnd() * 4);
+    // Size limit: 2-3 floors = ~0.52 to 0.78
+    const s = 0.4 + trnd() * 0.35; 
+    
+    addTree(type, x, z, s);
+  }
+  g.add(treeG);
+
   // Hill
-  const hGeo = new THREE.PlaneGeometry(30, 30, 64, 64);
+  const hGeo = new THREE.PlaneGeometry(30, 30, 128, 128);
   hGeo.rotateX(-Math.PI / 2);
   const hPos = hGeo.attributes.position.array;
+  const hColors = new Float32Array((hPos.length / 3) * 3);
+  
+  const cTop = C.ground.clone();
+  const cSlope = C.groundFar.clone();
+  const cPath = C.groundFar.clone().lerp(new THREE.Color(0xdcdcdc), 0.3);
+  const cShadow = C.shadow.clone();
+  
   for(let i=0; i<hPos.length; i+=3) {
     const x = hPos[i], z = hPos[i+2];
     const r = Math.sqrt(x*x + z*z);
+    
+    // Wave on terrain
     hPos[i+1] = groundY(r) + Math.sin(x*2)*0.03 + Math.sin(z*2)*0.03;
+    
+    let col = cTop.clone();
+    
+    // Slope tone
+    if (r > 8.20) {
+      col.lerp(cSlope, Math.min(1.0, (r - 8.20) / 4.0));
+    }
+    
+    // Path / trampled spots
+    // Near portal and stairs
+    if (z > -6.0 && z < -2.0 && x > 0.5 && x < 2.5) {
+      col.lerp(cPath, 0.4);
+    }
+    // Road edge
+    if (r > 10.5 && r < 11.5) {
+      col.lerp(cPath, 0.6);
+    }
+    
+    // Tree shadows
+    let shadowStr = 0;
+    for (const tr of treePositions) {
+      const dx = x - (tr.x + tr.s * 0.4); // offset shadow
+      const dz = z - (tr.z + tr.s * 0.4);
+      const dist = Math.sqrt(dx*dx + dz*dz);
+      const shadowR = tr.s * 1.2;
+      if (dist < shadowR) {
+        shadowStr = Math.max(shadowStr, 1.0 - (dist / shadowR));
+      }
+    }
+    if (shadowStr > 0) {
+      col.lerp(cShadow, shadowStr * 0.4);
+    }
+    
+    hColors[i] = col.r;
+    hColors[i+1] = col.g;
+    hColors[i+2] = col.b;
   }
+  
+  hGeo.setAttribute('color', new THREE.BufferAttribute(hColors, 3));
   hGeo.computeVertexNormals();
-  const hMesh = new THREE.Mesh(hGeo, toon(C.ground));
+  
+  const hMat = toon(C.ground);
+  hMat.vertexColors = true;
+  
+  const hMesh = new THREE.Mesh(hGeo, hMat);
   hMesh.position.set(0, -yCenter - 0.02, 0);
   g.add(hMesh);
 
@@ -474,63 +597,7 @@ export function buildEnvironment() {
 
 
   
-  // Trees
-  const treeG = new THREE.Group();
-  function addTree(type, x, z, s) {
-    let geo;
-    const green = toon(C.groundFar);
-    if (type === 0) { // Cypress
-      geo = new THREE.ConeGeometry(0.2*s, 1.2*s, 8);
-      geo.translate(0, 0.6*s, 0);
-    } else if (type === 1) { // Spreading
-      geo = new THREE.DodecahedronGeometry(0.5*s, 1);
-      geo.scale(1.5, 0.8, 1.2);
-      geo.translate(0, 0.6*s, 0);
-    } else if (type === 2) { // Round
-      geo = new THREE.IcosahedronGeometry(0.4*s, 1);
-      geo.translate(0, 0.5*s, 0);
-    } else { // Bush
-      geo = new THREE.SphereGeometry(0.2*s, 7, 7);
-      geo.scale(1.5, 0.8, 1.0);
-      geo.translate(0, 0.1*s, 0);
-    }
-    // Trunks
-    if (type !== 3) {
-      const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.05*s, 0.05*s, 0.5*s), toon(C.cellDrk, {hatch:false}));
-      const baseR = Math.sqrt(x*x + z*z);
-      tr.position.set(x, groundY(baseR) + 0.25*s - yCenter, z);
-      treeG.add(tr);
-    }
-    const baseR = Math.sqrt(x*x + z*z);
-    const yBase = groundY(baseR);
-    const tm = new THREE.Mesh(geo, green);
-    tm.position.set(x, yBase - yCenter + (type!==3?0.3*s:0), z);
-    treeG.add(tm);
-    addOutline(treeG, geo, tm.position, C.ink, 0.02);
-  }
-  // Add some trees
-  addTree(0, -4, -2, 1.2000000000000002);
-  addTree(0, -4.5, -1, 1.5);
-  addTree(1, 3.5, -2, 1.7999999999999998);
-  addTree(2, 4, 1, 1.5);
-  addTree(3, -2.5, 2, 1.2000000000000002);
-  addTree(3, 2.5, 2, 1.0499999999999998);
   
-  addTree(0, -5, -4, 2.5);
-  addTree(0, -6, -3, 2.0);
-  addTree(0, -7, -2, 2.2);
-  addTree(1, -5, 4, 3.0);
-  addTree(1, -7, 6, 2.5);
-  addTree(2, 6, -3, 3.0);
-  addTree(2, 7, -1, 2.5);
-  addTree(3, 4, 4, 2.0);
-  addTree(3, 5, 5, 1.8);
-  addTree(1, -9, 0, 3.5);
-  addTree(2, -10, -5, 4.0);
-  addTree(0, 9, -5, 2.5);
-  addTree(0, 10, -3, 2.5);
-
-  g.add(treeG);
 
   // Lamps, Benches, Trash cans
   function addProp(type, x, y, z) {
