@@ -537,104 +537,340 @@ export function buildEnvironment() {
   }
 
 
-  // SOVIET PARK GENERATION
-  const alleyZMin = -14, alleyZMax = -3, alleyX = 0;
-  
-  // Trees
-  for (let i = 0; i < 200; i++) {
-    let x, z, type, s;
-    if (i < 20) {
-      // Alley trees
-      const row = Math.floor(i / 2);
-      const side = i % 2 === 0 ? 1 : -1;
-      x = alleyX + side * 1.5;
-      z = alleyZMax - row * 1.1;
-      type = 3; // pines
-      s = 0.7;
-    } else {
-      // Park trees in groups
-      const ang = trnd() * Math.PI * 2;
-      const r = 5.5 + trnd() * 8.5;
-      x = Math.cos(ang) * r;
-      z = Math.sin(ang) * r;
-      type = Math.floor(trnd() * 4);
-      s = 0.4 + trnd() * 0.35;
-      // Keep main alley clear
-      if (z < -2 && x > -2.5 && x < 2.5) continue;
-      // Keep paths clear
-      const pathRing1 = Math.abs(r - 5.5) < 0.6;
-      const pathRing2 = Math.abs(r - 9.0) < 0.6;
-      if (pathRing1 || pathRing2) continue;
-      // Cross paths
-      const angD = Math.abs(Math.sin(ang * 2));
-      if (angD < 0.15) continue;
-    }
-    if (x*x + z*z < 25 && z > -2) {
-      if (trnd() > 0.3) continue;
-    }
-    addTree(type, x, z, s);
-  }
-  g.add(treeG);
 
-  // Hill
-  const hGeo = new THREE.PlaneGeometry(30, 30, 128, 128);
+  // SOVIET PARK WITH CONFORMING GEOMETRY
+  
+  // Constants
+  const alleyW = 1.2;
+  const pathW = 0.6;
+  const ring1R = 6.0;
+  const ring2R = 9.5;
+  const stoneMat = toon(new THREE.Color(0xdad8cd));
+  const grassMat = toon(new THREE.Color(0x6a7d55));
+  
+  function conformToTerrain(geo, yOffset = 0.015) {
+    const pos = geo.attributes.position.array;
+    for (let i = 0; i < pos.length; i += 3) {
+      const x = pos[i];
+      const z = pos[i+2];
+      const r = Math.sqrt(x*x + z*z);
+      // yCenter is already subtracted when adding mesh to scene? No, yCenter is used in position.set(x, -yCenter, z)
+      // So here we just set the local Y to groundY(r)
+      pos[i+1] = groundY(r) + Math.sin(x*3)*0.01 + Math.sin(z*3)*0.01 + yOffset;
+    }
+    geo.computeVertexNormals();
+  }
+
+  // 1. Paths Geometry
+  const pathGroup = new THREE.Group();
+  pathGroup.position.set(0, -yCenter, 0); // Base height
+  
+  // Main Alley
+  const alleyL = 11.0;
+  const alleyZ = -8.6; 
+  const alleyGeo = new THREE.PlaneGeometry(alleyW, alleyL, 4, 32); // high segment count to conform!
+  alleyGeo.rotateX(-Math.PI/2);
+  alleyGeo.translate(0, 0, alleyZ); // translate geo so vertices are in world space for conform
+  conformToTerrain(alleyGeo);
+  const alleyMesh = new THREE.Mesh(alleyGeo, stoneMat);
+  alleyMesh.receiveShadow = true;
+  pathGroup.add(alleyMesh);
+  addEdges(pathGroup, alleyGeo, new THREE.Vector3(0,0,0), C.ink, 15);
+  
+  // Ring 1
+  const r1Geo = new THREE.RingGeometry(ring1R - pathW/2, ring1R + pathW/2, 64, 2);
+  r1Geo.rotateX(-Math.PI/2);
+  conformToTerrain(r1Geo);
+  const r1Mesh = new THREE.Mesh(r1Geo, stoneMat);
+  r1Mesh.receiveShadow = true;
+  pathGroup.add(r1Mesh);
+  
+  // Ring 2
+  const r2Geo = new THREE.RingGeometry(ring2R - pathW/2, ring2R + pathW/2, 96, 2);
+  r2Geo.rotateX(-Math.PI/2);
+  conformToTerrain(r2Geo);
+  const r2Mesh = new THREE.Mesh(r2Geo, stoneMat);
+  r2Mesh.receiveShadow = true;
+  pathGroup.add(r2Mesh);
+  
+  // Radial paths
+  const radials = [ Math.PI/4, 3*Math.PI/4, 5*Math.PI/4, 7*Math.PI/4, Math.PI ]; 
+  for (const ang of radials) {
+    const rL = ring2R + 4;
+    const pGeo = new THREE.PlaneGeometry(pathW, rL, 2, 32);
+    pGeo.rotateX(-Math.PI/2);
+    pGeo.translate(0, 0, rL/2); // translate so origin is at end
+    pGeo.rotateY(ang);
+    conformToTerrain(pGeo);
+    const pMesh = new THREE.Mesh(pGeo, stoneMat);
+    pMesh.receiveShadow = true;
+    pathGroup.add(pMesh);
+  }
+  
+  // Plazas at intersections
+  const plazas = [];
+  radials.push(0); 
+  for (const ang of radials) {
+    for (const R of [ring1R, ring2R]) {
+      const px = Math.sin(ang) * R;
+      const pz = Math.cos(ang) * R;
+      if (ang === 0 && R === ring1R) continue;
+      plazas.push({x: px, z: pz, r: 1.2});
+    }
+  }
+  
+  for (const pl of plazas) {
+    const plGeo = new THREE.CircleGeometry(pl.r, 32);
+    plGeo.rotateX(-Math.PI/2);
+    plGeo.translate(pl.x, 0, pl.z);
+    conformToTerrain(plGeo);
+    const plMesh = new THREE.Mesh(plGeo, stoneMat);
+    plMesh.receiveShadow = true;
+    pathGroup.add(plMesh);
+    addEdges(pathGroup, plGeo, new THREE.Vector3(0,0,0), C.ink, 15);
+  }
+  
+  g.add(pathGroup);
+  
+  // 3. Props: Benches, Lamps, Flowerbeds, Pulpulaks
+  const propGroup = new THREE.Group();
+  propGroup.position.set(0, -yCenter, 0);
+  const benchMat = toon(new THREE.Color(0x8b5a2b));
+  const metalMat = toon(new THREE.Color(0x2a3d45));
+  const lampLitMat = toon(C.glassLit);
+  
+  const treeRequests = []; // Store where trees should go
+  
+  function getGy(x, z) {
+    const r = Math.sqrt(x*x + z*z);
+    return groundY(r) + Math.sin(x*3)*0.01 + Math.sin(z*3)*0.01;
+  }
+
+  function addBench(x, z, rotY) {
+    const gy = getGy(x, z);
+    const bGeo = new THREE.BoxGeometry(0.5, 0.1, 0.2);
+    const bMesh = new THREE.Mesh(bGeo, benchMat);
+    bMesh.position.set(x, gy + 0.15, z);
+    bMesh.rotation.y = rotY;
+    bMesh.castShadow = true;
+    propGroup.add(bMesh);
+    
+    const l1 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.15, 0.15), metalMat);
+    l1.position.set(x - 0.2, gy + 0.075, z);
+    l1.rotation.y = rotY;
+    l1.castShadow = true;
+    propGroup.add(l1);
+    const l2 = l1.clone();
+    l2.position.set(x + 0.2, gy + 0.075, z);
+    propGroup.add(l2);
+    
+    // Request a tree behind the bench for shade
+    const tx = x + Math.sin(rotY) * 0.8;
+    const tz = z + Math.cos(rotY) * 0.8;
+    treeRequests.push({x: tx, z: tz, type: 0, s: 0.6 + trnd()*0.3});
+  }
+  
+  function addLamp(x, z) {
+    const gy = getGy(x, z);
+    const pGeo = new THREE.CylinderGeometry(0.02, 0.04, 0.8, 8);
+    const pMesh = new THREE.Mesh(pGeo, metalMat);
+    pMesh.position.set(x, gy + 0.4, z);
+    pMesh.castShadow = true;
+    propGroup.add(pMesh);
+    
+    const hGeo = new THREE.SphereGeometry(0.12, 8, 8);
+    const hMesh = new THREE.Mesh(hGeo, lampLitMat);
+    hMesh.position.set(x, gy + 0.85, z);
+    hMesh.userData.isGlass = true; 
+    hMesh.userData.cellWindow = true; 
+    propGroup.add(hMesh);
+  }
+  
+  function addPulpul(x, z) {
+    const gy = getGy(x, z);
+    const geo = new THREE.CylinderGeometry(0.1, 0.1, 0.3, 8);
+    const mesh = new THREE.Mesh(geo, stoneMat);
+    mesh.position.set(x, gy + 0.15, z);
+    mesh.castShadow = true;
+    propGroup.add(mesh);
+  }
+
+  const flowerColors = [0x9e4b6d, 0xcc883a, 0x855c8c]; // dark pink, ochre, lilac
+  function addFlowerbed(x, z, r) {
+    const gy = getGy(x, z);
+    const cIdx = Math.floor(trnd() * flowerColors.length);
+    const mat = toon(new THREE.Color(flowerColors[cIdx]));
+    
+    // Soil volume
+    const geo = new THREE.CylinderGeometry(r, r, 0.08, 16);
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, gy + 0.04, z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    propGroup.add(mesh);
+    
+    // Hedge border
+    const hGeo = new THREE.TorusGeometry(r+0.05, 0.06, 8, 24);
+    hGeo.rotateX(Math.PI/2);
+    const hMesh = new THREE.Mesh(hGeo, toon(new THREE.Color(0x3a5a25))); // dark shrub
+    hMesh.position.set(x, gy + 0.04, z);
+    hMesh.castShadow = true;
+    propGroup.add(hMesh);
+  }
+  
+  // Hedges along paths
+  function addHedge(x0, z0, x1, z1) {
+    const dx = x1 - x0, dz = z1 - z0;
+    const len = Math.sqrt(dx*dx + dz*dz);
+    const ang = Math.atan2(dx, dz);
+    const cx = (x0+x1)/2, cz = (z0+z1)/2;
+    const gy = getGy(cx, cz);
+    
+    // A segmented box could conform better, but small hedges are fine
+    const geo = new THREE.BoxGeometry(0.2, 0.3, len);
+    const mesh = new THREE.Mesh(geo, toon(new THREE.Color(0x3a5a25)));
+    mesh.position.set(cx, gy + 0.15, cz);
+    mesh.rotation.y = ang;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    propGroup.add(mesh);
+  }
+  
+  // Populate props
+  // Main alley
+  for (let z = -4.5; z >= -13.5; z -= 2.8) {
+    addLamp(-alleyW/2 - 0.2, z);
+    addLamp(alleyW/2 + 0.2, z);
+    addBench(-alleyW/2 - 0.2, z - 1.4, Math.PI/2);
+    addBench(alleyW/2 + 0.2, z - 1.4, -Math.PI/2);
+    
+    addHedge(-alleyW/2 - 0.5, z - 0.5, -alleyW/2 - 0.5, z + 0.5);
+    addHedge(alleyW/2 + 0.5, z - 0.5, alleyW/2 + 0.5, z + 0.5);
+  }
+  
+  // Plazas props
+  for (const pl of plazas) {
+    addPulpul(pl.x, pl.z);
+    addLamp(pl.x + pl.r*0.6, pl.z + pl.r*0.6);
+    addFlowerbed(pl.x - pl.r*1.5, pl.z - pl.r*1.5, 0.5);
+    addFlowerbed(pl.x + pl.r*1.5, pl.z - pl.r*1.5, 0.5);
+    
+    // Plaza trees requested at corners
+    treeRequests.push({x: pl.x + pl.r*1.8, z: pl.z + pl.r*1.8, type: 0, s: 0.6});
+    treeRequests.push({x: pl.x - pl.r*1.8, z: pl.z + pl.r*1.8, type: 0, s: 0.6});
+  }
+  
+  g.add(propGroup);
+  
+  // 2. Trees (Rows and Groups)
+  // Process requests
+  for (const req of treeRequests) {
+    if (Math.sqrt(req.x*req.x + req.z*req.z) > 4) {
+      addTree(req.type, req.x, req.z, req.s);
+    }
+  }
+
+  // Main Alley rows
+  const alleySpacing = 1.4;
+  for (let z = -4.0; z >= -14.0; z -= alleySpacing) {
+    addTree(3, -alleyW/2 - 0.8, z, 1.2); 
+    addTree(3, alleyW/2 + 0.8, z, 1.2);
+  }
+  
+  // Radial paths rows
+  for (const ang of radials) {
+    if (ang === 0 || ang === Math.PI) continue; // skip main alley
+    for (let R = ring1R + 1.2; R < ring2R + 4; R += 1.8) {
+      const tx1 = Math.sin(ang) * R + Math.cos(ang) * 0.8;
+      const tz1 = Math.cos(ang) * R - Math.sin(ang) * 0.8;
+      const tx2 = Math.sin(ang) * R - Math.cos(ang) * 0.8;
+      const tz2 = Math.cos(ang) * R + Math.sin(ang) * 0.8;
+      addTree(1, tx1, tz1, 0.8);
+      addTree(1, tx2, tz2, 0.8);
+    }
+  }
+  
+  // Ring tree rows
+  for (let a = 0; a < Math.PI*2; a += Math.PI/16) { // More dense!
+    if (a > 11.5*Math.PI/6 || a < 0.5*Math.PI/6) continue; // avoid main alley
+    if (Math.abs(Math.sin(a * 2)) < 0.15) continue; // avoid radials
+    const r = ring2R + 1.2;
+    addTree(0, Math.sin(a)*r, Math.cos(a)*r, 0.7); 
+  }
+  
+  // Lawns: clusters of 3-5 trees
+  for (let i = 0; i < 30; i++) {
+    const ang = trnd() * Math.PI * 2;
+    const r = 6.5 + trnd() * 2.5; // between ring 1 and 2
+    if (ang > 11*Math.PI/6 || ang < 1*Math.PI/6) continue;
+    if (Math.abs(Math.sin(ang * 2)) < 0.2) continue; // avoid paths
+    const cx = Math.sin(ang)*r, cz = Math.cos(ang)*r;
+    const count = 3 + Math.floor(trnd()*3);
+    for(let j=0; j<count; j++) {
+      const tx = cx + trnd()*1.5 - 0.75;
+      const tz = cz + trnd()*1.5 - 0.75;
+      if (Math.sqrt(tx*tx + tz*tz) > 4) addTree(0, tx, tz, 0.5 + trnd()*0.3);
+    }
+  }
+  
+  g.add(treeG);
+  
+  // Hill Base (Terrain)
+  const hGeo = new THREE.PlaneGeometry(40, 40, 256, 256); // Even higher res
   hGeo.rotateX(-Math.PI / 2);
   const hPos = hGeo.attributes.position.array;
   const hColors = new Float32Array((hPos.length / 3) * 3);
   
   const cTop = C.ground.clone();
   const cSlope = C.groundFar.clone();
-  const cPath = C.groundFar.clone().lerp(new THREE.Color(0xddddcc), 0.5);
   const cShadow = C.shadow.clone();
   
   for(let i=0; i<hPos.length; i+=3) {
     const x = hPos[i], z = hPos[i+2];
     const r = Math.sqrt(x*x + z*z);
-    hPos[i+1] = groundY(r) + Math.sin(x*2)*0.02 + Math.sin(z*2)*0.02;
+    
+    hPos[i+1] = getGy(x, z);
     
     let col = cTop.clone();
-    if (r > 8.20) col.lerp(cSlope, Math.min(1.0, (r - 8.20) / 4.0));
     
-    // Paths
-    let isPath = false;
-    // Ring paths
-    if (Math.abs(r - 5.5) < 0.4) isPath = true;
-    if (Math.abs(r - 9.0) < 0.4) isPath = true;
-    // Main alley
-    if (z < -2 && Math.abs(x) < 1.2) isPath = true;
-    // Radial paths
-    const ang = Math.atan2(z, x);
-    if (Math.abs(Math.sin(ang * 2)) < 0.08 && r > 4) isPath = true;
-    
-    if (isPath) {
-      col.lerp(cPath, 0.7 + Math.random()*0.1);
+    // Vary grass color based on sector to differentiate lawns
+    const sectorAng = Math.atan2(z, x);
+    const sector = Math.floor(((sectorAng + Math.PI) / (Math.PI*2)) * 8); // 8 slices
+    if (sector % 2 === 0) {
+      col.lerp(new THREE.Color(0x5a7045), 0.3); // darker grass
+    } else {
+      col.lerp(new THREE.Color(0x738a5d), 0.3); // lighter grass
     }
     
-    // Shadows
+    if (r > 12.0) col.lerp(cSlope, Math.min(1.0, (r - 12.0) / 4.0));
+    
+    // Tree shadows
     let shadowStr = 0;
     for (const tr of treePositions) {
       const dx = x - (tr.x + tr.s * 0.4);
       const dz = z - (tr.z + tr.s * 0.4);
       const dist = Math.sqrt(dx*dx + dz*dz);
-      const shadowR = tr.s * 1.2;
+      const shadowR = tr.s * 1.5;
       if (dist < shadowR) {
         shadowStr = Math.max(shadowStr, 1.0 - (dist / shadowR));
       }
     }
-    if (shadowStr > 0) col.lerp(cShadow, shadowStr * 0.4);
+    if (shadowStr > 0) col.lerp(cShadow, shadowStr * 0.4); // darker shadows
     
     hColors[i] = col.r; hColors[i+1] = col.g; hColors[i+2] = col.b;
   }
-
+  
   hGeo.setAttribute('color', new THREE.BufferAttribute(hColors, 3));
   hGeo.computeVertexNormals();
-  
   const hMat = toon(C.ground);
   hMat.vertexColors = true;
-  
   const hMesh = new THREE.Mesh(hGeo, hMat);
-  hMesh.position.set(0, -yCenter - 0.02, 0);
+  hMesh.position.set(0, -yCenter, 0);
+  hMesh.receiveShadow = true;
   g.add(hMesh);
+
+  g.add(hMesh);
+
 
   
   
