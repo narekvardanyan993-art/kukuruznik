@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Осмотр 360°</title>
+<style>
+  body, html {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    background: #fbfaf7; overflow: hidden;
+    touch-action: none;
+    font-family: 'Noto Sans Armenian', -apple-system, sans-serif;
+  }
+  .viewer-layer {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    object-fit: cover;
+    user-select: none; -webkit-user-drag: none;
+    transition: opacity 1.2s ease-in-out;
+    opacity: 0; z-index: 1;
+  }
+  .viewer-layer.active { opacity: 1; z-index: 2; }
+  
+  /* Live Layers */
+  #fx-layer {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 3; overflow: hidden;
+  }
+  .cloud {
+    position: absolute;
+    background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg"><path fill="rgba(255,255,255,0.4)" d="M20 20a10 10 0 0115-7 15 15 0 0128 2 10 10 0 0117 5v10H20z"/></svg>') no-repeat center/contain;
+    
+  }
+   to { transform: translateX(-20vw); } }
+  
+  .bird {
+    position: absolute;
+    width: 24px; height: 12px;
+    background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 24 12" xmlns="http://www.w3.org/2000/svg"><path fill="none" stroke="rgba(0,0,0,0.6)" stroke-width="2" d="M2 10Q7 2 12 10Q17 2 22 10"/></svg>') no-repeat center/contain;
+    animation: flapBird 0.4s infinite alternate;
+  }
+   to { transform: translate(120vw, 10vh) scale(1); } }
+  @keyframes flapBird { from { height: 12px; } to { height: 4px; } }
+
+  .window-light {
+    position: absolute; width: 3px; height: 3px; background: #ffe4a0;
+    box-shadow: 0 0 8px 2px rgba(255, 228, 160, 0.8);
+    border-radius: 50%;
+    animation: flicker alternate infinite;
+  }
+  @keyframes flicker { 0% { opacity: 0.2; } 100% { opacity: 1; } }
+
+  /* Loader */
+  #loader {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: #fbfaf7; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; z-index: 100;
+    transition: opacity 0.4s; color: #2f2a25; font-weight: 500; font-size: 20px;
+  }
+  #progress-bar { width: 220px; height: 6px; background: #e0deda; border-radius: 3px; margin-top: 16px; overflow: hidden; }
+  #progress-fill { height: 100%; width: 0%; background: #6f8ecc; transition: width 0.15s; }
+
+  /* Liquid Glass Panel */
+  .liquid-glass {
+    background: rgba(240, 245, 255, 0.25);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), inset 0 1px 1px rgba(255,255,255,0.7);
+    color: #2f2a25;
+  }
+  body.night-mode .liquid-glass {
+    background: rgba(10, 15, 30, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255,255,255,0.2);
+    color: #fff;
+  }
+
+  #bottom-panel {
+    position: fixed; bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
+    left: 50%; transform: translateX(-50%);
+    border-radius: 28px; padding: 6px;
+    display: flex; gap: 4px; z-index: 10;
+    width: max-content; max-width: calc(100% - 32px);
+    flex-wrap: wrap; justify-content: center;
+  }
+  .btn {
+    border: none; background: transparent; color: inherit;
+    font-family: inherit; font-size: 16px; font-weight: 600;
+    height: 48px; padding: 0 20px; border-radius: 22px;
+    cursor: pointer; transition: background 0.2s;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .btn:hover, .btn:active { background: rgba(255,255,255,0.2); }
+  body.night-mode .btn:hover { background: rgba(255,255,255,0.1); }
+  .btn.active { background: rgba(255,255,255,0.4); box-shadow: inset 0 1px 2px rgba(0,0,0,0.1); }
+  body.night-mode .btn.active { background: rgba(255,255,255,0.2); box-shadow: inset 0 1px 2px rgba(0,0,0,0.3); }
+
+  #back-btn {
+    position: fixed; top: calc(env(safe-area-inset-top, 0px) + 20px); left: 16px;
+    text-decoration: none; z-index: 10; padding: 0 16px; border-radius: 24px;
+    display: flex; align-items: center; justify-content: center; height: 48px;
+    font-size: 16px; font-weight: 600; gap: 6px;
+  }
+
+  /* Hint */
+  #hint {
+    position: fixed; top: 40%; left: 50%; transform: translate(-50%, -50%);
+    padding: 16px 24px; border-radius: 24px; font-size: 18px; font-weight: 600;
+    pointer-events: none; opacity: 0; transition: opacity 0.4s; z-index: 15;
+    display: flex; align-items: center; gap: 10px;
+  }
+  #hint.show { opacity: 1; }
+
+  @media (max-width: 430px) {
+    #bottom-panel { padding: 4px; gap: 2px; border-radius: 24px; }
+    .btn { padding: 0 12px; font-size: 15px; padding: 0 10px; height: 44px; border-radius: 20px; }
+    .btn svg { width: 18px; height: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <div>Загрузка 360°...</div>
+  <div id="progress-bar"><div id="progress-fill"></div></div>
+</div>
+
+<img id="viewer-day" class="viewer-layer active" src="">
+<img id="viewer-sunset" class="viewer-layer" src="">
+<img id="viewer-night" class="viewer-layer" src="">
+
+<div id="fx-layer"></div>
+
+<div id="hint" class="liquid-glass">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:24px;height:24px"><path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V10m0-1.5a1.5 1.5 0 0 1 3 0V11m0-1a1.5 1.5 0 0 1 3 0v4.5A6.5 6.5 0 0 1 11.5 21h-.6a6 6 0 0 1-4.6-2.2L3.6 15.6a1.6 1.6 0 0 1 2.3-2.2L9 16"/></svg>
+  Потяните для вращения
+</div>
+
+<a href="index.html" id="back-btn" class="liquid-glass">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><path d="M15 18l-6-6 6-6"/></svg>
+  Назад
+</a>
+
+<div id="bottom-panel" class="liquid-glass">
+  <button class="btn active" data-time="day">День</button>
+  <button class="btn" data-time="sunset">Закат</button>
+  <button class="btn" data-time="night">Ночь</button>
+  <button class="btn" id="btn-autorotate">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.92-10.27l-3.26 3.26"/></svg>
+    Авто
+  </button>
+  <button class="btn" id="btn-fs">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+  </button>
+</div>
+
+<script>
+const numFrames = 36;
+const modes = ['day', 'sunset', 'night'];
+const frames = { day: [], sunset: [], night: [] };
+
+let currentMode = 'day';
+let currentFrameFloat = 0;
+const viewers = {
+  day: document.getElementById('viewer-day'),
+  sunset: document.getElementById('viewer-sunset'),
+  night: document.getElementById('viewer-night')
+};
+
+const fxLayer = document.getElementById('fx-layer');
+
+function updateSrcs(frameIdx) {
+  modes.forEach(m => {
+    if (frames[m][frameIdx] && frames[m][frameIdx].complete) {
+      viewers[m].src = frames[m][frameIdx].src;
+    }
+  });
+}
+
+function setFrame(f) {
+  f = (f % numFrames + numFrames) % numFrames;
+  currentFrameFloat = f;
+  updateSrcs(Math.floor(f));
+}
+
+// Lazy Load Logic
+let dayLoaded = 0;
+const loader = document.getElementById('loader');
+const pFill = document.getElementById('progress-fill');
+
+function loadSet(mode, onComplete) {
+  let loaded = 0;
+  for (let i = 0; i < numFrames; i++) {
+    const img = new Image();
+    const num = i.toString().padStart(2, '0');
+    
+    const isRetina = window.innerWidth > 600 && window.devicePixelRatio > 1;
+    const res = isRetina ? '2x' : '1x';
+    img.src = `turntable/${res}/${mode}/${num}.webp`;
+
+    img.onload = () => {
+      loaded++;
+      if (mode === 'day') {
+        pFill.style.width = (loaded / numFrames * 100) + '%';
+      }
+      if (loaded === numFrames && onComplete) onComplete();
+    };
+    frames[mode].push(img);
+  }
+}
+
+// Load day first
+loadSet('day', () => {
+  setFrame(0);
+  setTimeout(() => {
+    loader.style.opacity = '0';
+    setTimeout(() => loader.style.display = 'none', 400);
+    if (!localStorage.getItem('turntable_hint2')) {
+      document.getElementById('hint').classList.add('show');
+    }
+    // Background load others
+    setTimeout(() => {
+      loadSet('sunset');
+      loadSet('night');
+    }, 1000);
+  }, 300);
+});
+
+// Interaction
+let isDragging = false;
+let startX = 0, lastX = 0, velocity = 0, lastTime = 0;
+let autoRotate = false;
+let animFrame;
+const pxPerFrame = 15;
+
+function stopAuto() {
+  if (autoRotate) {
+    autoRotate = false;
+    document.getElementById('btn-autorotate').classList.remove('active');
+  }
+}
+
+function pointerDown(e) {
+  if (frames.day.length < numFrames) return;
+  isDragging = true;
+  stopAuto();
+  cancelAnimationFrame(animFrame);
+  
+  const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+  startX = clientX; lastX = clientX;
+  lastTime = performance.now();
+  velocity = 0;
+  
+  const hint = document.getElementById('hint');
+  if (hint.classList.contains('show')) {
+    hint.classList.remove('show');
+    try { localStorage.setItem('turntable_hint2', '1'); } catch(e){}
+  }
+}
+
+function pointerMove(e) {
+  if (!isDragging) return;
+  e.preventDefault();
+  const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+  const now = performance.now();
+  const dx = clientX - lastX;
+  
+  // INVERTED logic: dragging right (dx > 0) -> rotates building right -> currentFrameFloat increases!
+  setFrame(currentFrameFloat + dx / pxPerFrame);
+  
+  const dt = now - lastTime;
+  if (dt > 0) velocity = dx / dt;
+  lastX = clientX; lastTime = now;
+}
+
+let inertiaTime = 0;
+function loop(time) {
+  if (!inertiaTime) inertiaTime = time;
+  const dt = time - inertiaTime;
+  inertiaTime = time;
+  
+  if (window.fxItems) {
+    window.fxItems.forEach(item => {
+      item.x += item.speed * dt * 0.06;
+      let finalX = item.x + (currentFrameFloat * item.parallax);
+      finalX = ((finalX + 20) % 140 + 140) % 140 - 20;
+      item.el.style.left = finalX + 'vw';
+    });
+  }
+  
+  if (autoRotate) {
+    setFrame(currentFrameFloat - 0.05); // constant slow rotation
+    animFrame = requestAnimationFrame(loop);
+    return;
+  }
+  
+  velocity *= 0.92;
+  if (Math.abs(velocity) > 0.05) {
+    setFrame(currentFrameFloat + (velocity * dt) / pxPerFrame);
+    animFrame = requestAnimationFrame(loop);
+  } else if (!autoRotate) {
+    animFrame = requestAnimationFrame(loop); // keep running for FX
+  }
+}
+
+function pointerUp() {
+  if (!isDragging) return;
+  isDragging = false;
+  inertiaTime = 0;
+  if (Math.abs(velocity) > 0.1) animFrame = requestAnimationFrame(loop);
+}
+
+document.addEventListener('mousedown', pointerDown);
+document.addEventListener('mousemove', pointerMove, {passive: false});
+document.addEventListener('mouseup', pointerUp);
+document.addEventListener('touchstart', pointerDown, {passive: false});
+document.addEventListener('touchmove', pointerMove, {passive: false});
+document.addEventListener('touchend', pointerUp);
+
+// Buttons
+document.querySelectorAll('[data-time]').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    currentMode = btn.dataset.time;
+    document.querySelectorAll('[data-time]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    
+    modes.forEach(m => {
+      viewers[m].classList.toggle('active', m === currentMode);
+    });
+    document.body.classList.toggle('night-mode', currentMode === 'night');
+    updateFx();
+  });
+});
+
+document.getElementById('btn-autorotate').addEventListener('click', (e) => {
+  e.stopPropagation();
+  autoRotate = !autoRotate;
+  e.currentTarget.classList.toggle('active', autoRotate);
+  if (autoRotate) {
+    cancelAnimationFrame(animFrame);
+    inertiaTime = 0;
+    animFrame = requestAnimationFrame(loop);
+  }
+});
+
+document.getElementById('btn-fs').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(()=>{});
+  } else {
+    document.exitFullscreen();
+  }
+});
+
+// FX
+function createEl(cls, style) {
+  const el = document.createElement('div');
+  el.className = cls;
+  Object.assign(el.style, style);
+  return el;
+}
+
+function updateFx() {
+  fxLayer.innerHTML = '';
+  window.fxItems = [];
+  if (currentMode === 'day' || currentMode === 'sunset') {
+    for(let i=0; i<5; i++) {
+      const el = createEl('cloud', {
+        width: (120 + Math.random()*80)+'px', height: '60px',
+        top: (2 + Math.random()*15)+'vh',
+        opacity: currentMode === 'sunset' ? 0.6 : 0.8
+      });
+      fxLayer.appendChild(el);
+      window.fxItems.push({ el, type: 'cloud', x: Math.random()*120 - 10, speed: 0.005 + Math.random()*0.005, parallax: 0.8 });
+    }
+  }
+  if (currentMode === 'day') {
+    for(let i=0; i<3; i++) {
+      const el = createEl('bird', {
+        top: (5 + Math.random()*20)+'vh',
+        animationDuration: (0.4 + Math.random()*0.2)+'s'
+      });
+      fxLayer.appendChild(el);
+      window.fxItems.push({ el, type: 'bird', x: Math.random()*120 - 10, speed: 0.03 + Math.random()*0.02, parallax: 2.0 });
+    }
+  }
+  if (currentMode === 'night') {
+    for(let i=0; i<30; i++) {
+      fxLayer.appendChild(createEl('window-light', {
+        left: (35 + Math.random()*30) + 'vw',
+        top: (20 + Math.random()*60) + 'vh',
+        animationDuration: (1 + Math.random()*3) + 's',
+        animationDelay: -(Math.random()*3) + 's'
+      }));
+    }
+  }
+}
+updateFx();
+
+</script>
+</body>
+</html>

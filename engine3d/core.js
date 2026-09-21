@@ -169,7 +169,7 @@ export function addEdges(parent, geo, pos, color, threshold) {
 
 // ======================== ENGINE INIT ========================
 export function initEngine(canvas, { targetY = 0, initialTOD = 0.3 } = {}) {
-  const renderer = new THREE.WebGLRenderer({
+  const renderer = new THREE.WebGLRenderer({ preserveDrawingBuffer: true,
     canvas,
     antialias: true,
     alpha: true,
@@ -241,11 +241,11 @@ export function initEngine(canvas, { targetY = 0, initialTOD = 0.3 } = {}) {
       return `rgba(${r},${g},${b},${a.toFixed(3)})`;
     }
     const grad = ctx.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0.00, blend(96,142,186, 10,14,40, 0.60, 0.94));
-    grad.addColorStop(0.30, blend(142,180,206, 20,26,58, 0.34, 0.86));
-    grad.addColorStop(0.55, blend(214,200,172, 46,40,70, 0.20, 0.66));
-    grad.addColorStop(0.72, blend(226,206,168, 40,36,66, 0.00, 0.62));
-    grad.addColorStop(1.00, blend(226,206,168, 16,20,44, 0.00, 0.78));
+    grad.addColorStop(0.00, blend(96,142,186, 20,35,70, 0.60, 0.94));
+    grad.addColorStop(0.30, blend(142,180,206, 40,60,110, 0.34, 0.86));
+    grad.addColorStop(0.55, blend(214,200,172, 60,75,120, 0.20, 0.66));
+    grad.addColorStop(0.72, blend(226,206,168, 50,60,95, 0.00, 0.62));
+    grad.addColorStop(1.00, blend(226,206,168, 25,30,60, 0.00, 0.78));
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
 
@@ -338,11 +338,11 @@ export function initEngine(canvas, { targetY = 0, initialTOD = 0.3 } = {}) {
     }
 
     ambientLight.color.setRGB(
-      (160 - 114 * night) / 255,
-      (180 - 128 * night) / 255,
-      (220 - 146 * night) / 255
+      (160 - 60 * night) / 255,
+      (180 - 40 * night) / 255,
+      (220 - 20 * night) / 255
     );
-    ambientLight.intensity = 0.55 - 0.15 * night;
+    ambientLight.intensity = 0.55 + 0.15 * night;
     fillLight.intensity = 0.15 * (1 - night * 0.8);
 
     scene.background = null; bakePaperOverlay(t);

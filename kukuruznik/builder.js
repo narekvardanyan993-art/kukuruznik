@@ -536,26 +536,42 @@ export function buildEnvironment() {
     treePositions.push({ x, z, r: baseR, s, type });
   }
 
-  // Generate trees procedurally
-  for (let i = 0; i < 150; i++) {
-    const ang = trnd() * Math.PI * 2;
-    const r = 6.0 + trnd() * 8.0; // mostly outside the 6.30 platform, up to road (14.0)
-    
-    // Fewer trees on the main plaza side (Z < -3 and X > -2) where portal/stairs are
-    const x = Math.cos(ang) * r;
-    const z = Math.sin(ang) * r;
-    
-    if (z < -3.0 && x > -1.5 && x < 3.0) {
-      if (trnd() > 0.1) continue; // Keep stairs and portal clear
+
+  // SOVIET PARK GENERATION
+  const alleyZMin = -14, alleyZMax = -3, alleyX = 0;
+  
+  // Trees
+  for (let i = 0; i < 200; i++) {
+    let x, z, type, s;
+    if (i < 20) {
+      // Alley trees
+      const row = Math.floor(i / 2);
+      const side = i % 2 === 0 ? 1 : -1;
+      x = alleyX + side * 1.5;
+      z = alleyZMax - row * 1.1;
+      type = 3; // pines
+      s = 0.7;
+    } else {
+      // Park trees in groups
+      const ang = trnd() * Math.PI * 2;
+      const r = 5.5 + trnd() * 8.5;
+      x = Math.cos(ang) * r;
+      z = Math.sin(ang) * r;
+      type = Math.floor(trnd() * 4);
+      s = 0.4 + trnd() * 0.35;
+      // Keep main alley clear
+      if (z < -2 && x > -2.5 && x < 2.5) continue;
+      // Keep paths clear
+      const pathRing1 = Math.abs(r - 5.5) < 0.6;
+      const pathRing2 = Math.abs(r - 9.0) < 0.6;
+      if (pathRing1 || pathRing2) continue;
+      // Cross paths
+      const angD = Math.abs(Math.sin(ang * 2));
+      if (angD < 0.15) continue;
     }
-    
-    // Small bushes can be closer
-    if (r < 7.0 && trnd() > 0.3) continue;
-    
-    const type = Math.floor(trnd() * 4);
-    // Size limit: 2-3 floors = ~0.52 to 0.78
-    const s = 0.4 + trnd() * 0.35; 
-    
+    if (x*x + z*z < 25 && z > -2) {
+      if (trnd() > 0.3) continue;
+    }
     addTree(type, x, z, s);
   }
   g.add(treeG);
@@ -568,37 +584,36 @@ export function buildEnvironment() {
   
   const cTop = C.ground.clone();
   const cSlope = C.groundFar.clone();
-  const cPath = C.groundFar.clone().lerp(new THREE.Color(0xdcdcdc), 0.3);
+  const cPath = C.groundFar.clone().lerp(new THREE.Color(0xddddcc), 0.5);
   const cShadow = C.shadow.clone();
   
   for(let i=0; i<hPos.length; i+=3) {
     const x = hPos[i], z = hPos[i+2];
     const r = Math.sqrt(x*x + z*z);
-    
-    // Wave on terrain
-    hPos[i+1] = groundY(r) + Math.sin(x*2)*0.03 + Math.sin(z*2)*0.03;
+    hPos[i+1] = groundY(r) + Math.sin(x*2)*0.02 + Math.sin(z*2)*0.02;
     
     let col = cTop.clone();
+    if (r > 8.20) col.lerp(cSlope, Math.min(1.0, (r - 8.20) / 4.0));
     
-    // Slope tone
-    if (r > 8.20) {
-      col.lerp(cSlope, Math.min(1.0, (r - 8.20) / 4.0));
+    // Paths
+    let isPath = false;
+    // Ring paths
+    if (Math.abs(r - 5.5) < 0.4) isPath = true;
+    if (Math.abs(r - 9.0) < 0.4) isPath = true;
+    // Main alley
+    if (z < -2 && Math.abs(x) < 1.2) isPath = true;
+    // Radial paths
+    const ang = Math.atan2(z, x);
+    if (Math.abs(Math.sin(ang * 2)) < 0.08 && r > 4) isPath = true;
+    
+    if (isPath) {
+      col.lerp(cPath, 0.7 + Math.random()*0.1);
     }
     
-    // Path / trampled spots
-    // Near portal and stairs
-    if (z > -6.0 && z < -2.0 && x > 0.5 && x < 2.5) {
-      col.lerp(cPath, 0.4);
-    }
-    // Road edge
-    if (r > 10.5 && r < 11.5) {
-      col.lerp(cPath, 0.6);
-    }
-    
-    // Tree shadows
+    // Shadows
     let shadowStr = 0;
     for (const tr of treePositions) {
-      const dx = x - (tr.x + tr.s * 0.4); // offset shadow
+      const dx = x - (tr.x + tr.s * 0.4);
       const dz = z - (tr.z + tr.s * 0.4);
       const dist = Math.sqrt(dx*dx + dz*dz);
       const shadowR = tr.s * 1.2;
@@ -606,15 +621,11 @@ export function buildEnvironment() {
         shadowStr = Math.max(shadowStr, 1.0 - (dist / shadowR));
       }
     }
-    if (shadowStr > 0) {
-      col.lerp(cShadow, shadowStr * 0.4);
-    }
+    if (shadowStr > 0) col.lerp(cShadow, shadowStr * 0.4);
     
-    hColors[i] = col.r;
-    hColors[i+1] = col.g;
-    hColors[i+2] = col.b;
+    hColors[i] = col.r; hColors[i+1] = col.g; hColors[i+2] = col.b;
   }
-  
+
   hGeo.setAttribute('color', new THREE.BufferAttribute(hColors, 3));
   hGeo.computeVertexNormals();
   
@@ -742,8 +753,8 @@ export function setupBuilding(engine) {
         const lamp = rng() < 0.45;
         if (lamp) {
           const glow = Math.min(1, (night - 0.15) / 0.35);
-          obj.material.color.copy(C.winDrk.clone().lerp(C.glassLit, glow * 0.7));
-          obj.material.emissive = C.glassLit.clone().multiplyScalar(glow * 0.25);
+          obj.material.color.copy(C.winDrk.clone().lerp(C.glassLit, glow * 0.95));
+          obj.material.emissive = C.glassLit.clone().multiplyScalar(glow * 0.8);
         }
       }
       if (obj.userData.isShadow) {
