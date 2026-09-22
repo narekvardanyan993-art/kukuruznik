@@ -46,8 +46,8 @@ import fs from 'fs';
             
             await new Promise(r => setTimeout(r, 3000)); // wait for transition
 
-            for (let i = 0; i < 36; i++) {
-                const angle = i * 10 * (Math.PI / 180);
+            for (let i = 0; i < 180; i++) {
+                const angle = i * 2 * (Math.PI / 180);
                 
                 await page.evaluate((angle) => {
                     const cam = window.engine.camera;
@@ -70,7 +70,7 @@ import fs from 'fs';
 
                 await new Promise(r => setTimeout(r, 100)); // allow render frame
                 
-                const num = i.toString().padStart(2, '0');
+                const num = i.toString().padStart(3, '0');
                 const outPath = `kukuruznik/turntable/${res}x/${s.name}/${num}.webp`;
                 await page.screenshot({ path: outPath, type: 'webp', quality: 85 });
                 console.log(`Rendered ${res}x ${s.name} frame ${num}`);

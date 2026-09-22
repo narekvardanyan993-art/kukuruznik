@@ -22,6 +22,15 @@ async function capture() {
         performance.now = () => frozenTime;
         Date.now = () => 1700000000000;
         
+        const style = document.createElement('style');
+        style.innerHTML = `
+            * {
+                animation-play-state: paused !important;
+                transition: none !important;
+            }
+        `;
+        document.head.appendChild(style);
+        
         const origRaf = window.requestAnimationFrame;
         window.requestAnimationFrame = function(cb) {
             return origRaf(function(t) {
