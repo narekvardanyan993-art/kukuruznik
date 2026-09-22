@@ -155,15 +155,19 @@
    Все параметры эффекта «3D-фото» собраны здесь, ничего похожего
    больше в коде не настраивается. */
 var CONFIG = {
-  // Сила смещения слоёв по глубине, доля ширины кадра.
-  STRENGTH: 0.05,
+  // Сила смещения слоёв по глубине, доля ширины кадра. На мобильном
+  // сильнее — там управление гироскопом/пальцем, а экран мельче.
+  STRENGTH: 0.05,          // десктоп
+  STRENGTH_MOBILE: 0.06,   // узкий экран (см. медиа-запрос #stage ниже)
 
-  // Максимальный наклон от управления (палец/мышь/гироскоп).
-  MAX_TILT_X_DEG: 12,   // по горизонтали
-  MAX_TILT_Y_DEG: 6,    // по вертикали
+  // Максимальный наклон гироскопа для полного смещения (мышь/палец на
+  // силу смещения не влияют — там наклон уже определяется позицией
+  // указателя относительно центра кадра).
+  MAX_TILT_X_DEG: 20,   // по горизонтали
+  MAX_TILT_Y_DEG: 20,   // по вертикали
 
   // Плавность возврата в центр после отпускания (0..1, больше = быстрее).
-  RETURN_SMOOTH: 0.08,
+  RETURN_SMOOTH: 0.12,
 
   // "Дыхание" в состоянии покоя.
   BREATH_AMPLITUDE: 0.004,   // доля ширины кадра
@@ -312,7 +316,12 @@ var CONFIG = {
     });
   });
 
-  gl.uniform1f(uStrength, CONFIG.STRENGTH);
+  // Тот же брейкпоинт, что и у #stage в CSS (узкий экран = мобильный режим).
+  var mobileQuery = window.matchMedia('(max-width: 820px)');
+  function updateStrength() {
+    gl.uniform1f(uStrength, mobileQuery.matches ? CONFIG.STRENGTH_MOBILE : CONFIG.STRENGTH);
+  }
+  updateStrength();
 
   // ---------- текстуры ----------
   function makeTexUnit(entry) {
@@ -370,6 +379,8 @@ var CONFIG = {
     var uvW = cssW / dispW, uvH = cssH / dispH;
     gl.uniform2f(uCoverScale, uvW, uvH);
     gl.uniform2f(uCoverOffset, (1 - uvW) / 2, (1 - uvH) / 2);
+
+    updateStrength();
   }
   window.addEventListener('resize', resize);
 
