@@ -12,6 +12,7 @@ html, body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: #0d1230;
 }
+html.fs-big { font-size: 120%; }
 #c { display: block; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;   touch-action: none; }
 #paper-bg {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -22,46 +23,310 @@ html, body {
   color: rgba(47,42,37,0.5); font: 500 13px/1 monospace;
   z-index: 10; pointer-events: none;
 }
-#controls {
-  position: fixed; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
-  left: 50%; transform: translateX(-50%);
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 16px; border-radius: 20px;
-  background: rgba(255,255,255,0.28);
-  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-  z-index: 10; flex-wrap: wrap; justify-content: center;
-}
-#controls label { font-size: 13px; color: #2f2a25; white-space: nowrap; }
-#tod { width: 130px; accent-color: #a3472a; }
-.chip {
-  border: none; padding: 5px 10px; border-radius: 10px; font-size: 12px;
-  background: rgba(255,255,255,0.45); color: #2f2a25; cursor: pointer;
-}
-.chip:active { background: rgba(163,71,42,0.2); }
 #label { position: fixed; top: env(safe-area-inset-top, 8px); left: 12px;
   font-size: 13px; color: rgba(47,42,37,0.5); z-index: 10; pointer-events: none; }
-body.night #controls { background: rgba(18,24,46,0.50); }
-body.night #controls label { color: #bac2d6; }
-body.night .chip { background: rgba(150,178,240,0.20); color: #e9edf7; }
 body.night #fps { color: rgba(186,194,214,0.5); }
 body.night #label { color: rgba(186,194,214,0.5); }
+
+/* --- HUD AND MENU STYLES FROM style.css --- */
+#hud {
+  position: fixed;
+  left: calc(50% - 31px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 54px);
+  z-index: 10;
+  width: 62px;
+  height: 62px;
+  transition: opacity 380ms ease;
+}
+
+#hudBtn {
+  position: absolute;
+  inset: 0;
+  width: 62px;
+  height: 62px;
+  border: 1px solid var(--g-line);
+  margin: 0;
+  padding: 0;
+  border-radius: 31px;
+  color: var(--g-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  cursor: pointer;
+  z-index: 10;
+  transition: transform 0.2s, background 0.2s, color 0.2s, box-shadow 0.2s;
+  box-shadow: inset 0 1.5px 0 var(--g-top), inset 0 -1px 0 var(--g-bot), var(--g-drop);
+  -webkit-tap-highlight-color: transparent;
+}
+#hudBtn:active {
+  transform: scale(0.90);
+}
+#hud.ring #hudBtn:active {
+  transform: rotate(180deg) scale(0.86);
+}
+#hudBtn svg { width: 26px; height: 26px; display: block; }
+#hudBtn .close-i, #hudBtn .back-i { display: none; }
+#hud.ring #hudBtn, #hud.sub #hudBtn { background: var(--g-on-bg); color: var(--g-on-text); }
+#hud.ring #hudBtn { transform: rotate(180deg) scale(0.94); }
+#hud.ring #hudBtn .open-i { display: none; }
+#hud.ring #hudBtn .close-i { display: block; }
+#hud.sub #hudBtn .open-i { display: none; }
+#hud.sub #hudBtn .back-i { display: block; }
+
+.rs {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 60px;
+  height: 60px;
+  margin: -30px 0 0 -30px;
+  z-index: 3;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(0, 0) scale(0.5);
+  transition: transform 380ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 200ms ease;
+}
+#hud.ring .rs {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(var(--x), var(--y)) scale(1);
+}
+
+.ri {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 1px solid var(--g-line);
+  background: var(--g-bg);
+  color: var(--g-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: inset 0 1.5px 0 var(--g-top), inset 0 -1px 0 var(--g-bot), var(--g-drop);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s, transform 0.15s;
+}
+.ri:active { transform: scale(0.88); }
+.ri[aria-pressed="true"] { background: var(--g-on-bg); color: var(--g-on-text); }
+.ri svg { width: 22px; height: 22px; display: block; }
+
+#sub {
+  position: absolute;
+  left: 50%;
+  bottom: 84px;
+  width: 320px;
+  margin-left: -160px;
+  background: var(--g-bg);
+  border: 1px solid var(--g-line);
+  border-radius: 28px;
+  padding: 20px 22px 24px;
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(20px) scale(0.95);
+  transition: transform 380ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 200ms ease;
+  box-shadow: inset 0 1.5px 0 var(--g-top), inset 0 -1px 0 var(--g-bot), var(--g-drop);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  color: var(--g-text);
+}
+#hud.sub #sub {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+.sub-head { font: 600 15px/1 -apple-system, sans-serif; text-align: center; margin-bottom: 22px; }
+#tod-row { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
+#tod { flex: 1; width: 100%; accent-color: var(--g-accent); }
+.edge { flex: none; width: 22px; height: 22px; opacity: 0.72; display: flex; align-items: center; justify-content: center; }
+.edge svg { width: 100%; height: 100%; }
+.chips { display: flex; gap: 8px; justify-content: center; }
+.chip {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--g-line);
+  color: var(--g-text);
+  padding: 8px 0;
+  border-radius: 14px;
+  font: 500 13px/1 -apple-system, sans-serif;
+  cursor: pointer;
+}
+.chip:active { background: rgba(255, 255, 255, 0.2); }
+
+:root {
+  --g-bg: rgba(251, 250, 247, 0.75);
+  --g-text: #2f2a25;
+  --g-line: rgba(47, 42, 37, 0.12);
+  --g-top: rgba(255, 255, 255, 0.7);
+  --g-bot: rgba(0, 0, 0, 0.04);
+  --g-drop: 0 4px 12px rgba(47, 42, 37, 0.08);
+  --g-on-bg: #2f2a25;
+  --g-on-text: #fbfaf7;
+  --g-accent: #a3472a;
+}
+body.night {
+  --g-bg: rgba(22, 28, 58, 0.65);
+  --g-text: #e9edf7;
+  --g-line: rgba(233, 237, 247, 0.15);
+  --g-top: rgba(255, 255, 255, 0.08);
+  --g-bot: rgba(0, 0, 0, 0.15);
+  --g-drop: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --g-on-bg: #e9edf7;
+  --g-on-text: #0d1230;
+  --g-accent: #6f8ecc;
+}
+
+body.ui-off #hud { opacity: 0; pointer-events: none; }
+#back-tip {
+  position: fixed; top: calc(env(safe-area-inset-top, 0px) + 20px); left: 50%;
+  transform: translateX(-50%);
+  background: rgba(10, 14, 32, 0.75); color: #fff;
+  padding: 10px 16px; border-radius: 16px; font: 500 14px/1 -apple-system, sans-serif;
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  z-index: 10; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+}
+body.ui-off #back-tip { opacity: 1; transition-delay: 0.5s; }
+body.ui-off.menu #back-tip { opacity: 0; }
 </style>
 </head>
+
 <body>
 <div id="stage" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; isolation: isolate; z-index: 0;">
 <canvas id="c"></canvas>
 <canvas id="paper-bg"></canvas>
 <div id="fps">-- fps</div>
 <div id="label">Three.js POC · только башня</div>
-<div id="controls">
-  <label>☀️</label>
-  <input type="range" id="tod" min="0" max="100" value="30">
-  <label>🌙</label>
-  <button class="chip" data-v="12">Утро</button>
-  <button class="chip" data-v="30">День</button>
-  <button class="chip" data-v="50">Закат</button>
-  <button class="chip" data-v="92">Ночь</button>
+
+  
+  
+  <div id="hud">
+    <div id="sub" class="lg">
+      <div class="sub-head">Время суток</div>
+      <div id="tod-row">
+        <span class="edge" id="sun-edge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="4.1"/><path d="M12 2.4v2.3M12 19.3v2.3M4.4 4.4l1.6 1.6M18 18l1.6 1.6M2.4 12h2.3M19.3 12h2.3M4.4 19.6l1.6-1.6M18 6l1.6-1.6"/></svg></span>
+        <input type="range" id="tod" min="0" max="100" value="30" aria-label="Время суток">
+        <span class="edge" id="moon-edge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.4 14.5A8.6 8.6 0 0 1 9.5 3.6 8.6 8.6 0 1 0 20.4 14.5z"/></svg></span>
+      </div>
+      <div class="chips">
+        <button class="chip" type="button" data-v="12" aria-pressed="false">Утро</button>
+        <button class="chip" type="button" data-v="30" aria-pressed="false">День</button>
+        <button class="chip" type="button" data-v="50" aria-pressed="false">Закат</button>
+        <button class="chip" type="button" data-v="92" aria-pressed="false">Ночь</button>
+      </div>
+    </div>
+    
+    <div class="rs" style="--x:96.6px;--y:-25.9px" data-cap="Погода">
+      <button id="weatherBtn" class="ri lg" type="button" aria-label="Погода" data-cap="Погода"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><g class="sun-g"><circle cx="12" cy="12" r="4.6"/><path d="M12 3.6v2.3M12 18.1v2.3M4.6 12H2.3M21.7 12h-2.3M6.34 6.34L4.73 4.73M19.27 19.27l-1.61-1.61M17.66 6.34l1.61-1.61M4.73 19.27l1.61-1.61"/></g></svg></button>
+    </div>
+    <div class="rs" style="--x:60.9px;--y:-79.3px" data-cap="Облёт">
+      <button id="droneBtn" class="ri lg" type="button" aria-pressed="false" aria-label="Облёт" data-cap="Облёт"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.6"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><g class="orbit"><circle cx="20.6" cy="12" r="1.9" fill="currentColor" stroke="none"/></g></svg></button>
+    </div>
+    <div class="rs" style="--x:-60.9px;--y:-79.3px" data-cap="Сброс">
+      <button id="resetBtn" class="ri lg" type="button" aria-label="Сброс" data-cap="Сброс"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><g class="snap"><circle cx="12" cy="12" r="8.2"/><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/><path d="M12 1.6v3M12 19.4v3M1.6 12h3M19.4 12h3"/></g></svg></button>
+    </div>
+    <div class="rs" style="--x:-96.6px;--y:-25.9px" data-cap="Экран">
+      <button id="hideBtn" class="ri lg" type="button" aria-label="Экран" data-cap="Экран"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><g class="brackets"><path d="M9.2 3H3v6.2M14.8 3H21v6.2M21 14.8V21h-6.2M3 14.8V21h6.2"/></g></svg></button>
+    </div>
+    
+    <button id="hudBtn" class="lg" type="button" aria-expanded="false" aria-label="Меню" data-cap="Меню"><svg class="open-i" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2.7"/><circle cx="19.6" cy="12" r="1.85"/><circle cx="15.8" cy="5.42" r="1.85"/><circle cx="8.2" cy="5.42" r="1.85"/><circle cx="4.4" cy="12" r="1.85"/><circle cx="8.2" cy="18.58" r="1.85"/><circle cx="15.8" cy="18.58" r="1.85"/></svg><svg class="close-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M6.8 6.8l10.4 10.4M17.2 6.8L6.8 17.2"/></svg><svg class="back-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.6 5.4L8 12l6.6 6.6"/></svg></button>
+  </div>
+  
+  <div id="back-tip" class="lg">Коснись экрана, чтобы вернуть панель</div>
+
+
+
+
+
+<div id="loader" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 999; background: #fbfaf7; display: flex; align-items: center; justify-content: center; font-family: 'Noto Sans Armenian', -apple-system, sans-serif; font-size: 20px; font-weight: 500; color: #2f2a25; transition: opacity 0.5s ease;">
+  <span id="loaderText">Загрузка...</span>
 </div>
+
+<div id="spinNote"></div>
+
+<a id="toHub" class="lg" href="./" aria-label="Закрыть 3D" style="position: fixed; top: calc(env(safe-area-inset-top, 0px) + 8px); left: 50%; z-index: 10; height: 38px; padding: 0 14px 0 8px; border-radius: 19px; display: flex; align-items: center; gap: 4px; text-decoration: none; font: 500 16px/1 'Noto Sans Armenian', -apple-system, sans-serif; background: rgba(255,255,255,0.45); color: #2f2a25; transform: translateX(-50%); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px; display: block;"><path d="M14.6 5.4L8 12l6.6 6.6"/></svg>
+  <span id="toHubText">Չկա</span>
+</a>
+
+<div id="bigHint" hidden>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V10m0-1.5a1.5 1.5 0 0 1 3 0V11m0-1a1.5 1.5 0 0 1 3 0v4.5A6.5 6.5 0 0 1 11.5 21h-.6a6 6 0 0 1-4.6-2.2L3.6 15.6a1.6 1.6 0 0 1 2.3-2.2L9 16"/></svg>
+  <span id="bigHintText"></span>
+</div>
+
+<style>
+#spinNote { position: fixed; bottom: calc(env(safe-area-inset-bottom, 0px) + 70px); left: 50%; transform: translateX(-50%); color: rgba(47,42,37,0.6); font-size: 13px; pointer-events: none; z-index: 10; }
+body.night #spinNote { color: rgba(186,194,214,0.6); }
+body.night #toHub { background: rgba(150,178,240,0.20); color: #e9edf7; }
+
+#bigHint {
+  position: fixed; left: 50%; z-index: 12;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 104px);
+  display: flex; align-items: center; gap: 12px;
+  width: max-content; max-width: calc(100vw - 32px);
+  padding: 14px 20px;
+  border-radius: 22px;
+  background: rgba(10, 14, 32, 0.78);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  color: #fff;
+  font: 700 21px/1.3 -apple-system, BlinkMacSystemFont, sans-serif;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transition: opacity 500ms ease, transform 500ms ease;
+}
+#bigHint[hidden] { display: none; }
+#bigHint.gone { opacity: 0; transform: translate(-50%, 12px); }
+#bigHint svg { flex: none; width: 34px; height: 34px; }
+@keyframes hintSwipe { 0%, 100% { transform: translateX(-5px) rotate(-8deg); } 50% { transform: translateX(6px) rotate(6deg); } }
+@media (prefers-reduced-motion: no-preference) { #bigHint svg { animation: hintSwipe 2.4s ease-in-out infinite; } }
+html.fs-big { font-size: 120%; }
+</style>
+<script>
+(function() {
+  if (window.top !== window.self) {
+    var toHub = document.getElementById('toHub');
+    if (toHub) toHub.addEventListener('click', function(e) { e.preventDefault(); parent.postMessage({ chka: 'close-3d' }, '*'); });
+  }
+
+  var l = 'hy';
+  try {
+    l = localStorage.getItem('chka-lang') || ((navigator.languages && navigator.languages[0]) || navigator.language || '').slice(0, 2).toLowerCase();
+    if (localStorage.getItem('chka-fs') === 'big') document.documentElement.classList.add('fs-big');
+  } catch (e) {}
+
+  var T_hint = { hy: 'Պտտեք մատով · երկու մատով՝ մոտեցնել', ru: 'Крутите пальцем · щипок — приблизить', en: 'Drag to spin · pinch to zoom' };
+  var T_spin = { hy: 'Պտույտն արագացված է', ru: 'Вращение ускорено', en: 'Rotation is sped up' };
+  var T_hub = { hy: 'Չկա', ru: 'Назад', en: 'Back' };
+  var T_load = { hy: 'Բեռնում...', ru: 'Загрузка...', en: 'Loading...' };
+  
+  if (!T_hint[l]) l = 'hy';
+  document.getElementById('bigHintText').textContent = T_hint[l];
+  document.getElementById('spinNote').textContent = T_spin[l];
+  document.getElementById('toHubText').textContent = T_hub[l];
+  document.getElementById('loaderText').textContent = T_load[l];
+
+  var box = document.getElementById('bigHint');
+  var KEY = 'chka-3d-hint';
+  var hasHint = false;
+  try { hasHint = !!localStorage.getItem(KEY); } catch (e) {}
+  if (!hasHint) {
+    box.hidden = false;
+    function hide() {
+      box.classList.add('gone');
+      try { localStorage.setItem(KEY, '1'); } catch (e) {}
+      window.removeEventListener('pointerdown', hide, true);
+      window.removeEventListener('touchstart', hide, true);
+      setTimeout(function () { box.hidden = true; }, 600);
+    }
+    window.addEventListener('pointerdown', hide, true);
+  }
+})();
+</script>
 
 <script type="importmap">
 {
@@ -93,20 +358,65 @@ document.querySelectorAll('.chip').forEach(btn => {
   });
 });
 
+let menuMode = '';
+const hud = document.getElementById('hud');
+const hudBtn = document.getElementById('hudBtn');
+function setMenu(m) {
+  menuMode = m;
+  hud.classList.toggle('ring', m === 'ring');
+  hud.classList.toggle('sub', m === 'sub');
+  document.body.classList.toggle('menu', m !== '');
+  hudBtn.setAttribute('aria-expanded', m === '' ? 'false' : 'true');
+}
+
+hudBtn.addEventListener('click', () => {
+  setMenu(menuMode === 'sub' ? 'ring' : (menuMode === '' ? 'ring' : ''));
+});
+document.getElementById('weatherBtn').addEventListener('click', () => setMenu('sub'));
+document.getElementById('hideBtn').addEventListener('click', () => {
+  setMenu('');
+  document.body.classList.toggle('ui-off');
+});
+document.getElementById('resetBtn').addEventListener('click', () => {
+  engine.controls.reset();
+  setMenu('');
+});
+let droneActive = false;
+document.getElementById('droneBtn').addEventListener('click', () => {
+  droneActive = !droneActive;
+  document.getElementById('droneBtn').setAttribute('aria-pressed', droneActive);
+  engine.controls.autoRotate = droneActive;
+  setMenu('');
+});
+document.getElementById('c').addEventListener('click', () => {
+  if (menuMode !== '') setMenu('');
+  if (document.body.classList.contains('ui-off')) document.body.classList.remove('ui-off');
+});
+
+
+const isPhone = window.innerWidth <= 450;
+let lowFpsFrames = 0;
 const fpsEl = document.getElementById('fps');
 let frameCount = 0, lastFpsTime = performance.now();
 engine.onUpdate(() => {
   frameCount++;
   const now = performance.now();
   if (now - lastFpsTime >= 250) {
-    fpsEl.textContent = Math.round(frameCount / ((now - lastFpsTime) / 1000)) + ' fps';
+    const fps = frameCount / ((now - lastFpsTime) / 1000);
+    fpsEl.textContent = Math.round(fps) + ' fps';
+    if (isPhone && fps < 30) lowFpsFrames++;
+    else lowFpsFrames = 0;
+    if (lowFpsFrames > 4 && engine.setHatchEnabled) engine.setHatchEnabled(false);
     frameCount = 0;
     lastFpsTime = now;
   }
 });
 
 engine.start();
+document.getElementById("loader").style.opacity = 0;
+setTimeout(() => document.getElementById("loader").remove(), 500);
 </script>
 </div>
+<div id="build-version" style="position:fixed; bottom: 8px; left: 8px; font-size: 10px; color: rgba(186,194,214,0.5); z-index: 100; pointer-events: none; font-family: monospace;">сборка 76 · 22.09 01:28</div>
 </body>
 </html>
