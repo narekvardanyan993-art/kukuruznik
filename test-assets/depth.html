@@ -129,6 +129,58 @@
     transition: opacity 600ms ease;
   }
   #hint.gone { opacity: 0; }
+
+  /* Точки-подсказки: маленький пульсирующий маркер, привязанный к
+     объекту на слое (двигается вместе с ним при параллаксе — позиция
+     считается в JS той же формулой смещения, что и в шейдере). */
+  #hotspots { position: absolute; inset: 0; z-index: 6; pointer-events: none; }
+  .hs-dot {
+    position: absolute; top: 0; left: 0;
+    width: 22px; height: 22px; margin: -11px;
+    border: none; padding: 0; background: none;
+    pointer-events: auto; cursor: pointer;
+    opacity: 0; transition: opacity 400ms ease;
+  }
+  .hs-dot.show { opacity: 1; }
+  .hs-dot::before, .hs-dot::after {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    border-radius: 50%; transform: translate(-50%, -50%);
+  }
+  .hs-dot::before {
+    width: 10px; height: 10px;
+    background: #fff; border: 2px solid rgba(20,16,8,0.55);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+  }
+  .hs-dot::after {
+    width: 10px; height: 10px;
+    background: rgba(255,255,255,0.7);
+    animation: hsPulse 2.2s ease-out infinite;
+  }
+  @keyframes hsPulse {
+    0% { transform: translate(-50%, -50%) scale(1); opacity: 0.7; }
+    100% { transform: translate(-50%, -50%) scale(2.8); opacity: 0; }
+  }
+
+  #hsPopup {
+    position: absolute; z-index: 7;
+    max-width: min(78vw, 280px);
+    width: max-content;
+    background: var(--paper); color: var(--ink);
+    border-radius: 12px; padding: 10px 13px;
+    font-size: 13px; line-height: 1.4;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.3);
+    --shift: 0px;
+    transform: translate(calc(-50% + var(--shift)), -100%) translateY(-14px);
+    opacity: 0; pointer-events: none;
+    transition: opacity 200ms ease;
+  }
+  #hsPopup.show { opacity: 1; pointer-events: auto; }
+  #hsPopup::after {
+    /* хвостик остаётся над точкой, даже если сам блок сдвинут от края */
+    content: ''; position: absolute; left: calc(50% - var(--shift)); top: 100%;
+    width: 10px; height: 10px; margin-left: -5px; margin-top: -5px;
+    background: var(--paper); transform: rotate(45deg);
+  }
 </style>
 </head>
 <body>
@@ -139,6 +191,8 @@
   <button id="prevBtn" class="nav-btn" type="button" aria-label="Предыдущий кадр">‹</button>
   <button id="nextBtn" class="nav-btn" type="button" aria-label="Следующий кадр">›</button>
   <div id="dots"></div>
+  <div id="hotspots"></div>
+  <div id="hsPopup"></div>
   <div id="gyroOverlay" hidden>
     <div class="gyro-card">
       <div class="gyro-icon">📱</div>
@@ -190,7 +244,78 @@ var CONFIG = {
     { bg: { color: 'frames/v_angle_4_bg.png', depth: 'frames/v_angle_4_bg_depth.png' }, building: { color: 'frames/v_angle_4_building.png', depth: 'frames/v_angle_4_depth.png' } },
     { bg: { color: 'frames/v_angle_5_bg.png', depth: 'frames/v_angle_5_bg_depth.png' }, building: { color: 'frames/v_angle_5_building.png', depth: 'frames/v_angle_5_depth.png' } },
     /* FRAMES:END */
-  ]
+  ],
+
+  // Точки-подсказки: 2-4 на кадр. u/v — позиция на исходной картинке
+  // (0..1, как у текстур), layer — какой слой заслоняет (building —
+  // вырезка здания, bg — фон), depth — глубина в этой самой точке,
+  // взята из настоящей depth-карты (tools/, не на глаз), чтобы точка
+  // двигалась при наклоне ровно как то место на картинке, к которому
+  // привязана. key — ключ текста в I18N ниже.
+  HOTSPOTS: [
+    [ // v_angle_0
+      { key: 'tower1', layer: 'building', u: 0.50, v: 0.50, depth: 0.247 },
+      { key: 'tower2', layer: 'building', u: 0.50, v: 0.36, depth: 0.251 },
+      { key: 'architects', layer: 'bg', u: 0.15, v: 0.60, depth: 0.220 }
+    ],
+    [ // v_angle_1
+      { key: 'tower1', layer: 'building', u: 0.48, v: 0.50, depth: 0.463 },
+      { key: 'tower2', layer: 'building', u: 0.48, v: 0.37, depth: 0.486 },
+      { key: 'architects', layer: 'bg', u: 0.60, v: 0.68, depth: 0.306 },
+      { key: 'mother_armenia', layer: 'bg', u: 0.17, v: 0.43, depth: 0.071 }
+    ],
+    [ // v_angle_2
+      { key: 'tower1', layer: 'building', u: 0.47, v: 0.48, depth: 0.384 },
+      { key: 'tower2', layer: 'building', u: 0.47, v: 0.35, depth: 0.369 },
+      { key: 'architects', layer: 'bg', u: 0.80, v: 0.62, depth: 0.361 }
+    ],
+    [ // v_angle_3
+      { key: 'tower1', layer: 'building', u: 0.50, v: 0.55, depth: 0.275 },
+      { key: 'tower2', layer: 'building', u: 0.50, v: 0.38, depth: 0.290 },
+      { key: 'architects', layer: 'bg', u: 0.50, v: 0.635, depth: 0.176 }
+    ],
+    [ // v_angle_4
+      { key: 'tower1', layer: 'building', u: 0.62, v: 0.48, depth: 0.498 },
+      { key: 'tower2', layer: 'building', u: 0.62, v: 0.38, depth: 0.486 },
+      { key: 'mother_armenia', layer: 'bg', u: 0.87, v: 0.25, depth: 0.031 },
+      { key: 'construction', layer: 'bg', u: 0.90, v: 0.58, depth: 0.455 }
+    ],
+    [ // v_angle_5
+      { key: 'tower1', layer: 'building', u: 0.45, v: 0.45, depth: 0.514 },
+      { key: 'tower2', layer: 'building', u: 0.55, v: 0.12, depth: 0.486 },
+      { key: 'architects', layer: 'bg', u: 0.50, v: 0.88, depth: 0.800 }
+    ]
+  ],
+
+  // Тексты подсказок. ТОЛЬКО эти пять, свои факты не добавлять.
+  // hy (армянский) — черновой перевод, ПОМЕЧЕН для вычитки владельцем.
+  I18N: {
+    tower1: {
+      ru: 'Дом молодёжи, открыт в 1979. В народе — Кукурузник',
+      en: 'Youth Palace, opened in 1979. Nicknamed "the Corncob"',
+      hy: 'Երիտասարդության պալատ, բացվել է 1979-ին։ Ժողովրդականում՝ Կուկուրուզնիկ' // TODO: армянский — вычитать мне
+    },
+    tower2: {
+      ru: 'Снесён в 2006, официально — из-за сейсмической безопасности',
+      en: 'Demolished in 2006, officially for seismic safety reasons',
+      hy: 'Քանդվել է 2006-ին, պաշտոնապես՝ սեյսմիկ անվտանգության պատճառով' // TODO: армянский — вычитать мне
+    },
+    architects: {
+      ru: 'Архитекторы: А. Тарханян, С. Хачикян, Г. Погосян, М. Захарян',
+      en: 'Architects: A. Tarkhanyan, S. Khachikyan, G. Poghosyan, M. Zakaryan',
+      hy: 'Ճարտարապետներ՝ Ա. Թարխանյան, Ս. Խաչիկյան, Գ. Պողոսյան, Մ. Զաքարյան' // TODO: армянский — вычитать мне
+    },
+    mother_armenia: {
+      ru: 'Мать Армения, 1967',
+      en: 'Mother Armenia, 1967',
+      hy: 'Մայր Հայաստան, 1967' // TODO: армянский — вычитать мне
+    },
+    construction: {
+      ru: 'Строительство, 1976–1977',
+      en: 'Construction, 1976–1977',
+      hy: 'Շինարարություն, 1976–1977' // TODO: армянский — вычитать мне
+    }
+  }
 };
 /* ==================================================== */
 
@@ -318,8 +443,10 @@ var CONFIG = {
 
   // Тот же брейкпоинт, что и у #stage в CSS (узкий экран = мобильный режим).
   var mobileQuery = window.matchMedia('(max-width: 820px)');
+  var currentStrength = CONFIG.STRENGTH;
   function updateStrength() {
-    gl.uniform1f(uStrength, mobileQuery.matches ? CONFIG.STRENGTH_MOBILE : CONFIG.STRENGTH);
+    currentStrength = mobileQuery.matches ? CONFIG.STRENGTH_MOBILE : CONFIG.STRENGTH;
+    gl.uniform1f(uStrength, currentStrength);
   }
   updateStrength();
 
@@ -357,6 +484,9 @@ var CONFIG = {
   // ---------- размер холста ----------
   var natW = 1080, natH = 1920; // перезапишется по первой реальной картинке
   var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  // Текущий "cover"-масштаб/офсет — храним и в JS, чтобы точки-подсказки
+  // считали экранную позицию той же формулой, что и шейдер.
+  var coverUvW = 1, coverUvH = 1, coverOffX = 0, coverOffY = 0;
 
   function resize() {
     var cssW = stage.clientWidth;
@@ -376,9 +506,12 @@ var CONFIG = {
     // background-size: cover.
     var factor = Math.max(cssW / natW, cssH / natH);
     var dispW = natW * factor, dispH = natH * factor;
-    var uvW = cssW / dispW, uvH = cssH / dispH;
-    gl.uniform2f(uCoverScale, uvW, uvH);
-    gl.uniform2f(uCoverOffset, (1 - uvW) / 2, (1 - uvH) / 2);
+    coverUvW = cssW / dispW;
+    coverUvH = cssH / dispH;
+    coverOffX = (1 - coverUvW) / 2;
+    coverOffY = (1 - coverUvH) / 2;
+    gl.uniform2f(uCoverScale, coverUvW, coverUvH);
+    gl.uniform2f(uCoverOffset, coverOffX, coverOffY);
 
     updateStrength();
   }
@@ -419,6 +552,111 @@ var CONFIG = {
     for (var k = 0; k < kids.length; k++) kids[k].classList.toggle('on', k === i);
   }
 
+  // ---------- язык (общий с сайтом: тот же ключ localStorage) ----------
+  var currentLang = (function () {
+    var l = 'hy';
+    try {
+      l = localStorage.getItem('chka-lang') ||
+        ((navigator.languages && navigator.languages[0]) || navigator.language || '').slice(0, 2).toLowerCase();
+    } catch (e) {}
+    if (!CONFIG.I18N.tower1[l]) l = 'hy';
+    return l;
+  })();
+
+  // ---------- точки-подсказки ----------
+  var hotspotsEl = document.getElementById('hotspots');
+  var hsPopup = document.getElementById('hsPopup');
+  var activeHotspots = []; // [{el, u, v, depth, layer}] для текущего кадра
+
+  function closePopup() {
+    hsPopup.classList.remove('show');
+  }
+
+  function openPopup(hs, dotEl) {
+    hsPopup.textContent = (CONFIG.I18N[hs.key] && CONFIG.I18N[hs.key][currentLang]) || '';
+    hsPopup.style.left = '0px';
+    hsPopup.style.top = '0px';
+    hsPopup.style.setProperty('--shift', '0px');
+    var stageRect = stage.getBoundingClientRect();
+    var dotRect = dotEl.getBoundingClientRect();
+    var left = dotRect.left - stageRect.left + dotRect.width / 2;
+    var top = dotRect.top - stageRect.top;
+    hsPopup.style.left = left + 'px';
+    hsPopup.style.top = top + 'px';
+    hsPopup.classList.add('show');
+    // не даём вылезти за края стейджа — сдвигаем сам блок, хвостик
+    // остаётся указывать на точку.
+    requestAnimationFrame(function () {
+      var pr = hsPopup.getBoundingClientRect();
+      var shift = 0;
+      if (pr.left < stageRect.left + 8) shift = stageRect.left + 8 - pr.left;
+      else if (pr.right > stageRect.right - 8) shift = stageRect.right - 8 - pr.right;
+      hsPopup.style.setProperty('--shift', shift + 'px');
+    });
+  }
+
+  function buildHotspots(frameIdx) {
+    hotspotsEl.innerHTML = '';
+    activeHotspots = [];
+    var list = CONFIG.HOTSPOTS[frameIdx] || [];
+    list.forEach(function (hs) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'hs-dot';
+      btn.setAttribute('aria-label', (CONFIG.I18N[hs.key] && CONFIG.I18N[hs.key][currentLang]) || hs.key);
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (hsPopup.classList.contains('show') && hsPopup._forDot === btn) {
+          closePopup();
+        } else {
+          hsPopup._forDot = btn;
+          openPopup(hs, btn);
+        }
+      });
+      // Наведение мышью на столе — тач-устройства mouseenter не шлют,
+      // так что тут только настоящий hover.
+      btn.addEventListener('mouseenter', function () {
+        hsPopup._forDot = btn;
+        openPopup(hs, btn);
+      });
+      btn.addEventListener('mouseleave', function () {
+        if (hsPopup._forDot === btn) closePopup();
+      });
+      hotspotsEl.appendChild(btn);
+      activeHotspots.push({ el: btn, hs: hs });
+    });
+    // показать с лёгкой задержкой, чтобы не мигали поверх кроссфейда
+    requestAnimationFrame(function () {
+      activeHotspots.forEach(function (a) { a.el.classList.add('show'); });
+    });
+  }
+
+  function hideHotspots() {
+    closePopup();
+    activeHotspots.forEach(function (a) { a.el.classList.remove('show'); });
+  }
+
+  document.addEventListener('pointerdown', function (e) {
+    if (hsPopup.classList.contains('show') && !hsPopup.contains(e.target) && e.target !== hsPopup._forDot) {
+      closePopup();
+    }
+  });
+
+  function updateHotspotPositions(tiltX, tiltY, breathX, breathY, coverScaleX, coverScaleY, coverOffX, coverOffY, strength) {
+    if (!activeHotspots.length) return;
+    var cssW = stage.clientWidth, cssH = stage.clientHeight;
+    activeHotspots.forEach(function (a) {
+      var hs = a.hs;
+      var offX = hs.depth * (strength * tiltX + breathX);
+      var offY = hs.depth * (strength * tiltY + breathY);
+      var trackedU = hs.u + offX;
+      var trackedV = hs.v + offY;
+      var screenU = (trackedU - coverOffX) / coverScaleX;
+      var screenV = (trackedV - coverOffY) / coverScaleY;
+      a.el.style.transform = 'translate(' + (screenU * cssW) + 'px,' + (screenV * cssH) + 'px)';
+    });
+  }
+
   var mixState = 0;
   var crossfading = false;
   var _pendingIndex = 0;
@@ -430,6 +668,7 @@ var CONFIG = {
     if (newIndex === frameIndex) return;
     crossfading = true;
     _pendingIndex = newIndex;
+    hideHotspots();
     loadLayerSet(newIndex, 'B').then(function (imgs) {
       var bgImg = imgs[0];
       if (bgImg.naturalWidth) setNaturalSize(bgImg.naturalWidth, bgImg.naturalHeight);
@@ -444,6 +683,7 @@ var CONFIG = {
           loadLayerSet(newIndex, 'A'); // B становится A для следующего перехода
           frameIndex = newIndex;
           markDot(frameIndex);
+          buildHotspots(frameIndex);
           crossfading = false;
           mixState = 0;
         }
@@ -458,6 +698,7 @@ var CONFIG = {
       if (bgImg.naturalWidth) setNaturalSize(bgImg.naturalWidth, bgImg.naturalHeight);
       stage.classList.remove('loading');
       buildDots();
+      buildHotspots(frameIndex);
     });
   }
 
@@ -605,6 +846,10 @@ var CONFIG = {
     gl.uniform2f(uBreath, breathX, breathY);
     gl.uniform1f(uMix, mixState);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    if (!crossfading) {
+      updateHotspotPositions(tiltX, tiltY, breathX, breathY, coverUvW, coverUvH, coverOffX, coverOffY, currentStrength);
+    }
 
     requestAnimationFrame(frame);
   }
