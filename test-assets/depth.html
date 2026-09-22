@@ -122,11 +122,16 @@ var CONFIG = {
   // Кроссфейд между кадрами при свайпе/стрелках, мс.
   FRAME_CROSSFADE_MS: 320,
 
+  // Список ниже между метками генерируется автоматически командой
+  // .venv-depth/bin/python tools/build_frames.py — руками не редактировать,
+  // править картинки в test-assets/frames/ и перезапускать скрипт.
   FRAMES: [
-    { color: 'angle_0.png', depth: 'angle_0_depth.png' },
-    { color: 'angle_1.png', depth: 'angle_1_depth.png' },
-    { color: 'angle_2.png', depth: 'angle_2_depth.png' },
-    { color: 'angle_3.png', depth: 'angle_3_depth.png' }
+    /* FRAMES:START */
+    { color: 'frames/angle_0.png', depth: 'frames/angle_0_depth.png' },
+    { color: 'frames/angle_1.png', depth: 'frames/angle_1_depth.png' },
+    { color: 'frames/angle_2.png', depth: 'frames/angle_2_depth.png' },
+    { color: 'frames/angle_3.png', depth: 'frames/angle_3_depth.png' },
+    /* FRAMES:END */
   ]
 };
 /* ==================================================== */
