@@ -6,22 +6,37 @@
     `git reset --hard working-2026-09-22`
 - **Тег depth-photo-v1** (ветка `test/depth-photo`): рабочий просмотрщик «3D-фото» до конвейера кадров и стилизации.
   - Откат: `git reset --hard depth-photo-v1`
+- **Тег depth-photo-v2** (ветка `test/depth-photo`): вертикальные кадры 9:16, новый карандашный стиль, двухслойный шейдер (фон + здание) против размазывания.
+  - Откат: `git reset --hard depth-photo-v2`
 
 ## Конвейер кадров для test-assets/depth.html (ветка test/depth-photo)
-Одна команда пересчитывает карты глубины для всех картинок в
-`test-assets/frames/` и переписывает список кадров в
-`test-assets/depth.html` (только между метками `FRAMES:START`/`FRAMES:END`,
-остальной код файла не трогает):
+Одна команда пересчитывает карты глубины, вырезает здание (маска) и
+переписывает список кадров в `test-assets/depth.html` (только между
+метками `FRAMES:START`/`FRAMES:END`, остальной код файла не трогает):
 
 ```
 .venv-depth/bin/python tools/build_frames.py
 ```
 
-- Кладёшь/меняешь цветные картинки в `test-assets/frames/*.png` (имя без
-  суффикса `_depth`) — скрипт сам построит `<имя>_depth.png` рядом и
-  обновит CONFIG.FRAMES.
-- Если депth-карта уже новее исходника — пересчёт для неё пропускается;
+Раскладка на кадр `<имя>` в `test-assets/frames/` — оба файла обязательны:
+- `<имя>.png` — цветной кадр со зданием;
+- `<имя>_bg.png` — тот же кадр без здания (просишь Gemini убрать башню,
+  оставить фон в том же стиле).
+
+Скрипт сам достраивает:
+- `<имя>_depth.png` / `<имя>_bg_depth.png` — карты глубины (Depth Anything V2 Small, MPS);
+- `<имя>_building.png` — RGBA-вырезка здания: маска через двухпроходный SAM
+  (facebook/sam-vit-base) — точка по разнице «со зданием / без здания»,
+  затем уточняющий bbox с запасом сверху под «шляпу», мягкий край.
+
+Оба слоя (фон и здание) в шейдере смещаются по своей глубине независимо
+и собираются alpha-blend — так граница башни не размазывает фон при
+наклоне.
+
+- Если файл уже новее исходника — пересчёт для него пропускается;
   `--force` пересчитывает всё заново.
-- Модель — Depth Anything V2 Small, работает локально через venv
-  `.venv-depth` (не в git, поднимается один раз: `python3 -m venv .venv-depth`
-  + `pip install torch torchvision transformers pillow numpy accelerate`).
+- Модель глубины — Depth Anything V2 Small; SAM — facebook/sam-vit-base
+  (грузится через `transformers`, но крутится на CPU: MPS не тянет
+  float64 в постобработке SAM). Всё локально через venv `.venv-depth`
+  (не в git, поднимается один раз: `python3 -m venv .venv-depth` +
+  `pip install torch torchvision transformers pillow numpy accelerate scipy`).

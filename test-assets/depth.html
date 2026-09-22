@@ -24,15 +24,28 @@
     position: relative;
     /* На широком экране не растягиваем картинку больше её исходного
        разрешения — по бокам остаётся фон бумаги, как у остальных сцен
-       сайта. На узком экране просто занимаем всю ширину. */
+       сайта. */
     width: 100%;
-    max-width: 1600px;
-    aspect-ratio: var(--natW, 1600) / var(--natH, 1100);
+    max-width: 1080px;
+    aspect-ratio: var(--natW, 1080) / var(--natH, 1920);
     overflow: hidden;
     touch-action: none;
     background: #000;
   }
   #gl { display: block; width: 100%; height: 100%; }
+
+  /* На узком (телефонном) экране картинка должна занимать весь экран без
+     пустых полос сверху/снизу — вместо вписывания по ширине с полями
+     бумаги стейдж растягивается на весь вьюпорт, а WebGL сам обрезает
+     кадр по принципу "cover" (см. uCoverScale/uCoverOffset в шейдере),
+     без искажения пропорций. */
+  @media (max-width: 820px) {
+    body { display: block; }
+    #stage {
+      width: 100vw; height: 100vh; height: 100dvh;
+      max-width: none; aspect-ratio: auto;
+    }
+  }
 
   #stage.loading #gl { visibility: hidden; }
   #loader {
@@ -68,14 +81,44 @@
   }
   #dots span.on { background: #fff; transform: scale(1.25); }
 
+  /* Крупный, заметный запрос на гироскоп при первом открытии на iPhone —
+     не мелкая кнопка сбоку, а центральная карточка поверх сцены. */
+  #gyroOverlay {
+    position: absolute; inset: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+    background: rgba(12, 10, 6, 0.5);
+    -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+    transition: opacity 300ms ease;
+  }
+  #gyroOverlay[hidden] { display: none; }
+  #gyroOverlay.gone { opacity: 0; pointer-events: none; }
+  .gyro-card {
+    max-width: 320px; width: 100%;
+    background: var(--paper); color: var(--ink);
+    border-radius: 20px; padding: 26px 22px 20px;
+    text-align: center;
+    box-shadow: 0 18px 40px rgba(0,0,0,0.35);
+  }
+  .gyro-card .gyro-icon { font-size: 40px; margin-bottom: 10px; }
+  .gyro-card p {
+    margin: 0 0 18px; font-size: 16px; line-height: 1.4;
+  }
   #gyroBtn {
-    position: absolute; right: 10px; top: 10px; z-index: 6;
-    padding: 9px 14px; border-radius: 20px; border: none;
-    background: rgba(20, 16, 8, 0.45); color: #fff; font: 600 13px/1 -apple-system, sans-serif;
-    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    display: block; width: 100%;
+    padding: 15px 18px; border-radius: 14px; border: none;
+    background: var(--ink); color: var(--paper);
+    font: 700 16px/1 -apple-system, sans-serif;
     cursor: pointer;
   }
-  #gyroBtn[hidden] { display: none; }
+  #gyroBtn:active { opacity: 0.85; }
+  #gyroSkip {
+    display: block; width: 100%; margin-top: 10px;
+    padding: 10px; border: none; background: none;
+    color: var(--ink); opacity: 0.6;
+    font: 500 13px/1 -apple-system, sans-serif;
+    cursor: pointer;
+  }
 
   #hint {
     position: absolute; left: 50%; bottom: 38px; transform: translateX(-50%);
@@ -96,7 +139,14 @@
   <button id="prevBtn" class="nav-btn" type="button" aria-label="Предыдущий кадр">‹</button>
   <button id="nextBtn" class="nav-btn" type="button" aria-label="Следующий кадр">›</button>
   <div id="dots"></div>
-  <button id="gyroBtn" hidden type="button">Включить гироскоп</button>
+  <div id="gyroOverlay" hidden>
+    <div class="gyro-card">
+      <div class="gyro-icon">📱</div>
+      <p>Наклони телефон — здание отзовётся объёмом</p>
+      <button id="gyroBtn" type="button">Включить наклон</button>
+      <button id="gyroSkip" type="button">Не сейчас</button>
+    </div>
+  </div>
   <div id="hint">Веди пальцем / мышью · свайп — сменить кадр</div>
 </div>
 
@@ -106,7 +156,7 @@
    больше в коде не настраивается. */
 var CONFIG = {
   // Сила смещения слоёв по глубине, доля ширины кадра.
-  STRENGTH: 0.035,
+  STRENGTH: 0.05,
 
   // Максимальный наклон от управления (палец/мышь/гироскоп).
   MAX_TILT_X_DEG: 12,   // по горизонтали
@@ -125,12 +175,16 @@ var CONFIG = {
   // Список ниже между метками генерируется автоматически командой
   // .venv-depth/bin/python tools/build_frames.py — руками не редактировать,
   // править картинки в test-assets/frames/ и перезапускать скрипт.
+  // У каждого кадра два слоя (против размазывания на границе башни):
+  // bg — фон без здания, building — вырезка здания (RGBA) со своей глубиной.
   FRAMES: [
     /* FRAMES:START */
-    { color: 'frames/angle_0.png', depth: 'frames/angle_0_depth.png' },
-    { color: 'frames/angle_1.png', depth: 'frames/angle_1_depth.png' },
-    { color: 'frames/angle_2.png', depth: 'frames/angle_2_depth.png' },
-    { color: 'frames/angle_3.png', depth: 'frames/angle_3_depth.png' },
+    { bg: { color: 'frames/v_angle_0_bg.png', depth: 'frames/v_angle_0_bg_depth.png' }, building: { color: 'frames/v_angle_0_building.png', depth: 'frames/v_angle_0_depth.png' } },
+    { bg: { color: 'frames/v_angle_1_bg.png', depth: 'frames/v_angle_1_bg_depth.png' }, building: { color: 'frames/v_angle_1_building.png', depth: 'frames/v_angle_1_depth.png' } },
+    { bg: { color: 'frames/v_angle_2_bg.png', depth: 'frames/v_angle_2_bg_depth.png' }, building: { color: 'frames/v_angle_2_building.png', depth: 'frames/v_angle_2_depth.png' } },
+    { bg: { color: 'frames/v_angle_3_bg.png', depth: 'frames/v_angle_3_bg_depth.png' }, building: { color: 'frames/v_angle_3_building.png', depth: 'frames/v_angle_3_depth.png' } },
+    { bg: { color: 'frames/v_angle_4_bg.png', depth: 'frames/v_angle_4_bg_depth.png' }, building: { color: 'frames/v_angle_4_building.png', depth: 'frames/v_angle_4_depth.png' } },
+    { bg: { color: 'frames/v_angle_5_bg.png', depth: 'frames/v_angle_5_bg_depth.png' }, building: { color: 'frames/v_angle_5_building.png', depth: 'frames/v_angle_5_depth.png' } },
     /* FRAMES:END */
   ]
 };
@@ -143,7 +197,9 @@ var CONFIG = {
   var canvas = document.getElementById('gl');
   var loader = document.getElementById('loader');
   var hint = document.getElementById('hint');
+  var gyroOverlay = document.getElementById('gyroOverlay');
   var gyroBtn = document.getElementById('gyroBtn');
+  var gyroSkip = document.getElementById('gyroSkip');
   var prevBtn = document.getElementById('prevBtn');
   var nextBtn = document.getElementById('nextBtn');
   var dotsEl = document.getElementById('dots');
@@ -166,28 +222,45 @@ var CONFIG = {
     '}'
   ].join('\n');
 
+  // Два слоя на кадр — фон (bg) и вырезка здания (building, RGBA) — у
+  // каждого своя глубина. Так граница башни не "размазывает" фон и
+  // наоборот: смещаются независимо, а собираются через alpha-blend.
   var FRAG = [
     'precision highp float;',
     'varying vec2 vUv;',
-    'uniform sampler2D uColorA;',
-    'uniform sampler2D uDepthA;',
-    'uniform sampler2D uColorB;',
-    'uniform sampler2D uDepthB;',
+    'uniform sampler2D uBgColorA;',
+    'uniform sampler2D uBgDepthA;',
+    'uniform sampler2D uBldColorA;',
+    'uniform sampler2D uBldDepthA;',
+    'uniform sampler2D uBgColorB;',
+    'uniform sampler2D uBgDepthB;',
+    'uniform sampler2D uBldColorB;',
+    'uniform sampler2D uBldDepthB;',
     'uniform float uMix;',       // 0 = кадр A, 1 = кадр B
     'uniform vec2  uTilt;',      // текущий сглаженный наклон, -1..1
     'uniform vec2  uBreath;',    // офсет "дыхания"
     'uniform float uStrength;',
+    'uniform vec2  uCoverScale;', // "cover"-обрезка кадра под экран (моб.)
+    'uniform vec2  uCoverOffset;',
     '',
-    'vec3 layer(sampler2D colorTex, sampler2D depthTex) {',
-    '  float depth = texture2D(depthTex, vUv).r;',
-    '  vec2 offset = depth * (uStrength * uTilt + uBreath);',
-    '  vec2 uv = clamp(vUv - offset, 0.0, 1.0);',
-    '  return texture2D(colorTex, uv).rgb;',
+    'vec3 layer(sampler2D bgColor, sampler2D bgDepth, sampler2D bldColor, sampler2D bldDepth, vec2 uv) {',
+    '  float dBg = texture2D(bgDepth, uv).r;',
+    '  vec2 offBg = dBg * (uStrength * uTilt + uBreath);',
+    '  vec2 uvBg = clamp(uv - offBg, 0.0, 1.0);',
+    '  vec3 bg = texture2D(bgColor, uvBg).rgb;',
+    '',
+    '  float dBld = texture2D(bldDepth, uv).r;',
+    '  vec2 offBld = dBld * (uStrength * uTilt + uBreath);',
+    '  vec2 uvBld = clamp(uv - offBld, 0.0, 1.0);',
+    '  vec4 bld = texture2D(bldColor, uvBld);',
+    '',
+    '  return mix(bg, bld.rgb, bld.a);',
     '}',
     '',
     'void main() {',
-    '  vec3 a = layer(uColorA, uDepthA);',
-    '  vec3 b = layer(uColorB, uDepthB);',
+    '  vec2 uv = vUv * uCoverScale + uCoverOffset;',
+    '  vec3 a = layer(uBgColorA, uBgDepthA, uBldColorA, uBldDepthA, uv);',
+    '  vec3 b = layer(uBgColorB, uBgDepthB, uBldColorB, uBldDepthB, uv);',
     '  gl_FragColor = vec4(mix(a, b, uMix), 1.0);',
     '}'
   ].join('\n');
@@ -223,33 +296,47 @@ var CONFIG = {
   var uTilt = gl.getUniformLocation(prog, 'uTilt');
   var uBreath = gl.getUniformLocation(prog, 'uBreath');
   var uStrength = gl.getUniformLocation(prog, 'uStrength');
-  var uColorA = gl.getUniformLocation(prog, 'uColorA');
-  var uDepthA = gl.getUniformLocation(prog, 'uDepthA');
-  var uColorB = gl.getUniformLocation(prog, 'uColorB');
-  var uDepthB = gl.getUniformLocation(prog, 'uDepthB');
+  var uCoverScale = gl.getUniformLocation(prog, 'uCoverScale');
+  var uCoverOffset = gl.getUniformLocation(prog, 'uCoverOffset');
+
+  // 8 текстурных юнитов: {bg,bld} x {color,depth} x {A,B}
+  var LAYER_KEYS = ['bgColor', 'bgDepth', 'bldColor', 'bldDepth'];
+  var texUnits = {};
+  var unitIndex = 0;
+  ['A', 'B'].forEach(function (slot) {
+    LAYER_KEYS.forEach(function (key) {
+      var name = key + slot; // напр. bgColorA
+      var loc = gl.getUniformLocation(prog, 'u' + name.charAt(0).toUpperCase() + name.slice(1));
+      texUnits[name] = { tex: null, unit: unitIndex, loc: loc };
+      unitIndex++;
+    });
+  });
 
   gl.uniform1f(uStrength, CONFIG.STRENGTH);
 
   // ---------- текстуры ----------
-  function makeTexUnit(unit) {
+  function makeTexUnit(entry) {
     var tex = gl.createTexture();
-    gl.activeTexture(gl.TEXTURE0 + unit);
+    gl.activeTexture(gl.TEXTURE0 + entry.unit);
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    // 1x1 заглушка, пока не пришла настоящая картинка
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
-    return tex;
+    // 1x1 прозрачная заглушка, пока не пришла настоящая картинка
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 0]));
+    entry.tex = tex;
+    gl.uniform1i(entry.loc, entry.unit);
   }
+  Object.keys(texUnits).forEach(function (k) { makeTexUnit(texUnits[k]); });
 
-  function loadInto(tex, unit, url) {
+  function loadInto(name, url) {
+    var entry = texUnits[name];
     return new Promise(function (resolve, reject) {
       var img = new Image();
       img.onload = function () {
-        gl.activeTexture(gl.TEXTURE0 + unit);
-        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.activeTexture(gl.TEXTURE0 + entry.unit);
+        gl.bindTexture(gl.TEXTURE_2D, entry.tex);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
         resolve(img);
       };
@@ -258,19 +345,8 @@ var CONFIG = {
     });
   }
 
-  var texUnits = {
-    colorA: { tex: makeTexUnit(0), unit: 0 },
-    depthA: { tex: makeTexUnit(1), unit: 1 },
-    colorB: { tex: makeTexUnit(2), unit: 2 },
-    depthB: { tex: makeTexUnit(3), unit: 3 }
-  };
-  gl.uniform1i(uColorA, 0);
-  gl.uniform1i(uDepthA, 1);
-  gl.uniform1i(uColorB, 2);
-  gl.uniform1i(uDepthB, 3);
-
   // ---------- размер холста ----------
-  var natW = 1600, natH = 1100; // перезапишется по первой реальной картинке
+  var natW = 1080, natH = 1920; // перезапишется по первой реальной картинке
   var dpr = Math.min(window.devicePixelRatio || 1, 2);
 
   function resize() {
@@ -283,6 +359,17 @@ var CONFIG = {
       canvas.height = h;
       gl.viewport(0, 0, w, h);
     }
+
+    // "cover": если пропорции стейджа (моб. — во весь экран) не совпадают
+    // с пропорциями картинки, вписываем без искажений и обрезаем лишнее,
+    // а не растягиваем и не оставляем пустых полос. Считаем через
+    // отображаемый размер картинки при масштабе "cover", как в CSS
+    // background-size: cover.
+    var factor = Math.max(cssW / natW, cssH / natH);
+    var dispW = natW * factor, dispH = natH * factor;
+    var uvW = cssW / dispW, uvH = cssH / dispH;
+    gl.uniform2f(uCoverScale, uvW, uvH);
+    gl.uniform2f(uCoverOffset, (1 - uvW) / 2, (1 - uvH) / 2);
   }
   window.addEventListener('resize', resize);
 
@@ -296,10 +383,15 @@ var CONFIG = {
 
   // ---------- загрузка кадров ----------
   var frameIndex = 0;
-  var loadedColorImg = null;
 
-  function frameUrl(i, key) {
-    return CONFIG.FRAMES[i][key];
+  function loadLayerSet(i, slot) {
+    var f = CONFIG.FRAMES[i];
+    return Promise.all([
+      loadInto('bgColor' + slot, f.bg.color),
+      loadInto('bgDepth' + slot, f.bg.depth),
+      loadInto('bldColor' + slot, f.building.color),
+      loadInto('bldDepth' + slot, f.building.depth)
+    ]);
   }
 
   function buildDots() {
@@ -316,15 +408,9 @@ var CONFIG = {
     for (var k = 0; k < kids.length; k++) kids[k].classList.toggle('on', k === i);
   }
 
-  var mixState = 0;       // текущее значение uMix, применяемое к шейдеру
+  var mixState = 0;
   var crossfading = false;
-
-  function loadFrameInto(i, colorKey, depthKey) {
-    return Promise.all([
-      loadInto(texUnits[colorKey].tex, texUnits[colorKey].unit, frameUrl(i, 'color')),
-      loadInto(texUnits[depthKey].tex, texUnits[depthKey].unit, frameUrl(i, 'depth'))
-    ]);
-  }
+  var _pendingIndex = 0;
 
   function goTo(newIndex) {
     if (crossfading) return;
@@ -332,8 +418,10 @@ var CONFIG = {
     newIndex = ((newIndex % n) + n) % n;
     if (newIndex === frameIndex) return;
     crossfading = true;
-    loadFrameInto(newIndex, 'colorB', 'depthB').then(function (imgs) {
-      if (imgs[0].naturalWidth) setNaturalSize(imgs[0].naturalWidth, imgs[0].naturalHeight);
+    _pendingIndex = newIndex;
+    loadLayerSet(newIndex, 'B').then(function (imgs) {
+      var bgImg = imgs[0];
+      if (bgImg.naturalWidth) setNaturalSize(bgImg.naturalWidth, bgImg.naturalHeight);
       var start = null;
       function step(ts) {
         if (start === null) start = ts;
@@ -342,8 +430,7 @@ var CONFIG = {
         if (t < 1) {
           requestAnimationFrame(step);
         } else {
-          // B становится A, чтобы следующий переход снова шёл в B
-          swapAtoB();
+          loadLayerSet(newIndex, 'A'); // B становится A для следующего перехода
           frameIndex = newIndex;
           markDot(frameIndex);
           crossfading = false;
@@ -354,32 +441,10 @@ var CONFIG = {
     });
   }
 
-  function swapAtoB() {
-    // Копируем содержимое B-юнитов в A-юниты через повторную загрузку той
-    // же картинки в текстуру A (дёшево: они уже в кэше браузера).
-    var i = frameIndexPending();
-    loadFrameInto(i, 'colorA', 'depthA');
-  }
-  function frameIndexPending() {
-    // индекс, на который только что переключились (newIndex из goTo)
-    return _pendingIndex;
-  }
-  var _pendingIndex = 0;
-
-  // Переопределяем goTo, чтобы хранить pending index для swapAtoB (без лишних классов).
-  var _origGoTo = goTo;
-  goTo = function (newIndex) {
-    if (crossfading) return;
-    var n = CONFIG.FRAMES.length;
-    newIndex = ((newIndex % n) + n) % n;
-    if (newIndex === frameIndex) return;
-    _pendingIndex = newIndex;
-    _origGoTo(newIndex);
-  };
-
   function initFirstFrame() {
-    return loadFrameInto(0, 'colorA', 'depthA').then(function (imgs) {
-      if (imgs[0].naturalWidth) setNaturalSize(imgs[0].naturalWidth, imgs[0].naturalHeight);
+    return loadLayerSet(0, 'A').then(function (imgs) {
+      var bgImg = imgs[0];
+      if (bgImg.naturalWidth) setNaturalSize(bgImg.naturalWidth, bgImg.naturalHeight);
       stage.classList.remove('loading');
       buildDots();
     });
@@ -473,28 +538,35 @@ var CONFIG = {
     }
   }
 
+  function hideGyroOverlay() {
+    gyroOverlay.classList.add('gone');
+    setTimeout(function () { gyroOverlay.hidden = true; }, 320);
+  }
+
   function enableGyro() {
     gyroActive = true;
     window.addEventListener('deviceorientation', onOrientation);
-    gyroBtn.hidden = true;
+    hideGyroOverlay();
   }
 
   var needsPermission = typeof DeviceOrientationEvent !== 'undefined' &&
     typeof DeviceOrientationEvent.requestPermission === 'function';
 
   if (needsPermission) {
-    gyroBtn.hidden = false;
-    gyroBtn.textContent = 'Включить гироскоп';
+    // Крупная, заметная карточка сразу при первом открытии — не мелкая
+    // кнопка сбоку, легко не заметить на фоне картинки.
+    gyroOverlay.hidden = false;
     gyroBtn.addEventListener('click', function () {
       DeviceOrientationEvent.requestPermission().then(function (state) {
         if (state === 'granted') enableGyro();
-        else gyroBtn.textContent = 'Гироскоп запрещён';
+        else hideGyroOverlay();
       }).catch(function () {
-        gyroBtn.textContent = 'Гироскоп недоступен';
+        hideGyroOverlay();
       });
     });
+    gyroSkip.addEventListener('click', hideGyroOverlay);
   } else if (typeof DeviceOrientationEvent !== 'undefined' && window.DeviceOrientationEvent) {
-    // Android и прочие — разрешение не требуется.
+    // Android и прочие — разрешение не требуется, карточка не нужна.
     enableGyro();
   }
 
