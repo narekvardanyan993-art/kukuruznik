@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>3D-фото — тест параллакса глубины</title>
+<style>
+  :root { --paper: #f5ecda; --ink: #2f2a25; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--paper);
+    color: var(--ink);
+    font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overscroll-behavior: none;
+  }
+  body {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 100%;
+    touch-action: none;
+    user-select: none;
+  }
+  #stage {
+    position: relative;
+    /* На широком экране не растягиваем картинку больше её исходного
+       разрешения — по бокам остаётся фон бумаги, как у остальных сцен
+       сайта. На узком экране просто занимаем всю ширину. */
+    width: 100%;
+    max-width: 1600px;
+    aspect-ratio: var(--natW, 1600) / var(--natH, 1100);
+    overflow: hidden;
+    touch-action: none;
+    background: #000;
+  }
+  #gl { display: block; width: 100%; height: 100%; }
+
+  #stage.loading #gl { visibility: hidden; }
+  #loader {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: var(--paper); color: var(--ink); font-size: 14px; opacity: 0.7;
+    transition: opacity 300ms ease;
+  }
+  #stage:not(.loading) #loader { opacity: 0; pointer-events: none; }
+
+  .nav-btn {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 44px; height: 44px; border-radius: 50%;
+    background: rgba(20, 16, 8, 0.35);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    border: none; color: #fff; font-size: 20px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 5;
+    transition: background 150ms ease, opacity 150ms ease;
+  }
+  .nav-btn:hover { background: rgba(20, 16, 8, 0.55); }
+  .nav-btn:active { background: rgba(20, 16, 8, 0.7); }
+  #prevBtn { left: 10px; }
+  #nextBtn { right: 10px; }
+
+  #dots {
+    position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+    display: flex; gap: 7px; z-index: 5;
+  }
+  #dots span {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: rgba(255,255,255,0.4);
+    transition: background 150ms ease, transform 150ms ease;
+  }
+  #dots span.on { background: #fff; transform: scale(1.25); }
+
+  #gyroBtn {
+    position: absolute; right: 10px; top: 10px; z-index: 6;
+    padding: 9px 14px; border-radius: 20px; border: none;
+    background: rgba(20, 16, 8, 0.45); color: #fff; font: 600 13px/1 -apple-system, sans-serif;
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    cursor: pointer;
+  }
+  #gyroBtn[hidden] { display: none; }
+
+  #hint {
+    position: absolute; left: 50%; bottom: 38px; transform: translateX(-50%);
+    z-index: 5; font-size: 12px; color: #fff; text-align: center; max-width: calc(100% - 24px);
+    background: rgba(20, 16, 8, 0.4); padding: 6px 12px; border-radius: 14px;
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    opacity: 0.9; pointer-events: none;
+    transition: opacity 600ms ease;
+  }
+  #hint.gone { opacity: 0; }
+</style>
+</head>
+<body>
+
+<div id="stage" class="loading">
+  <div id="loader">Загрузка…</div>
+  <canvas id="gl"></canvas>
+  <button id="prevBtn" class="nav-btn" type="button" aria-label="Предыдущий кадр">‹</button>
+  <button id="nextBtn" class="nav-btn" type="button" aria-label="Следующий кадр">›</button>
+  <div id="dots"></div>
+  <button id="gyroBtn" hidden type="button">Включить гироскоп</button>
+  <div id="hint">Веди пальцем / мышью · свайп — сменить кадр</div>
+</div>
+
+<script>
+/* ===================== CONFIG =====================
+   Все параметры эффекта «3D-фото» собраны здесь, ничего похожего
+   больше в коде не настраивается. */
+var CONFIG = {
+  // Сила смещения слоёв по глубине, доля ширины кадра.
+  STRENGTH: 0.035,
+
+  // Максимальный наклон от управления (палец/мышь/гироскоп).
+  MAX_TILT_X_DEG: 12,   // по горизонтали
+  MAX_TILT_Y_DEG: 6,    // по вертикали
+
+  // Плавность возврата в центр после отпускания (0..1, больше = быстрее).
+  RETURN_SMOOTH: 0.08,
+
+  // "Дыхание" в состоянии покоя.
+  BREATH_AMPLITUDE: 0.004,   // доля ширины кадра
+  BREATH_PERIOD_S: 6,        // секунд на полный цикл
+
+  // Кроссфейд между кадрами при свайпе/стрелках, мс.
+  FRAME_CROSSFADE_MS: 320,
+
+  FRAMES: [
+    { color: 'angle_0.png', depth: 'angle_0_depth.png' },
+    { color: 'angle_1.png', depth: 'angle_1_depth.png' },
+    { color: 'angle_2.png', depth: 'angle_2_depth.png' },
+    { color: 'angle_3.png', depth: 'angle_3_depth.png' }
+  ]
+};
+/* ==================================================== */
+
+(function () {
+  'use strict';
+
+  var stage = document.getElementById('stage');
+  var canvas = document.getElementById('gl');
+  var loader = document.getElementById('loader');
+  var hint = document.getElementById('hint');
+  var gyroBtn = document.getElementById('gyroBtn');
+  var prevBtn = document.getElementById('prevBtn');
+  var nextBtn = document.getElementById('nextBtn');
+  var dotsEl = document.getElementById('dots');
+
+  var gl = canvas.getContext('webgl', { antialias: true, alpha: false, premultipliedAlpha: false })
+        || canvas.getContext('experimental-webgl');
+  if (!gl) {
+    loader.textContent = 'WebGL не поддерживается этим браузером.';
+    return;
+  }
+
+  // ---------- шейдеры ----------
+  var VERT = [
+    'attribute vec2 aPos;',
+    'varying vec2 vUv;',
+    'void main() {',
+    '  vUv = aPos * 0.5 + 0.5;',
+    '  vUv.y = 1.0 - vUv.y;',
+    '  gl_Position = vec4(aPos, 0.0, 1.0);',
+    '}'
+  ].join('\n');
+
+  var FRAG = [
+    'precision highp float;',
+    'varying vec2 vUv;',
+    'uniform sampler2D uColorA;',
+    'uniform sampler2D uDepthA;',
+    'uniform sampler2D uColorB;',
+    'uniform sampler2D uDepthB;',
+    'uniform float uMix;',       // 0 = кадр A, 1 = кадр B
+    'uniform vec2  uTilt;',      // текущий сглаженный наклон, -1..1
+    'uniform vec2  uBreath;',    // офсет "дыхания"
+    'uniform float uStrength;',
+    '',
+    'vec3 layer(sampler2D colorTex, sampler2D depthTex) {',
+    '  float depth = texture2D(depthTex, vUv).r;',
+    '  vec2 offset = depth * (uStrength * uTilt + uBreath);',
+    '  vec2 uv = clamp(vUv - offset, 0.0, 1.0);',
+    '  return texture2D(colorTex, uv).rgb;',
+    '}',
+    '',
+    'void main() {',
+    '  vec3 a = layer(uColorA, uDepthA);',
+    '  vec3 b = layer(uColorB, uDepthB);',
+    '  gl_FragColor = vec4(mix(a, b, uMix), 1.0);',
+    '}'
+  ].join('\n');
+
+  function compile(type, src) {
+    var sh = gl.createShader(type);
+    gl.shaderSource(sh, src);
+    gl.compileShader(sh);
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+      throw new Error(gl.getShaderInfoLog(sh));
+    }
+    return sh;
+  }
+
+  var prog = gl.createProgram();
+  gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
+  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+    throw new Error(gl.getProgramInfoLog(prog));
+  }
+  gl.useProgram(prog);
+
+  var quad = new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]);
+  var buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, quad, gl.STATIC_DRAW);
+  var aPos = gl.getAttribLocation(prog, 'aPos');
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+  var uMix = gl.getUniformLocation(prog, 'uMix');
+  var uTilt = gl.getUniformLocation(prog, 'uTilt');
+  var uBreath = gl.getUniformLocation(prog, 'uBreath');
+  var uStrength = gl.getUniformLocation(prog, 'uStrength');
+  var uColorA = gl.getUniformLocation(prog, 'uColorA');
+  var uDepthA = gl.getUniformLocation(prog, 'uDepthA');
+  var uColorB = gl.getUniformLocation(prog, 'uColorB');
+  var uDepthB = gl.getUniformLocation(prog, 'uDepthB');
+
+  gl.uniform1f(uStrength, CONFIG.STRENGTH);
+
+  // ---------- текстуры ----------
+  function makeTexUnit(unit) {
+    var tex = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0 + unit);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    // 1x1 заглушка, пока не пришла настоящая картинка
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
+    return tex;
+  }
+
+  function loadInto(tex, unit, url) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      img.onload = function () {
+        gl.activeTexture(gl.TEXTURE0 + unit);
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+        resolve(img);
+      };
+      img.onerror = reject;
+      img.src = url;
+    });
+  }
+
+  var texUnits = {
+    colorA: { tex: makeTexUnit(0), unit: 0 },
+    depthA: { tex: makeTexUnit(1), unit: 1 },
+    colorB: { tex: makeTexUnit(2), unit: 2 },
+    depthB: { tex: makeTexUnit(3), unit: 3 }
+  };
+  gl.uniform1i(uColorA, 0);
+  gl.uniform1i(uDepthA, 1);
+  gl.uniform1i(uColorB, 2);
+  gl.uniform1i(uDepthB, 3);
+
+  // ---------- размер холста ----------
+  var natW = 1600, natH = 1100; // перезапишется по первой реальной картинке
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+  function resize() {
+    var cssW = stage.clientWidth;
+    var cssH = stage.clientHeight;
+    var w = Math.round(cssW * dpr);
+    var h = Math.round(cssH * dpr);
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+      gl.viewport(0, 0, w, h);
+    }
+  }
+  window.addEventListener('resize', resize);
+
+  function setNaturalSize(w, h) {
+    natW = w; natH = h;
+    document.documentElement.style.setProperty('--natW', String(w));
+    document.documentElement.style.setProperty('--natH', String(h));
+    stage.style.maxWidth = w + 'px';
+    resize();
+  }
+
+  // ---------- загрузка кадров ----------
+  var frameIndex = 0;
+  var loadedColorImg = null;
+
+  function frameUrl(i, key) {
+    return CONFIG.FRAMES[i][key];
+  }
+
+  function buildDots() {
+    dotsEl.innerHTML = '';
+    CONFIG.FRAMES.forEach(function (_, i) {
+      var d = document.createElement('span');
+      if (i === frameIndex) d.className = 'on';
+      dotsEl.appendChild(d);
+    });
+  }
+
+  function markDot(i) {
+    var kids = dotsEl.children;
+    for (var k = 0; k < kids.length; k++) kids[k].classList.toggle('on', k === i);
+  }
+
+  var mixState = 0;       // текущее значение uMix, применяемое к шейдеру
+  var crossfading = false;
+
+  function loadFrameInto(i, colorKey, depthKey) {
+    return Promise.all([
+      loadInto(texUnits[colorKey].tex, texUnits[colorKey].unit, frameUrl(i, 'color')),
+      loadInto(texUnits[depthKey].tex, texUnits[depthKey].unit, frameUrl(i, 'depth'))
+    ]);
+  }
+
+  function goTo(newIndex) {
+    if (crossfading) return;
+    var n = CONFIG.FRAMES.length;
+    newIndex = ((newIndex % n) + n) % n;
+    if (newIndex === frameIndex) return;
+    crossfading = true;
+    loadFrameInto(newIndex, 'colorB', 'depthB').then(function (imgs) {
+      if (imgs[0].naturalWidth) setNaturalSize(imgs[0].naturalWidth, imgs[0].naturalHeight);
+      var start = null;
+      function step(ts) {
+        if (start === null) start = ts;
+        var t = Math.min(1, (ts - start) / CONFIG.FRAME_CROSSFADE_MS);
+        mixState = t;
+        if (t < 1) {
+          requestAnimationFrame(step);
+        } else {
+          // B становится A, чтобы следующий переход снова шёл в B
+          swapAtoB();
+          frameIndex = newIndex;
+          markDot(frameIndex);
+          crossfading = false;
+          mixState = 0;
+        }
+      }
+      requestAnimationFrame(step);
+    });
+  }
+
+  function swapAtoB() {
+    // Копируем содержимое B-юнитов в A-юниты через повторную загрузку той
+    // же картинки в текстуру A (дёшево: они уже в кэше браузера).
+    var i = frameIndexPending();
+    loadFrameInto(i, 'colorA', 'depthA');
+  }
+  function frameIndexPending() {
+    // индекс, на который только что переключились (newIndex из goTo)
+    return _pendingIndex;
+  }
+  var _pendingIndex = 0;
+
+  // Переопределяем goTo, чтобы хранить pending index для swapAtoB (без лишних классов).
+  var _origGoTo = goTo;
+  goTo = function (newIndex) {
+    if (crossfading) return;
+    var n = CONFIG.FRAMES.length;
+    newIndex = ((newIndex % n) + n) % n;
+    if (newIndex === frameIndex) return;
+    _pendingIndex = newIndex;
+    _origGoTo(newIndex);
+  };
+
+  function initFirstFrame() {
+    return loadFrameInto(0, 'colorA', 'depthA').then(function (imgs) {
+      if (imgs[0].naturalWidth) setNaturalSize(imgs[0].naturalWidth, imgs[0].naturalHeight);
+      stage.classList.remove('loading');
+      buildDots();
+    });
+  }
+
+  // ---------- ввод: мышь/палец, позиционный наклон ----------
+  var targetTiltX = 0, targetTiltY = 0; // -1..1
+  var curTiltX = 0, curTiltY = 0;
+  var pointerActive = false;
+  var gyroActive = false;
+
+  function setTiltFromClient(clientX, clientY) {
+    var r = stage.getBoundingClientRect();
+    var cx = r.left + r.width / 2;
+    var cy = r.top + r.height / 2;
+    var nx = (clientX - cx) / (r.width / 2);
+    var ny = (clientY - cy) / (r.height / 2);
+    nx = Math.max(-1, Math.min(1, nx));
+    ny = Math.max(-1, Math.min(1, ny));
+    targetTiltX = nx;
+    targetTiltY = ny;
+  }
+
+  var swipeStartX = null, swipeStartY = null, swipeMoved = false;
+
+  stage.addEventListener('pointerdown', function (e) {
+    pointerActive = true;
+    hint.classList.add('gone');
+    swipeStartX = e.clientX;
+    swipeStartY = e.clientY;
+    swipeMoved = false;
+    setTiltFromClient(e.clientX, e.clientY);
+  });
+
+  stage.addEventListener('pointermove', function (e) {
+    // На десктопе (мышь) наклон следует за курсором и без нажатия.
+    // На тач-устройствах pointermove без активного касания не приходит,
+    // так что здесь же обрабатывается и перетаскивание пальцем.
+    if (e.pointerType === 'mouse' || pointerActive) {
+      setTiltFromClient(e.clientX, e.clientY);
+    }
+    if (pointerActive && swipeStartX !== null) {
+      if (Math.abs(e.clientX - swipeStartX) > 6 || Math.abs(e.clientY - swipeStartY) > 6) {
+        swipeMoved = true;
+      }
+    }
+  });
+
+  function releasePointer(e) {
+    pointerActive = false;
+    if (e && e.pointerType !== 'mouse') {
+      // Мышь просто продолжает управлять наклоном по hover (см. mouseleave),
+      // а для пальца — плавный возврат в центр сразу после отпускания.
+      targetTiltX = 0;
+      targetTiltY = 0;
+    }
+    if (e && swipeMoved && e.pointerType !== 'mouse') {
+      var dx = e.clientX - swipeStartX;
+      if (Math.abs(dx) > 40) {
+        goTo(frameIndex + (dx < 0 ? 1 : -1));
+      }
+    }
+    swipeStartX = null;
+  }
+  stage.addEventListener('pointerup', releasePointer);
+  stage.addEventListener('pointercancel', releasePointer);
+
+  stage.addEventListener('mouseleave', function () {
+    if (!pointerActive) { targetTiltX = 0; targetTiltY = 0; }
+  });
+
+  // ---------- клавиатура и кнопки ----------
+  prevBtn.addEventListener('click', function () { goTo(frameIndex - 1); });
+  nextBtn.addEventListener('click', function () { goTo(frameIndex + 1); });
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowLeft') goTo(frameIndex - 1);
+    else if (e.key === 'ArrowRight') goTo(frameIndex + 1);
+  });
+
+  // ---------- гироскоп (iPhone) ----------
+  var gyroBaseBeta = null, gyroBaseGamma = null;
+
+  function onOrientation(e) {
+    if (e.beta === null || e.gamma === null) return;
+    if (gyroBaseBeta === null) { gyroBaseBeta = e.beta; gyroBaseGamma = e.gamma; }
+    var dGamma = e.gamma - gyroBaseGamma; // лево/право
+    var dBeta = e.beta - gyroBaseBeta;    // вперёд/назад
+    if (!pointerActive) {
+      targetTiltX = Math.max(-1, Math.min(1, dGamma / CONFIG.MAX_TILT_X_DEG));
+      targetTiltY = Math.max(-1, Math.min(1, dBeta / CONFIG.MAX_TILT_Y_DEG));
+    }
+  }
+
+  function enableGyro() {
+    gyroActive = true;
+    window.addEventListener('deviceorientation', onOrientation);
+    gyroBtn.hidden = true;
+  }
+
+  var needsPermission = typeof DeviceOrientationEvent !== 'undefined' &&
+    typeof DeviceOrientationEvent.requestPermission === 'function';
+
+  if (needsPermission) {
+    gyroBtn.hidden = false;
+    gyroBtn.textContent = 'Включить гироскоп';
+    gyroBtn.addEventListener('click', function () {
+      DeviceOrientationEvent.requestPermission().then(function (state) {
+        if (state === 'granted') enableGyro();
+        else gyroBtn.textContent = 'Гироскоп запрещён';
+      }).catch(function () {
+        gyroBtn.textContent = 'Гироскоп недоступен';
+      });
+    });
+  } else if (typeof DeviceOrientationEvent !== 'undefined' && window.DeviceOrientationEvent) {
+    // Android и прочие — разрешение не требуется.
+    enableGyro();
+  }
+
+  // ---------- рендер-цикл ----------
+  var t0 = performance.now();
+
+  function frame(now) {
+    var t = (now - t0) / 1000;
+
+    // сглаживание к целевому наклону (или к центру)
+    curTiltX += (targetTiltX - curTiltX) * CONFIG.RETURN_SMOOTH;
+    curTiltY += (targetTiltY - curTiltY) * CONFIG.RETURN_SMOOTH;
+
+    var breathX = CONFIG.BREATH_AMPLITUDE * Math.sin(t * 2 * Math.PI / CONFIG.BREATH_PERIOD_S);
+    var breathY = CONFIG.BREATH_AMPLITUDE * Math.cos(t * 2 * Math.PI / (CONFIG.BREATH_PERIOD_S * 0.7));
+
+    // curTiltX/Y уже нормированы в -1..1: 1 соответствует MAX_TILT_*_DEG
+    // градусов реального наклона (см. setTiltFromClient и onOrientation).
+    // Сама сила смещения (доля ширины кадра) — это STRENGTH из CONFIG.
+    var tiltX = curTiltX;
+    var tiltY = curTiltY;
+
+    resize();
+    gl.uniform2f(uTilt, tiltX, tiltY);
+    gl.uniform2f(uBreath, breathX, breathY);
+    gl.uniform1f(uMix, mixState);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    requestAnimationFrame(frame);
+  }
+
+  initFirstFrame().then(function () {
+    requestAnimationFrame(frame);
+  }).catch(function (err) {
+    loader.textContent = 'Не удалось загрузить кадры: ' + err;
+  });
+
+})();
+</script>
+</body>
+</html>
