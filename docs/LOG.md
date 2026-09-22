@@ -1847,3 +1847,7 @@ Custom domain, сохранить, подождать минуту и вписа
 - Ветка: test/turntable, HEAD: dcc75f1
 - Видео 1x: day=6.5MB, night=5.7MB, sunset=5.2MB
 - Видео 2x: day=8.6MB, night=6.9MB, sunset=6.7MB
+
+## Сессия 23.09.2026 (часть 4 — исправление iframe)
+- Исправлен баг: скрипт assets/story.js перехватывал клик по кнопке «Смотреть в 3D» и открывал iframe с cfg.scene, который был жёстко задан как scene3d.html.
+- В index.html cfg.scene заменён на turntable.html, теперь кнопка всегда открывает облёт во всплывающем окне, как и задумано.
