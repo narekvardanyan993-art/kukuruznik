@@ -189,24 +189,40 @@ const pFill = document.getElementById('progress-fill');
 const isRetina = window.innerWidth > 600 && window.devicePixelRatio > 1;
 const res = isRetina ? '2x' : '1x';
 
-let loaded = 0;
-modes.forEach(m => {
+function loadMode(m, onComplete) {
+  if (viewers[m].src) {
+    if (onComplete) onComplete();
+    return;
+  }
+  
+  if (m !== 'day') {
+    loader.style.display = 'flex';
+    loader.style.opacity = '1';
+    pFill.style.width = '10%'; 
+  }
+  
   viewers[m].src = `turntable/${res}/${m}.mp4`;
   viewers[m].addEventListener('loadeddata', () => {
-    loaded++;
     if (m === 'day') {
       pFill.style.width = '100%';
-      setFrame(0);
+    }
+    if (m === currentMode) {
       setTimeout(() => {
         loader.style.opacity = '0';
         setTimeout(() => loader.style.display = 'none', 400);
-        if (!localStorage.getItem('turntable_hint2')) {
-          document.getElementById('hint').classList.add('show');
-        }
       }, 300);
     }
+    if (onComplete) onComplete();
   }, { once: true });
   viewers[m].load();
+}
+
+// Initial load
+loadMode('day', () => {
+  setFrame(0);
+  if (!localStorage.getItem('turntable_hint2')) {
+    document.getElementById('hint').classList.add('show');
+  }
 });
 
 // Interaction
@@ -305,6 +321,9 @@ document.querySelectorAll('[data-time]').forEach(btn => {
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
     currentMode = btn.dataset.time;
+    loadMode(currentMode, () => {
+      setFrame(currentFrameFloat);
+    });
     document.querySelectorAll('[data-time]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     
