@@ -19,6 +19,8 @@
   - Откат: `git reset --hard depth-photo-v6`
   - Маски неба/деревьев/окон: `python3 tools/build_env_masks.py` (после `tools/build_frames.py`); фонари — `CONFIG.LAMPS` (координаты по рисунку).
   - Закрытая бета в main: `python3 tools/publish_beta.py ../kukuruznik-main` (noindex, WebP), ссылок с сайта нет.
+- **Тег depth-photo-v7** (ветка `test/depth-photo`): подсказки (ПК: закрытие через 250 мс; телефон: кнопка «× закрыть»), пружина медленнее (response 0.65), hover 300 мс, бургер по центру, стрелка панели 40×40, карандашный фон страницы на ПК (`tools/make_bg.py`).
+  - Откат: `git reset --hard depth-photo-v7`
   - Снимки до/после: `node tools/snapshot_depth.mjs before|after` (сервер на :8080), папки `docs/snapshots/depth-*`.
 
 ## Конвейер кадров для test-assets/depth.html (ветка test/depth-photo)
