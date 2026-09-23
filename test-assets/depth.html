@@ -274,12 +274,13 @@
    больше в коде не настраивается. */
 var CONFIG = {
   // Смещение по карте глубины: максимум у самых близких/дальних пикселей
-  // (плоскость фокуса — середина карты), доли ширины/высоты кадра.
-  MAX_SHIFT_X: 0.03,
-  MAX_SHIFT_Y: 0.02,
+  // фона и земли (плоскость фокуса — середина карты), доли ширины/высоты
+  // кадра. Здание двигается целиком по своей средней глубине, тем же максимумом.
+  MAX_SHIFT_X: 0.02,
+  MAX_SHIFT_Y: 0.012,
   BASE_SCALE: 1.05,          // общий масштаб, чтобы не были видны края
   ZOOM_NEAR: 0.02,           // при наклоне к себе ближние части +до 2%
-  DEPTH_BLUR_PX: 4,          // размытие карты глубины (3–5 px) против «резины» на краях
+  DEPTH_BLUR_PX: 6,          // размытие карты глубины фона (6 px) против «резины» на краях
 
   // Кадры и карты глубины ужимаются до этой длинной стороны — иначе iPhone
   // выгружает большие текстуры из памяти.
@@ -488,26 +489,31 @@ var CONFIG = {
   var useGL = !!gl;
   if (!useGL) canvas.style.display = 'none';
 
-  // Одна плоская картинка + карта глубины. Каждый пиксель сдвигается по
-  // своей глубине (X и Y); глубину берём в 3 итерации — так край предмета
-  // не «тянется резиной», а сама карта заранее размыта в JS (prepareDepth).
+  // Кадр = два слоя, оба берутся из одного цельного набора:
+  //  • фон и земля (bg — кадр без здания) сдвигаются попиксельно по карте
+  //    глубины (X и Y), карта заранее размыта (prepareDepth);
+  //  • здание (вырезка по маске SAM) двигается ЦЕЛИКОМ — один общий сдвиг
+  //    по его средней глубине, поэтому башня никогда не гнётся.
+  // Первый проход рисует сцену в текстуру (цвет + маска окон в альфе),
+  // второй — время суток (закат/ночь) поверх готовой картинки.
   var VERT = [
     'attribute vec2 aPos;',
-    'varying vec2 vUv;',
+    'varying vec2 vUv;',   // координаты картинки (y вниз)
+    'varying vec2 vTc;',   // координаты текстуры (y вверх)
     'void main() {',
-    '  vUv = aPos * 0.5 + 0.5;',
-    '  vUv.y = 1.0 - vUv.y;',
+    '  vTc = aPos * 0.5 + 0.5;',
+    '  vUv = vec2(vTc.x, 1.0 - vTc.y);',
     '  gl_Position = vec4(aPos, 0.0, 1.0);',
     '}'
   ].join('\n');
 
-  var FRAG = [
+  var SCENE_FRAG = [
     'precision highp float;',
     'varying vec2 vUv;',
-    'uniform sampler2D uColorA;',
-    'uniform sampler2D uDepthA;',
-    'uniform sampler2D uColorB;',
-    'uniform sampler2D uDepthB;',
+    'uniform sampler2D uBgA; uniform sampler2D uDepthA; uniform sampler2D uBldA; uniform sampler2D uWinA;',
+    'uniform sampler2D uBgB; uniform sampler2D uDepthB; uniform sampler2D uBldB; uniform sampler2D uWinB;',
+    'uniform vec2  uKdA;',        // здание кадра A: x = k (-1..1), y = средняя глубина 0..1
+    'uniform vec2  uKdB;',
     'uniform float uMix;',        // 0 = кадр A, 1 = кадр B
     'uniform vec2  uShift;',      // max-сдвиг * наклон + «дыхание», в долях картинки
     'uniform float uZoom;',       // добавка к масштабу для самых ближних (0..0.02)
@@ -536,28 +542,73 @@ var CONFIG = {
     '  return clamp(b1 + b2, 0.0, 1.0);',
     '}',
     '',
-    'vec3 sampleFrame(sampler2D color, sampler2D depth, vec2 uv) {',
+    'vec4 sampleFrame(sampler2D bg, sampler2D depth, sampler2D bld, sampler2D win, vec2 kd, vec2 uv) {',
+    // фон и земля: у каждого пикселя свой сдвиг (3 итерации против «резины» на краях)
     '  vec2 p = uv;',
     '  for (int i = 0; i < 3; i++) {',
     '    float d = texture2D(depth, p).r;',                  // 0 = далеко, 1 = близко
     '    float k = d * 2.0 - 1.0;',                           // -1..1, 0 — плоскость фокуса
     '    p = 0.5 + (uv - 0.5) / (1.0 + uZoom * d) - k * uShift;',
     '  }',
-    '  return texture2D(color, clamp(p, 0.0, 1.0)).rgb;',
+    '  vec3 col = texture2D(bg, clamp(p, 0.0, 1.0)).rgb;',
+    // здание: один общий сдвиг и масштаб на весь предмет — жёсткое тело
+    '  vec2 pb = 0.5 + (uv - 0.5) / (1.0 + uZoom * kd.y) - kd.x * uShift;',
+    '  vec4 b = texture2D(bld, pb);',                         // цвет уже умножен на альфу
+    '  col = b.rgb + col * (1.0 - b.a);',
+    '  float w = texture2D(win, pb).r * b.a;',                // маска окон, едет вместе со зданием
+    '  return vec4(col, w);',
     '}',
     '',
     'void main() {',
     '  vec2 uv = vUv * uCoverScale + uCoverOffset;',
     '  uv = 0.5 + (uv - 0.5) / uScale;',
-    '  vec3 color = sampleFrame(uColorA, uDepthA, uv);',
-    '  if (uMix > 0.0) color = mix(color, sampleFrame(uColorB, uDepthB, uv), uMix);',
+    '  vec4 c = sampleFrame(uBgA, uDepthA, uBldA, uWinA, uKdA, uv);',
+    '  if (uMix > 0.0) c = mix(c, sampleFrame(uBgB, uDepthB, uBldB, uWinB, uKdB, uv), uMix);',
     '  float shadow = cloudShadow(uv, uTime);',
-    '  color *= (1.0 - 0.12 * shadow);',
-    '  gl_FragColor = vec4(color, 1.0);',
+    '  c.rgb *= (1.0 - 0.12 * shadow);',
+    '  gl_FragColor = c;',
     '}'
   ].join('\n');
 
-  var prog = null, U = {};
+  // Время суток: цветовая обработка готовой картинки, новых кадров не нужно.
+  var POST_FRAG = [
+    'precision highp float;',
+    'varying vec2 vTc;',
+    'uniform sampler2D uScene;',
+    'uniform float uSunset;',   // 0..1
+    'uniform float uNight;',    // 0..1
+    'float lum(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }',
+    'void main() {',
+    '  vec4 s = texture2D(uScene, vTc);',
+    '  vec3 c = s.rgb;',
+    '  if (uSunset > 0.001) {',
+    // тени длиннее: тёмное «стекает» вдоль направления от низкого солнца
+    '    vec2 dir = vec2(1.0, -0.28) * 0.012;',
+    '    float smear = 0.0;',
+    '    for (int i = 1; i <= 10; i++) {',
+    '      vec3 tap = texture2D(uScene, vTc - dir * float(i)).rgb;',
+    '      smear += smoothstep(0.66, 0.34, lum(tap)) * (1.0 - float(i) / 11.0);',
+    '    }',
+    '    smear = clamp(smear / 4.0, 0.0, 1.0);',
+    '    float l = lum(c);',
+    '    vec3 warm = c * vec3(1.10, 0.82, 0.56);',                     // тёплый оранжевый тон
+    '    warm *= 1.0 - 0.5 * smear;',                                  // длинные тени
+    '    warm *= mix(1.0, 0.68, smoothstep(0.55, 0.25, l));',          // тени темнее
+    '    c = mix(c, warm, uSunset);',
+    '  }',
+    '  if (uNight > 0.001) {',
+    '    vec3 night = c * vec3(0.28, 0.34, 0.55);',                    // тёмно-синий, яркость ~35%
+    '    night += vec3(1.0, 0.78, 0.38) * s.a * 0.95;',                // окна башни светятся тёплым
+    '    night += vec3(1.0, 0.72, 0.32) * s.a * s.a * 0.25;',
+    '    c = mix(c, night, uNight);',
+    '  }',
+    '  gl_FragColor = vec4(c, 1.0);',
+    '}'
+  ].join('\n');
+
+  var scenePrg = null, postPrg = null;
+  var US = {}, UP = {};
+  var fbo = null, sceneTex = null, fboW = 0, fboH = 0;
 
   function compile(type, src) {
     var sh = gl.createShader(type);
@@ -567,34 +618,41 @@ var CONFIG = {
     return sh;
   }
 
-  function initGLProgram() {
-    prog = gl.createProgram();
+  function makeProgram(frag, names, out) {
+    var prog = gl.createProgram();
     gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
-    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
+    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, frag));
+    gl.bindAttribLocation(prog, 0, 'aPos');
     gl.linkProgram(prog);
     if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
     gl.useProgram(prog);
+    names.forEach(function (n) { out[n] = gl.getUniformLocation(prog, n); });
+    return prog;
+  }
 
+  function initGLProgram() {
     var buf = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buf);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-    var aPos = gl.getAttribLocation(prog, 'aPos');
-    gl.enableVertexAttribArray(aPos);
-    gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
 
-    ['uColorA', 'uDepthA', 'uColorB', 'uDepthB', 'uMix', 'uShift', 'uZoom', 'uScale',
-     'uCoverScale', 'uCoverOffset', 'uTime'].forEach(function (n) { U[n] = gl.getUniformLocation(prog, n); });
-    // юниты фиксированы: цвет A/B = 0/2, глубина A/B = 1/3; сами текстуры
-    // подставляются при отрисовке (bindFrame) — загрузки во время показа нет.
-    gl.uniform1i(U.uColorA, 0); gl.uniform1i(U.uDepthA, 1);
-    gl.uniform1i(U.uColorB, 2); gl.uniform1i(U.uDepthB, 3);
-    gl.uniform1f(U.uScale, CONFIG.BASE_SCALE);
+    scenePrg = makeProgram(SCENE_FRAG, ['uBgA', 'uDepthA', 'uBldA', 'uWinA', 'uBgB', 'uDepthB', 'uBldB', 'uWinB',
+      'uKdA', 'uKdB', 'uMix', 'uShift', 'uZoom', 'uScale', 'uCoverScale', 'uCoverOffset', 'uTime'], US);
+    // юниты: A = 0..3 (фон, глубина, здание, окна), B = 4..7. Сами текстуры
+    // подставляются при отрисовке — подгрузки во время показа нет.
+    ['uBgA', 'uDepthA', 'uBldA', 'uWinA', 'uBgB', 'uDepthB', 'uBldB', 'uWinB'].forEach(function (n, i) { gl.uniform1i(US[n], i); });
+    gl.uniform1f(US.uScale, CONFIG.BASE_SCALE);
+
+    postPrg = makeProgram(POST_FRAG, ['uScene', 'uSunset', 'uNight'], UP);
+    gl.uniform1i(UP.uScene, 0);
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    fbo = null; sceneTex = null; fboW = 0; fboH = 0;
   }
 
-  function makeTexture(unit, filter) {
+  function makeTexture(filter) {
     var tex = gl.createTexture();
-    gl.activeTexture(gl.TEXTURE0 + unit);
+    gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -603,32 +661,86 @@ var CONFIG = {
     return tex;
   }
 
+  function uploadL(d) { // одноканальная карта
+    var tex = makeTexture(gl.LINEAR);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, d.w, d.h, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, d.d);
+    return tex;
+  }
+
   // Заливает в GPU уже декодированные данные кадра. Вызывается один раз
   // при загрузке (и повторно, если iOS потеряет WebGL-контекст).
   function uploadFrame(f) {
-    f.colorTex = makeTexture(0, gl.LINEAR);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, f.colorSrc);
-    f.depthTex = makeTexture(1, gl.LINEAR);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, f.depth.w, f.depth.h, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, f.depth.d);
+    f.bgTex = makeTexture(gl.LINEAR);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, f.bgSrc);
+    f.depthTex = uploadL(f.depth);
+    f.bldTex = makeTexture(gl.LINEAR);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true); // края здания без тёмной каймы
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, f.bldSrc);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    f.winTex = uploadL(f.win);
   }
 
-  function bindFrame(f, colorUnit) {
-    gl.activeTexture(gl.TEXTURE0 + colorUnit);
-    gl.bindTexture(gl.TEXTURE_2D, f.colorTex);
-    gl.activeTexture(gl.TEXTURE0 + colorUnit + 1);
-    gl.bindTexture(gl.TEXTURE_2D, f.depthTex);
+  function bindFrame(f, unit0) {
+    var t = [f.bgTex, f.depthTex, f.bldTex, f.winTex];
+    for (var i = 0; i < 4; i++) {
+      gl.activeTexture(gl.TEXTURE0 + unit0 + i);
+      gl.bindTexture(gl.TEXTURE_2D, t[i]);
+    }
+  }
+
+  function ensureFbo(w, h) {
+    if (fbo && fboW === w && fboH === h) return;
+    if (sceneTex) gl.deleteTexture(sceneTex);
+    if (fbo) gl.deleteFramebuffer(fbo);
+    sceneTex = makeTexture(gl.LINEAR);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    fbo = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, sceneTex, 0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    fboW = w; fboH = h;
+  }
+
+  // s = состояние кадра: fa/fb (готовые кадры), mix, shiftX/Y, zoom, t
+  function drawGL(fa, fb, mix, shiftX, shiftY, zoom, t) {
+    ensureFbo(canvas.width, canvas.height);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    // --- проход 1: сцена -> текстура ---
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.useProgram(scenePrg);
+    bindFrame(fa, 0);
+    if (fb) bindFrame(fb, 4);
+    gl.uniform2f(US.uKdA, fa.kB, fa.dB);
+    if (fb) gl.uniform2f(US.uKdB, fb.kB, fb.dB);
+    gl.uniform2f(US.uShift, shiftX, shiftY);
+    gl.uniform1f(US.uZoom, zoom);
+    gl.uniform1f(US.uMix, mix);
+    gl.uniform1f(US.uTime, t);
+    gl.uniform2f(US.uCoverScale, coverUvW, coverUvH);
+    gl.uniform2f(US.uCoverOffset, coverOffX, coverOffY);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    // --- проход 2: время суток -> экран ---
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.useProgram(postPrg);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, sceneTex);
+    gl.uniform1f(UP.uSunset, tod.s);
+    gl.uniform1f(UP.uNight, tod.n);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
   var glLost = false;
+  var tod = { s: 0, n: 0 }; // время суток: вес заката и ночи (0..1), день = оба 0
   if (useGL) {
     try { initGLProgram(); } catch (err) { console.warn('WebGL shader failed, fallback:', err); useGL = false; canvas.style.display = 'none'; }
     canvas.addEventListener('webglcontextlost', function (e) { e.preventDefault(); glLost = true; });
     canvas.addEventListener('webglcontextrestored', function () {
       try {
         initGLProgram();
-        store.forEach(function (f) { if (f) uploadFrame(f); });
-        resize(true);
-        glLost = false;
+        // текстуры заново: CPU-копии картинок мы не держим (память iPhone),
+        // поэтому перечитываем файлы — кэш браузера отдаёт их сразу.
+        Promise.all(FRAMES.map(function (_, k) { return preloadFrame(k); }))
+          .then(function () { resize(true); glLost = false; });
       } catch (err) { console.warn('WebGL restore failed', err); }
     });
   }
@@ -647,8 +759,7 @@ var CONFIG = {
   function loadImage(url) {
     var img = new Image();
     img.src = url;
-    var ready = whenLoaded(img);
-    return ready.then(function () {
+    return whenLoaded(img).then(function () {
       return typeof img.decode === 'function' ? img.decode().catch(function () {}) : null;
     }).then(function () { return img; });
   }
@@ -677,6 +788,11 @@ var CONFIG = {
         sum += src[base + Math.min(n - 1, i + r + 1) * stride] - src[base + Math.max(0, i - r) * stride];
       }
     }
+  }
+  function boxBlur(a, w, h, r) { // блюр на месте (две оси)
+    var tmp = new Uint8Array(a.length);
+    blurPass(a, tmp, w, h, r, true);
+    blurPass(tmp, a, w, h, r, false);
   }
 
   // Карта глубины -> 1 канал: растягиваем контраст по 2–98 перцентилю
@@ -707,18 +823,123 @@ var CONFIG = {
     return { w: w, h: h, d: a };
   }
 
-  var store = [];          // готовые кадры: {colorSrc, colorTex, depthTex, depth, w, h}
-  var layerImgs = [];      // только для отката без WebGL: {bg, building}
+  // Вырезка здания (RGBA, маска SAM): оставляем только самый большой
+  // связный кусок (обрывки фона в маске не должны ехать вместе со зданием),
+  // считаем маску окон (окна темнее своего окружения) и среднюю глубину
+  // здания — по ней здание двигается целиком.
+  function analyzeBuilding(img, depth, frameImg, bgImg) {
+    var fit = fitToCap(img), w = fit.w, h = fit.h, n = w * h, i;
+    var c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    var ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(fit.src, 0, 0, w, h);
+    var id = ctx.getImageData(0, 0, w, h), px = id.data;
+
+    // 1) самый большой связный кусок маски (alpha > 128)
+    var lab = new Int32Array(n), stack = new Int32Array(n), sizes = [0], nl = 0, best = 0, bestSize = 0;
+    for (i = 0; i < n; i++) {
+      if (lab[i] || px[i * 4 + 3] <= 128) continue;
+      nl++;
+      var sp = 0, size = 0;
+      stack[sp++] = i; lab[i] = nl;
+      while (sp) {
+        var p = stack[--sp], x = p % w, y = (p / w) | 0;
+        size++;
+        if (x > 0 && !lab[p - 1] && px[(p - 1) * 4 + 3] > 128) { lab[p - 1] = nl; stack[sp++] = p - 1; }
+        if (x < w - 1 && !lab[p + 1] && px[(p + 1) * 4 + 3] > 128) { lab[p + 1] = nl; stack[sp++] = p + 1; }
+        if (y > 0 && !lab[p - w] && px[(p - w) * 4 + 3] > 128) { lab[p - w] = nl; stack[sp++] = p - w; }
+        if (y < h - 1 && !lab[p + w] && px[(p + w) * 4 + 3] > 128) { lab[p + w] = nl; stack[sp++] = p + w; }
+      }
+      if (size > bestSize) { bestSize = size; best = nl; }
+    }
+    // Пиксели чужих кусков и мягкий ореол вокруг них убираем; ореол главного
+    // куска (label 0, но рядом с ним) оставляем как есть.
+    var keep = new Uint8Array(n);
+    for (i = 0; i < n; i++) keep[i] = lab[i] === best ? 1 : 0;
+    var grown = new Uint8Array(n); // главный кусок, расширенный на 6 px — там мягкий край оставляем
+    for (i = 0; i < n; i++) grown[i] = keep[i] * 255;
+    boxBlur(grown, w, h, 6);
+    for (i = 0; i < n; i++) if (!keep[i] && grown[i] === 0) px[i * 4 + 3] = 0;
+    for (i = 0; i < n; i++) if (lab[i] && lab[i] !== best) px[i * 4 + 3] = 0;
+
+    // 2) маска окон: темнее своего окружения (окно 9 px против 2 px)
+    var L = new Uint8Array(n), sum = 0, cnt = 0;
+    for (i = 0; i < n; i++) {
+      var l = (0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2]) | 0;
+      L[i] = l;
+      if (keep[i]) { sum += l; cnt++; }
+    }
+    var mean = cnt ? (sum / cnt) | 0 : 128;
+    for (i = 0; i < n; i++) if (!keep[i]) L[i] = mean;
+    var big = L.slice(), small = L.slice();
+    boxBlur(big, w, h, 9);
+    boxBlur(small, w, h, 2);
+    var win = new Uint8Array(n);
+    for (i = 0; i < n; i++) {
+      var dv = (big[i] - small[i]) / 255;
+      var wv = clamp((dv - 0.06) / 0.10, 0, 1);
+      win[i] = keep[i] ? (wv * (px[i * 4 + 3] / 255) * 255) | 0 : 0;
+    }
+    blurPass(win, small, w, h, 1, true); blurPass(small, win, w, h, 1, false); // мягкое свечение
+
+    // 3) средняя глубина здания по маске
+    var dsum = 0, dc = 0, dm = depth;
+    for (i = 0; i < n; i++) {
+      if (!keep[i]) continue;
+      var xx = i % w, yy = (i / w) | 0;
+      dsum += dm.d[clamp(((yy + 0.5) / h * dm.h) | 0, 0, dm.h - 1) * dm.w + clamp(((xx + 0.5) / w * dm.w) | 0, 0, dm.w - 1)];
+      dc++;
+    }
+    var meanD = dc ? dsum / dc / 255 : 0.5;
+
+    // 4) «земля»: цельный кадр (подиум, лестницы, всё вокруг), а на месте
+    // самого здания — фон без здания. Здание поверх едет жёстко и открывает этот фон.
+    function pixelsOf(im) {
+      var cc = document.createElement('canvas');
+      cc.width = w; cc.height = h;
+      var x2 = cc.getContext('2d', { willReadFrequently: true });
+      x2.drawImage(im, 0, 0, w, h);
+      return { cv: cc, ctx: x2, id: x2.getImageData(0, 0, w, h) };
+    }
+    var G = pixelsOf(frameImg), gp = G.id.data, bp = pixelsOf(bgImg).id.data;
+    var hole = new Uint8Array(n);
+    for (i = 0; i < n; i++) hole[i] = px[i * 4 + 3];
+    boxBlur(hole, w, h, 3); // маска чуть шире здания: его ореол в землю не попадает
+    for (i = 0; i < n; i++) {
+      var ha = Math.min(255, hole[i] * 3) / 255;
+      if (ha <= 0) continue;
+      gp[i * 4] = gp[i * 4] * (1 - ha) + bp[i * 4] * ha;
+      gp[i * 4 + 1] = gp[i * 4 + 1] * (1 - ha) + bp[i * 4 + 1] * ha;
+      gp[i * 4 + 2] = gp[i * 4 + 2] * (1 - ha) + bp[i * 4 + 2] * ha;
+    }
+    G.ctx.putImageData(G.id, 0, 0);
+
+    ctx.putImageData(id, 0, 0);
+    return { src: c, ground: G.cv, win: { w: w, h: h, d: win }, meanD: meanD };
+  }
+
+  function makeThumb(img) {
+    var c = document.createElement('canvas'), w = 180, h = Math.round(w * img.naturalHeight / img.naturalWidth);
+    c.width = w; c.height = h;
+    c.getContext('2d').drawImage(img, 0, 0, w, h);
+    try { return c.toDataURL('image/jpeg', 0.7); } catch (e) { return ''; }
+  }
+
+  var store = [];          // готовые кадры: {bgTex, depthTex, bldTex, winTex, depth, kB, dB, thumb, w, h}
 
   function preloadFrame(i) {
     var f = FRAMES[i];
-    var jobs = [loadImage(f.color), loadImage(f.depth)];
-    if (!useGL) jobs.push(loadImage(f.bg.color), loadImage(f.building.color));
-    return Promise.all(jobs).then(function (imgs) {
-      var fit = fitToCap(imgs[0]);
-      var entry = { colorSrc: fit.src, w: fit.w, h: fit.h, depth: prepareDepth(imgs[1]) };
-      if (useGL) uploadFrame(entry);
-      else layerImgs[i] = { bg: imgs[2], building: imgs[3] };
+    return Promise.all([loadImage(f.color), loadImage(f.depth), loadImage(f.bg.color), loadImage(f.building.color)]).then(function (imgs) {
+      var fitBg = fitToCap(imgs[2]);
+      var depth = prepareDepth(imgs[1]);
+      var bld = analyzeBuilding(imgs[3], depth, imgs[0], imgs[2]);
+      var entry = {
+        w: fitBg.w, h: fitBg.h, depth: depth, win: bld.win, thumb: makeThumb(imgs[0]),
+        dB: bld.meanD, kB: bld.meanD * 2 - 1,
+        bgSrc: bld.ground, bldSrc: bld.src
+      };
+      if (useGL) { uploadFrame(entry); entry.bgSrc = null; entry.bldSrc = null; }
+      else entry.layers = { bg: bld.ground, building: bld.src };
       store[i] = entry;
     });
   }
@@ -740,7 +961,6 @@ var CONFIG = {
       if (canvas.width !== w || canvas.height !== h) {
         canvas.width = w; canvas.height = h;
       }
-      gl.viewport(0, 0, w, h);
     }
     // "cover": как CSS background-size: cover — без искажений, лишнее обрезается.
     var factor = Math.max(cssW / natW, cssH / natH);
@@ -748,10 +968,6 @@ var CONFIG = {
     coverUvH = cssH / (natH * factor);
     coverOffX = (1 - coverUvW) / 2;
     coverOffY = (1 - coverUvH) / 2;
-    if (useGL) {
-      gl.uniform2f(U.uCoverScale, coverUvW, coverUvH);
-      gl.uniform2f(U.uCoverOffset, coverOffX, coverOffY);
-    }
   }
   window.addEventListener('resize', function () { resize(true); });
   window.addEventListener('orientationchange', function () { setTimeout(function () { resize(true); }, 200); });
@@ -772,7 +988,7 @@ var CONFIG = {
     FRAMES.forEach(function (_, i) {
       var wrap = document.createElement('div');
       wrap.className = 'fb-frame';
-      var bg = layerImgs[i].bg, bld = layerImgs[i].building;
+      var bg = store[i].layers.bg, bld = store[i].layers.building;
       bg.className = 'fb-layer'; bld.className = 'fb-layer';
       wrap.appendChild(bg); wrap.appendChild(bld);
       fbEl.appendChild(wrap);
@@ -858,7 +1074,8 @@ var CONFIG = {
       btn.addEventListener('mouseleave', function () { if (hsPopup._forDot === btn) closePopup(); });
       hotspotsEl.appendChild(btn);
       var d, k;
-      if (useGL) { d = depthAt(frameIdx, hs.u, hs.v); k = d * 2 - 1; }
+      if (useGL && hs.layer === 'building') { d = store[frameIdx].dB; k = store[frameIdx].kB; }   // здание — жёстко, общий сдвиг
+      else if (useGL) { d = depthAt(frameIdx, hs.u, hs.v); k = d * 2 - 1; }                       // фон/земля — по пикселю
       else { d = 0; k = hs.layer === 'building' ? CONFIG.FALLBACK_LAYER_K : -CONFIG.FALLBACK_LAYER_K; }
       activeHotspots.push({ el: btn, hs: hs, d: d, k: k });
     });
@@ -1118,15 +1335,7 @@ var CONFIG = {
     var fb = fade ? store[fade.to] : null;
 
     if (useGL) {
-      if (!glLost) {
-        bindFrame(fa, 0);
-        if (fb) bindFrame(fb, 2);
-        gl.uniform2f(U.uShift, shiftX, shiftY);
-        gl.uniform1f(U.uZoom, zoom);
-        gl.uniform1f(U.uMix, mixState);
-        gl.uniform1f(U.uTime, t);
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      }
+      if (!glLost) drawGL(fa, fb, mixState, shiftX, shiftY, zoom, t);
     } else {
       var cssW = stage.clientWidth, cssH = stage.clientHeight;
       var kb = CONFIG.FALLBACK_LAYER_K;
