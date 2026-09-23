@@ -99,10 +99,25 @@ async function capture() {
   await tiltAt(0.5, 0.98, W, H); await shot('tilt_down');
   await tiltAt(0.5, 0.5, W, H);  await shot('center');
 
-  // Десктоп
-  await page.setViewport({ width: 1200, height: 1000, deviceScaleFactor: 1 });
+  // Телефон: шторка меню (есть только с v5)
+  if (await page.$('#panelBtn')) {
+    await page.click('#panelBtn'); await advance(600); await sleep(300);
+    await shot('sheet_open');
+    await page.click('#scrim'); await advance(600); await sleep(200);
+  }
+
+  // Десктоп (с v5 — панель слева) + время суток
+  await page.setViewport({ width: 1400, height: 900, deviceScaleFactor: 1 });
   await advance(200); await sleep(300);
+  await tiltAt(0.7, 0.5, 1400, 900);
   await shot('desktop');
+  if (await page.$('#todSeg')) {
+    for (const t of ['night', 'sunset']) {
+      await page.click(`#todSeg [data-tod=${t}]`); await advance(1600); await sleep(300);
+      await shot('desktop_' + t);
+    }
+    await page.click('#todSeg [data-tod=day]'); await advance(1600);
+  }
 
   await browser.close();
 }
