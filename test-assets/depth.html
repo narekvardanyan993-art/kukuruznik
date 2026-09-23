@@ -10,16 +10,16 @@
 <style>
   :root {
     --paper: #f5ecda; --paper-2: #ede0c2; --ink: #2f2a25;
-    /* Пружина как в iOS: response 0.45 с, damping ratio 0.86 (мягкий разгон, плавное торможение,
-       оседание ~0.5% без заметного отскока). Кривая — ступенчатый отклик пружины, оседает за ~0.6 с. */
+    /* Пружина как в iOS: response 0.65 с, damping ratio 0.86 (мягкий разгон, плавное торможение,
+       оседание ~0.5% без заметного отскока). Кривая — ступенчатый отклик пружины, оседает за ~0.86 с. */
     --spring: cubic-bezier(0.22, 1, 0.36, 1);   /* запасной вариант, если браузер не знает linear() */
-    --dur: 600ms;
+    --dur: 860ms;
     --ease: cubic-bezier(0.22, 1, 0.36, 1);     /* прежняя кривая — только шторка и окна подсказок на телефоне */
     --panelW: 320px;
     --fs-body: 18px; --fs-small: 15px; --fs-card: 22px;
   }
   @supports (transition-timing-function: linear(0, 1)) {
-    :root { --spring: linear(0, 0.0193, 0.0684, 0.1366, 0.2157, 0.2994, 0.3834, 0.4646, 0.5407, 0.6106, 0.6737, 0.7296, 0.7785, 0.8207, 0.8567, 0.8871, 0.9124, 0.9333, 0.9503, 0.964, 0.9749, 0.9834, 0.99, 0.9949, 0.9986, 1.0012, 1.0029, 1.0041, 1.0047, 1.005, 1.005, 1.0048, 1.0045, 1.0042, 1.0037, 1.0033, 1.0029, 1.0025, 1.0021, 1.0018, 1); }
+    :root { --spring: linear(0, 0.0193, 0.0683, 0.1365, 0.2155, 0.2993, 0.3832, 0.4643, 0.5405, 0.6104, 0.6734, 0.7293, 0.7782, 0.8205, 0.8565, 0.8869, 0.9123, 0.9332, 0.9502, 0.9639, 0.9748, 0.9834, 0.9899, 0.9949, 0.9985, 1.0011, 1.0029, 1.0041, 1.0047, 1.005, 1.005, 1.0048, 1.0045, 1.0042, 1.0038, 1.0033, 1.0029, 1.0025, 1.0021, 1.0018, 1); }
   }
   /* Размер текста: «крупный» по умолчанию (аудитория пожилая). */
   html[data-textsize="normal"] { --fs-body: 15px; --fs-small: 13px; --fs-card: 17px; }
@@ -232,12 +232,13 @@
   .p-about a { color: var(--ink); font-weight: 700; font-size: var(--fs-small); }
 
   /* Наведение мышью (только устройства с мышью): кнопка чуть приподнимается, тень больше,
-     фон чуть темнее бумаги, курсор-рука; 200 мс. */
+     фон чуть темнее бумаги, курсор-рука; 300 мс. */
   @media (hover: hover) and (pointer: fine) {
     .seg button, .p-btn, .switch, #thumbs button, #panelBtn { cursor: pointer; }
     .seg button, .p-btn, .switch, #thumbs button, #panelBtn {
-      transition: transform 200ms var(--spring), box-shadow 200ms var(--spring), background-color 200ms var(--spring), border-color 200ms var(--spring);
+      transition: transform 300ms var(--spring), box-shadow 300ms var(--spring), background-color 300ms var(--spring), border-color 300ms var(--spring);
     }
+    #panelBtn { transition: left var(--dur) var(--spring), transform 300ms var(--spring), box-shadow 300ms var(--spring), background-color 300ms var(--spring); }
     .seg button:not(.on):hover, .p-btn:hover, #panelBtn:hover {
       background: #e8dbbd; transform: translateY(-1.5px); box-shadow: 0 5px 11px rgba(60,45,20,0.24);
     }
@@ -257,16 +258,17 @@
     transition: left var(--dur) var(--spring), transform var(--dur) var(--spring), background var(--dur) var(--spring);
   }
   #panelBtn:active { background: var(--paper-2); }
+  #panelBtn svg { display: block; flex: none; }
   #panelBtn .ic-arrow { display: none; }
   #scrim { display: none; }
 
   @media (min-width: 1024px) {
     #panelBtn {
-      top: 26px; left: calc(var(--panelW) - 46px); width: 34px; height: 34px; border-radius: 50% 40% 50% 40%;
+      top: 22px; left: calc(var(--panelW) - 54px); width: 40px; height: 40px; border-radius: 50% 42% 50% 42%;
     }
     #panelBtn .ic-menu { display: none; }
     #panelBtn .ic-arrow { display: block; transition: transform var(--dur) var(--spring); }
-    body.panel-collapsed #panelBtn { left: 7px; }
+    body.panel-collapsed #panelBtn { left: 4px; }
     body.panel-collapsed #panelBtn .ic-arrow { transform: rotate(180deg); }
   }
 
@@ -389,19 +391,26 @@
   #hsPopup.below::after { top: 0; margin-top: -6px; border: none; border-left: 2px solid var(--ink); border-top: 2px solid var(--ink); }
   #hsText { margin-bottom: 12px; }
   #hsBack { display: inline-block; width: auto; padding: 8px 16px; font-size: var(--fs-small); }
+  .lbl-phone { display: none; }
+  /* Телефон: заметная кнопка «× закрыть» внизу карточки (не ниже 44 px), тап мимо тоже закрывает */
+  @media (max-width: 1023.98px) {
+    .lbl-pc { display: none; }
+    .lbl-phone { display: inline; }
+    #hsBack { display: block; width: 100%; min-height: 48px; padding: 12px 16px; font-size: 19px; margin-top: 2px; }
+  }
 
-  #gl, #fallback { transition: filter 400ms var(--ease); }
+  #gl, #fallback { transition: filter 650ms var(--ease); }
   /* ПК: карточка растёт из точки на пружине (0.85 -> 1), фон затемняется/размывается/обесцвечивается
-     за 500 мс, закрытие — всё обратно так же плавно. На телефоне остаётся прежнее появление. */
+     за 650 мс; карточка закрывается за 300 мс через 250 мс после ухода мыши. На телефоне остаётся прежнее появление. */
   @media (min-width: 1024px) {
     #hsPopup {
       transform: translate(calc(-50% + var(--shift)), -100%) translateY(-16px) scale(0.85);
-      transition: opacity var(--dur) var(--spring), transform var(--dur) var(--spring);
+      transition: opacity 300ms var(--spring), transform 300ms var(--spring);   /* закрытие 300 мс */
     }
     #hsPopup.show { transform: translate(calc(-50% + var(--shift)), -100%) translateY(-16px) scale(1); transition-duration: var(--dur); }
     #hsPopup.below { transform: translate(calc(-50% + var(--shift)), 0) translateY(16px) scale(0.85); }
     #hsPopup.below.show { transform: translate(calc(-50% + var(--shift)), 0) translateY(16px) scale(1); }
-    #gl, #fallback { transition: filter 500ms var(--spring); }
+    #gl, #fallback { transition: filter 650ms var(--spring); }
   }
   #stage.reading #gl, #stage.reading #fallback { filter: brightness(0.6) saturate(0.4) blur(6px); }
 
@@ -461,7 +470,7 @@
     </section>
   </div>
 </aside>
-<button type="button" id="panelBtn" aria-label="Menu"><span class="ic-menu">☰</span><span class="ic-arrow">‹</span></button>
+<button type="button" id="panelBtn" aria-label="Menu"><svg class="ic-menu" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M4.5 7h15M4.5 12h15M4.5 17h15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><svg class="ic-arrow" viewBox="0 0 40 40" width="40" height="40" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 11.5C20.5 15.5 16.8 18.8 14 20.3c3 1.7 6.8 4.9 10 8.7" stroke-width="2.8"/><path d="M24.4 12.4C21 16 17.6 19 15 20.6c3 1.8 6.5 4.8 10 7.8" stroke-width="1.1" opacity=".55"/></g></svg></button>
 <div id="scrim"></div>
 <main id="view">
 <div id="stage" class="loading">
@@ -481,7 +490,7 @@
     <svg class="bird" style="--y:5%; --fly-dur:44s; --fly-delay:-33s" viewBox="0 0 24 12"><path d="M1,6 Q6,0 12,6 Q18,0 23,6"/></svg>
   </div>
   <div id="hotspots"></div>
-  <div id="hsPopup" class="sketch"><div id="hsText"></div><button type="button" id="hsBack" class="p-btn" data-i18n="hsBack">‹ назад</button></div>
+  <div id="hsPopup" class="sketch"><div id="hsText"></div><button type="button" id="hsBack" class="p-btn"><span class="lbl-pc" data-i18n="hsBack">‹ назад</span><span class="lbl-phone" data-i18n="hsClose">× закрыть</span></button></div>
   <button id="gyroBtn" type="button" hidden>Наклоняй телефон</button>
   <div id="hint">Веди пальцем / мышью · свайп — сменить кадр</div>
   <div id="build-version">test/depth-photo · v6 · 2026-09-24</div>
@@ -529,11 +538,11 @@ var CONFIG = {
   BREATH_PERIOD_S: 6,
 
   // Кроссфейд между кадрами, мс.
-  SPRING_RESPONSE: 0.45,     // пружина: response, с
+  SPRING_RESPONSE: 0.65,     // пружина: response, с
   SPRING_DAMPING: 0.86,      // пружина: damping ratio
-  FRAME_CROSSFADE_MS: 600,
+  FRAME_CROSSFADE_MS: 860,
   TOD_MS: 1500,              // смена времени суток, мс
-  HS_CLOSE_DELAY_MS: 600,    // ПК: карточка подсказки не пропадает сразу при уходе мыши
+  HS_CLOSE_DELAY_MS: 250,    // ПК: карточка подсказки закрывается через 250 мс после ухода мыши
 
   // Номера кадров (с 0), которые не показываем: брак, который не удалось заменить.
   hiddenFrames: [],
@@ -665,6 +674,7 @@ var CONFIG = {
       hy: 'Քաշիր մատով կամ մկնիքով · սահեցրու՝ կադրը փոխելու համար' // TODO: армянский — вычитать мне
     },
     hsBack: { ru: '‹ назад', en: '‹ back', hy: '‹ հետ' }, // TODO: армянский — вычитать мне
+    hsClose: { ru: '× закрыть', en: '× close', hy: '× փակել' }, // TODO: армянский — вычитать мне
     panelTitle: { ru: 'Кукурузник', en: 'Kukuruznik', hy: 'Կուկուրուզնիկ' },
     menu: { ru: 'Меню', en: 'Menu', hy: 'Ընտրացանկ' }, // TODO: армянский — вычитать мне
     tod: { ru: 'Время суток', en: 'Time of day', hy: 'Օրվա ժամը' }, // TODO: армянский — вычитать мне
@@ -716,7 +726,7 @@ var CONFIG = {
 
   // ---------- общие функции ----------
   function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
-  // Пружина как в iOS (response 0.45 с, damping ratio 0.86): ступенчатый отклик, оседание ~0.5%.
+  // Пружина как в iOS (response 0.65 с, damping ratio 0.86): ступенчатый отклик, оседание ~0.5%.
   // Время оседания считаем численно; p (0..1) — доля этого времени, поэтому любую длительность
   // (кроссфейд, время суток, возврат в центр) можно прогнать по той же кривой.
   var springTable = (function () {
