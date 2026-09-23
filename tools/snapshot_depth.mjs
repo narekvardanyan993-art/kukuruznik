@@ -44,7 +44,7 @@ async function capture() {
 
   const advance = (ms) => page.evaluate((m) => window.__advance(m), ms);
   async function waitLoaded() {
-    for (let i = 0; i < 300; i++) {
+    for (let i = 0; i < 900; i++) {
       await advance(100);
       const ok = await page.evaluate(() => !document.getElementById('stage').classList.contains('loading'));
       if (ok) return;
@@ -111,6 +111,13 @@ async function capture() {
   await advance(200); await sleep(300);
   await tiltAt(0.7, 0.5, 1400, 900);
   await shot('desktop');
+  // карточка подсказки при наведении на первую точку
+  const dotPos = await page.evaluate(() => { const d = document.querySelector('.hs-dot'); if (!d) return null; const r = d.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+  if (dotPos) {
+    await page.mouse.move(dotPos.x, dotPos.y); await advance(700); await sleep(300);
+    await shot('desktop_hint');
+    await page.mouse.move(dotPos.x + 250, dotPos.y + 150); await advance(1500); await sleep(200);
+  }
   if (await page.$('#todSeg')) {
     for (const t of ['night', 'sunset']) {
       await page.click(`#todSeg [data-tod=${t}]`); await advance(1600); await sleep(300);
