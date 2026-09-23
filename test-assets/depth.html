@@ -159,6 +159,16 @@
     pointer-events: none;
   }
 
+  /* Фон страницы на ПК: еле видный карандашный старый город (tools/make_bg.py) в пустых полях,
+     прозрачность 7%. На телефоне не показывается. */
+  @media (min-width: 1024px) {
+    body::before {
+      content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background: url(oldtown-bg.svg) center bottom / cover no-repeat; opacity: 0.07;
+    }
+    #layout { position: relative; z-index: 1; }
+  }
+
   /* ---------- Панель (скетч-стиль: бумага, карандашная рамка, мягкая тень) ---------- */
   .sketch {
     background: var(--paper);
@@ -493,7 +503,7 @@
   <div id="hsPopup" class="sketch"><div id="hsText"></div><button type="button" id="hsBack" class="p-btn"><span class="lbl-pc" data-i18n="hsBack">‹ назад</span><span class="lbl-phone" data-i18n="hsClose">× закрыть</span></button></div>
   <button id="gyroBtn" type="button" hidden>Наклоняй телефон</button>
   <div id="hint">Веди пальцем / мышью · свайп — сменить кадр</div>
-  <div id="build-version">test/depth-photo · v6 · 2026-09-24</div>
+  <div id="build-version">test/depth-photo · v7 · 2026-09-24</div>
 </div>
 </main>
 </div>

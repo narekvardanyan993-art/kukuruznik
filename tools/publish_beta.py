@@ -39,9 +39,10 @@ def main():
                         '<meta name="googlebot" content="noindex, nofollow">', 1)
     html = html.replace('<title>3D-фото — тест параллакса глубины</title>', '<title>Кукурузник — beta</title>', 1)
     html = html.replace('../../kukuruznik/index.html', '../kukuruznik/index.html')
-    html = re.sub(r'test/depth-photo · v\d+ · [0-9-]+', 'beta · v6 · ' + stamp, html)
+    html = re.sub(r'test/depth-photo · v\d+ · [0-9-]+', 'beta · v7 · ' + stamp, html)
     html = re.sub(r"(frames/v_angle_\d(?:_[a-z0-9]+)*)\.png", r"\1.webp", html)
     (beta / 'index.html').write_text(html, encoding='utf-8')
+    (beta / 'oldtown-bg.svg').write_text((SRC / 'oldtown-bg.svg').read_text(encoding='utf-8'), encoding='utf-8')  # фон страницы на ПК
 
     used = sorted(set(re.findall(r"frames/(v_angle_\d(?:_[a-z0-9]+)*)\.webp", html)))
     total = 0
