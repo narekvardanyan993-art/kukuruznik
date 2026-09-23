@@ -1531,8 +1531,6 @@ var CONFIG = {
   }
 
   // ---------- рендер-цикл ----------
-  var dbg = { useGL: useGL }; // только для чтения: проверки/снимки (tools/snapshot_depth.mjs)
-  window.__depthDebug = dbg;
   var t0 = performance.now();
   var lastNow = null;
   var lastDraw = null;
@@ -1607,9 +1605,6 @@ var CONFIG = {
     var shiftY = tiltY * CONFIG.MAX_SHIFT_Y + breathY;
     // наклон к себе (вниз) — ближние части чуть увеличиваются
     var zoom = CONFIG.ZOOM_NEAR * clamp(tiltY, 0, 1);
-
-    dbg.tiltX = tiltX; dbg.tiltY = tiltY; dbg.curX = curX; dbg.curY = curY;
-    dbg.mix = mixState; dbg.frameIndex = frameIndex; dbg.fading = !!fade; dbg.sway = !userTouched && swayEnabled && (performance.now() - lastInputAt) > CONFIG.IDLE_SWAY_AFTER_MS;
 
     resize(false);
 
