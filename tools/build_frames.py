@@ -20,7 +20,9 @@
      RGBA-вырезка (цвет от <имя>.png, альфа — маска с мягким краем).
   3. Переписывает CONFIG.FRAMES в test-assets/depth.html — только между метками
      FRAMES:START/FRAMES:END, остальной код не трогает. Формат записи —
-     { bg: {color, depth}, building: {color, depth} } на кадр.
+     { color, depth, bg: {color, depth}, building: {color, depth} } на кадр:
+     color/depth — цельный кадр и его карта глубины (основной режим, WebGL),
+     bg/building — два слоя, нужны только для отката без WebGL.
 
 Правило проекта: логика depth.html (шейдер, обработчики ввода) меняется
 только по прямому запросу — этот скрипт правит список кадров и генерирует
@@ -209,8 +211,9 @@ def update_config_frames(names):
     lines = []
     for name in names:
         lines.append(
-            "    { bg: { color: %r, depth: %r }, building: { color: %r, depth: %r } },"
-            % ('frames/%s_bg.png' % name, 'frames/%s_bg_depth.png' % name,
+            "    { color: %r, depth: %r, bg: { color: %r, depth: %r }, building: { color: %r, depth: %r } },"
+            % ('frames/%s.png' % name, 'frames/%s_depth.png' % name,
+               'frames/%s_bg.png' % name, 'frames/%s_bg_depth.png' % name,
                'frames/%s_building.png' % name, 'frames/%s_depth.png' % name)
         )
     body = '\n'.join(lines) + '\n'
