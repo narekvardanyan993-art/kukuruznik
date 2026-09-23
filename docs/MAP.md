@@ -15,6 +15,10 @@
 - **Тег depth-photo-v5** (ветка `test/depth-photo`): здание — жёсткое тело (один общий сдвиг по маске SAM), фон и земля по пикселю (макс. 2%/1.2%, блюр глубины 6 px); ПК-версия с панелью слева; время суток (день/закат/ночь) в шейдере; подсказки-карточки с затемнением фона; единая кривая анимаций и prefers-reduced-motion; перегенерированные кадры лежат в `на_проверку/` (на сайт не ставились).
   - Откат: `git reset --hard depth-photo-v5`
   - Убрать кадр-брак без замены: номер в `CONFIG.hiddenFrames` (с 0).
+- **Тег depth-photo-v6** (ветка `test/depth-photo`): пять утверждённых кадров вместо брака (0,1,2,3,5), hover панели, пружина везде, ночь на всю сцену (окна, фонари, звёзды), закат, ветер в деревьях, закрытая бета на chka.am/beta/.
+  - Откат: `git reset --hard depth-photo-v6`
+  - Маски неба/деревьев/окон: `python3 tools/build_env_masks.py` (после `tools/build_frames.py`); фонари — `CONFIG.LAMPS` (координаты по рисунку).
+  - Закрытая бета в main: `python3 tools/publish_beta.py ../kukuruznik-main` (noindex, WebP), ссылок с сайта нет.
   - Снимки до/после: `node tools/snapshot_depth.mjs before|after` (сервер на :8080), папки `docs/snapshots/depth-*`.
 
 ## Конвейер кадров для test-assets/depth.html (ветка test/depth-photo)
