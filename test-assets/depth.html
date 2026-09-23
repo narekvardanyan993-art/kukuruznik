@@ -70,7 +70,7 @@
     display: flex; align-items: center; justify-content: center;
     background: var(--paper); color: rgba(47,42,37,0.7);
     font: 700 26px/1 'Caveat', -apple-system, "Noto Sans Armenian", sans-serif;
-    transition: opacity 300ms ease;
+    transition: opacity 300ms var(--ease);
   }
   #stage:not(.loading) #loader { opacity: 0; pointer-events: none; }
 
@@ -113,7 +113,7 @@
     border: none; color: #fff; font-size: 20px; line-height: 1;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; z-index: 5;
-    transition: background 150ms ease, opacity 150ms ease;
+    transition: background 250ms var(--ease), opacity 250ms var(--ease);
   }
   .nav-btn:hover { background: rgba(20, 16, 8, 0.55); }
   .nav-btn:active { background: rgba(20, 16, 8, 0.7); }
@@ -127,7 +127,7 @@
   #dots span {
     width: 7px; height: 7px; border-radius: 50%;
     background: rgba(255,255,255,0.4);
-    transition: background 150ms ease, transform 150ms ease;
+    transition: background 250ms var(--ease), transform 250ms var(--ease);
   }
   #dots span.on { background: #fff; transform: scale(1.25); }
 
@@ -267,7 +267,7 @@
     background: rgba(20, 16, 8, 0.4); padding: 6px 12px; border-radius: 14px;
     -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
     opacity: 0.9; pointer-events: none;
-    transition: opacity 600ms ease;
+    transition: opacity 450ms var(--ease);
   }
   #hint.gone { opacity: 0; }
 
@@ -299,7 +299,7 @@
     width: 22px; height: 22px; margin: -11px;
     border: none; padding: 0; background: none;
     pointer-events: auto; cursor: pointer;
-    opacity: 0; transition: opacity 400ms ease;
+    opacity: 0; transition: opacity 400ms var(--ease);
   }
   .hs-dot.show { opacity: 1; }
   .hs-dot::before, .hs-dot::after {
@@ -314,7 +314,7 @@
   .hs-dot::after {
     width: 10px; height: 10px;
     background: rgba(255,255,255,0.7);
-    animation: hsPulse 2.2s ease-out infinite;
+    animation: hsPulse 2.2s var(--ease) infinite;
   }
   @keyframes hsPulse {
     0% { transform: translate(-50%, -50%) scale(1); opacity: 0.7; }
@@ -355,6 +355,15 @@
 
   #gl, #fallback { transition: filter 400ms var(--ease); }
   #stage.reading #gl, #stage.reading #fallback { filter: brightness(0.6) saturate(0.4) blur(6px); }
+
+  /* Уменьшение движения: без фоновых анимаций и плавных переходов */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important; animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important; scroll-behavior: auto !important;
+    }
+    .bird, .hs-dot::after { display: none; }
+  }
 </style>
 </head>
 <body>
@@ -629,8 +638,37 @@ var CONFIG = {
 
   // ---------- общие функции ----------
   function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
-  function smooth01(t) { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); }            // ease-in-out
-  function easeInOutCubic(t) { t = clamp(t, 0, 1); return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+  // cubic-bezier как в CSS: одна кривая (0.22, 1, 0.36, 1) для всех анимаций страницы
+  function cubicBezier(x1, y1, x2, y2) {
+    var cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
+    var cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+    function sx(t) { return ((ax * t + bx) * t + cx) * t; }
+    function sy(t) { return ((ay * t + by) * t + cy) * t; }
+    function dsx(t) { return (3 * ax * t + 2 * bx) * t + cx; }
+    return function (x) {
+      x = clamp(x, 0, 1);
+      var t = x, i, d, e;
+      for (i = 0; i < 8; i++) {
+        e = sx(t) - x;
+        if (Math.abs(e) < 1e-5) return sy(t);
+        d = dsx(t);
+        if (Math.abs(d) < 1e-6) break;
+        t -= e / d;
+      }
+      var lo = 0, hi = 1; t = x;
+      while (lo < hi) {
+        e = sx(t);
+        if (Math.abs(e - x) < 1e-5) break;
+        if (x > e) lo = t; else hi = t;
+        t = (hi - lo) / 2 + lo;
+      }
+      return sy(t);
+    };
+  }
+  var EASE = cubicBezier(0.22, 1, 0.36, 1);
+  // prefers-reduced-motion: переходы мгновенные, автопокачивание/дыхание/облака/птицы выключены
+  var reduceMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
+  function reduced() { return reduceMQ.matches; }
   // Сглаживание, не зависящее от частоты кадров: k — доля пути за кадр на 60 fps.
   function lerpK(k, dt) { return 1 - Math.pow(1 - k, dt / 16.667); }
 
@@ -1502,12 +1540,14 @@ var CONFIG = {
   function frame(now) {
     var dt = lastNow === null ? 16.667 : clamp(now - lastNow, 1, 64);
     lastNow = now;
-    var t = (now - t0) / 1000;
+    var rm = reduced();
+    var t = rm ? 0 : (now - t0) / 1000;   // облака замирают при «уменьшении движения»
+    var retMs = rm ? 1 : CONFIG.RETURN_MS;
 
     // --- кроссфейд ---
     if (fade) {
       if (fade.t0 === null) fade.t0 = now;
-      var p = (now - fade.t0) / CONFIG.FRAME_CROSSFADE_MS;
+      var p = (now - fade.t0) / (rm ? 1 : CONFIG.FRAME_CROSSFADE_MS);
       if (p >= 1) {
         frameIndex = fade.to;
         fade = null;
@@ -1515,15 +1555,15 @@ var CONFIG = {
         markDot(frameIndex);
         buildHotspots(frameIndex);
       } else {
-        mixState = smooth01(p);
+        mixState = EASE(p);
       }
     }
 
     // --- время суток ---
     if (todAnim) {
       if (todAnim.t0 === null) todAnim.t0 = now;
-      var tp = (now - todAnim.t0) / CONFIG.TOD_MS;
-      var te = smooth01(tp);
+      var tp = (now - todAnim.t0) / (rm ? 1 : CONFIG.TOD_MS);
+      var te = EASE(tp);
       tod.s = todAnim.s0 + (todAnim.s1 - todAnim.s0) * te;
       tod.n = todAnim.n0 + (todAnim.n1 - todAnim.n0) * te;
       if (tp >= 1) todAnim = null;
@@ -1532,7 +1572,7 @@ var CONFIG = {
     // --- наклон ---
     if (ret) {
       if (ret.t0 === null) ret.t0 = now;
-      var e = easeInOutCubic((now - ret.t0) / CONFIG.RETURN_MS);
+      var e = EASE((now - ret.t0) / retMs);
       curX = ret.fx + (targetX - ret.fx) * e;
       curY = ret.fy + (targetY - ret.fy) * e;
       if (now - ret.t0 >= CONFIG.RETURN_MS) ret = null;
@@ -1548,10 +1588,10 @@ var CONFIG = {
 
     // --- автопокачивание: только пока никто не трогал экран ---
     var swayX = 0, swayY = 0;
-    if (!userTouched && swayEnabled) {
+    if (!userTouched && swayEnabled && !rm) {
       var idle = performance.now() - lastInputAt - CONFIG.IDLE_SWAY_AFTER_MS;
       if (idle > 0) {
-        var amp = CONFIG.SWAY_AMPLITUDE * smooth01(idle / 1500); // плавно набирает амплитуду
+        var amp = CONFIG.SWAY_AMPLITUDE * EASE(idle / 1500); // плавно набирает амплитуду
         var ph = 2 * Math.PI * (idle / 1000) / CONFIG.SWAY_PERIOD_S;
         swayX = amp * Math.sin(ph);
         swayY = amp * 0.5 * Math.sin(ph + Math.PI / 2);
@@ -1560,8 +1600,9 @@ var CONFIG = {
     var tiltX = clamp(curX + swayX, -1, 1);
     var tiltY = clamp(curY + swayY, -1, 1);
 
-    var breathX = CONFIG.BREATH_AMPLITUDE * Math.sin(t * 2 * Math.PI / CONFIG.BREATH_PERIOD_S);
-    var breathY = CONFIG.BREATH_AMPLITUDE * Math.cos(t * 2 * Math.PI / (CONFIG.BREATH_PERIOD_S * 0.7));
+    var ba = rm ? 0 : CONFIG.BREATH_AMPLITUDE;
+    var breathX = ba * Math.sin(t * 2 * Math.PI / CONFIG.BREATH_PERIOD_S);
+    var breathY = ba * Math.cos(t * 2 * Math.PI / (CONFIG.BREATH_PERIOD_S * 0.7));
     var shiftX = tiltX * CONFIG.MAX_SHIFT_X + breathX;
     var shiftY = tiltY * CONFIG.MAX_SHIFT_Y + breathY;
     // наклон к себе (вниз) — ближние части чуть увеличиваются
