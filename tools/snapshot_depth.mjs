@@ -126,6 +126,18 @@ async function capture() {
     await page.click('#todSeg [data-tod=day]'); await advance(1600);
   }
 
+  // Ночь и закат на каждом кадре (телефон)
+  await page.setViewport({ width: W, height: H, deviceScaleFactor: 1 });
+  await advance(300); await sleep(300);
+  if (await page.$('#todSeg')) {
+    await page.evaluate(() => document.querySelector('#todSeg [data-tod=night]').click());
+    await advance(2200);
+    for (let i = 0; i < 6; i++) { await goToFrame(i); await tiltAt(0.5, 0.5, W, H); await shot(`night_${i}`); }
+    await page.evaluate(() => document.querySelector('#todSeg [data-tod=sunset]').click());
+    await advance(2200);
+    await goToFrame(0); await tiltAt(0.5, 0.5, W, H); await shot('sunset_0');
+  }
+
   await browser.close();
 }
 

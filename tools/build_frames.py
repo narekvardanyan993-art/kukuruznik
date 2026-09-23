@@ -20,7 +20,8 @@
      RGBA-вырезка (цвет от <имя>.png, альфа — маска с мягким краем).
   3. Переписывает CONFIG.FRAMES в test-assets/depth.html — только между метками
      FRAMES:START/FRAMES:END, остальной код не трогает. Формат записи —
-     { color, depth, bg: {color, depth}, building: {color, depth} } на кадр:
+     { color, depth, bg: {color, depth}, building: {color, depth}, env, win2 } на кадр
+     (env/win2 — маски неба/деревьев/окон, их строит tools/build_env_masks.py):
      color/depth — цельный кадр и его карта глубины (основной режим, WebGL),
      bg/building — два слоя, нужны только для отката без WebGL.
 
@@ -211,10 +212,11 @@ def update_config_frames(names):
     lines = []
     for name in names:
         lines.append(
-            "    { color: %r, depth: %r, bg: { color: %r, depth: %r }, building: { color: %r, depth: %r } },"
+            "    { color: %r, depth: %r, bg: { color: %r, depth: %r }, building: { color: %r, depth: %r }, env: %r, win2: %r },"
             % ('frames/%s.png' % name, 'frames/%s_depth.png' % name,
                'frames/%s_bg.png' % name, 'frames/%s_bg_depth.png' % name,
-               'frames/%s_building.png' % name, 'frames/%s_depth.png' % name)
+               'frames/%s_building.png' % name, 'frames/%s_depth.png' % name,
+               'frames/%s_env.png' % name, 'frames/%s_win2.png' % name)
         )
     body = '\n'.join(lines) + '\n'
     new_html = html[:si_line_end] + body + html[ei_line_start:]
