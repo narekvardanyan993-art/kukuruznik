@@ -176,7 +176,6 @@
     flex: 1; padding: 9px 4px; border: none; border-right: 1px solid rgba(47,42,37,0.5);
     background: transparent; color: var(--ink); cursor: pointer;
     font: 600 var(--fs-small)/1.1 -apple-system, "Noto Sans Armenian", sans-serif;
-    transition: background 250ms var(--ease), color 250ms var(--ease);
   }
   .seg button:last-child { border-right: none; }
   .seg button.on { background: var(--ink); color: var(--paper); }
@@ -207,10 +206,26 @@
     font: 700 var(--fs-body)/1.1 -apple-system, "Noto Sans Armenian", sans-serif;
     transition: background 250ms var(--ease), color 250ms var(--ease);
   }
-  .p-btn:hover { background: var(--ink); color: var(--paper); }
   .p-btn[hidden] { display: none; }
   .p-about p { margin: 0 0 6px; font-size: var(--fs-small); line-height: 1.35; }
   .p-about a { color: var(--ink); font-weight: 700; font-size: var(--fs-small); }
+
+  /* Наведение мышью (только устройства с мышью): кнопка чуть приподнимается, тень больше,
+     фон чуть темнее бумаги, курсор-рука; 200 мс. */
+  @media (hover: hover) and (pointer: fine) {
+    .seg button, .p-btn, .switch, #thumbs button, #panelBtn { cursor: pointer; }
+    .seg button, .p-btn, .switch, #thumbs button, #panelBtn {
+      transition: transform 200ms var(--ease), box-shadow 200ms var(--ease), background-color 200ms var(--ease), border-color 200ms var(--ease);
+    }
+    .seg button:not(.on):hover, .p-btn:hover, #panelBtn:hover {
+      background: #e8dbbd; transform: translateY(-1.5px); box-shadow: 0 5px 11px rgba(60,45,20,0.24);
+    }
+    .seg button.on:hover { transform: translateY(-1.5px); box-shadow: 0 5px 11px rgba(60,45,20,0.3); }
+    .switch:hover { transform: translateY(-1.5px); box-shadow: 0 5px 11px rgba(60,45,20,0.24); }
+    #thumbs button:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(60,45,20,0.3); }
+    #thumbs button.on:hover { transform: scale(1.04) translateY(-2px); }
+    .seg button:active, .p-btn:active, .switch:active, #thumbs button:active, #panelBtn:active { transform: translateY(0); box-shadow: none; }
+  }
 
   /* кнопка панели: на ПК — стрелка свернуть/развернуть, на телефоне — круглая кнопка снизу слева */
   #panelBtn {
@@ -461,7 +476,7 @@ var CONFIG = {
   // Наклон гироскопа, дающий полное смещение (мышь/палец — свои правила).
   MAX_TILT_X_DEG: 20,
   MAX_TILT_Y_DEG: 20,
-  GYRO_ACTIVITY_DEG: 2,      // наклон больше — считаем, что человек взял телефон в руки
+  GYRO_ACTIVITY_DEG: 1.5,    // за 250 мс наклон изменился больше — человек двигает телефон (дрожание рук не в счёт)
 
   SMOOTH: 0.12,              // сглаживание гироскопа/мыши (доля пути за кадр при 60 fps)
   RETURN_MS: 800,            // возврат в центр после отпускания пальца
@@ -471,7 +486,7 @@ var CONFIG = {
   SWIPE_MAX_MS: 350,
 
   // Автопокачивание, если 4 секунды нет ни касаний, ни наклона.
-  IDLE_SWAY_AFTER_MS: 4000,
+  IDLE_SWAY_AFTER_MS: 3000,
   SWAY_PERIOD_S: 8,
   SWAY_AMPLITUDE: 0.4,       // доля максимального смещения
 
@@ -1394,11 +1409,10 @@ var CONFIG = {
   var ret = null;             // плавный возврат в центр после пальца
   var pointerActive = false, dragId = null;
   var dragStartX = 0, dragStartY = 0, dragBaseX = 0, dragBaseY = 0, dragStartT = 0;
-  var userTouched = false;    // любое касание/наклон навсегда выключает автопокачивание
   var lastInputAt = 0;
 
+  // Любое касание/мышь/клавиша/наклон — сцена перестаёт качаться, через 3 с покоя качается снова.
   function noteInput() {
-    userTouched = true;
     lastInputAt = performance.now();
   }
 
@@ -1407,6 +1421,19 @@ var CONFIG = {
     targetX = clamp((clientX - (r.left + r.width / 2)) / (r.width / 2), -1, 1);
     targetY = clamp((clientY - (r.top + r.height / 2)) / (r.height / 2), -1, 1);
   }
+
+  // Браузер сам шлёт pointermove без движения мыши (когда под курсором что-то сдвинулось) —
+  // такие события игнорируем, иначе автопокачивание никогда не начнётся.
+  var lastMx = -1, lastMy = -1;
+  document.addEventListener('pointermove', function (e) {
+    if (e.pointerType !== 'mouse') { noteInput(); return; }
+    if (Math.abs(e.clientX - lastMx) + Math.abs(e.clientY - lastMy) < 1) return;
+    lastMx = e.clientX; lastMy = e.clientY;
+    noteInput();
+  }, true);
+  ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(function (ev) {
+    document.addEventListener(ev, noteInput, { capture: true, passive: true });
+  });
 
   stage.addEventListener('pointerdown', function (e) {
     noteInput();
@@ -1423,7 +1450,6 @@ var CONFIG = {
 
   stage.addEventListener('pointermove', function (e) {
     if (e.pointerType === 'mouse') {
-      noteInput();
       setTiltFromClient(e.clientX, e.clientY);
       return;
     }
@@ -1465,6 +1491,7 @@ var CONFIG = {
 
   // ---------- гироскоп ----------
   var gyroActive = false, gyroBaseBeta = null, gyroBaseGamma = null;
+  var gyroRefG = 0, gyroRefB = 0, gyroRefT = 0;
   var gyroTargetX = 0, gyroTargetY = 0, gyroGotEvent = false;
 
   function onOrientation(e) {
@@ -1475,8 +1502,12 @@ var CONFIG = {
     var dBeta = e.beta - gyroBaseBeta;    // к себе / от себя
     gyroTargetX = clamp(dGamma / CONFIG.MAX_TILT_X_DEG, -1, 1);
     gyroTargetY = clamp(dBeta / CONFIG.MAX_TILT_Y_DEG, -1, 1);
-    // Дрожание рук — не «касание»: считаем движением наклон больше порога.
-    if (Math.abs(dGamma) > CONFIG.GYRO_ACTIVITY_DEG || Math.abs(dBeta) > CONFIG.GYRO_ACTIVITY_DEG) noteInput();
+    // Дрожание рук — не «касание»: движением считаем сдвиг больше порога за 250 мс.
+    var tNow = performance.now();
+    if (gyroRefT === 0 || tNow - gyroRefT > 250) {
+      if (gyroRefT !== 0 && Math.abs(e.gamma - gyroRefG) + Math.abs(e.beta - gyroRefB) > CONFIG.GYRO_ACTIVITY_DEG) noteInput();
+      gyroRefG = e.gamma; gyroRefB = e.beta; gyroRefT = tNow;
+    }
     if (!pointerActive) { targetX = gyroTargetX; targetY = gyroTargetY; }
   }
 
@@ -1534,6 +1565,7 @@ var CONFIG = {
   var t0 = performance.now();
   var lastNow = null;
   var lastDraw = null;
+  var swayMix = 0, swayPhase = 0;
 
   function frame(now) {
     var dt = lastNow === null ? 16.667 : clamp(now - lastNow, 1, 64);
@@ -1584,17 +1616,16 @@ var CONFIG = {
       curY += (targetY - curY) * ks;
     }
 
-    // --- автопокачивание: только пока никто не трогал экран ---
-    var swayX = 0, swayY = 0;
-    if (!userTouched && swayEnabled && !rm) {
-      var idle = performance.now() - lastInputAt - CONFIG.IDLE_SWAY_AFTER_MS;
-      if (idle > 0) {
-        var amp = CONFIG.SWAY_AMPLITUDE * EASE(idle / 1500); // плавно набирает амплитуду
-        var ph = 2 * Math.PI * (idle / 1000) / CONFIG.SWAY_PERIOD_S;
-        swayX = amp * Math.sin(ph);
-        swayY = amp * 0.5 * Math.sin(ph + Math.PI / 2);
-      }
-    }
+    // --- автопокачивание: 3 с без касаний/мыши/наклона -> качаемся (период 8 с, 40% максимума);
+    // любое действие гасит его быстро, после 3 с покоя оно снова плавно входит. Выключено — стоит.
+    // «Уменьшение движения» на автопокачивание не влияет: у него есть свой переключатель в панели.
+    var swayOn = swayEnabled && (performance.now() - lastInputAt) > CONFIG.IDLE_SWAY_AFTER_MS;
+    swayMix += ((swayOn ? 1 : 0) - swayMix) * lerpK(swayOn ? 0.035 : 0.14, dt);
+    if (!swayEnabled) swayMix = 0;
+    if (swayMix > 0.002) swayPhase += dt * 2 * Math.PI / (CONFIG.SWAY_PERIOD_S * 1000);
+    var swayAmp = CONFIG.SWAY_AMPLITUDE * swayMix;
+    var swayX = swayAmp * Math.sin(swayPhase);
+    var swayY = swayAmp * 0.8 * Math.sin(swayPhase + Math.PI / 2);
     var tiltX = clamp(curX + swayX, -1, 1);
     var tiltY = clamp(curY + swayY, -1, 1);
 
@@ -1642,8 +1673,16 @@ var CONFIG = {
 
   function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  // Выделение меняется мгновенно, в том же кадре, что и запуск смены (без CSS-перехода фона —
+  // в WebKit он не перерисовывался, пока рядом рисует WebGL); reflow принудительно.
   function segMark(segId, attr, value) {
-    document.querySelectorAll('#' + segId + ' button').forEach(function (b) { b.classList.toggle('on', b.getAttribute(attr) === value); });
+    var seg = document.getElementById(segId);
+    seg.querySelectorAll('button').forEach(function (b) {
+      var on = b.getAttribute(attr) === value;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    void seg.offsetWidth;
   }
 
   // свернуть/развернуть (ПК) и шторка (телефон)
@@ -1693,7 +1732,7 @@ var CONFIG = {
     swayEnabled = !swayEnabled;
     swayBtn.classList.toggle('on', swayEnabled);
     swayBtn.setAttribute('aria-checked', swayEnabled ? 'true' : 'false');
-    if (swayEnabled) { userTouched = false; lastInputAt = performance.now(); } // снова ждём 4 с тишины
+    if (swayEnabled) lastInputAt = performance.now(); // снова ждём 3 с тишины
   });
 
   // полный экран
