@@ -3,3 +3,6 @@ Claude outputs/
 .claude/
 node_modules/
 .venv-depth/
+
+# Картинки на проверку (v5/v6): лежат на диске, в git не входят
+на_проверку/
