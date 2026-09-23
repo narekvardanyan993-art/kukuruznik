@@ -133,6 +133,25 @@
   /* Точки-подсказки: маленький пульсирующий маркер, привязанный к
      объекту на слое (двигается вместе с ним при параллаксе — позиция
      считается в JS той же формулой смещения, что и в шейдере). */
+  /* Птицы в небе — единственная анимация помимо теней облаков, летят
+     медленно и независимо от параллакса (они и так на предельно
+     дальнем плане, где смещение практически нулевое). */
+  #birds { position: absolute; inset: 0; z-index: 4; pointer-events: none; overflow: hidden; }
+  .bird {
+    position: absolute; left: -10%; top: var(--y, 10%);
+    width: 26px; height: 13px;
+    fill: none; stroke: #3a332a; stroke-width: 1.4; stroke-linecap: round;
+    opacity: 0.5;
+    animation: birdFly var(--fly-dur, 42s) linear infinite;
+    animation-delay: var(--fly-delay, 0s);
+  }
+  @keyframes birdFly {
+    0%   { left: -10%; margin-top: 0; }
+    48%  { margin-top: -9px; }
+    50%  { left: 52%; }
+    100% { left: 112%; margin-top: 0; }
+  }
+
   #hotspots { position: absolute; inset: 0; z-index: 6; pointer-events: none; }
   .hs-dot {
     position: absolute; top: 0; left: 0;
@@ -191,6 +210,11 @@
   <button id="prevBtn" class="nav-btn" type="button" aria-label="Предыдущий кадр">‹</button>
   <button id="nextBtn" class="nav-btn" type="button" aria-label="Следующий кадр">›</button>
   <div id="dots"></div>
+  <div id="birds" aria-hidden="true">
+    <svg class="bird" style="--y:8%; --fly-dur:39s; --fly-delay:-4s" viewBox="0 0 24 12"><path d="M1,6 Q6,0 12,6 Q18,0 23,6"/></svg>
+    <svg class="bird" style="--y:14%; --fly-dur:48s; --fly-delay:-22s" viewBox="0 0 24 12"><path d="M1,6 Q6,0 12,6 Q18,0 23,6"/></svg>
+    <svg class="bird" style="--y:5%; --fly-dur:44s; --fly-delay:-33s" viewBox="0 0 24 12"><path d="M1,6 Q6,0 12,6 Q18,0 23,6"/></svg>
+  </div>
   <div id="hotspots"></div>
   <div id="hsPopup"></div>
   <div id="gyroOverlay" hidden>
@@ -371,6 +395,27 @@ var CONFIG = {
     'uniform float uStrength;',
     'uniform vec2  uCoverScale;', // "cover"-обрезка кадра под экран (моб.)
     'uniform vec2  uCoverOffset;',
+    'uniform float uTime;',
+    '',
+    // Мягкое пятно тени от облака: смещённый и чуть "разлохмаченный"
+    // синусами круг, край размыт smoothstep — не ровный диск.
+    'float blob(vec2 uv, vec2 center, vec2 radius) {',
+    '  vec2 d = (uv - center) / radius;',
+    '  float wobble = 0.15 * sin(d.x * 6.0 + center.x * 9.0) * sin(d.y * 5.0 + center.y * 7.0);',
+    '  float dist = length(d) + wobble;',
+    '  return smoothstep(1.0, 0.15, dist);',
+    '}',
+    // Две тени от облаков не спеша ползут по кадру слева направо,
+    // один полный проход ~40с, без всякой другой анимации.
+    'float cloudShadow(vec2 uv, float t) {',
+    '  float cycle1 = 40.0;',
+    '  float p1 = fract(t / cycle1);',
+    '  float b1 = blob(uv, vec2(mix(-0.35, 1.35, p1), 0.58), vec2(0.30, 0.17));',
+    '  float cycle2 = 53.0;',
+    '  float p2 = fract((t + cycle1 * 0.5) / cycle2);',
+    '  float b2 = blob(uv, vec2(mix(-0.35, 1.35, p2), 0.32), vec2(0.22, 0.13));',
+    '  return clamp(b1 + b2, 0.0, 1.0);',
+    '}',
     '',
     'vec3 layer(sampler2D bgColor, sampler2D bgDepth, sampler2D bldColor, sampler2D bldDepth, vec2 uv) {',
     '  float dBg = texture2D(bgDepth, uv).r;',
@@ -390,7 +435,10 @@ var CONFIG = {
     '  vec2 uv = vUv * uCoverScale + uCoverOffset;',
     '  vec3 a = layer(uBgColorA, uBgDepthA, uBldColorA, uBldDepthA, uv);',
     '  vec3 b = layer(uBgColorB, uBgDepthB, uBldColorB, uBldDepthB, uv);',
-    '  gl_FragColor = vec4(mix(a, b, uMix), 1.0);',
+    '  vec3 color = mix(a, b, uMix);',
+    '  float shadow = cloudShadow(uv, uTime);',
+    '  color *= (1.0 - 0.12 * shadow);',
+    '  gl_FragColor = vec4(color, 1.0);',
     '}'
   ].join('\n');
 
@@ -427,6 +475,7 @@ var CONFIG = {
   var uStrength = gl.getUniformLocation(prog, 'uStrength');
   var uCoverScale = gl.getUniformLocation(prog, 'uCoverScale');
   var uCoverOffset = gl.getUniformLocation(prog, 'uCoverOffset');
+  var uTime = gl.getUniformLocation(prog, 'uTime');
 
   // 8 текстурных юнитов: {bg,bld} x {color,depth} x {A,B}
   var LAYER_KEYS = ['bgColor', 'bgDepth', 'bldColor', 'bldDepth'];
@@ -845,6 +894,7 @@ var CONFIG = {
     gl.uniform2f(uTilt, tiltX, tiltY);
     gl.uniform2f(uBreath, breathX, breathY);
     gl.uniform1f(uMix, mixState);
+    gl.uniform1f(uTime, t);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
     if (!crossfading) {
