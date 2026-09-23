@@ -10,9 +10,16 @@
 <style>
   :root {
     --paper: #f5ecda; --paper-2: #ede0c2; --ink: #2f2a25;
-    --ease: cubic-bezier(0.22, 1, 0.36, 1);   /* одна кривая для всех анимаций */
+    /* Пружина как в iOS: response 0.45 с, damping ratio 0.86 (мягкий разгон, плавное торможение,
+       оседание ~0.5% без заметного отскока). Кривая — ступенчатый отклик пружины, оседает за ~0.6 с. */
+    --spring: cubic-bezier(0.22, 1, 0.36, 1);   /* запасной вариант, если браузер не знает linear() */
+    --dur: 600ms;
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);     /* прежняя кривая — только шторка и окна подсказок на телефоне */
     --panelW: 320px;
     --fs-body: 18px; --fs-small: 15px; --fs-card: 22px;
+  }
+  @supports (transition-timing-function: linear(0, 1)) {
+    :root { --spring: linear(0, 0.0193, 0.0684, 0.1366, 0.2157, 0.2994, 0.3834, 0.4646, 0.5407, 0.6106, 0.6737, 0.7296, 0.7785, 0.8207, 0.8567, 0.8871, 0.9124, 0.9333, 0.9503, 0.964, 0.9749, 0.9834, 0.99, 0.9949, 0.9986, 1.0012, 1.0029, 1.0041, 1.0047, 1.005, 1.005, 1.0048, 1.0045, 1.0042, 1.0037, 1.0033, 1.0029, 1.0025, 1.0021, 1.0018, 1); }
   }
   /* Размер текста: «крупный» по умолчанию (аудитория пожилая). */
   html[data-textsize="normal"] { --fs-body: 15px; --fs-small: 13px; --fs-card: 17px; }
@@ -44,7 +51,7 @@
   @media (min-width: 1024px) {
     #layout {
       display: grid; grid-template-columns: var(--panelW) 1fr;
-      transition: grid-template-columns 350ms var(--ease);
+      transition: grid-template-columns var(--dur) var(--spring);
     }
     body.panel-collapsed { --panelW: 48px; }
     #view {
@@ -70,7 +77,7 @@
     display: flex; align-items: center; justify-content: center;
     background: var(--paper); color: rgba(47,42,37,0.7);
     font: 700 26px/1 'Caveat', -apple-system, "Noto Sans Armenian", sans-serif;
-    transition: opacity 300ms var(--ease);
+    transition: opacity var(--dur) var(--spring);
   }
   #stage:not(.loading) #loader { opacity: 0; pointer-events: none; }
 
@@ -113,7 +120,7 @@
     border: none; color: #fff; font-size: 20px; line-height: 1;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; z-index: 5;
-    transition: background 250ms var(--ease), opacity 250ms var(--ease);
+    transition: background var(--dur) var(--spring), opacity var(--dur) var(--spring);
   }
   .nav-btn:hover { background: rgba(20, 16, 8, 0.55); }
   .nav-btn:active { background: rgba(20, 16, 8, 0.7); }
@@ -127,7 +134,7 @@
   #dots span {
     width: 7px; height: 7px; border-radius: 50%;
     background: rgba(255,255,255,0.4);
-    transition: background 250ms var(--ease), transform 250ms var(--ease);
+    transition: background var(--dur) var(--spring), transform var(--dur) var(--spring);
   }
   #dots span.on { background: #fff; transform: scale(1.25); }
 
@@ -164,10 +171,24 @@
   .panel-card {
     position: absolute; top: 16px; bottom: 16px; left: 16px; width: 288px;
     overflow-y: auto; padding: 16px 16px 14px; font-size: var(--fs-body);
-    transition: opacity 300ms var(--ease), transform 350ms var(--ease);
+    transition: opacity var(--dur) var(--spring), transform var(--dur) var(--spring);
     scrollbar-width: thin;
   }
-  body.panel-collapsed .panel-card { opacity: 0; transform: translateX(-24px); pointer-events: none; }
+  body.panel-collapsed .panel-card { opacity: 0; transform: translateX(-44px); pointer-events: none; }
+  /* Пункты панели (ПК) появляются вслед за карточкой с задержкой 30 мс между пунктами. */
+  .panel-card > * { transition: opacity var(--dur) var(--spring), transform var(--dur) var(--spring); }
+  @media (min-width: 1024px) {
+    .panel-card > *:nth-child(1) { transition-delay: 90ms; }
+    .panel-card > *:nth-child(2) { transition-delay: 120ms; }
+    .panel-card > *:nth-child(3) { transition-delay: 150ms; }
+    .panel-card > *:nth-child(4) { transition-delay: 180ms; }
+    .panel-card > *:nth-child(5) { transition-delay: 210ms; }
+    .panel-card > *:nth-child(6) { transition-delay: 240ms; }
+    .panel-card > *:nth-child(7) { transition-delay: 270ms; }
+    .panel-card > *:nth-child(8) { transition-delay: 300ms; }
+    .panel-card > *:nth-child(9) { transition-delay: 330ms; }
+    body.panel-collapsed .panel-card > * { opacity: 0; transform: translateX(-22px); transition-delay: 0ms; }
+  }
   .p-title { font: 700 32px/1.1 'Caveat', -apple-system, "Noto Sans Armenian", sans-serif; display: block; margin: 0 26px 8px 0; }
   .p-sec { margin: 0 0 14px; }
   .p-sec h3 { margin: 0 0 6px; font: 700 26px/1.1 'Caveat', -apple-system, "Noto Sans Armenian", sans-serif; }
@@ -183,7 +204,7 @@
   #thumbs button {
     padding: 0; border: 2px solid rgba(47,42,37,0.35); border-radius: 8px 4px 8px 4px;
     overflow: hidden; cursor: pointer; background: #000; aspect-ratio: 4 / 5;
-    transition: border-color 250ms var(--ease), transform 250ms var(--ease);
+    transition: border-color var(--dur) var(--spring), transform var(--dur) var(--spring);
   }
   #thumbs button img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 58%; }
   #thumbs button.on { border-color: var(--ink); transform: scale(1.04); box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink); }
@@ -191,11 +212,11 @@
   .switch {
     flex: none; width: 54px; height: 30px; border-radius: 15px; border: 2px solid var(--ink);
     background: transparent; position: relative; cursor: pointer;
-    transition: background 250ms var(--ease);
+    transition: background var(--dur) var(--spring);
   }
   .switch::after {
     content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%;
-    background: var(--ink); transition: transform 250ms var(--ease), background 250ms var(--ease);
+    background: var(--ink); transition: transform var(--dur) var(--spring), background var(--dur) var(--spring);
   }
   .switch.on { background: var(--ink); }
   .switch.on::after { transform: translateX(24px); background: var(--paper); }
@@ -204,7 +225,7 @@
     border: 2px solid var(--ink); border-radius: 12px 6px 12px 6px / 6px 12px 6px 12px;
     background: transparent; color: var(--ink); text-align: center;
     font: 700 var(--fs-body)/1.1 -apple-system, "Noto Sans Armenian", sans-serif;
-    transition: background 250ms var(--ease), color 250ms var(--ease);
+    transition: background var(--dur) var(--spring), color var(--dur) var(--spring);
   }
   .p-btn[hidden] { display: none; }
   .p-about p { margin: 0 0 6px; font-size: var(--fs-small); line-height: 1.35; }
@@ -215,7 +236,7 @@
   @media (hover: hover) and (pointer: fine) {
     .seg button, .p-btn, .switch, #thumbs button, #panelBtn { cursor: pointer; }
     .seg button, .p-btn, .switch, #thumbs button, #panelBtn {
-      transition: transform 200ms var(--ease), box-shadow 200ms var(--ease), background-color 200ms var(--ease), border-color 200ms var(--ease);
+      transition: transform 200ms var(--spring), box-shadow 200ms var(--spring), background-color 200ms var(--spring), border-color 200ms var(--spring);
     }
     .seg button:not(.on):hover, .p-btn:hover, #panelBtn:hover {
       background: #e8dbbd; transform: translateY(-1.5px); box-shadow: 0 5px 11px rgba(60,45,20,0.24);
@@ -233,7 +254,7 @@
     cursor: pointer; padding: 0; font: 700 22px/1 -apple-system, sans-serif;
     box-shadow: 0 6px 16px rgba(60,45,20,0.3), 2px 3px 0 rgba(47,42,37,0.14);
     display: flex; align-items: center; justify-content: center;
-    transition: left 350ms var(--ease), transform 350ms var(--ease), background 250ms var(--ease);
+    transition: left var(--dur) var(--spring), transform var(--dur) var(--spring), background var(--dur) var(--spring);
   }
   #panelBtn:active { background: var(--paper-2); }
   #panelBtn .ic-arrow { display: none; }
@@ -244,7 +265,7 @@
       top: 26px; left: calc(var(--panelW) - 46px); width: 34px; height: 34px; border-radius: 50% 40% 50% 40%;
     }
     #panelBtn .ic-menu { display: none; }
-    #panelBtn .ic-arrow { display: block; transition: transform 350ms var(--ease); }
+    #panelBtn .ic-arrow { display: block; transition: transform var(--dur) var(--spring); }
     body.panel-collapsed #panelBtn { left: 7px; }
     body.panel-collapsed #panelBtn .ic-arrow { transform: rotate(180deg); }
   }
@@ -262,6 +283,7 @@
     }
     #panelBtn {
       left: 12px; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); width: 54px; height: 54px; border-radius: 50%;
+      transition: transform 350ms var(--ease), background 250ms var(--ease);
     }
     body.sheet-open #panelBtn { transform: scale(0.9); }
     #scrim {
@@ -272,7 +294,7 @@
   }
 
   /* без WebGL время суток — CSS-фильтром (окна ночью не светятся) */
-  .fb-frame { transition: filter 1200ms var(--ease); }
+  .fb-frame { transition: filter 1500ms var(--spring); }
   #fallback[data-tod="sunset"] .fb-frame { filter: sepia(0.55) saturate(1.5) hue-rotate(-12deg) brightness(0.93); }
   #fallback[data-tod="night"] .fb-frame { filter: brightness(0.38) sepia(0.35) hue-rotate(185deg) saturate(1.5); }
 
@@ -282,7 +304,7 @@
     background: rgba(20, 16, 8, 0.4); padding: 6px 12px; border-radius: 14px;
     -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
     opacity: 0.9; pointer-events: none;
-    transition: opacity 450ms var(--ease);
+    transition: opacity var(--dur) var(--spring);
   }
   #hint.gone { opacity: 0; }
 
@@ -314,7 +336,7 @@
     width: 22px; height: 22px; margin: -11px;
     border: none; padding: 0; background: none;
     pointer-events: auto; cursor: pointer;
-    opacity: 0; transition: opacity 400ms var(--ease);
+    opacity: 0; transition: opacity var(--dur) var(--spring);
   }
   .hs-dot.show { opacity: 1; }
   .hs-dot::before, .hs-dot::after {
@@ -369,14 +391,24 @@
   #hsBack { display: inline-block; width: auto; padding: 8px 16px; font-size: var(--fs-small); }
 
   #gl, #fallback { transition: filter 400ms var(--ease); }
+  /* ПК: карточка растёт из точки на пружине (0.85 -> 1), фон затемняется/размывается/обесцвечивается
+     за 500 мс, закрытие — всё обратно так же плавно. На телефоне остаётся прежнее появление. */
+  @media (min-width: 1024px) {
+    #hsPopup {
+      transform: translate(calc(-50% + var(--shift)), -100%) translateY(-16px) scale(0.85);
+      transition: opacity var(--dur) var(--spring), transform var(--dur) var(--spring);
+    }
+    #hsPopup.show { transform: translate(calc(-50% + var(--shift)), -100%) translateY(-16px) scale(1); transition-duration: var(--dur); }
+    #hsPopup.below { transform: translate(calc(-50% + var(--shift)), 0) translateY(16px) scale(0.85); }
+    #hsPopup.below.show { transform: translate(calc(-50% + var(--shift)), 0) translateY(16px) scale(1); }
+    #gl, #fallback { transition: filter 500ms var(--spring); }
+  }
   #stage.reading #gl, #stage.reading #fallback { filter: brightness(0.6) saturate(0.4) blur(6px); }
 
-  /* Уменьшение движения: без фоновых анимаций и плавных переходов */
+  /* «Уменьшение движения» в системе: отключаем только фоновое бесконечное движение (птицы, пульс
+     точек, «дыхание», тени облаков, ветер, звёзды). Плавные переходы интерфейса и автопокачивание
+     остаются: у автопокачивания есть свой переключатель в панели. */
   @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-      animation-duration: 0.001ms !important; animation-iteration-count: 1 !important;
-      transition-duration: 0.001ms !important; scroll-behavior: auto !important;
-    }
     .bird, .hs-dot::after { display: none; }
   }
 </style>
@@ -495,8 +527,10 @@ var CONFIG = {
   BREATH_PERIOD_S: 6,
 
   // Кроссфейд между кадрами, мс.
-  FRAME_CROSSFADE_MS: 450,
-  TOD_MS: 1200,              // смена времени суток, мс
+  SPRING_RESPONSE: 0.45,     // пружина: response, с
+  SPRING_DAMPING: 0.86,      // пружина: damping ratio
+  FRAME_CROSSFADE_MS: 600,
+  TOD_MS: 1500,              // смена времени суток, мс
   HS_CLOSE_DELAY_MS: 600,    // ПК: карточка подсказки не пропадает сразу при уходе мыши
 
   // Номера кадров (с 0), которые не показываем: брак, который не удалось заменить.
@@ -653,35 +687,25 @@ var CONFIG = {
 
   // ---------- общие функции ----------
   function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
-  // cubic-bezier как в CSS: одна кривая (0.22, 1, 0.36, 1) для всех анимаций страницы
-  function cubicBezier(x1, y1, x2, y2) {
-    var cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
-    var cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
-    function sx(t) { return ((ax * t + bx) * t + cx) * t; }
-    function sy(t) { return ((ay * t + by) * t + cy) * t; }
-    function dsx(t) { return (3 * ax * t + 2 * bx) * t + cx; }
-    return function (x) {
-      x = clamp(x, 0, 1);
-      var t = x, i, d, e;
-      for (i = 0; i < 8; i++) {
-        e = sx(t) - x;
-        if (Math.abs(e) < 1e-5) return sy(t);
-        d = dsx(t);
-        if (Math.abs(d) < 1e-6) break;
-        t -= e / d;
-      }
-      var lo = 0, hi = 1; t = x;
-      while (lo < hi) {
-        e = sx(t);
-        if (Math.abs(e - x) < 1e-5) break;
-        if (x > e) lo = t; else hi = t;
-        t = (hi - lo) / 2 + lo;
-      }
-      return sy(t);
-    };
+  // Пружина как в iOS (response 0.45 с, damping ratio 0.86): ступенчатый отклик, оседание ~0.5%.
+  // Время оседания считаем численно; p (0..1) — доля этого времени, поэтому любую длительность
+  // (кроссфейд, время суток, возврат в центр) можно прогнать по той же кривой.
+  var springTable = (function () {
+    var w = 2 * Math.PI / CONFIG.SPRING_RESPONSE, z = CONFIG.SPRING_DAMPING, wd = w * Math.sqrt(1 - z * z);
+    function x(t) { return 1 - Math.exp(-z * w * t) * (Math.cos(wd * t) + z * w / wd * Math.sin(wd * t)); }
+    var T = 0, t;
+    for (t = 0; t < 3; t += 0.002) if (Math.abs(1 - x(t)) > 0.0015) T = t;
+    var a = [], N = 256, i;
+    for (i = 0; i <= N; i++) a.push(x(T * i / N));
+    a[N] = 1;
+    return a;
+  })();
+  function EASE(p) {
+    p = clamp(p, 0, 1);
+    var f = p * 256, i = f | 0;
+    return i >= 256 ? 1 : springTable[i] + (springTable[i + 1] - springTable[i]) * (f - i);
   }
-  var EASE = cubicBezier(0.22, 1, 0.36, 1);
-  // prefers-reduced-motion: переходы мгновенные, автопокачивание/дыхание/облака/птицы выключены
+  // prefers-reduced-motion: выключаем только фоновое движение (дыхание, облака, птицы); переходы и автопокачивание работают
   var reduceMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
   function reduced() { return reduceMQ.matches; }
   // Сглаживание, не зависящее от частоты кадров: k — доля пути за кадр на 60 fps.
@@ -1572,12 +1596,12 @@ var CONFIG = {
     lastNow = now;
     var rm = reduced();
     var t = rm ? 0 : (now - t0) / 1000;   // облака замирают при «уменьшении движения»
-    var retMs = rm ? 1 : CONFIG.RETURN_MS;
+    var retMs = CONFIG.RETURN_MS;
 
     // --- кроссфейд ---
     if (fade) {
       if (fade.t0 === null) fade.t0 = now;
-      var p = (now - fade.t0) / (rm ? 1 : CONFIG.FRAME_CROSSFADE_MS);
+      var p = (now - fade.t0) / CONFIG.FRAME_CROSSFADE_MS;
       if (p >= 1) {
         frameIndex = fade.to;
         fade = null;
@@ -1585,19 +1609,23 @@ var CONFIG = {
         markDot(frameIndex);
         buildHotspots(frameIndex);
       } else {
-        mixState = EASE(p);
+        mixState = clamp(EASE(p), 0, 1);
       }
     }
 
     // --- время суток ---
     if (todAnim) {
       if (todAnim.t0 === null) todAnim.t0 = now;
-      var tp = (now - todAnim.t0) / (rm ? 1 : CONFIG.TOD_MS);
+      var tp = (now - todAnim.t0) / CONFIG.TOD_MS;
       var te = EASE(tp);
-      tod.s = todAnim.s0 + (todAnim.s1 - todAnim.s0) * te;
-      tod.n = todAnim.n0 + (todAnim.n1 - todAnim.n0) * te;
+      tod.s = clamp(todAnim.s0 + (todAnim.s1 - todAnim.s0) * te, 0, 1);
+      tod.n = clamp(todAnim.n0 + (todAnim.n1 - todAnim.n0) * te, 0, 1);
       if (tp >= 1) todAnim = null;
     }
+
+    // Пока открыта карточка подсказки, картинка за ней стоит: точки и карточка не «плывут» за мышью,
+    // GPU не тратится на размытый фон.
+    if (stage.classList.contains('reading') && !fade && !todAnim) { requestAnimationFrame(frame); return; }
 
     // --- наклон ---
     if (ret) {
