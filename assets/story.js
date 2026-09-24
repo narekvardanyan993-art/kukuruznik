@@ -142,9 +142,9 @@
     }
 
     var MSG = {
-      full: { ru: 'Ты знаешь Кукурузник лучше многих ереванцев!', hy: 'Կուկուրուզնիկը ավելի լավ գիտես, քան շատերը', en: 'You know the Corncob better than most Yerevantsis!' },
+      full: { ru: 'Ты знаешь Кукурузник лучше многих ереванцев!', hy: 'Կուկուռուզնիկը ավելի լավ գիտես, քան շատերը', en: 'You know the Corncob better than most Yerevantsis!' },
       none: { ru: 'Есть куда расти — но теперь ты знаешь его историю.', hy: 'Հիմա գիտես նրա պատմությունը', en: 'Room to grow — but now you know its story.' },
-      mid: { ru: 'Неплохо! Кукурузник запомнил.', hy: 'Վատ չէ, Կուկուրուզնիկը մնաց հիշողության մեջ', en: 'Not bad! You will remember the Corncob.' }
+      mid: { ru: 'Неплохо! Кукурузник запомнил.', hy: 'Վատ չէ, Կուկուռուզնիկը մնաց հիշողության մեջ', en: 'Not bad! You will remember the Corncob.' }
     };
 
     function renderResult() {
