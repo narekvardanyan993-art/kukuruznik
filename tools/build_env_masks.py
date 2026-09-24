@@ -48,12 +48,24 @@ def load(name):
     return dn, col, bld
 
 
-def sky_mask(dn, col):
+# Кадры, где небо с тёмной акварельной заливкой и контурами облаков (порог по текстуре 0.04 отрезал бы его
+# на середине): порог мягче, а тонкие контуры облаков «склеиваем» закрытием. dn — порог по карте глубины.
+SKY_PARAMS = {
+    'v_angle_1': dict(std=0.05, dn=0.50, close=9),
+    'v_angle_5': dict(std=0.05, dn=0.50, close=9),
+}
+
+
+def sky_mask(dn, col, name=''):
+    prm = SKY_PARAMS.get(name, dict(std=0.04, dn=0.30, close=0))
     lum = col @ np.array([.299, .587, .114])
     m1 = ndimage.uniform_filter(lum, 7)
     m2 = ndimage.uniform_filter(lum * lum, 7)
     std = np.sqrt(np.maximum(m2 - m1 * m1, 0))
-    cond = ndimage.binary_opening((std < 0.04) & (lum > 0.5) & (dn < 0.30), iterations=1)
+    cond = (std < prm['std']) & (lum > 0.5) & (dn < prm['dn'])
+    if prm['close']:
+        cond = ndimage.binary_closing(cond, structure=np.ones((prm['close'], prm['close'])), border_value=1)
+    cond = ndimage.binary_opening(cond, iterations=1)
     lab, _ = ndimage.label(cond)
     top = set(np.unique(lab[0:4, :])) - {0}
     sky = np.isin(lab, list(top)) if top else np.zeros_like(cond)
@@ -117,7 +129,7 @@ def other_windows(name, col, bld, sky):
 
 def build(name):
     dn, col, bld = load(name)
-    sky = sky_mask(dn, col)
+    sky = sky_mask(dn, col, name)
     H, W = sky.shape
     env = np.zeros((H, W, 3), np.float32)
     env[..., 0] = ndimage.gaussian_filter(sky.astype(np.float32), 1.5)
