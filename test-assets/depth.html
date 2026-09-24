@@ -55,12 +55,13 @@
     }
     body.panel-collapsed { --panelW: 48px; }
     #view {
-      display: flex; align-items: center; justify-content: center;
+      display: flex; align-items: center; justify-content: center; gap: 24px;
       padding: 24px; min-width: 0;
     }
     #stage {
-      width: min(100%, calc((100vh - 48px) * var(--natW, 768) / var(--natH, 1365)));
-      width: min(100%, calc((100dvh - 48px) * var(--natW, 768) / var(--natH, 1365)));
+      width: min(calc(100% - 176px), calc((100vh - 48px) * var(--natW, 768) / var(--natH, 1365)));
+      width: min(calc(100% - 176px), calc((100dvh - 48px) * var(--natW, 768) / var(--natH, 1365)));
+      flex: none;
       height: auto;
       aspect-ratio: var(--natW, 768) / var(--natH, 1365);
       border-radius: 3px;
@@ -138,20 +139,20 @@
   }
   #dots span.on { background: #fff; transform: scale(1.25); }
 
-  /* Кнопка гироскопа в стиле меню (бумага + чернила, как «на сайт»).
-     На iPhone разрешение можно запросить только по нажатию. */
-  #gyroBtn {
-    position: absolute; left: 50%; z-index: 9;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 118px);
-    transform: translateX(-50%);
-    padding: 12px 22px; border: none; border-radius: 14px;
-    background: rgba(245,236,218,0.96); color: var(--ink);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-    font: 700 22px/1 'Caveat', -apple-system, "Noto Sans Armenian", sans-serif;
-    white-space: nowrap; cursor: pointer;
+  /* Приветствие по центру картинки: карандашный шрифт, появляется за 1 с. ПК: пропадает само через 3 с
+     или по клику; телефон: по касанию (это касание запрашивает доступ к наклону — требование iOS). */
+  #welcome {
+    position: absolute; inset: 0; z-index: 25; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    padding: 0 10%; opacity: 0;
+    background: radial-gradient(ellipse at center, rgba(245,236,218,0.9) 0%, rgba(245,236,218,0.62) 42%, rgba(245,236,218,0) 74%);
+    transition: opacity 1000ms var(--spring);
   }
-  #gyroBtn[hidden] { display: none; }
-  #gyroBtn:active { background: rgba(232,221,196,0.98); }
+  #welcome.in { opacity: 1; }
+  #welcome.out { opacity: 0; transition-duration: 600ms; }
+  #welcome[hidden] { display: none; }
+  #welcome .w-title { font: 700 40px/1.12 'Caveat', -apple-system, "Noto Sans Armenian", sans-serif; color: var(--ink); }
+  #welcome .w-sub { margin-top: 14px; font: 600 21px/1.2 'Caveat', -apple-system, "Noto Sans Armenian", sans-serif; color: var(--ink); opacity: 0.7; }
 
   #build-version {
     position: absolute; right: 8px; bottom: 4px; z-index: 5;
@@ -160,11 +161,33 @@
   }
 
   /* Фон страницы на ПК: еле видный карандашный старый город (tools/make_bg.py) в пустых полях,
-     прозрачность 7%. На телефоне не показывается. */
+     прозрачность 12%. На телефоне не показывается. */
+  /* ПК: на самой картинке остаются только картинка и точки-подсказки; «на сайт» и название — вверху
+     панели, стрелки — в пустых полях по бокам, миниатюры вместо кружков-точек. Телефон не меняется. */
+  .p-top, .nav-side, .p-build { display: none; }
+  @media (min-width: 1024px) {
+    #topBar, #hint, #dots, #build-version, #prevBtn, #nextBtn, .panel-card > .p-title { display: none; }
+    .p-top { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin: 0 40px 12px 0; }
+    .p-back {
+      display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border-radius: 10px;
+      color: var(--ink); text-decoration: none; font: 600 16px/1 -apple-system, "Noto Sans Armenian", sans-serif;
+      background: rgba(47,42,37,0.08);
+    }
+    .p-back:hover { background: rgba(47,42,37,0.12); }
+    .p-name { font: 700 34px/1.1 'Caveat', -apple-system, "Noto Sans Armenian", sans-serif; }
+    .p-build { display: block; margin-top: 4px; font: 500 10px/1.2 -apple-system, sans-serif; opacity: 0.5; }
+    .nav-side {
+      display: flex; flex: none; width: 64px; height: 64px; padding: 0; align-items: center; justify-content: center;
+      border: 2px solid var(--ink); border-radius: 50% 44% 50% 44%; background: var(--paper); color: var(--ink);
+      box-shadow: 0 6px 16px rgba(60,45,20,0.26), 2px 3px 0 rgba(47,42,37,0.14);
+    }
+    .nav-side svg { display: block; }
+    .nav-next svg { transform: rotate(180deg); }
+  }
   @media (min-width: 1024px) {
     body::before {
       content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-      background: url(oldtown-bg.svg) center bottom / cover no-repeat; opacity: 0.07;
+      background: url(oldtown-bg.svg) center bottom / cover no-repeat; opacity: 0.12;
     }
     #layout { position: relative; z-index: 1; }
   }
@@ -197,6 +220,8 @@
     .panel-card > *:nth-child(7) { transition-delay: 270ms; }
     .panel-card > *:nth-child(8) { transition-delay: 300ms; }
     .panel-card > *:nth-child(9) { transition-delay: 330ms; }
+    .panel-card > *:nth-child(10) { transition-delay: 360ms; }
+    .panel-card > *:nth-child(11) { transition-delay: 390ms; }
     body.panel-collapsed .panel-card > * { opacity: 0; transform: translateX(-22px); transition-delay: 0ms; }
   }
   .p-title { font: 700 32px/1.1 'Caveat', -apple-system, "Noto Sans Armenian", sans-serif; display: block; margin: 0 26px 8px 0; }
@@ -241,22 +266,15 @@
   .p-about p { margin: 0 0 6px; font-size: var(--fs-small); line-height: 1.35; }
   .p-about a { color: var(--ink); font-weight: 700; font-size: var(--fs-small); }
 
-  /* Наведение мышью (только устройства с мышью): кнопка чуть приподнимается, тень больше,
-     фон чуть темнее бумаги, курсор-рука; 300 мс. */
+  /* Наведение мышью: подсвечивается только элемент прямо под курсором и еле заметно —
+     фон на 4% темнее; без подъёма и теней, группой ничего не подсвечивается. */
   @media (hover: hover) and (pointer: fine) {
-    .seg button, .p-btn, .switch, #thumbs button, #panelBtn { cursor: pointer; }
-    .seg button, .p-btn, .switch, #thumbs button, #panelBtn {
-      transition: transform 300ms var(--spring), box-shadow 300ms var(--spring), background-color 300ms var(--spring), border-color 300ms var(--spring);
-    }
-    #panelBtn { transition: left var(--dur) var(--spring), transform 300ms var(--spring), box-shadow 300ms var(--spring), background-color 300ms var(--spring); }
-    .seg button:not(.on):hover, .p-btn:hover, #panelBtn:hover {
-      background: #e8dbbd; transform: translateY(-1.5px); box-shadow: 0 5px 11px rgba(60,45,20,0.24);
-    }
-    .seg button.on:hover { transform: translateY(-1.5px); box-shadow: 0 5px 11px rgba(60,45,20,0.3); }
-    .switch:hover { transform: translateY(-1.5px); box-shadow: 0 5px 11px rgba(60,45,20,0.24); }
-    #thumbs button:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(60,45,20,0.3); }
-    #thumbs button.on:hover { transform: scale(1.04) translateY(-2px); }
-    .seg button:active, .p-btn:active, .switch:active, #thumbs button:active, #panelBtn:active { transform: translateY(0); box-shadow: none; }
+    .seg button, .p-btn, .switch, #thumbs button, #panelBtn, .nav-side { cursor: pointer; }
+    .seg button, .p-btn { transition: background-color 200ms var(--spring); }
+    .switch, #thumbs button, .nav-side { transition: filter 200ms var(--spring); }
+    #panelBtn { transition: left var(--dur) var(--spring), filter 200ms var(--spring); }
+    .seg button:not(.on):hover, .p-btn:hover { background-color: rgba(47,42,37,0.04); }
+    .switch:hover, #thumbs button:hover, #panelBtn:hover, .nav-side:hover { filter: brightness(0.96); }
   }
 
   /* кнопка панели: на ПК — стрелка свернуть/развернуть, на телефоне — круглая кнопка снизу слева */
@@ -440,6 +458,10 @@
 <aside id="panel" aria-label="Menu">
   <div class="panel-card sketch">
     <span class="p-title" data-i18n="panelTitle">Кукурузник</span>
+    <div class="p-top">
+      <a class="p-back" href="../../kukuruznik/index.html">‹ <span data-i18n="back">на сайт</span></a>
+      <span class="p-name" data-i18n="title">Кукурузник, 1979</span>
+    </div>
     <section class="p-sec">
       <h3 data-i18n="tod">Время суток</h3>
       <div class="seg" id="todSeg" role="group">
@@ -451,10 +473,6 @@
     <section class="p-sec">
       <h3 data-i18n="frames">Кадры</h3>
       <div id="thumbs"></div>
-    </section>
-    <section class="p-sec p-row">
-      <span data-i18n="sway">Автопокачивание</span>
-      <button type="button" id="swayToggle" class="switch on" role="switch" aria-checked="true" aria-label="Auto-sway"></button>
     </section>
     <section class="p-sec"><button type="button" id="fsBtn" class="p-btn" data-i18n="fullscreen">Полный экран</button></section>
     <section class="p-sec"><button type="button" id="cardBtn" class="p-btn" data-i18n="postcard">Сохранить открытку</button></section>
@@ -478,11 +496,13 @@
       <div id="aboutText"></div>
       <a id="aboutLink" href="../../kukuruznik/index.html" data-i18n="more">подробнее ›</a>
     </section>
+    <div class="p-build">test/depth-photo · v8 · 2026-09-24</div>
   </div>
 </aside>
 <button type="button" id="panelBtn" aria-label="Menu"><svg class="ic-menu" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M4.5 7h15M4.5 12h15M4.5 17h15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><svg class="ic-arrow" viewBox="0 0 40 40" width="40" height="40" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 11.5C20.5 15.5 16.8 18.8 14 20.3c3 1.7 6.8 4.9 10 8.7" stroke-width="2.8"/><path d="M24.4 12.4C21 16 17.6 19 15 20.6c3 1.8 6.5 4.8 10 7.8" stroke-width="1.1" opacity=".55"/></g></svg></button>
 <div id="scrim"></div>
 <main id="view">
+<button type="button" id="prevSide" class="nav-side" aria-label="Предыдущий кадр"><svg viewBox="0 0 40 40" width="42" height="42" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 9.5C20.5 14.5 16.8 18.6 13.5 20.3c3.4 1.9 7.3 5.6 10.6 10.6" stroke-width="3"/><path d="M24.6 10.6C21 15.4 17.4 19 14.6 20.7c3.2 2 6.8 5.4 10.4 9.8" stroke-width="1.2" opacity=".55"/></g></svg></button>
 <div id="stage" class="loading">
   <div id="loader">загрузка…</div>
   <canvas id="gl"></canvas>
@@ -501,10 +521,11 @@
   </div>
   <div id="hotspots"></div>
   <div id="hsPopup" class="sketch"><div id="hsText"></div><button type="button" id="hsBack" class="p-btn"><span class="lbl-pc" data-i18n="hsBack">‹ назад</span><span class="lbl-phone" data-i18n="hsClose">× закрыть</span></button></div>
-  <button id="gyroBtn" type="button" hidden>Наклоняй телефон</button>
+  <div id="welcome" hidden><div class="w-title" data-i18n="welcome">Добро пожаловать в интерактивный Кукурузник</div><div class="w-sub" data-i18n="welcomeTap">коснись, чтобы начать</div></div>
   <div id="hint">Веди пальцем / мышью · свайп — сменить кадр</div>
-  <div id="build-version">test/depth-photo · v7 · 2026-09-24</div>
+  <div id="build-version">test/depth-photo · v8 · 2026-09-24</div>
 </div>
+<button type="button" id="nextSide" class="nav-side nav-next" aria-label="Следующий кадр"><svg viewBox="0 0 40 40" width="42" height="42" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 9.5C20.5 14.5 16.8 18.6 13.5 20.3c3.4 1.9 7.3 5.6 10.6 10.6" stroke-width="3"/><path d="M24.6 10.6C21 15.4 17.4 19 14.6 20.7c3.2 2 6.8 5.4 10.4 9.8" stroke-width="1.2" opacity=".55"/></g></svg></button>
 </main>
 </div>
 
@@ -529,7 +550,6 @@ var CONFIG = {
   // Наклон гироскопа, дающий полное смещение (мышь/палец — свои правила).
   MAX_TILT_X_DEG: 20,
   MAX_TILT_Y_DEG: 20,
-  GYRO_ACTIVITY_DEG: 1.5,    // за 250 мс наклон изменился больше — человек двигает телефон (дрожание рук не в счёт)
 
   SMOOTH: 0.12,              // сглаживание гироскопа/мыши (доля пути за кадр при 60 fps)
   RETURN_MS: 800,            // возврат в центр после отпускания пальца
@@ -539,9 +559,6 @@ var CONFIG = {
   SWIPE_MAX_MS: 350,
 
   // Автопокачивание, если 4 секунды нет ни касаний, ни наклона.
-  IDLE_SWAY_AFTER_MS: 3000,
-  SWAY_PERIOD_S: 8,
-  SWAY_AMPLITUDE: 0.4,       // доля максимального смещения
 
   // "Дыхание" в состоянии покоя.
   BREATH_AMPLITUDE: 0.004,   // доля ширины кадра
@@ -552,7 +569,6 @@ var CONFIG = {
   SPRING_DAMPING: 0.86,      // пружина: damping ratio
   FRAME_CROSSFADE_MS: 860,
   TOD_MS: 1500,              // смена времени суток, мс
-  HS_CLOSE_DELAY_MS: 250,    // ПК: карточка подсказки закрывается через 250 мс после ухода мыши
 
   // Номера кадров (с 0), которые не показываем: брак, который не удалось заменить.
   hiddenFrames: [],
@@ -692,7 +708,6 @@ var CONFIG = {
     sunset: { ru: 'Закат', en: 'Sunset', hy: 'Մայրամուտ' }, // TODO: армянский — вычитать мне
     night: { ru: 'Ночь', en: 'Night', hy: 'Գիշեր' }, // TODO: армянский — вычитать мне
     frames: { ru: 'Кадры', en: 'Views', hy: 'Կադրեր' }, // TODO: армянский — вычитать мне
-    sway: { ru: 'Автопокачивание', en: 'Auto-sway', hy: 'Ինքնաշարժ թեքում' }, // TODO: армянский — вычитать мне
     fullscreen: { ru: 'Полный экран', en: 'Full screen', hy: 'Լիաէկրան' }, // TODO: армянский — вычитать мне
     postcard: { ru: 'Сохранить открытку', en: 'Save postcard', hy: 'Պահել բացիկը' }, // TODO: армянский — вычитать мне
     textSize: { ru: 'Размер текста', en: 'Text size', hy: 'Տառերի չափը' }, // TODO: армянский — вычитать мне
@@ -702,7 +717,8 @@ var CONFIG = {
     about: { ru: 'О здании', en: 'About the building', hy: 'Շենքի մասին' }, // TODO: армянский — вычитать мне
     more: { ru: 'подробнее ›', en: 'more ›', hy: 'ավելին ›' }, // TODO: армянский — вычитать мне
     loading: { ru: 'загрузка…', en: 'loading…', hy: 'բեռնվում է…' }, // TODO: армянский — вычитать мне
-    gyroBtn: { ru: 'Наклоняй телефон', en: 'Tilt your phone', hy: 'Թեքիր հեռախոսը' }, // TODO: армянский — вычитать мне
+    welcome: { ru: 'Добро пожаловать в интерактивный Кукурузник', en: 'Welcome to the interactive Kukuruznik', hy: 'Բարի գալուստ ինտերակտիվ Կուկուրուզնիկ' }, // TODO: армянский — вычитать мне
+    welcomeTap: { ru: 'коснись, чтобы начать', en: 'tap to begin', hy: 'հպիր՝ սկսելու համար' }, // TODO: армянский — вычитать мне
     gyroNeedsHttps: {
       ru: 'Наклон работает только по https — открой опубликованную ссылку',
       en: 'Tilt works only over https — open the published link',
@@ -719,7 +735,7 @@ var CONFIG = {
   var canvas = document.getElementById('gl');
   var loader = document.getElementById('loader');
   var hint = document.getElementById('hint');
-  var gyroBtn = document.getElementById('gyroBtn');
+  var welcome = document.getElementById('welcome');
   var prevBtn = document.getElementById('prevBtn');
   var nextBtn = document.getElementById('nextBtn');
   var dotsEl = document.getElementById('dots');
@@ -782,7 +798,6 @@ var CONFIG = {
     backLinkText.textContent = t.back[currentLang];
     hint.textContent = t[hintKey][currentLang];
     loader.textContent = t.loading[currentLang];
-    gyroBtn.textContent = t.gyroBtn[currentLang];
     document.querySelectorAll('[data-i18n]').forEach(function (el) {
       var str = t[el.getAttribute('data-i18n')];
       if (str) el.textContent = str[currentLang];
@@ -1620,11 +1635,6 @@ var CONFIG = {
     stage.classList.remove('reading');  // фон возвращается
     hsPopup._forDot = null;
   }
-  function scheduleClose() {            // ПК: карточка не пропадает сразу
-    clearTimeout(hsCloseTimer);
-    hsCloseTimer = setTimeout(closePopup, CONFIG.HS_CLOSE_DELAY_MS);
-  }
-
   // Ставит карточку над точкой (или под ней, если сверху нет места) и не даёт
   // вылезти за края; хвостик всегда указывает на точку.
   function placePopup(a) {
@@ -1648,9 +1658,6 @@ var CONFIG = {
   }
 
   hsBack.addEventListener('click', closePopup);
-  // ПК: пока мышь на карточке, она остаётся; ушла — закрывается через 600 мс
-  hsPopup.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse') { clearTimeout(hsCloseTimer); hsCloseTimer = null; } });
-  hsPopup.addEventListener('pointerleave', function (e) { if (e.pointerType === 'mouse' && hsPopup.classList.contains('show')) scheduleClose(); });
 
   // Глубина точки — из той же (размытой) карты, что читает шейдер.
   function depthAt(frameIdx, u, v) {
@@ -1673,13 +1680,10 @@ var CONFIG = {
       btn.addEventListener('click', function (e) {
         e.stopPropagation();
         var isOpen = hsPopup.classList.contains('show') && hsPopup._forDot === btn;
-        // тап на телефоне переключает; на ПК клик после наведения карточку не закрывает
-        if (isOpen && lastPointerType !== 'mouse') closePopup();
+        // и на ПК, и на телефоне подсказка открывается только кликом/тапом по точке
+        if (isOpen) closePopup();
         else openPopup(hs, btn);
       });
-      // На ПК — по наведению (плавно), тач-устройства сюда только тапом.
-      btn.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse') openPopup(hs, btn); });
-      btn.addEventListener('pointerleave', function (e) { if (e.pointerType === 'mouse' && hsPopup._forDot === btn) scheduleClose(); });
       hotspotsEl.appendChild(btn);
       var d, k;
       if (useGL && hs.layer === 'building') { d = store[frameIdx].dB; k = store[frameIdx].kB; }   // здание — жёстко, общий сдвиг
@@ -1740,12 +1744,6 @@ var CONFIG = {
   var ret = null;             // плавный возврат в центр после пальца
   var pointerActive = false, dragId = null;
   var dragStartX = 0, dragStartY = 0, dragBaseX = 0, dragBaseY = 0, dragStartT = 0;
-  var lastInputAt = 0;
-
-  // Любое касание/мышь/клавиша/наклон — сцена перестаёт качаться, через 3 с покоя качается снова.
-  function noteInput() {
-    lastInputAt = performance.now();
-  }
 
   function setTiltFromClient(clientX, clientY) { // мышь: абсолютная позиция
     var r = stage.getBoundingClientRect();
@@ -1753,21 +1751,7 @@ var CONFIG = {
     targetY = clamp((clientY - (r.top + r.height / 2)) / (r.height / 2), -1, 1);
   }
 
-  // Браузер сам шлёт pointermove без движения мыши (когда под курсором что-то сдвинулось) —
-  // такие события игнорируем, иначе автопокачивание никогда не начнётся.
-  var lastMx = -1, lastMy = -1;
-  document.addEventListener('pointermove', function (e) {
-    if (e.pointerType !== 'mouse') { noteInput(); return; }
-    if (Math.abs(e.clientX - lastMx) + Math.abs(e.clientY - lastMy) < 1) return;
-    lastMx = e.clientX; lastMy = e.clientY;
-    noteInput();
-  }, true);
-  ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(function (ev) {
-    document.addEventListener(ev, noteInput, { capture: true, passive: true });
-  });
-
   stage.addEventListener('pointerdown', function (e) {
-    noteInput();
     hint.classList.add('gone');
     if (e.pointerType === 'mouse') { setTiltFromClient(e.clientX, e.clientY); return; }
     // Палец: перетаскивание на всю ширину экрана = полный диапазон сдвига.
@@ -1805,15 +1789,14 @@ var CONFIG = {
     targetX = gyroActive ? gyroTargetX : 0;
     targetY = gyroActive ? gyroTargetY : 0;
     ret = { t0: null, fx: curX, fy: curY };
-    noteInput();
   }
   stage.addEventListener('pointerup', releasePointer);
   stage.addEventListener('pointercancel', releasePointer);
 
   stage.addEventListener('mouseleave', function () { targetX = 0; targetY = 0; });
 
-  prevBtn.addEventListener('click', function () { goTo(frameIndex - 1); });
-  nextBtn.addEventListener('click', function () { goTo(frameIndex + 1); });
+  [prevBtn, document.getElementById('prevSide')].forEach(function (b) { b.addEventListener('click', function () { goTo(frameIndex - 1); }); });
+  [nextBtn, document.getElementById('nextSide')].forEach(function (b) { b.addEventListener('click', function () { goTo(frameIndex + 1); }); });
   window.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') { if (hsPopup.classList.contains('show')) closePopup(); else closeSheet(); }
     else if (e.key === 'ArrowLeft') goTo(frameIndex - 1);
@@ -1822,7 +1805,6 @@ var CONFIG = {
 
   // ---------- гироскоп ----------
   var gyroActive = false, gyroBaseBeta = null, gyroBaseGamma = null;
-  var gyroRefG = 0, gyroRefB = 0, gyroRefT = 0;
   var gyroTargetX = 0, gyroTargetY = 0, gyroGotEvent = false;
 
   function onOrientation(e) {
@@ -1833,12 +1815,6 @@ var CONFIG = {
     var dBeta = e.beta - gyroBaseBeta;    // к себе / от себя
     gyroTargetX = clamp(dGamma / CONFIG.MAX_TILT_X_DEG, -1, 1);
     gyroTargetY = clamp(dBeta / CONFIG.MAX_TILT_Y_DEG, -1, 1);
-    // Дрожание рук — не «касание»: движением считаем сдвиг больше порога за 250 мс.
-    var tNow = performance.now();
-    if (gyroRefT === 0 || tNow - gyroRefT > 250) {
-      if (gyroRefT !== 0 && Math.abs(e.gamma - gyroRefG) + Math.abs(e.beta - gyroRefB) > CONFIG.GYRO_ACTIVITY_DEG) noteInput();
-      gyroRefG = e.gamma; gyroRefB = e.beta; gyroRefT = tNow;
-    }
     if (!pointerActive) { targetX = gyroTargetX; targetY = gyroTargetY; }
   }
 
@@ -1847,8 +1823,6 @@ var CONFIG = {
     gyroActive = true;
     window.addEventListener('deviceorientation', onOrientation);
   }
-
-  function hideGyroBtn() { gyroBtn.hidden = true; }
 
   function setHint(key) {
     hintKey = key;
@@ -1862,34 +1836,35 @@ var CONFIG = {
   var isTouchDevice = window.matchMedia ? window.matchMedia('(pointer: coarse)').matches
     : (('ontouchstart' in window) || (navigator.maxTouchPoints > 0));
 
-  if (needsPermission && isTouchDevice) {
-    // iOS: разрешение можно запросить только из нажатия пользователя.
-    gyroBtn.hidden = false;
-    gyroBtn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      // requestPermission вызываем синхронно в обработчике тапа — иначе iOS откажет.
+  // ---------- приветствие и доступ к наклону ----------
+  var welcomeTimer = null;
+  function showWelcome() {
+    welcome.hidden = false;
+    requestAnimationFrame(function () { requestAnimationFrame(function () { welcome.classList.add('in'); }); });
+    // ПК: сама пропадает через 3 с после появления (появление 1 с); телефон ждёт касания
+    if (!isTouchDevice) welcomeTimer = setTimeout(hideWelcome, 4000);
+  }
+  function hideWelcome() {
+    clearTimeout(welcomeTimer);
+    if (welcome.hidden) return;
+    welcome.classList.remove('in'); welcome.classList.add('out');
+    setTimeout(function () { welcome.hidden = true; }, 650);
+  }
+  welcome.addEventListener('click', function (e) {
+    e.stopPropagation();
+    // iOS даёт запрос на наклон только из обработчика касания — вызываем requestPermission прямо здесь.
+    if (needsPermission && isTouchDevice) {
       DeviceOrientationEvent.requestPermission().then(function (state) {
-        if (state === 'granted') startGyro();
-        hideGyroBtn(); // отказ — кнопка исчезает, остаётся управление пальцем
-      }).catch(function (err) {
-        console.warn('Гироскоп: разрешение не выдано —', err && err.message);
-        hideGyroBtn();
-      });
-    });
-  } else if (hasOrientation && isTouchDevice) {
-    if (window.isSecureContext === false) {
-      // Без https iOS вообще не отдаёт события наклона и не показывает
-      // запрос — кнопку показываем, а по тапу честно объясняем причину.
-      gyroBtn.hidden = false;
-      gyroBtn.addEventListener('click', function (e) {
-        e.stopPropagation();
-        console.warn('Гироскоп недоступен: страница открыта не по https (небезопасный контекст).');
-        setHint('gyroNeedsHttps');
-        hideGyroBtn();
-      });
-    } else {
-      startGyro(); // Android и прочие — разрешение не нужно
+        if (state === 'granted') startGyro(); // отказ — остаётся управление пальцем
+      }).catch(function (err) { console.warn('Гироскоп: разрешение не выдано —', err && err.message); });
+    } else if (hasOrientation && isTouchDevice && window.isSecureContext === false) {
+      console.warn('Гироскоп недоступен: страница открыта не по https (небезопасный контекст).');
+      setHint('gyroNeedsHttps');
     }
+    hideWelcome();
+  });
+  if (!needsPermission && hasOrientation && isTouchDevice && window.isSecureContext !== false) {
+    startGyro(); // Android и прочие — разрешение не нужно
   }
 
   // ---------- ночные эффекты, ветер, контроль fps ----------
@@ -1990,7 +1965,6 @@ var CONFIG = {
   var t0 = performance.now();
   var lastNow = null;
   var lastDraw = null;
-  var swayMix = 0, swayPhase = 0;
 
   function frame(now) {
     var dt = lastNow === null ? 16.667 : clamp(now - lastNow, 1, 64);
@@ -2045,18 +2019,8 @@ var CONFIG = {
       curY += (targetY - curY) * ks;
     }
 
-    // --- автопокачивание: 3 с без касаний/мыши/наклона -> качаемся (период 8 с, 40% максимума);
-    // любое действие гасит его быстро, после 3 с покоя оно снова плавно входит. Выключено — стоит.
-    // «Уменьшение движения» на автопокачивание не влияет: у него есть свой переключатель в панели.
-    var swayOn = swayEnabled && (performance.now() - lastInputAt) > CONFIG.IDLE_SWAY_AFTER_MS;
-    swayMix += ((swayOn ? 1 : 0) - swayMix) * lerpK(swayOn ? 0.035 : 0.14, dt);
-    if (!swayEnabled) swayMix = 0;
-    if (swayMix > 0.002) swayPhase += dt * 2 * Math.PI / (CONFIG.SWAY_PERIOD_S * 1000);
-    var swayAmp = CONFIG.SWAY_AMPLITUDE * swayMix;
-    var swayX = swayAmp * Math.sin(swayPhase);
-    var swayY = swayAmp * 0.8 * Math.sin(swayPhase + Math.PI / 2);
-    var tiltX = clamp(curX + swayX, -1, 1);
-    var tiltY = clamp(curY + swayY, -1, 1);
+    var tiltX = clamp(curX, -1, 1);
+    var tiltY = clamp(curY, -1, 1);
 
     var ba = rm ? 0 : CONFIG.BREATH_AMPLITUDE;
     var breathX = ba * Math.sin(t * 2 * Math.PI / CONFIG.BREATH_PERIOD_S);
@@ -2161,16 +2125,6 @@ var CONFIG = {
     });
   }
 
-  // автопокачивание вкл/выкл
-  var swayEnabled = true;
-  var swayBtn = document.getElementById('swayToggle');
-  swayBtn.addEventListener('click', function () {
-    swayEnabled = !swayEnabled;
-    swayBtn.classList.toggle('on', swayEnabled);
-    swayBtn.setAttribute('aria-checked', swayEnabled ? 'true' : 'false');
-    if (swayEnabled) lastInputAt = performance.now(); // снова ждём 3 с тишины
-  });
-
   // полный экран
   var fsBtn = document.getElementById('fsBtn');
   if (!(document.fullscreenEnabled || document.webkitFullscreenEnabled)) fsBtn.hidden = true; // iPhone не умеет
@@ -2245,9 +2199,9 @@ var CONFIG = {
     buildDots();
     buildThumbs();
     buildHotspots(0);
-    lastInputAt = performance.now();
     frame(performance.now());            // первая отрисовка, потом убираем экран загрузки —
     stage.classList.remove('loading');   // пустого кадра не бывает, даже если вкладка в фоне
+    setTimeout(showWelcome, 400);
   }).catch(function (err) {
     console.error(err);
     loader.textContent = 'Не удалось загрузить кадры: ' + (err && err.message ? err.message : err);
