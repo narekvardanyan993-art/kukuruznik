@@ -83,6 +83,8 @@ async function capture() {
     const skip = document.getElementById('gyroSkip');
     if (skip) skip.click();
     const b = document.getElementById('build-version'); if (b) b.style.display = 'none';
+    const w = document.getElementById('welcome'); if (w) w.remove(); // приветствие (v8) не должно попадать в кадры
+    const pb = document.querySelector('.p-build'); if (pb) pb.style.visibility = 'hidden';
   });
   await advance(400); await sleep(400);
 
@@ -120,10 +122,10 @@ async function capture() {
   }
   if (await page.$('#todSeg')) {
     for (const t of ['night', 'sunset']) {
-      await page.click(`#todSeg [data-tod=${t}]`); await advance(1600); await sleep(300);
+      await page.click(`#todSeg [data-tod=${t}]`); await advance(t === 'night' ? 6800 : 3200); await sleep(300);
       await shot('desktop_' + t);
     }
-    await page.click('#todSeg [data-tod=day]'); await advance(1600);
+    await page.click('#todSeg [data-tod=day]'); await advance(6800);
   }
 
   // Ночь и закат на каждом кадре (телефон)
@@ -131,10 +133,10 @@ async function capture() {
   await advance(300); await sleep(300);
   if (await page.$('#todSeg')) {
     await page.evaluate(() => document.querySelector('#todSeg [data-tod=night]').click());
-    await advance(2200);
+    await advance(6800);
     for (let i = 0; i < 6; i++) { await goToFrame(i); await tiltAt(0.5, 0.5, W, H); await shot(`night_${i}`); }
     await page.evaluate(() => document.querySelector('#todSeg [data-tod=sunset]').click());
-    await advance(2200);
+    await advance(6800);
     await goToFrame(0); await tiltAt(0.5, 0.5, W, H); await shot('sunset_0');
   }
 

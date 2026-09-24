@@ -567,19 +567,19 @@ var CONFIG = {
   // Кроссфейд между кадрами, мс.
   SPRING_RESPONSE: 0.65,     // пружина: response, с
   SPRING_DAMPING: 0.86,      // пружина: damping ratio
-  FRAME_CROSSFADE_MS: 860,
-  TOD_MS: 1500,              // смена времени суток, мс
+  FRAME_CROSSFADE_MS: 1200,
+  DAY_SUNSET_S: 2.5,         // день → закат, с
+  SUNSET_NIGHT_S: 3,         // закат → ночь, с (окна и фонари — со второй половины, за 2 с)
 
   // Номера кадров (с 0), которые не показываем: брак, который не удалось заменить.
   hiddenFrames: [],
 
   // Ночь (v6): сколько окон горит, яркость, переключения, фонари, звёзды, ветер.
-  NIGHT_TOWER_LIT: [0.35, 0.45],   // доля горящих окон башни
+  NIGHT_TOWER_LIT: [0.30, 0.40],   // доля горящих окон башни
   NIGHT_OTHER_LIT: [0.15, 0.25],   // доля горящих окон других зданий
   WINDOW_BRIGHT: [0.6, 1.0],       // яркость горящего окна
   WINDOW_TOGGLE_S: [8, 12],        // раз в столько секунд одно окно зажигается/гаснет
   WINDOW_FADE_MS: 1500,
-  TOD_SPREAD: 0.35,                // огни зажигаются не сразу: разброс по времени (доля перехода)
   LAMP_BREATH: 0.08,               // «дыхание» фонарей ±8%
   LAMP_PERIOD_S: [4, 6],
   STARS: 120,                      // звёзд на небе (80–150)
@@ -871,7 +871,10 @@ var CONFIG = {
     'uniform float uTime;',        // настоящее время (ветер, мерцание звёзд)
     'uniform float uCloudT;',      // время облаков (замирает при «уменьшении движения»)
     'uniform float uSunset;',     // 0..1
-    'uniform float uNight;',      // 0..1
+    'uniform float uNightSky;',   // небо темнеет первым (0..1)
+    'uniform float uNightGnd;',   // потом земля
+    'uniform float uStars;',      // звёзды проявляются последними
+    'uniform vec2  uFadeZoom;',   // масштаб уходящего/приходящего кадра при переходе
     'uniform float uAspect;',     // ширина/высота экрана
     'uniform float uWindAmp;',    // амплитуда ветра на макушке дерева, в долях картинки
     'uniform float uWindOn;',     // 1 — ветер включён
@@ -939,8 +942,8 @@ var CONFIG = {
     '    c = mix(c, warm, uSunset);',
     '  }',
     // ---- ночь: вся сцена тёмно-синяя (30–35%), небо темнее земли, огни, звёзды ----
-    '  if (uNight > 0.001) {',
-    '    vec3 nc = mix(c * vec3(0.27, 0.34, 0.56), c * vec3(0.14, 0.20, 0.40), sky);',
+    '  if (uNightSky > 0.001 || uNightGnd > 0.001 || uStars > 0.001) {',
+    '    vec3 nc = mix(mix(c, c * vec3(0.27, 0.34, 0.56), uNightGnd), mix(c, c * vec3(0.14, 0.20, 0.40), uNightSky), sky);',
     '    float star = 0.0;',
     '    if (sky > 0.02 && starQ > 0.0) {',
     '      vec2 g = pc * vec2(32.0, 57.0);',
@@ -962,9 +965,9 @@ var CONFIG = {
     '      float hh = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);',
     '      star += smoothstep(0.004, 0.0, length(pa - ba * hh)) * hh * sin(3.1416 * uShootP.x) * 1.5;',
     '    }',
-    '    nc += vec3(0.86, 0.92, 1.0) * star * sky;',
+    '    nc += vec3(0.86, 0.92, 1.0) * star * sky * uStars;',
     '    nc += vec3(1.0, 0.80, 0.42) * winNight * 1.05 + vec3(1.0, 0.70, 0.30) * winNight * winNight * 0.25;',
-    '    c = mix(c, nc, uNight);',
+    '    c = nc;',
     '  }',
     '  return c;',
     '}',
@@ -972,10 +975,14 @@ var CONFIG = {
     'void main() {',
     '  vec2 uv = vUv * uCoverScale + uCoverOffset;',
     '  uv = 0.5 + (uv - 0.5) / uScale;',
-    '  vec3 c = shadeFrame(uBgA, uDepthA, uBldA, uEmA, uKdA, uStarQ.x, uv, vUv);',
-    '  if (uMix > 0.0) c = mix(c, shadeFrame(uBgB, uDepthB, uBldB, uEmB, uKdB, uStarQ.y, uv, vUv), uMix);',
+    '  vec2 uvA = 0.5 + (uv - 0.5) / uFadeZoom.x;',
+    '  vec3 c = shadeFrame(uBgA, uDepthA, uBldA, uEmA, uKdA, uStarQ.x, uvA, vUv);',
+    '  if (uMix > 0.0) {',
+    '    vec2 uvB = 0.5 + (uv - 0.5) / uFadeZoom.y;',
+    '    c = mix(c, shadeFrame(uBgB, uDepthB, uBldB, uEmB, uKdB, uStarQ.y, uvB, vUv), uMix);',
+    '  }',
     '  float shadow = cloudShadow(uv, uCloudT);',
-    '  c *= (1.0 - 0.12 * shadow * (1.0 - uNight));',
+    '  c *= (1.0 - 0.12 * shadow * (1.0 - uNightGnd));',
     '  gl_FragColor = vec4(c, 1.0);',
     '}'
   ].join('\n');
@@ -1059,7 +1066,7 @@ var CONFIG = {
 
     scenePrg = makeProgram(SCENE_FRAG, ['uBgA', 'uDepthA', 'uBldA', 'uEmA', 'uBgB', 'uDepthB', 'uBldB', 'uEmB',
       'uKdA', 'uKdB', 'uStarQ', 'uMix', 'uShift', 'uZoom', 'uScale', 'uCoverScale', 'uCoverOffset', 'uTime', 'uCloudT',
-      'uSunset', 'uNight', 'uAspect', 'uWindAmp', 'uWindOn', 'uCellPx', 'uShoot', 'uShootP'], US);
+      'uSunset', 'uNightSky', 'uNightGnd', 'uStars', 'uFadeZoom', 'uAspect', 'uWindAmp', 'uWindOn', 'uCellPx', 'uShoot', 'uShootP'], US);
     // юниты: A = 0..3 (земля, глубина+окружение, здание, окна), B = 4..7. Сами текстуры
     // подставляются при отрисовке — подгрузки во время показа нет.
     ['uBgA', 'uDepthA', 'uBldA', 'uEmA', 'uBgB', 'uDepthB', 'uBldB', 'uEmB'].forEach(function (n, i) { gl.uniform1i(US[n], i); });
@@ -1152,7 +1159,10 @@ var CONFIG = {
     gl.uniform1f(US.uTime, tAmb);
     gl.uniform1f(US.uCloudT, t);
     gl.uniform1f(US.uSunset, tod.s);
-    gl.uniform1f(US.uNight, tod.n);
+    gl.uniform1f(US.uNightSky, tod.sky);
+    gl.uniform1f(US.uNightGnd, tod.gnd);
+    gl.uniform1f(US.uStars, tod.stars);
+    gl.uniform2f(US.uFadeZoom, fx.zoomA, fx.zoomB);
     gl.uniform1f(US.uAspect, aspect);
     gl.uniform1f(US.uWindAmp, fx.windAmp);
     gl.uniform1f(US.uWindOn, fx.windOn ? 1 : 0);
@@ -1168,7 +1178,7 @@ var CONFIG = {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, sceneTex);
     gl.uniform1f(UP.uSunset, tod.s);
-    gl.uniform1f(UP.uNight, tod.n);
+    gl.uniform1f(UP.uNight, tod.lights);
     gl.uniform1f(UP.uAspect, aspect);
     gl.uniform3fv(UP.uLampH, fx.lampH);
     gl.uniform3fv(UP.uLampB, fx.lampB);
@@ -1176,7 +1186,7 @@ var CONFIG = {
   }
 
   var glLost = false;
-  var tod = { s: 0, n: 0 }; // время суток: вес заката и ночи (0..1), день = оба 0
+  var tod = { p: 0, s: 0, sky: 0, gnd: 0, stars: 0, lights: 0 }; // время суток; p: 0 день, 1 закат, 2.17 ночь
   if (useGL) {
     try { initGLProgram(); } catch (err) { console.warn('WebGL shader failed, fallback:', err); useGL = false; canvas.style.display = 'none'; }
     canvas.addEventListener('webglcontextlost', function (e) { e.preventDefault(); glLost = true; });
@@ -1318,12 +1328,21 @@ var CONFIG = {
     var mean = cnt ? (sum / cnt) | 0 : 128;
     for (i = 0; i < n; i++) if (!keep[i]) L[i] = mean;
     var big = L.slice(), small = L.slice();
-    boxBlur(big, w, h, 9);
-    boxBlur(small, w, h, 2);
+    // размеры окон зависят от масштаба кадра (крупный план — окна втрое больше): радиусы по ширине башни
+    var bx0 = w, bx1 = 0;
+    for (i = 0; i < n; i++) if (keep[i]) { var xq = i % w; if (xq < bx0) bx0 = xq; if (xq > bx1) bx1 = xq; }
+    var kS = clamp((bx1 - bx0 + 1) / 170, 1, 3.4);
+    boxBlur(big, w, h, Math.round(9 * kS));
+    boxBlur(small, w, h, Math.round(2 * kS));
     var win = new Uint8Array(n);
+    // порог подстраивается под контраст кадра: у тёплых/светлых башен окна менее контрастны
+    var hist = new Uint32Array(256), hc = 0;
+    for (i = 0; i < n; i++) if (keep[i]) { hist[Math.max(0, big[i] - small[i])]++; hc++; }
+    var q90 = 40, acc2 = 0;
+    for (i = 255; i >= 0; i--) { acc2 += hist[i]; if (acc2 >= hc * 0.10) { q90 = Math.max(12, i); break; } }
     for (i = 0; i < n; i++) {
       var dv = (big[i] - small[i]) / 255;
-      var wv = clamp((dv - 0.06) / 0.10, 0, 1);
+      var wv = clamp((dv * 255 - 0.35 * q90) / (0.6 * q90), 0, 1);
       win[i] = keep[i] ? (wv * (px[i * 4 + 3] / 255) * 255) | 0 : 0;
     }
     blurPass(win, small, w, h, 1, true); blurPass(small, win, w, h, 1, false); // мягкое свечение
@@ -1407,9 +1426,26 @@ var CONFIG = {
     return out;
   }
 
-  // Каждое связное пятно маски — одно окно: индексы пикселей + сила маски в них. Форма проверяется
-  // (окно — не длинная линия), «кольцо» по контуру заливается целиком, чтобы светилось всё окно.
-  function labelWindows(mask, w, h, thr) {
+  function halfAvg(src, w, h, stride, ch) { // уменьшение вдвое средним 2×2: маска окон не «пухнет» за контур
+    var w2 = (w + 1) >> 1, h2 = (h + 1) >> 1, out = new Uint8Array(w2 * h2), x, y;
+    for (y = 0; y < h2; y++) for (x = 0; x < w2; x++) {
+      var sum = 0, dy, dx;
+      for (dy = 0; dy < 2; dy++) for (dx = 0; dx < 2; dx++) {
+        sum += src[(Math.min(h - 1, y * 2 + dy) * w + Math.min(w - 1, x * 2 + dx)) * stride + ch];
+      }
+      out[y * w2 + x] = sum >> 2;
+    }
+    return out;
+  }
+  function hsh(a, b) { // детерминированный «случайный» hash: узор окон фиксирован для кадра
+    var x = Math.imul(a ^ 0x9E3779B9, 0x85EBCA6B) ^ Math.imul((b + 0x7F4A7C15) | 0, 0xC2B2AE35);
+    x ^= x >>> 15; x = Math.imul(x, 0x2C1B3C6D); x ^= x >>> 12; x = Math.imul(x, 0x297A2D39); x ^= x >>> 15;
+    return (x >>> 0) / 4294967296;
+  }
+
+  // Каждое связное пятно маски — одно окно. Берём только уверенно распознанные (форма овала/прямоугольника,
+  // нормальный размер). Свет — строго внутри окна: контурные пиксели остаются тусклыми, середина полная.
+  function labelWindows(mask, w, h, thr, opt) {
     var n = w * h, lab = new Int32Array(n), stack = new Int32Array(n), out = [], nl = 0, i;
     for (i = 0; i < n; i++) {
       if (lab[i] || mask[i] <= thr) continue;
@@ -1424,24 +1460,20 @@ var CONFIG = {
         if (y > 0 && !lab[p - w] && mask[p - w] > thr) { lab[p - w] = nl; stack[sp++] = p - w; }
         if (y < h - 1 && !lab[p + w] && mask[p + w] > thr) { lab[p + w] = nl; stack[sp++] = p + w; }
       }
-      var bw = x1 - x0 + 1, bh = y1 - y0 + 1, aspect = bw / bh;
-      if (list.length < 4 || bw * bh > 900 || aspect > 3.2 || aspect < 0.3) continue; // мусор, слипшиеся пятна и линии — не окна
-      // заливка по строкам между крайними пикселями окна
-      var rmin = {}, rmax = {}, k;
-      for (k = 0; k < list.length; k++) {
-        var yy = (list[k] / w) | 0, xx = list[k] % w;
-        if (rmin[yy] === undefined || xx < rmin[yy]) rmin[yy] = xx;
-        if (rmax[yy] === undefined || xx > rmax[yy]) rmax[yy] = xx;
+      var bw = x1 - x0 + 1, bh = y1 - y0 + 1, aspect = bw / bh, fill = list.length / (bw * bh);
+      if (list.length < 6 || bw * bh > 3000 || aspect > opt.amax || aspect < opt.amin || fill < opt.fill) continue;
+      // Овал по рамке найденного пятна: свет строго внутри эллипса (мягкий край внутрь), ничего за контуром.
+      // Пятно должно быть похоже на овал (заполнение ~0.6–0.95 рамки), иначе считаем распознавание неуверенным.
+      if (fill > 0.97) continue;
+      var cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, rx = bw / 2 + 0.3, ry = bh / 2 + 0.3;
+      var idx = [], val = [], yr, xr;
+      for (yr = y0; yr <= y1; yr++) for (xr = x0; xr <= x1; xr++) {
+        var ex = (xr - cx) / rx, ey = (yr - cy) / ry, r = Math.sqrt(ex * ex + ey * ey);
+        if (r > 1) continue;
+        idx.push(yr * w + xr); val.push(r < 0.7 ? 255 : (255 * (1 - (r - 0.7) / 0.3) * 0.75 + 30) | 0);
       }
-      var idx = [], val = [];
-      for (var yr = y0; yr <= y1; yr++) {
-        if (rmin[yr] === undefined) continue;
-        for (var xr = rmin[yr]; xr <= rmax[yr]; xr++) {
-          var q = yr * w + xr;
-          idx.push(q); val.push(Math.max(mask[q], 170));
-        }
-      }
-      out.push({ idx: new Int32Array(idx), val: new Uint8Array(val) });
+      if (idx.length < 4) continue;
+      out.push({ idx: new Int32Array(idx), val: new Uint8Array(val), bw: bw, bh: bh });
     }
     return out;
   }
@@ -1465,24 +1497,28 @@ var CONFIG = {
     var cells = 32 * 57;
     var starQ = clamp(CONFIG.STARS / (cells * Math.max(0.05, skyFrac)), 0, 0.6);
     // окна: башня (маска из analyzeBuilding) и другие здания (win2)
-    var maskT = halfMax(bld.win.d, w, h, 1, 0), maskO = halfMax(w2px, w, h, 4, 0);
+    var maskT = halfAvg(bld.win.d, w, h, 1, 0), maskO = halfAvg(w2px, w, h, 4, 0);
     var emis = new Uint8Array(en * 4);
     for (i = 0; i < en; i++) { emis[i * 4 + 2] = maskT[i]; emis[i * 4 + 3] = maskO[i]; } // B, A — сами маски (закат)
-    var R = rng(1234 + frameIdx * 77), wins = [], list, k;
-    function pickLit(items, fraction) {
-      var count = Math.round(items.length * fraction);
-      var order = items.map(function (_, j) { return j; }).sort(function () { return R() - 0.5; });
-      var lit = {};
-      for (k = 0; k < count; k++) lit[order[k]] = true;
-      return lit;
-    }
-    [[labelWindows(maskT, ew, eh, 40), 0, CONFIG.NIGHT_TOWER_LIT], [labelWindows(maskO, ew, eh, 40), 1, CONFIG.NIGHT_OTHER_LIT]].forEach(function (g) {
-      var items = g[0], lit = pickLit(items, rand(R, g[2][0], g[2][1]));
-      items.forEach(function (it, j) {
+    var seed = 1000003 * (frameIdx + 1) + 91733;          // свой узор на каждом кадре, но фиксированный
+    var winsT = labelWindows(maskT, ew, eh, 55, { amin: 0.9, amax: 3.6, fill: 0.5 });
+    // окна у краёв башни, видные меньше чем наполовину (узкие из-за изгиба), не зажигаем
+    var widths = winsT.map(function (q) { return q.bw; }).sort(function (a, b) { return a - b; });
+    var med = widths.length ? widths[widths.length >> 1] : 0;
+    var areas = winsT.map(function (q) { return q.bw * q.bh; }).sort(function (a, b) { return a - b; });
+    var a85 = areas.length ? areas[Math.floor(areas.length * 0.85)] : 0;
+    winsT = winsT.filter(function (q) { var a = q.bw * q.bh; return q.bw >= 0.55 * med && a >= 0.4 * a85 && a <= 1.9 * a85; });
+    var winsO = labelWindows(maskO, ew, eh, 100, { amin: 0.6, amax: 2.6, fill: 0.7 });
+    var wins = [];
+    [[winsT, 0, CONFIG.NIGHT_TOWER_LIT], [winsO, 1, CONFIG.NIGHT_OTHER_LIT]].forEach(function (g) {
+      var frac = g[2][0] + (g[2][1] - g[2][0]) * hsh(seed, 1000 + g[1]);
+      g[0].forEach(function (it) {
+        var key = it.idx[0], lit = hsh(seed, key) < frac;
+        var dim = lit && hsh(seed, key + 7) < 0.2;      // 20% горящих — тусклый свет, как за шторой
         wins.push({
-          idx: it.idx, val: it.val, ch: g[1], on: !!lit[j], cur: lit[j] ? 1 : 0,
-          bright: rand(R, CONFIG.WINDOW_BRIGHT[0], CONFIG.WINDOW_BRIGHT[1]),
-          delay: R() * CONFIG.TOD_SPREAD, lvl: 0, animT0: -1, animFrom: 0
+          idx: it.idx, val: it.val, ch: g[1], on: lit, cur: lit ? 1 : 0,
+          bright: dim ? 0.2 + 0.18 * hsh(seed, key + 13) : CONFIG.WINDOW_BRIGHT[0] + (CONFIG.WINDOW_BRIGHT[1] - CONFIG.WINDOW_BRIGHT[0]) * hsh(seed, key + 13),
+          delay: hsh(seed, key + 3) * 0.88, lvl: 0, animT0: -1, animFrom: 0
         });
       });
     });
@@ -1500,7 +1536,7 @@ var CONFIG = {
         w.cur = w.animFrom + (target - w.animFrom) * clamp(EASE(p), 0, 1);
         if (p >= 1) { w.cur = target; w.animT0 = -1; }
       }
-      var gate = clamp((night - w.delay) / (1 - CONFIG.TOD_SPREAD), 0, 1); // огни зажигаются не все сразу
+      var gate = clamp((night - w.delay) / 0.12, 0, 1); // окна зажигаются по одному в течение 2 с
       var lvl = w.cur * gate * w.bright;
       if (Math.abs(lvl - w.lvl) > 0.003 || (lvl === 0 && w.lvl !== 0)) {
         w.lvl = lvl; ch = w.ch;
@@ -1539,7 +1575,7 @@ var CONFIG = {
         entry.lamps.push({
           hu: l[0], hv: l[1], bu: l[2], bv: l[3],
           hd: depthAtMap(depth, l[0], l[1]), bd: depthAtMap(depth, l[2], l[3]),
-          phase: R() * 6.2832, period: rand(R, CONFIG.LAMP_PERIOD_S[0], CONFIG.LAMP_PERIOD_S[1]), delay: R() * CONFIG.TOD_SPREAD
+          phase: R() * 6.2832, period: rand(R, CONFIG.LAMP_PERIOD_S[0], CONFIG.LAMP_PERIOD_S[1]), delay: R() * 0.88
         });
       });
       if (useGL) { uploadFrame(entry); entry.bgSrc = null; entry.bldSrc = null; }
@@ -1869,7 +1905,7 @@ var CONFIG = {
 
   // ---------- ночные эффекты, ветер, контроль fps ----------
   var fx = {
-    windAmp: 0, windOn: true,
+    windAmp: 0, windOn: true, zoomA: 1, zoomB: 1,
     shoot: [0, 0, 0, 0], shootP: -1, shootLen: 0.3,
     lampH: new Float32Array(48), lampB: new Float32Array(48)
   };
@@ -1894,7 +1930,7 @@ var CONFIG = {
       if (!f || wgt <= 0.001) return;
       f.lamps.forEach(function (l) {
         if (n >= 16) return;
-        var gate = clamp((tod.n - l.delay) / (1 - CONFIG.TOD_SPREAD), 0, 1);
+        var gate = clamp((tod.lights - l.delay) / 0.12, 0, 1);   // фонари зажигаются по одному
         var I = gate * (1 + CONFIG.LAMP_BREATH * Math.sin(tAmb * 2 * Math.PI / l.period + l.phase)) * wgt;
         var h = projectImg(l.hu, l.hv, l.hd, l.hd * 2 - 1, sx, sy, zoom);
         var b = projectImg(l.bu, l.bv, l.bd, l.bd * 2 - 1, sx, sy, zoom);
@@ -1911,9 +1947,9 @@ var CONFIG = {
   // Окна, раз в 8–12 с одно случайное окно плавно зажигается/гаснет (1.5 с); падающие звёзды раз в 40–60 с.
   function stepNightFx(fa, fb, now) {
     [fa, fb].forEach(function (f) {
-      if (f && updateWindows(f, tod.n, now)) f.emDirty = true;
+      if (f && updateWindows(f, tod.lights, now)) f.emDirty = true;
     });
-    if (tod.n > 0.6) {
+    if (tod.lights > 0.95) {
       if (nextToggleAt === 0) nextToggleAt = now + rand(fxRng, CONFIG.WINDOW_TOGGLE_S[0], CONFIG.WINDOW_TOGGLE_S[1]) * 1000;
       else if (now >= nextToggleAt) {
         if (!fb && fa.wins.length) {
@@ -1926,7 +1962,7 @@ var CONFIG = {
       }
     } else nextToggleAt = 0;
 
-    if (perfLevel < 2 && tod.n > 0.7) {
+    if (perfLevel < 2 && tod.stars > 0.7) {
       if (shootT0 < 0) {
         if (nextShootAt === 0) nextShootAt = now + rand(fxRng, CONFIG.SHOOT_EVERY_S[0], CONFIG.SHOOT_EVERY_S[1]) * 1000;
         else if (now >= nextShootAt) {
@@ -1981,21 +2017,25 @@ var CONFIG = {
         frameIndex = fade.to;
         fade = null;
         mixState = 0;
+        fx.zoomA = 1; fx.zoomB = 1;
         markDot(frameIndex);
         buildHotspots(frameIndex);
       } else {
         mixState = clamp(EASE(p), 0, 1);
+        fx.zoomA = 1 + 0.06 * mixState;    // уходящий кадр медленно приближается и растворяется,
+        fx.zoomB = 1.04 - 0.04 * mixState; // следующий проявляется из лёгкого отдаления
       }
     }
 
-    // --- время суток ---
+    // --- время суток: день→закат 2.5 с, закат→ночь 3 с (небо, потом земля, с середины по одному окна и фонари 2 с,
+    // звёзды последними); обратно — в обратном порядке. Время бежит равномерно, по краям мягко.
     if (todAnim) {
       if (todAnim.t0 === null) todAnim.t0 = now;
-      var tp = (now - todAnim.t0) / CONFIG.TOD_MS;
-      var te = EASE(tp);
-      tod.s = clamp(todAnim.s0 + (todAnim.s1 - todAnim.s0) * te, 0, 1);
-      tod.n = clamp(todAnim.n0 + (todAnim.n1 - todAnim.n0) * te, 0, 1);
-      if (tp >= 1) todAnim = null;
+      var dur = Math.max(1, Math.abs(todAnim.T1 - todAnim.T0) * 1000);
+      var tf = clamp((now - todAnim.t0) / dur, 0, 1);
+      var tfe = 0.5 * tf + 0.5 * tf * tf * (3 - 2 * tf);
+      applyTod(todP(todAnim.T0 + (todAnim.T1 - todAnim.T0) * tfe));
+      if (tf >= 1) { applyTod(todAnim.p1); todAnim = null; }
     }
 
     // Пока открыта карточка подсказки, картинка за ней стоит: точки и карточка не «плывут» за мышью,
@@ -2041,7 +2081,7 @@ var CONFIG = {
       fx.windAmp = CONFIG.WIND_AMP_PX * (coverUvW / CONFIG.BASE_SCALE) / Math.max(1, stage.clientWidth);
       stepNightFx(fa, fb, now);
       fillLamps(fa, fb, mixState, shiftX, shiftY, zoom, tAmb);
-      stage.classList.toggle('is-night', tod.n > 0.5);
+      stage.classList.toggle('is-night', tod.sky > 0.5);
       perfCheck(now, !!(fade || todAnim));
       lastDraw = { fa: fa, fb: fb, mix: mixState, shiftX: shiftX, shiftY: shiftY, zoom: zoom, t: t, tAmb: tAmb };
       if (!glLost) drawGL(fa, fb, mixState, shiftX, shiftY, zoom, t, tAmb);
@@ -2095,13 +2135,25 @@ var CONFIG = {
   scrimEl.addEventListener('click', closeSheet);
   (desktopMQ.addEventListener ? desktopMQ.addEventListener('change', closeSheet) : desktopMQ.addListener(closeSheet));
 
-  // время суток: плавная смена за TOD_MS
-  var TOD_TARGET = { day: [0, 0], sunset: [1, 0], night: [0, 1] };
+  // время суток: p = 0 день, 1 закат, 2.1667 ночь (последние 0.1667 — доезжают огни и звёзды)
+  var TOD_P = { day: 0, sunset: 1, night: 2.1667 };
   var todAnim = null;
+  function sstep(a, b, x) { x = clamp((x - a) / (b - a), 0, 1); return x * x * (3 - 2 * x); }
+  function todT(p) { return p <= 1 ? CONFIG.DAY_SUNSET_S * p : CONFIG.DAY_SUNSET_S + CONFIG.SUNSET_NIGHT_S * (p - 1); }
+  function todP(T) { return T <= CONFIG.DAY_SUNSET_S ? T / CONFIG.DAY_SUNSET_S : 1 + (T - CONFIG.DAY_SUNSET_S) / CONFIG.SUNSET_NIGHT_S; }
+  function applyTod(p) {
+    var q = p - 1;
+    tod.p = p;
+    tod.s = p <= 1 ? p : 1 - sstep(0.3, 0.9, q);          // тёплый тон держится, пока темнеет
+    tod.sky = q > 0 ? sstep(0.0, 0.55, q) : 0;            // сначала небо
+    tod.gnd = q > 0 ? sstep(0.3, 0.9, q) : 0;             // потом земля
+    tod.lights = clamp((p - 1.5) / 0.667, 0, 1);          // с середины перехода, в течение 2 с
+    tod.stars = q > 0 ? sstep(0.75, 1.1667, q) : 0;       // звёзды — последними
+  }
   function setTod(name) {
-    var t = TOD_TARGET[name];
-    if (!t) return;
-    todAnim = { t0: null, s0: tod.s, n0: tod.n, s1: t[0], n1: t[1] };
+    var p1 = TOD_P[name];
+    if (p1 === undefined) return;
+    todAnim = { t0: null, T0: todT(tod.p), T1: todT(p1), p1: p1 };
     segMark('todSeg', 'data-tod', name);
     if (!useGL) fbEl.setAttribute('data-tod', name);
   }
