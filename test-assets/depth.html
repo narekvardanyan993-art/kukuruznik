@@ -661,68 +661,71 @@ var CONFIG = {
   ],
 
   // Тексты подсказок. ТОЛЬКО эти пять, свои факты не добавлять.
-  // hy (армянский) — черновой перевод, ПОМЕЧЕН для вычитки владельцем.
+  // hy (армянский) — утверждён владельцем.
   I18N: {
     tower1: {
       ru: 'Дом молодёжи, открыт в 1979. В народе — Кукурузник',
       en: 'Youth Palace, opened in 1979. Nicknamed "the Corncob"',
-      hy: 'Երիտասարդության պալատ, բացվել է 1979-ին։ Ժողովրդականում՝ Կուկուրուզնիկ' // TODO: армянский — вычитать мне
+      hy: 'Երիտասարդական պալատ, բացվել է 1979-ին։ Ժողովրդի մեջ՝ «Կուկուրուզնիկ»'
     },
     tower2: {
       ru: 'Снесён в 2006, официально — из-за сейсмической безопасности',
       en: 'Demolished in 2006, officially for seismic safety reasons',
-      hy: 'Քանդվել է 2006-ին, պաշտոնապես՝ սեյսմիկ անվտանգության պատճառով' // TODO: армянский — вычитать мне
+      hy: 'Քանդվել է 2006-ին, պաշտոնապես՝ սեյսմիկ անվտանգության պատճառով'
     },
     architects: {
-      ru: 'Архитекторы: А. Тарханян, С. Хачикян, Г. Погосян, М. Захарян',
-      en: 'Architects: A. Tarkhanyan, S. Khachikyan, G. Poghosyan, M. Zakaryan',
-      hy: 'Ճարտարապետներ՝ Ա. Թարխանյան, Ս. Խաչիկյան, Գ. Պողոսյան, Մ. Զաքարյան' // TODO: армянский — вычитать мне
+      ru: 'Архитекторы: А. Тарханян, Г. Погосян, С. Хачикян',
+      en: 'Architects: A. Tarkhanyan, H. Poghosyan, S. Khachikyan',
+      hy: 'Ճարտարապետներ՝ Ա. Թարխանյան, Հ. Պողոսյան, Ս. Խաչիկյան'
     },
     mother_armenia: {
       ru: 'Мать Армения, 1967',
       en: 'Mother Armenia, 1967',
-      hy: 'Մայր Հայաստան, 1967' // TODO: армянский — вычитать мне
+      hy: 'Մայր Հայաստան, 1967'
     },
     construction: {
-      ru: 'Строительство, 1976–1977',
-      en: 'Construction, 1976–1977',
-      hy: 'Շինարարություն, 1976–1977' // TODO: армянский — вычитать мне
+      ru: 'Строительство, 1970-е',
+      en: 'Construction, 1970s',
+      hy: 'Շինարարություն, 1970-ականներ'
     }
   },
 
   // Тексты интерфейса меню (не факты про здание — просто UI).
   UI_I18N: {
     title: { ru: 'Кукурузник, 1979', en: 'Kukuruznik, 1979', hy: 'Կուկուրուզնիկ, 1979' },
-    back: { ru: 'на сайт', en: 'to site', hy: 'կայք' }, // TODO: армянский — вычитать мне
+    pageTitle: { ru: 'Кукурузник — beta', en: 'Kukuruznik — beta', hy: 'Կուկուրուզնիկ — beta' },
+    prevFrame: { ru: 'Предыдущий кадр', en: 'Previous frame', hy: 'Նախորդ կադր' },
+    nextFrame: { ru: 'Следующий кадр', en: 'Next frame', hy: 'Հաջորդ կադր' },
+    back: { ru: 'на сайт', en: 'to site', hy: 'կայք' },
     hint: {
       ru: 'Веди пальцем / мышью · свайп — сменить кадр',
       en: 'Drag with finger / mouse · swipe to change frame',
-      hy: 'Քաշիր մատով կամ մկնիքով · սահեցրու՝ կադրը փոխելու համար' // TODO: армянский — вычитать мне
+      hy: 'Քաշիր մատով կամ մկնիկով · սահեցրու՝ կադրը փոխելու համար'
     },
-    hsBack: { ru: '‹ назад', en: '‹ back', hy: '‹ հետ' }, // TODO: армянский — вычитать мне
-    hsClose: { ru: '× закрыть', en: '× close', hy: '× փակել' }, // TODO: армянский — вычитать мне
+    hsBack: { ru: '‹ назад', en: '‹ back', hy: '‹ հետ' },
+    hsClose: { ru: '× закрыть', en: '× close', hy: '× փակել' },
     panelTitle: { ru: 'Кукурузник', en: 'Kukuruznik', hy: 'Կուկուրուզնիկ' },
-    menu: { ru: 'Меню', en: 'Menu', hy: 'Ընտրացանկ' }, // TODO: армянский — вычитать мне
-    tod: { ru: 'Время суток', en: 'Time of day', hy: 'Օրվա ժամը' }, // TODO: армянский — вычитать мне
-    day: { ru: 'День', en: 'Day', hy: 'Ցերեկ' }, // TODO: армянский — вычитать мне
-    sunset: { ru: 'Закат', en: 'Sunset', hy: 'Մայրամուտ' }, // TODO: армянский — вычитать мне
-    night: { ru: 'Ночь', en: 'Night', hy: 'Գիշեր' }, // TODO: армянский — вычитать мне
-    frames: { ru: 'Кадры', en: 'Views', hy: 'Կադրեր' }, // TODO: армянский — вычитать мне
-    fullscreen: { ru: 'Полный экран', en: 'Full screen', hy: 'Լիաէկրան' }, // TODO: армянский — вычитать мне
-    postcard: { ru: 'Сохранить открытку', en: 'Save postcard', hy: 'Պահել բացիկը' }, // TODO: армянский — вычитать мне
-    textSize: { ru: 'Размер текста', en: 'Text size', hy: 'Տառերի չափը' }, // TODO: армянский — вычитать мне
-    sizeLarge: { ru: 'Крупный', en: 'Large', hy: 'Մեծ' }, // TODO: армянский — вычитать мне
-    sizeNormal: { ru: 'Обычный', en: 'Normal', hy: 'Սովորական' }, // TODO: армянский — вычитать мне
-    language: { ru: 'Язык', en: 'Language', hy: 'Լեզու' }, // TODO: армянский — вычитать мне
-    about: { ru: 'О здании', en: 'About the building', hy: 'Շենքի մասին' }, // TODO: армянский — вычитать мне
-    more: { ru: 'подробнее ›', en: 'more ›', hy: 'ավելին ›' }, // TODO: армянский — вычитать мне
-    loading: { ru: 'загрузка…', en: 'loading…', hy: 'բեռնվում է…' }, // TODO: армянский — вычитать мне
-    welcome: { ru: 'Добро пожаловать в интерактивный Кукурузник', en: 'Welcome to the interactive Kukuruznik', hy: 'Բարի գալուստ ինտերակտիվ Կուկուրուզնիկ' }, // TODO: армянский — вычитать мне
-    welcomeTap: { ru: 'коснись, чтобы начать', en: 'tap to begin', hy: 'հպիր՝ սկսելու համար' }, // TODO: армянский — вычитать мне
+    menu: { ru: 'Меню', en: 'Menu', hy: 'Ընտրացանկ' },
+    tod: { ru: 'Время суток', en: 'Time of day', hy: 'Օրվա ժամը' },
+    day: { ru: 'День', en: 'Day', hy: 'Ցերեկ' },
+    sunset: { ru: 'Закат', en: 'Sunset', hy: 'Մայրամուտ' },
+    night: { ru: 'Ночь', en: 'Night', hy: 'Գիշեր' },
+    frames: { ru: 'Кадры', en: 'Views', hy: 'Կադրեր' },
+    fullscreen: { ru: 'Полный экран', en: 'Full screen', hy: 'Լիաէկրան' },
+    postcard: { ru: 'Сохранить открытку', en: 'Save postcard', hy: 'Պահել բացիկը' },
+    textSize: { ru: 'Размер текста', en: 'Text size', hy: 'Տառերի չափը' },
+    sizeLarge: { ru: 'Крупный', en: 'Large', hy: 'Մեծ' },
+    sizeNormal: { ru: 'Обычный', en: 'Normal', hy: 'Սովորական' },
+    language: { ru: 'Язык', en: 'Language', hy: 'Լեզու' },
+    about: { ru: 'О здании', en: 'About the building', hy: 'Շենքի մասին' },
+    more: { ru: 'подробнее ›', en: 'more ›', hy: 'Ավելին ›' },
+    loading: { ru: 'загрузка…', en: 'loading…', hy: 'բեռնվում է…' },
+    welcome: { ru: 'Добро пожаловать в интерактивный Кукурузник', en: 'Welcome to the interactive Kukuruznik', hy: 'Բարի գալուստ ինտերակտիվ «Կուկուրուզնիկ»' },
+    welcomeTap: { ru: 'коснись, чтобы начать', en: 'tap to begin', hy: 'Հպիր՝ սկսելու համար' },
     gyroNeedsHttps: {
       ru: 'Наклон работает только по https — открой опубликованную ссылку',
       en: 'Tilt works only over https — open the published link',
-      hy: 'Թեքումն աշխատում է միայն https-ով — բացիր հրապարակված հղումը' // TODO: армянский — вычитать мне
+      hy: 'Թեքումն աշխատում է միայն https-ով — բացիր հրապարակված հղումը'
     }
   }
 };
@@ -803,6 +806,9 @@ var CONFIG = {
       if (str) el.textContent = str[currentLang];
     });
     panelBtn.setAttribute('aria-label', t.menu[currentLang]);
+    document.title = t.pageTitle[currentLang];
+    ['prevSide', 'prevBtn'].forEach(function (id) { document.getElementById(id).setAttribute('aria-label', t.prevFrame[currentLang]); });
+    ['nextSide', 'nextBtn'].forEach(function (id) { document.getElementById(id).setAttribute('aria-label', t.nextFrame[currentLang]); });
     // справка о здании: 3 строки из уже утверждённых фактов
     var about = document.getElementById('aboutText');
     about.innerHTML = '';
