@@ -142,37 +142,47 @@
   }
   #homeBtn { width: 56px; height: 56px; }
   @media (max-width: 1023.98px) {
-    /* Кнопки без подложек и кругов, прозрачные — не отнимают место у картинки. Видимость: белые линии/текст с мягкой
-       тёмной тенью (drop-shadow), чтобы читалось и на светлом дне, и на тёмной ночи. Нажимаемая зона (56 px) остаётся. */
+    /* Раскладка нижней полосы (вид кнопок и подписи — в конце файла: мягкая бумажная подложка, v12.1). */
     #bottomBar {
       position: fixed; left: 0; right: 0; bottom: 0; z-index: 55; pointer-events: none;
       display: grid; grid-template-columns: 56px minmax(0, 1fr) 56px; align-items: center; column-gap: var(--s1);
       padding: var(--s1) calc(var(--safe-r) + var(--s2)) calc(var(--safe-b) + var(--s1)) calc(var(--safe-l) + var(--s2));
       background: none; border: 0; box-shadow: none;
     }
-    #barTitle { grid-column: 2; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.75), 0 0 8px rgba(0,0,0,0.45); }
+    #barTitle { grid-column: 2; }
     #homeBtn { grid-column: 3; }
-    .arrow-btn {
-      pointer-events: auto; background: none; border: 0; border-radius: 0; box-shadow: none; color: #fff;
-      filter: drop-shadow(0 1px 1px rgba(0,0,0,0.85)) drop-shadow(0 0 3px rgba(0,0,0,0.6)) drop-shadow(0 0 8px rgba(0,0,0,0.35));
-    }
-    .arrow-btn:active { background: none; transform: scale(0.9); opacity: 0.8; }
     .nav-btn { width: 56px; height: 56px; top: calc(50% - 28px); }
     .nav-btn svg { width: 36px; height: 36px; }
     #bottomBar #flagBtnB { display: grid; position: absolute; right: calc(var(--safe-r) + var(--s2)); bottom: 100%; width: 56px; height: 56px; margin-bottom: 0; }
     #bottomBar #flagBtnB[hidden] { display: none; }
     #bottomBar #flagBtnB svg { width: 36px; height: 36px; }
-    #build-version { right: auto; left: calc(var(--safe-l) + var(--s1)); }
+    #build-version { right: auto; left: calc(var(--safe-l) + var(--s1)); max-width: calc(50% - 44px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   }
 
-  /* Кнопка «Парад» (v12): маленькая, флаг Армении карандашом. ПК — в панели рядом с «на сайт»; телефон — в нижней полосе над «домой».
-     Пока идёт показ, кнопка бледнеет и не нажимается; при fps < 45 или «уменьшении движения» она скрыта. */
-  .flag-btn { width: 44px; height: 44px; }
-  .flag-btn svg { display: block; width: 30px; height: 30px; }
-  .flag-btn[aria-disabled="true"] { opacity: 0.45; cursor: default; }
+  /* Кнопка «Парад»: маленькая, флаг Армении карандашом. ПК — в панели рядом с «домиком»; телефон — в нижней полосе над «домой».
+     Живёт только на кадре 1 (на других гаснет). Пока идёт показ, флаг колышется, а ореол переливается красным-синим-абрикосовым.
+     При fps < 45 или «уменьшении движения» кнопка скрыта. */
+  .flag-btn, .p-home { width: 44px; height: 44px; }
+  .flag-btn svg { display: block; width: 30px; height: 30px; overflow: visible; }
+  .p-home svg { display: block; width: 28px; height: 28px; }
+  .flag-btn[aria-disabled="true"] { cursor: default; }
   .flag-btn[hidden] { display: none; }
+  .flag-btn { transition: opacity 400ms var(--spring), transform 200ms var(--spring); }
+  .flag-btn.off-frame { opacity: 0; pointer-events: none; transform: scale(0.8); }
   #flagBtnB { display: none; }
   .p-top-row { display: flex; align-items: center; gap: var(--s2); }
+  .flag-btn .fb { transform-box: fill-box; transform-origin: 0% 50%; }
+  .flag-btn.busy .fb { animation: flagWave 800ms ease-in-out infinite; }
+  .flag-btn.busy .fb2 { animation-delay: -130ms; }
+  .flag-btn.busy .fb3 { animation-delay: -260ms; }
+  .flag-btn.busy svg { animation: flagGlow 2.4s linear infinite; }
+  @keyframes flagWave { 0%, 100% { transform: skewY(0deg) scaleX(1); } 50% { transform: skewY(-9deg) scaleX(0.9); } }
+  @keyframes flagGlow {
+    0%, 100% { filter: drop-shadow(0 0 3px rgba(217,0,18,0.95)); }
+    33% { filter: drop-shadow(0 0 4px rgba(36,84,200,0.95)); }
+    66% { filter: drop-shadow(0 0 4px rgba(242,168,0,0.95)); }
+  }
+  @media (prefers-reduced-motion: reduce) { html:not([data-motion="on"]) .flag-btn.busy .fb, html:not([data-motion="on"]) .flag-btn.busy svg { animation: none; } }
 
   #dots {
     position: absolute; left: 50%; bottom: calc(var(--safe-b) + var(--bar-h) + var(--s1)); transform: translateX(-50%);
@@ -198,12 +208,6 @@
   @media (min-width: 1024px) {
     #bottomBar, #dots, #build-version, #prevBtn, #nextBtn, .panel-scroll > .p-title { display: none; }
     .p-top { display: grid; justify-items: start; row-gap: var(--s1); margin-right: var(--s4); }
-    .p-back {
-      display: inline-flex; align-items: center; gap: var(--s1); padding: var(--s1) var(--s2); border-radius: 10px;
-      color: var(--ink); text-decoration: none; font: 600 16px/1 var(--font);
-      background: rgba(47,42,37,0.08);
-    }
-    .p-back:hover { background: rgba(47,42,37,0.12); }
     .p-name { font: 700 26px/1.2 var(--font); }
     .p-build { display: block; font: 500 10px/1.2 var(--font); opacity: 0.5; }
     .nav-side { display: grid; }
@@ -215,9 +219,9 @@
   @media (min-width: 1024px) {
     body::before {
       content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-      background: url(wall-ararat.svg) center bottom / min(100%, 1500px) auto no-repeat, url(wall-a.svg) center top / 480px auto repeat;
+      background: url(wall-a.svg) center / cover no-repeat;
     }
-    html[data-wall="b"] body::before { background: url(wall-b.svg) center bottom / cover no-repeat; }
+    html[data-wall="b"] body::before { background: url(wall-b.svg) center / cover no-repeat; }
     #layout { position: relative; z-index: 1; }
   }
 
@@ -248,51 +252,76 @@
   /* Перо рисует контур листа (SVG поверх карточки, его путь строит скрипт по размеру карточки). Только ПК. */
   .pen { display: none; }
   @media (min-width: 1024px) {
-    /* ---- Закрытие (ПК): коротко и просто — карточка гаснет и чуть съезжает влево, 240 мс. ---- */
-    body.panel-collapsed .panel-card { opacity: 0; transform: translateX(-24px); pointer-events: none; transition: opacity 240ms ease, transform 240ms ease; }
-    body.panel-collapsed .pen { opacity: 0; }
-
-    /* ---- Появление (ПК): как рукопись, ~1.1 с (контур пера 0.15–0.65 с, бумага 0.4–0.7 с, текст 0.58–1.12 с). Сначала пером прорисовывается контур листа (двойной: основной и внутренний
-       карандашный), потом бумага наливается цветом, потом проявляется текст по пунктам. Без рывков: только opacity, цвет
-       и обводка. Запускается и при загрузке страницы, и при раскрытии свёрнутой панели. ---- */
+    #panel { overflow: visible; }   /* карточка и перо не обрезаются, пока колонка сжимается/растёт */
     .pen { display: block; position: absolute; left: var(--s2); top: var(--s2); width: 384px; height: calc(100% - 2 * var(--s2)); overflow: visible; pointer-events: none; z-index: 2; }
     .pen path { fill: none; stroke: var(--ink); stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
-    .pen .pen-1 { stroke-width: 2; }
-    .pen .pen-2 { stroke-width: 1; opacity: 0.32; }
-    body:not(.panel-collapsed) .pen .pen-1 { animation: penDraw 500ms cubic-bezier(0.45, 0.05, 0.3, 1) 150ms both, penFade 200ms linear 640ms both; }
-    body:not(.panel-collapsed) .pen .pen-2 { animation: penDraw 500ms cubic-bezier(0.45, 0.05, 0.3, 1) 250ms both, penFade 200ms linear 700ms both; }
-    body:not(.panel-collapsed) .panel-card { animation: sheetIn 850ms linear 150ms both; }
+    .pen .pen-1 { stroke-width: 2.4; }
+    .pen .pen-2 { stroke-width: 1.1; opacity: 0.4; }
+    .pen .nib { fill: var(--ink); opacity: 0; offset-rotate: 0deg; }   /* кончик пера: точка, бегущая по контуру (offset-path ставит скрипт) */
+    /* свёрнута без анимации (страница открыта уже свёрнутой): карточки нет */
+    body.panel-collapsed .panel-card { opacity: 0; visibility: hidden; pointer-events: none; }
+
+    /* ---- Появление (~1.5 с): перо ведёт основной контур листа (0.15–1.05 с; виден кончик пера), следом внутренний карандашный,
+       потом бумага наливается цветом, потом текст проявляется по пунктам. Запускается при загрузке и при раскрытии панели. ---- */
+    body:not(.panel-collapsed) .pen .pen-1 { animation: penDraw 900ms cubic-bezier(0.4, 0.05, 0.3, 1) 150ms both, penFade 250ms linear 1050ms both; }
+    body:not(.panel-collapsed) .pen .pen-2 { animation: penDraw 800ms cubic-bezier(0.4, 0.05, 0.3, 1) 450ms both, penFade 250ms linear 1250ms both; }
+    body:not(.panel-collapsed) .pen .nib { animation: nibGo 900ms cubic-bezier(0.4, 0.05, 0.3, 1) 150ms both; }
+    body:not(.panel-collapsed) .panel-card { animation: sheetIn 1000ms linear 500ms both; }
     body:not(.panel-collapsed) .panel-scroll > * { animation: itemIn 380ms var(--ease) both; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(1) { animation-delay: 576ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(2) { animation-delay: 592ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(3) { animation-delay: 608ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(4) { animation-delay: 624ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(5) { animation-delay: 640ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(6) { animation-delay: 656ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(7) { animation-delay: 672ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(8) { animation-delay: 688ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(9) { animation-delay: 704ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(10) { animation-delay: 720ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(11) { animation-delay: 736ms; }
+    body:not(.panel-collapsed) .panel-scroll > *:nth-child(1) { animation-delay: 1000ms; }
+    body:not(.panel-collapsed) .panel-scroll > *:nth-child(2) { animation-delay: 1030ms; }
+    body:not(.panel-collapsed) .panel-scroll > *:nth-child(3) { animation-delay: 1060ms; }
+    body:not(.panel-collapsed) .panel-scroll > *:nth-child(4) { animation-delay: 1090ms; }
+    body:not(.panel-collapsed) .panel-scroll > *:nth-child(5) { animation-delay: 1120ms; }
+    body:not(.panel-collapsed) .panel-scroll > *:nth-child(6) { animation-delay: 1150ms; }
+    body:not(.panel-collapsed) .panel-scroll > *:nth-child(7) { animation-delay: 1180ms; }
+    body:not(.panel-collapsed) .panel-scroll > *:nth-child(8) { animation-delay: 1210ms; }
+    body:not(.panel-collapsed) .panel-scroll > *:nth-child(9) { animation-delay: 1240ms; }
+    body:not(.panel-collapsed) .panel-scroll > *:nth-child(10) { animation-delay: 1270ms; }
+    body:not(.panel-collapsed) .panel-scroll > *:nth-child(11) { animation-delay: 1300ms; }
+
+    /* ---- Закрытие (~0.9 с) — то же наоборот: текст гаснет, бумага бледнеет, контур «собирается» — перо втягивает линию обратно
+       по пути, кончик пера уходит к началу; потом колонка сжимается. Только после первого нажатия кнопки (html.panel-anim). ---- */
+    html.panel-anim body.panel-collapsed .pen .pen-1 { animation: penUndraw 650ms cubic-bezier(0.5, 0, 0.3, 1) 150ms both; }
+    html.panel-anim body.panel-collapsed .pen .pen-2 { animation: penUndraw 550ms cubic-bezier(0.5, 0, 0.3, 1) 100ms both; }
+    html.panel-anim body.panel-collapsed .pen .nib { animation: nibBack 650ms cubic-bezier(0.5, 0, 0.3, 1) 150ms both; }
+    html.panel-anim body.panel-collapsed .panel-card { animation: sheetOut 850ms linear both; }
+    html.panel-anim body.panel-collapsed .panel-scroll > * { animation: itemOut 260ms ease both; }
+    html.panel-anim body.panel-collapsed #layout { transition-delay: 350ms; }
+    html.panel-anim body.panel-collapsed #panelBtn { transition-delay: 350ms, 0ms, 0ms; }
   }
   @keyframes penDraw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+  @keyframes penUndraw { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 1; } }
   @keyframes penFade { from { opacity: 1; } to { opacity: 0; } }
-  /* бумага: до 35% (пока идёт контур) листа как бы нет — только линия пера; потом заливка, тень и родная рамка (под линией пера) */
+  @keyframes nibGo { 0% { offset-distance: 0%; opacity: 1; } 96% { offset-distance: 100%; opacity: 1; } 100% { offset-distance: 100%; opacity: 0; } }
+  @keyframes nibBack { 0% { offset-distance: 100%; opacity: 1; } 96% { offset-distance: 0%; opacity: 1; } 100% { offset-distance: 0%; opacity: 0; } }
+  /* бумага: пока идёт контур (первая половина) листа как бы нет — только линия пера; потом заливка, тень и родная рамка (под линией пера) */
   @keyframes sheetIn {
-    0%, 30% { background-color: rgba(245,236,218,0); border-color: transparent; outline-color: transparent; box-shadow: 0 12px 32px rgba(60,45,20,0), 3px 4px 0 rgba(47,42,37,0); }
-    62% { background-color: rgba(245,236,218,1); border-color: transparent; outline-color: transparent; box-shadow: 0 12px 32px rgba(60,45,20,0.24), 3px 4px 0 rgba(47,42,37,0.14); }
-    72% { border-color: #2f2a25; outline-color: rgba(47,42,37,0.3); }
+    0%, 10% { background-color: rgba(245,236,218,0); border-color: transparent; outline-color: transparent; box-shadow: 0 12px 32px rgba(60,45,20,0), 3px 4px 0 rgba(47,42,37,0); }
+    55% { background-color: rgba(245,236,218,1); border-color: transparent; outline-color: transparent; box-shadow: 0 12px 32px rgba(60,45,20,0.24), 3px 4px 0 rgba(47,42,37,0.14); }
+    70% { border-color: #2f2a25; outline-color: rgba(47,42,37,0.3); }
     100% { background-color: rgba(245,236,218,1); border-color: #2f2a25; outline-color: rgba(47,42,37,0.3); box-shadow: 0 12px 32px rgba(60,45,20,0.24), 3px 4px 0 rgba(47,42,37,0.14); }
   }
+  @keyframes sheetOut {
+    0% { opacity: 1; visibility: visible; background-color: rgba(245,236,218,1); border-color: #2f2a25; outline-color: rgba(47,42,37,0.3); box-shadow: 0 12px 32px rgba(60,45,20,0.24), 3px 4px 0 rgba(47,42,37,0.14); }
+    10% { opacity: 1; visibility: visible; border-color: transparent; outline-color: transparent; }
+    30% { opacity: 1; visibility: visible; background-color: rgba(245,236,218,1); border-color: transparent; }
+    85% { opacity: 1; visibility: visible; background-color: rgba(245,236,218,0); border-color: transparent; outline-color: transparent; box-shadow: 0 12px 32px rgba(60,45,20,0), 3px 4px 0 rgba(47,42,37,0); }
+    100% { opacity: 0; visibility: hidden; background-color: rgba(245,236,218,0); border-color: transparent; box-shadow: none; }
+  }
   @keyframes itemIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-  /* «Уменьшение движения»: обычное плавное появление, без пера и сдвигов */
+  @keyframes itemOut { from { opacity: 1; } to { opacity: 0; } }
+  /* «Уменьшение движения»: обычное плавное появление и исчезновение, без пера и сдвигов */
   @media (min-width: 1024px) and (prefers-reduced-motion: reduce) {
     html:not([data-motion="on"]) .pen { display: none; }
     html:not([data-motion="on"]) body:not(.panel-collapsed) .panel-card { animation: sheetFade 450ms ease both; }
     html:not([data-motion="on"]) body:not(.panel-collapsed) .panel-scroll > * { animation: none; }
-    html:not([data-motion="on"]) body.panel-collapsed .panel-card { transition: opacity 200ms ease; transform: none; }
+    html:not([data-motion="on"]).panel-anim body.panel-collapsed .panel-card { animation: sheetFadeOut 250ms ease both; }
+    html:not([data-motion="on"]).panel-anim body.panel-collapsed .panel-scroll > * { animation: none; }
+    html:not([data-motion="on"]).panel-anim body.panel-collapsed #layout, html:not([data-motion="on"]).panel-anim body.panel-collapsed #panelBtn { transition-delay: 0ms; }
   }
   @keyframes sheetFade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes sheetFadeOut { from { opacity: 1; visibility: visible; } 99% { opacity: 0; visibility: visible; } to { opacity: 0; visibility: hidden; } }
   .p-title { font: 700 26px/1.2 var(--font); display: block; margin: 0 var(--s3) 0 0; }
   .p-sec { margin: 0; }
   .p-sec h3 { margin: 0 0 var(--s1); font: 700 20px/1.2 var(--font); }
@@ -346,27 +375,32 @@
     .switch:hover, #thumbs button:hover, #panelBtn:hover, .arrow-btn:hover { filter: brightness(0.96); }
   }
 
-  /* кнопка панели: на ПК — стрелка свернуть/развернуть, на телефоне — круглая кнопка снизу слева */
+  /* кнопка панели (v12.1): своя иконка — знак вечности (колесо с восемью лучами). На ПК свернуть/развернуть, на телефоне —
+     открыть/закрыть шторку. При переключении колесо поворачивается на пружине, а лучи по очереди прорисовываются заново. */
   #panelBtn {
     position: fixed; z-index: 60; border: 2px solid var(--ink); background: var(--paper); color: var(--ink);
-    cursor: pointer; padding: 0; font: 700 22px/1 var(--font);
+    cursor: pointer; padding: 0;
     box-shadow: 0 6px 16px rgba(60,45,20,0.3), 2px 3px 0 rgba(47,42,37,0.14);
     display: flex; align-items: center; justify-content: center;
     transition: left var(--dur) var(--spring), transform var(--dur) var(--spring), background var(--dur) var(--spring);
   }
   #panelBtn:active { background: var(--paper-2); }
   #panelBtn svg { display: block; flex: none; }
-  #panelBtn .ic-arrow { display: none; }
+  .ic-wheel { transition: transform 800ms var(--spring); overflow: visible; }
+  .ic-wheel .arm { stroke-dasharray: 1; stroke-dashoffset: 0; }
+  @keyframes armA { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+  @keyframes armB { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
   #scrim { display: none; }
 
   @media (min-width: 1024px) {
     #panelBtn {
       top: var(--s3); left: calc(var(--panelW) - 56px); width: 40px; height: 40px; border-radius: 50% 42% 50% 42%;
     }
-    #panelBtn .ic-menu { display: none; }
-    #panelBtn .ic-arrow { display: block; transition: transform var(--dur) var(--spring); }
+    #panelBtn .ic-wheel { width: 28px; height: 28px; transform: rotate(180deg); }
     body.panel-collapsed #panelBtn { left: 4px; }
-    body.panel-collapsed #panelBtn .ic-arrow { transform: rotate(180deg); }
+    body.panel-collapsed #panelBtn .ic-wheel { transform: rotate(0deg); }
+    html.panel-anim body:not(.panel-collapsed) #panelBtn .arm { animation: armA 700ms var(--ease) both; animation-delay: calc(var(--i) * 55ms + 150ms); }
+    html.panel-anim body.panel-collapsed #panelBtn .arm { animation: armB 700ms var(--ease) both; animation-delay: calc(var(--i) * 55ms); }
   }
 
   /* Телефон: та же панель, свёрнутая в круглую кнопку; по тапу выезжает снизу шторкой на 60% высоты */
@@ -492,18 +526,33 @@
   @media (prefers-reduced-motion: reduce) {
     .hs-dot::after { display: none; }
   }
-  /* телефон: кнопка панели — тоже без подложки (правила ниже нужны здесь, после базовых стилей #panelBtn) */
+  /* ТЕЛЕФОН (v12.1): кнопки и название были плохо видны на картинке. Теперь у каждой кнопки и у названия — мягкая полупрозрачная
+     подложка цвета бумаги с растушёванными краями (радиальный градиент, не плашка и не круг с обводкой); значки и текст — тёмное перо.
+     Ночью подложка тёмно-синяя, значки светлые (html[data-night="1"] ставит скрипт). Нажимаемая зона (56 px) прежняя. */
+  :root { --bk: 245,236,218; --fg: #2f2a25; }
+  html[data-night="1"] { --bk: 22,28,50; --fg: #f3e9d2; }
   @media (max-width: 1023.98px) {
-    #panelBtn {
-      background: none; border: 0; border-radius: 0; box-shadow: none; color: #fff;
-      filter: drop-shadow(0 1px 1px rgba(0,0,0,0.85)) drop-shadow(0 0 3px rgba(0,0,0,0.6)) drop-shadow(0 0 8px rgba(0,0,0,0.35));
+    .arrow-btn, #panelBtn {
+      pointer-events: auto; color: var(--fg); border: 0; border-radius: 50%; box-shadow: none; filter: none;
+      background: radial-gradient(closest-side, rgba(var(--bk),0.9) 0, rgba(var(--bk),0.86) 60%, rgba(var(--bk),0) 100%);
     }
-    #panelBtn:active { background: none; transform: scale(0.9); opacity: 0.8; }
-    body.sheet-open #panelBtn { transform: scale(0.9); }
+    .arrow-btn:active, #panelBtn:active { background: radial-gradient(closest-side, rgba(var(--bk),0.9) 0, rgba(var(--bk),0.86) 60%, rgba(var(--bk),0) 100%); transform: scale(0.9); opacity: 0.85; }
+    #panelBtn { left: calc(var(--safe-l) + var(--s2)); bottom: calc(var(--safe-b) + var(--s1)); width: 56px; height: 56px; transition: transform 350ms var(--ease), opacity 250ms var(--ease); }
+    #panelBtn .ic-wheel { width: 34px; height: 34px; }
+    body.sheet-open #panelBtn { transform: scale(0.94); }
+    body.sheet-open #panelBtn .ic-wheel { transform: rotate(180deg); }
+    html.panel-anim body.sheet-open #panelBtn .arm { animation: armA 700ms var(--ease) both; animation-delay: calc(var(--i) * 55ms + 150ms); }
+    html.panel-anim body:not(.sheet-open) #panelBtn .arm { animation: armB 700ms var(--ease) both; animation-delay: calc(var(--i) * 55ms); }
+    #barTitle {
+      justify-self: center; max-width: 100%; padding: 12px 16px; color: var(--fg); text-shadow: none; font-size: 17px;
+      background: radial-gradient(ellipse closest-side, rgba(var(--bk),0.88) 0, rgba(var(--bk),0.84) 62%, rgba(var(--bk),0) 100%);
+    }
+    .nav-btn svg { width: 34px; height: 34px; }
   }
 </style>
 </head>
 <body>
+<script>try { if (localStorage.getItem('chka-panel') === 'collapsed') document.body.classList.add('panel-collapsed'); } catch (e) {}   /* панель, свёрнутая в прошлый раз, — сразу свёрнутой, без анимации закрытия */</script>
 
 <script src="welcome-letters.js"></script>
 <script src="welcome-loader.js"></script>
@@ -574,10 +623,15 @@ var CONFIG = {
     SKY_HOR: [0.83, 0.92, 0.99],     // и у горизонта — светлее
     SKY_REF: [0.866, 0.85, 0.867, 0.838, 0.932, 0.893],   // яркость исходной вымывки неба по кадрам (медиана): от неё считаем «облако светлее неба»
     SKY_END: [0.55, 0.55, 0.525, 0.56, 0.28, 0.70],       // ниже этой доли высоты кадра неба нет (маска местами затекает на газон)
+    MIX: 0.55,                       // v12.1: середина между v11 (0) и v12 (1) — без «мультяшности»
     GREEN_HUE: 0.30,                 // куда тянем оттенок зелени (0.30 = 108°)
     GREEN_PULL: 0.78,                // насколько сильно (0..1)
     GREEN_SAT: 1.9                   // во сколько раз насыщеннее
   },
+
+  // Тени облаков по кадрам (сила; на крупном плане кадра 6 они заметно ползут по фасаду) и ветер (множитель, у крупного плана сильнее).
+  CLOUD_SHADOW: [0.12, 0.12, 0.12, 0.12, 0.12, 0.26],
+  WIND_K: [1, 1, 1, 1, 1, 1.9],
 
   // Откат без WebGL: множитель сдвига слоя здания (+) и фона (−).
   FALLBACK_LAYER_K: 0.6,
@@ -709,7 +763,6 @@ var CONFIG = {
     },
     prevFrame: { ru: 'Предыдущий кадр', en: 'Previous frame', hy: 'Նախորդ կադր' },
     nextFrame: { ru: 'Следующий кадр', en: 'Next frame', hy: 'Հաջորդ կադր' },
-    back: { ru: 'на сайт', en: 'to site', hy: 'կայք' },
     hsBack: { ru: '‹ назад', en: '‹ back', hy: '‹ հետ' },
     hsClose: { ru: '× закрыть', en: '× close', hy: '× փակել' },
     panelTitle: { ru: 'Кукурузник', en: 'Kukuruznik', hy: 'Կուկուռուզնիկ' },
@@ -719,11 +772,11 @@ var CONFIG = {
     sunset: { ru: 'Закат', en: 'Sunset', hy: 'Մայրամուտ' },
     night: { ru: 'Ночь', en: 'Night', hy: 'Գիշեր' },
     frames: { ru: 'Кадры', en: 'Views', hy: 'Կադրեր' },
-    fullscreen: { ru: 'Полный экран', en: 'Full screen', hy: 'Լիաէկրան' },
-    postcard: { ru: 'Сохранить открытку', en: 'Save postcard', hy: 'Պահել բացիկը' },
+    fullscreen: { ru: 'Полный экран', en: 'Full screen', hy: 'լայնէկրան' },
+    postcard: { ru: 'Сохранить открытку', en: 'Save postcard', hy: 'պահպանել' },
     textSize: { ru: 'Размер текста', en: 'Text size', hy: 'Տառերի չափը' },
     sizeLarge: { ru: 'Крупный', en: 'Large', hy: 'Մեծ' },
-    sizeNormal: { ru: 'Обычный', en: 'Normal', hy: 'Սովորական' },
+    sizeNormal: { ru: 'Обычный', en: 'Normal', hy: 'դասական' },
     language: { ru: 'Язык', en: 'Language', hy: 'Լեզու' },
     about: { ru: 'О здании', en: 'About the building', hy: 'Շենքի մասին' },
     more: { ru: 'подробнее ›', en: 'more ›', hy: 'Ավելին ›' },
@@ -760,13 +813,13 @@ window.__wl = WelcomeLoader.create({
 
 <div id="layout">
 <aside id="panel" aria-label="Menu">
-  <svg class="pen" id="pen" aria-hidden="true"><path class="pen-1" pathLength="1"/><path class="pen-2" pathLength="1"/></svg>
+  <svg class="pen" id="pen" aria-hidden="true"><path class="pen-1" pathLength="1"/><path class="pen-2" pathLength="1"/><circle class="nib" r="3.2" cx="0" cy="0"/></svg>
   <div class="panel-card sketch"><div class="panel-scroll">
     <span class="p-title" data-i18n="panelTitle">Кукурузник</span>
     <div class="p-top">
       <div class="p-top-row">
-        <a class="p-back" href="../../kukuruznik/index.html">‹ <span data-i18n="back">на сайт</span></a>
-        <button type="button" id="flagBtnP" class="arrow-btn flag-btn" aria-label="Парад" data-i18n-title="flag"><svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g stroke-linecap="round" stroke-linejoin="round"><path d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 13 Q29 16 23 13 Q17 10 11 13 Z" fill="#d90012"/><path d="M11 13 Q17 10 23 13 Q29 16 35 13 L35 19 Q29 22 23 19 Q17 16 11 19 Z" fill="#1c4cc0"/><path d="M11 19 Q17 16 23 19 Q29 22 35 19 L35 25 Q29 28 23 25 Q17 22 11 25 Z" fill="#f2a800"/><g fill="none" stroke="currentColor"><path d="M9.2 5.5 L9.6 35.5" stroke-width="2.6"/><path d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 25 Q29 28 23 25 Q17 22 11 25 Z" stroke-width="2"/><path d="M11.6 7.8 Q17 5 23 8 Q29 11 34.6 8.2 M11.4 24.4 Q17 21.6 23 24.6 Q29 27.6 34.6 24.4" stroke-width="0.9" opacity=".55"/></g></g></svg></button>
+        <a class="arrow-btn p-home" id="homeBtnP" href="../../kukuruznik/index.html" aria-label="Страница здания" data-i18n-title="home"><svg viewBox="0 0 40 40" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 20.5L20 8.5l13.5 12" stroke-width="2.8"/><path d="M11 18.5V32h18V18.5" stroke-width="2.8"/><path d="M17 32v-8.5h6V32" stroke-width="2.4"/><path d="M7.4 21.2L20.4 9.5l12.9 11.4M12 19.4V32.8h17.4" stroke-width="1.1" opacity=".55"/></g></svg></a>
+        <button type="button" id="flagBtnP" class="arrow-btn flag-btn" aria-label="Парад" data-i18n-title="flag"><svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g stroke-linecap="round" stroke-linejoin="round"><path class="fb fb1" d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 13 Q29 16 23 13 Q17 10 11 13 Z" fill="#d90012"/><path class="fb fb2" d="M11 13 Q17 10 23 13 Q29 16 35 13 L35 19 Q29 22 23 19 Q17 16 11 19 Z" fill="#1c4cc0"/><path class="fb fb3" d="M11 19 Q17 16 23 19 Q29 22 35 19 L35 25 Q29 28 23 25 Q17 22 11 25 Z" fill="#f2a800"/><g fill="none" stroke="currentColor"><path d="M9.2 5.5 L9.6 35.5" stroke-width="2.6"/><path d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 25 Q29 28 23 25 Q17 22 11 25 Z" stroke-width="2"/><path d="M11.6 7.8 Q17 5 23 8 Q29 11 34.6 8.2 M11.4 24.4 Q17 21.6 23 24.6 Q29 27.6 34.6 24.4" stroke-width="0.9" opacity=".55"/></g></g></svg></button>
       </div>
       <span class="p-name" data-i18n="title">Кукурузник, 1979</span>
     </div>
@@ -804,7 +857,7 @@ window.__wl = WelcomeLoader.create({
       <div id="aboutText"></div>
       <a id="aboutLink" href="../../kukuruznik/index.html" data-i18n="more">подробнее ›</a>
     </section>
-    <div class="p-build">test/depth-photo · v12 · 2026-09-26</div>
+    <div class="p-build">test/depth-photo · v12.1 · 2026-09-26</div>
   </div></div>
 </aside>
 <script>
@@ -822,16 +875,18 @@ window.__wl = WelcomeLoader.create({
   function fit() {
     var w = 384, h = Math.max(200, window.innerHeight - 32);
     pen.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
-    pen.querySelector('.pen-1').setAttribute('d', path(w, h, 1));     // центр 2-пиксельной рамки
+    var d1 = path(w, h, 1);
+    pen.querySelector('.pen-1').setAttribute('d', d1);                 // центр 2-пиксельной рамки
+    pen.querySelector('.nib').style.offsetPath = 'path("' + d1 + '")';   // кончик пера бежит по тому же пути
     pen.querySelector('.pen-2').setAttribute('d', path(w, h, 6.5));   // внутренняя карандашная линия (outline-offset −7)
   }
   fit();
   window.__penFit = fit;
 })();
 </script>
-<button type="button" id="panelBtn" aria-label="Menu"><svg class="ic-menu" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M4.5 7h15M4.5 12h15M4.5 17h15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><svg class="ic-arrow" viewBox="0 0 40 40" width="40" height="40" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 11.5C20.5 15.5 16.8 18.8 14 20.3c3 1.7 6.8 4.9 10 8.7" stroke-width="2.8"/><path d="M24.4 12.4C21 16 17.6 19 15 20.6c3 1.8 6.5 4.8 10 7.8" stroke-width="1.1" opacity=".55"/></g></svg></button>
+<button type="button" id="panelBtn" aria-label="Menu"><svg class="ic-wheel" viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="20" cy="20" r="16.5" stroke-width="2.2"/><circle cx="20" cy="20" r="14.2" stroke-width="0.8" opacity=".55"/><g class="arms"><g transform="rotate(0 20 20)"><path class="arm" style="--i:0" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(45 20 20)"><path class="arm" style="--i:1" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(90 20 20)"><path class="arm" style="--i:2" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(135 20 20)"><path class="arm" style="--i:3" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(180 20 20)"><path class="arm" style="--i:4" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(225 20 20)"><path class="arm" style="--i:5" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(270 20 20)"><path class="arm" style="--i:6" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(315 20 20)"><path class="arm" style="--i:7" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g></g><circle cx="20" cy="20" r="2.7" stroke-width="1.7"/></g></svg></button>
 <div id="scrim"></div>
-<div id="bottomBar"><button type="button" id="flagBtnB" class="arrow-btn flag-btn" aria-label="Парад" data-i18n-title="flag"><svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g stroke-linecap="round" stroke-linejoin="round"><path d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 13 Q29 16 23 13 Q17 10 11 13 Z" fill="#d90012"/><path d="M11 13 Q17 10 23 13 Q29 16 35 13 L35 19 Q29 22 23 19 Q17 16 11 19 Z" fill="#1c4cc0"/><path d="M11 19 Q17 16 23 19 Q29 22 35 19 L35 25 Q29 28 23 25 Q17 22 11 25 Z" fill="#f2a800"/><g fill="none" stroke="currentColor"><path d="M9.2 5.5 L9.6 35.5" stroke-width="2.6"/><path d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 25 Q29 28 23 25 Q17 22 11 25 Z" stroke-width="2"/><path d="M11.6 7.8 Q17 5 23 8 Q29 11 34.6 8.2 M11.4 24.4 Q17 21.6 23 24.6 Q29 27.6 34.6 24.4" stroke-width="0.9" opacity=".55"/></g></g></svg></button><div id="barTitle"></div><a id="homeBtn" class="arrow-btn" href="../../kukuruznik/index.html" aria-label="Страница здания"><svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 20.5L20 8.5l13.5 12" stroke-width="2.8"/><path d="M11 18.5V32h18V18.5" stroke-width="2.8"/><path d="M17 32v-8.5h6V32" stroke-width="2.4"/><path d="M7.4 21.2L20.4 9.5l12.9 11.4M12 19.4V32.8h17.4" stroke-width="1.1" opacity=".55"/></g></svg></a></div>
+<div id="bottomBar"><button type="button" id="flagBtnB" class="arrow-btn flag-btn" aria-label="Парад" data-i18n-title="flag"><svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g stroke-linecap="round" stroke-linejoin="round"><path class="fb fb1" d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 13 Q29 16 23 13 Q17 10 11 13 Z" fill="#d90012"/><path class="fb fb2" d="M11 13 Q17 10 23 13 Q29 16 35 13 L35 19 Q29 22 23 19 Q17 16 11 19 Z" fill="#1c4cc0"/><path class="fb fb3" d="M11 19 Q17 16 23 19 Q29 22 35 19 L35 25 Q29 28 23 25 Q17 22 11 25 Z" fill="#f2a800"/><g fill="none" stroke="currentColor"><path d="M9.2 5.5 L9.6 35.5" stroke-width="2.6"/><path d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 25 Q29 28 23 25 Q17 22 11 25 Z" stroke-width="2"/><path d="M11.6 7.8 Q17 5 23 8 Q29 11 34.6 8.2 M11.4 24.4 Q17 21.6 23 24.6 Q29 27.6 34.6 24.4" stroke-width="0.9" opacity=".55"/></g></g></svg></button><div id="barTitle"></div><a id="homeBtn" class="arrow-btn" href="../../kukuruznik/index.html" aria-label="Страница здания"><svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 20.5L20 8.5l13.5 12" stroke-width="2.8"/><path d="M11 18.5V32h18V18.5" stroke-width="2.8"/><path d="M17 32v-8.5h6V32" stroke-width="2.4"/><path d="M7.4 21.2L20.4 9.5l12.9 11.4M12 19.4V32.8h17.4" stroke-width="1.1" opacity=".55"/></g></svg></a></div>
 <main id="view">
 <figure id="exhibit"><div id="frame">
 <button type="button" id="prevSide" class="arrow-btn nav-side" aria-label="Предыдущий кадр"><svg viewBox="0 0 40 40" width="42" height="42" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 9.5C20.5 14.5 16.8 18.6 13.5 20.3c3.4 1.9 7.3 5.6 10.6 10.6" stroke-width="3"/><path d="M24.6 10.6C21 15.4 17.4 19 14.6 20.7c3.2 2 6.8 5.4 10.4 9.8" stroke-width="1.2" opacity=".55"/></g></svg></button>
@@ -843,7 +898,7 @@ window.__wl = WelcomeLoader.create({
   <div id="dots"></div>
   <div id="hotspots"></div>
   <div id="hsPopup" class="sketch"><div id="hsText"></div><button type="button" id="hsBack" class="p-btn"><span class="lbl-pc" data-i18n="hsBack">‹ назад</span><span class="lbl-phone" data-i18n="hsClose">× закрыть</span></button></div>
-  <div id="build-version">test/depth-photo · v12 · 2026-09-26</div>
+  <div id="build-version">test/depth-photo · v12.1 · 2026-09-26</div>
 </div>
 <button type="button" id="nextSide" class="arrow-btn nav-side nav-next" aria-label="Следующий кадр"><svg viewBox="0 0 40 40" width="42" height="42" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 9.5C20.5 14.5 16.8 18.6 13.5 20.3c3.4 1.9 7.3 5.6 10.6 10.6" stroke-width="3"/><path d="M24.6 10.6C21 15.4 17.4 19 14.6 20.7c3.2 2 6.8 5.4 10.4 9.8" stroke-width="1.2" opacity=".55"/></g></svg></button>
 </div><figcaption id="plaque" data-i18n="plaque"></figcaption></figure>

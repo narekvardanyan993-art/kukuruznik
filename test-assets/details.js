@@ -11,7 +11,7 @@
    2. СОБЫТИЯ — случайные, не чаще одного раза в 8–15 с и не больше двух одновременно: самолёт, стайка птиц, воздушный шар,
       клин журавлей (армянский символ), бумажный змей, парящий орёл, небесный фонарик, бабочки, светлячки, мотыльки у фонаря,
       свет в окне башни.
-   3. ПОТОК МАШИН на кадре 5 (по дальней дороге в обе стороны).
+   3. КРУПНЫЙ ПЛАН (кадр 6): блики скользят по окнам, птицы садятся на кромку крыши и улетают, на крыше колышется флаг.
    4. ПАРАД (кнопка с флагом): три истребителя оставляют дымные следы красный / синий / абрикосовый — флаг Армении.
 
    Флаги колышутся в шейдере (CONFIG.FLAGS), ветер в деревьях — там же.
@@ -38,12 +38,10 @@
   var MOON = [[0.80, 0.12], [0.80, 0.11], [0.78, 0.11], [0.80, 0.11], [0.80, 0.08], [0.92, 0.07]];
   // газон: [u0, v0, u1, v1] — тут порхают бабочки и парят светлячки
   var LAWN = { 0: [0.06, 0.70, 0.94, 0.86], 1: [0.12, 0.72, 0.86, 0.82], 3: [0.08, 0.66, 0.92, 0.90] };
-  // дальняя дорога (кадр 5): осевая линия; по ней едут машины в обе стороны (правая полоса едет вправо-вдаль, левая — к нам)
-  var ROAD = { 4: [[-0.02, 0.9245], [0.16, 0.9185], [0.26, 0.9135], [0.38, 0.9015], [0.48, 0.8935], [0.56, 0.8865], [0.63, 0.8805]] };
 
   var V = null, cv = null, ctx = null, dpr = 1, W = 0, H = 0;
   var active = [], nextAt = 0, lastKey = null, lastFrame = -1, lastKind = '';
-  var amb = null, traffic = null, par = null, UNIT = 470, drawn = false;   // UNIT: пикселей на всю ширину кадра
+  var amb = null, par = null, UNIT = 470, drawn = false;   // UNIT: пикселей на всю ширину кадра
 
   function rnd(a, b) { return a + (b - a) * Math.random(); }
   function pick(a) { return a[(Math.random() * a.length) | 0]; }
@@ -111,32 +109,47 @@
   }
   function flapOf(now, sp, ph) { return Math.sin(now * 0.0105 * sp + ph); }
 
-  // ---------- спрайты облаков: контур и заливка нарисованы один раз, потом только сдвигаем ----------
+  // ---------- облака в стиле старой гравюры: контур пером (двойной, тоньше в тени), штриховка тени внизу справа, бумага просвечивает
+  // (лёгкая подкраска вместо сплошной белой заливки). Рисуются один раз в спрайт, потом только сдвигаются. ----------
   var SHAPES = [
-    { puffs: [[34, 46, 12], [56, 37, 17], [84, 33, 20], [112, 42, 14]], base: [24, 124, 46, 58] },
-    { puffs: [[26, 47, 10], [46, 40, 14], [72, 30, 19], [102, 36, 16], [126, 46, 10]], base: [18, 134, 46, 58] },
-    { puffs: [[36, 44, 14], [64, 34, 19], [92, 45, 12]], base: [24, 106, 46, 57] }
+    { puffs: [[34, 46, 12], [56, 36, 17], [86, 32, 21], [114, 42, 14]], base: [22, 128, 46, 58] },
+    { puffs: [[26, 47, 10], [46, 39, 15], [74, 29, 20], [104, 36, 16], [128, 46, 10]], base: [16, 138, 46, 58] },
+    { puffs: [[36, 44, 14], [64, 33, 20], [94, 45, 12]], base: [22, 110, 46, 57] }
   ];
   var TINT = [
-    { fill: '#ffffff', line: 'rgba(74,80,92,0.72)', hatch: 'rgba(118,132,152,0.5)' },      // день
-    { fill: '#ffdfcd', line: 'rgba(128,70,60,0.72)', hatch: 'rgba(196,116,98,0.5)' },      // закат
-    { fill: '#6b7a9c', line: 'rgba(200,212,240,0.78)', hatch: 'rgba(150,168,208,0.45)' }   // ночь
+    { line: 'rgba(58,50,40,0.9)', hatch: 'rgba(68,58,46,0.55)', wash: 'rgba(255,250,236,0.20)' },      // день: сепия по голубому
+    { line: 'rgba(104,54,40,0.9)', hatch: 'rgba(128,66,48,0.7)', wash: 'rgba(255,224,200,0.18)' },    // закат
+    { line: 'rgba(214,222,242,0.9)', hatch: 'rgba(184,196,228,0.6)', wash: 'rgba(120,136,180,0.16)' } // ночь: светлое перо по тёмному
   ];
   var cloudSpr = null;
   function makeCloud(shape, tint) {
-    var S = 2, c = document.createElement('canvas'), x, T = TINT[tint], sh = SHAPES[shape];
-    c.width = 160 * S; c.height = 70 * S; x = c.getContext('2d'); x.scale(S, S);
-    x.lineJoin = 'round'; x.lineCap = 'round';
+    var S = 3, sh = SHAPES[shape], T = TINT[tint], R = seeded(700 + shape * 13 + tint * 5), i, gx, gy;
+    function cv2() { var c = document.createElement('canvas'); c.width = 160 * S; c.height = 70 * S; var x = c.getContext('2d'); x.scale(S, S); x.lineJoin = 'round'; x.lineCap = 'round'; return [c, x]; }
+    var main = cv2(), c = main[0], x = main[1];
     var bx = (sh.base[0] + sh.base[1]) / 2, bw = (sh.base[1] - sh.base[0]) / 2, by = (sh.base[2] + sh.base[3]) / 2, bh = (sh.base[3] - sh.base[2]) / 2 + 2;
-    x.strokeStyle = T.line; x.lineWidth = 2.6;                                  // контур: обводим все круги и основание,
-    sh.puffs.forEach(function (p) { x.beginPath(); x.arc(p[0], p[1], p[2], 0, 6.283); x.stroke(); });
-    x.beginPath(); x.ellipse(bx, by, bw, bh, 0, 0, 6.283); x.stroke();
-    x.fillStyle = T.fill;                                                       // потом заливаем: внутренние линии закрываются, остаётся внешний контур
-    sh.puffs.forEach(function (p) { x.beginPath(); x.arc(p[0], p[1], p[2], 0, 6.283); x.fill(); });
-    x.beginPath(); x.ellipse(bx, by, bw, bh, 0, 0, 6.283); x.fill();
-    x.beginPath(); x.moveTo(sh.base[0] + 6, by); sh.puffs.forEach(function (p) { x.lineTo(p[0], p[1] + p[2] * 0.2); }); x.lineTo(sh.base[1] - 6, by); x.closePath(); x.fill();   // заплатка: закрывает остатки контура в щелях
-    x.strokeStyle = T.hatch; x.lineWidth = 0.9;                                 // штриховка тени внизу справа, как на рисунке: короткие косые штрихи
-    for (var i = 0; i < 5; i++) { var hx = bx + bw * (-0.1 + i * 0.18), hy = by + bh * 0.62 - Math.abs(i - 2) * 1.2; x.beginPath(); x.moveTo(hx, hy); x.lineTo(hx + 4.5, hy - 6.5); x.stroke(); }
+    function union(g) { g.beginPath(); sh.puffs.forEach(function (p) { g.moveTo(p[0] + p[2], p[1]); g.arc(p[0], p[1], p[2], 0, 6.283); }); g.moveTo(bx + bw, by); g.ellipse(bx, by, bw, bh, 0, 0, 6.283); }
+    var x0 = bx - bw, x1 = bx + bw, top = Math.min.apply(null, sh.puffs.map(function (p) { return p[1] - p[2]; })), bot = by + bh;
+    x.fillStyle = T.wash; union(x); x.fill();                                   // бумага просвечивает: только лёгкая подкраска
+    x.save(); union(x); x.clip();                                               // штриховка тени: тем гуще, чем ниже и правее, внизу — перекрёстная
+    x.strokeStyle = T.hatch; x.lineWidth = 0.85;
+    for (gy = top; gy < bot; gy += 2.9) for (gx = x0; gx < x1; gx += 2.9) {
+      var sd = Math.max(0, Math.min(1, (gy - top) / (bot - top) * 1.35 + (gx - x0) / (x1 - x0) * 0.4 - 0.48));
+      if (R() > sd * 0.72) continue;
+      var a = -0.95 + (R() - 0.5) * 0.25, L = 2.4 + sd * 3.2, jx = (R() - 0.5) * 1.6, jy = (R() - 0.5) * 1.6;
+      x.beginPath(); x.moveTo(gx + jx, gy + jy); x.lineTo(gx + jx + Math.cos(a) * L, gy + jy + Math.sin(a) * L); x.stroke();
+      if (sd > 0.72) { x.beginPath(); x.moveTo(gx + jx, gy + jy); x.lineTo(gx + jx + Math.cos(a + 1.6) * L * 0.7, gy + jy + Math.sin(a + 1.6) * L * 0.7); x.stroke(); }
+    }
+    x.restore();
+    var ol = cv2(), ox = ol[1];                                                 // контур: обводим все круги и основание, потом стираем внутренность — остаётся внешняя линия
+    ox.strokeStyle = T.line; ox.lineWidth = 2.4;
+    sh.puffs.forEach(function (p) { ox.beginPath(); ox.arc(p[0], p[1], p[2], 0, 6.283); ox.stroke(); });
+    ox.beginPath(); ox.ellipse(bx, by, bw, bh, 0, 0, 6.283); ox.stroke();
+    ox.globalCompositeOperation = 'destination-out'; ox.fillStyle = '#000'; union(ox); ox.fill();
+    ox.globalCompositeOperation = 'source-over';
+    x.drawImage(ol[0], 0, 0, 160, 70); x.globalAlpha = 0.55; x.drawImage(ol[0], 0.9, 0.7, 160, 70); x.globalAlpha = 1;   // второй проход чуть в сторону — двойной контур
+    x.strokeStyle = T.line; x.lineWidth = 0.7; x.globalAlpha = 0.7;             // завитки внутри: короткие дуги у верха каждого «барашка»
+    sh.puffs.forEach(function (p, k) { if (k % 2) return; x.beginPath(); x.arc(p[0], p[1] + 1, p[2] * 0.6, 3.6, 4.7); x.stroke(); });
+    x.globalAlpha = 1;
     return c;
   }
   function clouds() {
@@ -149,7 +162,7 @@
   function buildAmbient(fr) {
     var R = seeded(4100 + fr * 37), band = SKY[fr], n = CLOUD_N[fr], cl = [], i;
     for (i = 0; i < n; i++) {
-      var sc = fr === 5 ? 0.5 : rnd0(R, 0.75, 1.25), hV = 0.047 * sc, lo = band[0] + hV * 0.55, hi = Math.max(lo, band[1] - hV * 0.55 - 0.03);
+      var sc = fr === 5 ? 0.42 : rnd0(R, 0.65, 1.05), hV = 0.066 * sc, lo = band[0] + hV * 0.55, hi = Math.max(lo, band[1] - hV * 0.55 - 0.03);
       cl.push({ v: lo + (hi - lo) * (n > 1 ? (i + R() * 0.6) / n : 0.3), sc: sc, sp: rnd0(R, 0.0045, 0.0095) * (R() < 0.15 ? -1 : 1), ph: R(), shape: (R() * 3) | 0, w: rnd0(R, 0.75, 1) });
     }
     var bd = [];
@@ -162,9 +175,9 @@
     var spr = clouds(), t = now / 1000;
     for (var i = 0; i < amb.clouds.length; i++) {
       var c = amb.clouds[i], k = ((c.ph + c.sp * t) % 1.4 + 1.4) % 1.4, u = k - 0.2;   // от -0.2 до 1.2 кадра, потом снова слева
-      var e = Math.min(1, (u + 0.2) / 0.14, (1.2 - u) / 0.14), p = P(u, c.v, 0), wd = 0.19 * c.sc * UNIT, ht = wd * 70 / 160;
+      var e = Math.min(1, (u + 0.2) / 0.14, (1.2 - u) / 0.14), p = P(u, c.v, 0), wd = 0.31 * c.sc * UNIT, ht = wd * 70 / 160;
       if (e <= 0) continue;
-      var ws = [w.d, w.s, w.n], al = [0.82, 0.74, 0.58];
+      var ws = [w.d, w.s, w.n], al = [0.95, 0.9, 0.8];
       for (var k2 = 0; k2 < 3; k2++) {
         if (ws[k2] < 0.01) continue;
         ctx.globalAlpha = al[k2] * ws[k2] * e * c.w;
@@ -416,55 +429,83 @@
     active.push(e);
   }
 
-  // ---------- поток машин (кадр 5): по дальней дороге в обе стороны, у каждой своя скорость, машины уезжают за край и появляются заново ----------
-  // Полос четыре (две вправо-вдаль, две к нам); машина не выезжает на занятое место своей полосы.
-  var CAR_COLORS = ['178,74,58', '68,104,150', '92,124,86', '198,164,72', '112,112,118', '232,228,214', '150,90,120'];
-  var LANES = [{ dir: 1, off: -0.0058 }, { dir: 1, off: -0.0022 }, { dir: -1, off: 0.0022 }, { dir: -1, off: 0.0058 }];
-  function initTraffic(now, prefill) {
-    traffic = { cars: [], next: [now + rnd(300, 2500), now + rnd(800, 4000), now + rnd(500, 3000), now + rnd(1000, 5000)] };
-    if (prefill) for (var i = 0; i < 4; i++) addCar(now, (i + ((Math.random() * 2) | 0)) % 4, 0.1 + Math.random() * 0.75);
-  }
-  function addCar(now, lane, at) {
-    var dur = rnd(7, 15) * 1000, near = traffic.cars.some(function (c) { return c.lane === lane && Math.abs((now - c.t0) / c.dur - (at || 0)) < 0.13; });
-    if (near) return false;
-    traffic.cars.push({ lane: lane, dur: dur, t0: now - (at || 0) * dur, col: pick(CAR_COLORS), van: Math.random() < 0.18, len: rnd(0.92, 1.12) });
-    return true;
-  }
-  function stepTraffic(now) {
-    if (!traffic) initTraffic(now, true);
-    for (var l = 0; l < 4; l++) if (now >= traffic.next[l]) { addCar(now, l, 0); traffic.next[l] = now + rnd(3000, 9000); }
-    for (var i = traffic.cars.length - 1; i >= 0; i--) if ((now - traffic.cars[i].t0) / traffic.cars[i].dur >= 1) traffic.cars.splice(i, 1);
-  }
-  function carSprite(x, y, L, dir, col, a, van) {   // маленькая нарисованная машинка (вид сбоку): кузов, кабина, стёкла, колёса, карандашный контур
-    ctx.save(); ctx.translate(x, y); if (dir < 0) ctx.scale(-1, 1);
-    var bh = L * 0.30, ch = L * (van ? 0.36 : 0.26);
-    ctx.fillStyle = 'rgba(' + col + ',' + 0.92 * a + ')';
-    ctx.beginPath(); ctx.moveTo(-L * 0.5, -bh * 0.1); ctx.lineTo(-L * 0.5, -bh); ctx.lineTo(L * 0.5, -bh); ctx.lineTo(L * 0.5, -bh * 0.1); ctx.closePath(); ctx.fill();   // кузов
-    ctx.beginPath(); ctx.moveTo(-L * (van ? 0.44 : 0.3), -bh); ctx.lineTo(-L * (van ? 0.44 : 0.2), -bh - ch); ctx.lineTo(L * (van ? 0.34 : 0.16), -bh - ch); ctx.lineTo(L * (van ? 0.44 : 0.3), -bh); ctx.closePath(); ctx.fill();   // кабина
-    ctx.fillStyle = 'rgba(214,226,232,' + 0.85 * a + ')'; ctx.fillRect(-L * 0.2, -bh - ch * 0.82, L * 0.34, ch * 0.62);   // стёкла
-    ctx.strokeStyle = 'rgba(58,51,42,' + 0.7 * a + ')'; ctx.lineWidth = 0.7;
-    ctx.beginPath(); ctx.moveTo(-L * 0.5, -bh * 0.1); ctx.lineTo(-L * 0.5, -bh); ctx.lineTo(-L * (van ? 0.44 : 0.3), -bh); ctx.lineTo(-L * (van ? 0.44 : 0.2), -bh - ch); ctx.lineTo(L * (van ? 0.34 : 0.16), -bh - ch); ctx.lineTo(L * (van ? 0.44 : 0.3), -bh); ctx.lineTo(L * 0.5, -bh); ctx.lineTo(L * 0.5, -bh * 0.1); ctx.stroke();
-    ctx.fillStyle = 'rgba(46,42,38,' + 0.95 * a + ')'; ctx.beginPath(); ctx.arc(-L * 0.29, 0, L * 0.09, 0, 6.283); ctx.arc(L * 0.29, 0, L * 0.09, 0, 6.283); ctx.fill();   // колёса
+  // ---------- КРУПНЫЙ ПЛАН (кадр 6): блики в окнах, птицы на крыше, флаг ----------
+  // Вращать башню не стали: рисунок плоский, поворот выглядит как перекос. Жизнь — поверх картинки, тем же карандашом.
+  var glints = [], nextGlint = 0, perch = null;
+  // кромка верхнего кольца-крыши на кадре: куда садятся птицы (доли кадра u, v) и основание мачты с флагом
+  var PERCH = [[0.34, 0.108], [0.40, 0.098], [0.46, 0.092], [0.52, 0.089], [0.58, 0.090], [0.64, 0.095], [0.69, 0.104]];
+  var MAST = [0.735, 0.136, 0.735, 0.097];   // низ (u, v) и верх (u, v)
+
+  function sitBird(x, y, s, face, head, col, a) {   // сидящая птичка: тело, голова, клюв, хвост, лапки — карандашом
+    ctx.save(); ctx.translate(x, y); ctx.scale(face, 1);
+    ctx.strokeStyle = 'rgba(' + col + ',' + a + ')'; ctx.fillStyle = 'rgba(' + col + ',' + 0.78 * a + ')'; ctx.lineWidth = 0.9; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.ellipse(0, -2.6 * s, 3.4 * s, 2.3 * s, -0.15, 0, 6.283); ctx.fill();
+    ctx.beginPath(); ctx.arc(3.1 * s, -4.6 * s + head * 0.6 * s, 1.55 * s, 0, 6.283); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(4.5 * s, -4.7 * s + head * 0.6 * s); ctx.lineTo(6.1 * s, -4.3 * s + head * 0.6 * s); ctx.lineTo(4.6 * s, -4.0 * s + head * 0.6 * s); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-3.2 * s, -2.8 * s); ctx.lineTo(-6.6 * s, -1.6 * s + head * 0.5 * s); ctx.stroke();   // хвост
+    ctx.beginPath(); ctx.moveTo(-0.6 * s, -0.5 * s); ctx.lineTo(-0.6 * s, 0.4 * s); ctx.moveTo(1.2 * s, -0.5 * s); ctx.lineTo(1.2 * s, 0.4 * s); ctx.stroke();
     ctx.restore();
   }
-  function drawTraffic(now, w, fr) {
-    var road = ROAD[fr]; if (!road || !traffic) return;
-    var f = V.entry(fr), s0 = sf(), day = w.d + w.s;
-    for (var i = 0; i < traffic.cars.length; i++) {
-      var c = traffic.cars[i], ln = LANES[c.lane], t = (now - c.t0) / c.dur, tt = ln.dir > 0 ? t : 1 - t;   // tt: 0 — у левого края, 1 — у далёкого конца дороги
-      var seg = tt * (road.length - 1), sI = Math.min(road.length - 2, Math.max(0, seg | 0)), f01 = seg - sI;
-      var u = lerp(road[sI][0], road[sI + 1][0], f01), v = lerp(road[sI][1], road[sI + 1][1], f01) + ln.off * (1 - 0.6 * tt);
-      var p = P(u, v, depthAt(f, clamp(u, 0, 1), v)), a = env(tt, 0.05, 0.10);   // в дальнем конце дорога уходит за бугор — растворяются
-      var L = lerp(0.034, 0.016, tt) * UNIT * c.len * (c.van ? 1.12 : 1);
-      if (day > 0.02) carSprite(p[0], p[1], L, ln.dir, c.col, a * clamp(day, 0, 1), c.van);
-      if (w.n > 0.02 || w.s > 0.5) {
-        var nn = clamp(w.n + w.s * 0.5, 0, 1);   // к нам едут с белыми фарами, от нас — видны красные габариты
-        var lx = p[0] - L * 0.46, ly = p[1] - L * 0.1, r = Math.max(0.9, L * 0.09);
-        if (ln.dir < 0) { glow(lx, ly, r * 5, '255,244,210', 0.30 * a * nn); ctx.fillStyle = 'rgba(255,250,232,' + 0.98 * a * nn + ')'; ctx.beginPath(); ctx.arc(lx, ly, r, 0, 6.283); ctx.arc(lx + L * 0.16, ly, r * 0.85, 0, 6.283); ctx.fill(); }
-        else { glow(lx, ly, r * 4.4, '255,70,60', 0.28 * a * nn); ctx.fillStyle = 'rgba(255,92,80,' + 0.95 * a * nn + ')'; ctx.beginPath(); ctx.arc(lx, ly, r * 0.95, 0, 6.283); ctx.arc(lx + L * 0.16, ly, r * 0.8, 0, 6.283); ctx.fill(); }
-      }
+  function drawGlints(now, f, w) {
+    if (w.n < 0.6 && now >= nextGlint && f.winList && f.winList.length && glints.length < 3) {
+      var wn = f.winList[(Math.random() * f.winList.length) | 0];
+      glints.push({ w: wn, t0: now, dur: rnd(1000, 1700) }); nextGlint = now + rnd(350, 1400);
+    }
+    for (var i = glints.length - 1; i >= 0; i--) {
+      var g = glints[i], t = (now - g.t0) / g.dur; if (t >= 1) { glints.splice(i, 1); continue; }
+      var p = V.project(f, g.w.u, g.w.v, f.dB), q = V.project(f, g.w.u + g.w.w * 0.5, g.w.v + g.w.h * 0.5, f.dB);
+      var rx = Math.max(2.5, Math.abs(q[0] - p[0])), ry = Math.max(2, Math.abs(q[1] - p[1])), e = Math.sin(Math.PI * t);
+      ctx.save(); ctx.beginPath(); ctx.ellipse(p[0], p[1], rx, ry, 0, 0, 6.283); ctx.clip();   // блик скользит по стеклу слева направо
+      var cx = p[0] - rx * 1.2 + t * rx * 2.4;
+      ctx.fillStyle = 'rgba(' + (w.s > 0.5 ? '255,226,170' : '255,252,235') + ',' + 0.62 * e + ')';
+      ctx.beginPath(); ctx.moveTo(cx - rx * 0.35, p[1] + ry); ctx.lineTo(cx - rx * 0.05, p[1] + ry); ctx.lineTo(cx + rx * 0.35, p[1] - ry); ctx.lineTo(cx + rx * 0.05, p[1] - ry); ctx.closePath(); ctx.fill();
+      ctx.restore();
+      if (e > 0.5) { ctx.strokeStyle = 'rgba(255,250,225,' + 0.7 * (e - 0.5) * 2 + ')'; ctx.lineWidth = 0.8; var sx = cx, sy = p[1] - ry * 0.3, L = Math.min(rx, 6) * 0.9; ctx.beginPath(); ctx.moveTo(sx - L, sy); ctx.lineTo(sx + L, sy); ctx.moveTo(sx, sy - L); ctx.lineTo(sx, sy + L); ctx.stroke(); }
     }
   }
+  function newPerch(now) {   // цикл птицы: прилёт (~2.4 с) → сидит (5–10 с, поворачивает голову) → взлёт (~2.2 с) → пауза
+    var spot = PERCH[(Math.random() * PERCH.length) | 0], fromLeft = Math.random() < 0.5;
+    return { spot: spot, t0: now + rnd(1500, 6000), fly: rnd(2200, 2800), sit: rnd(5000, 10000), out: rnd(2000, 2500), left: fromLeft, ph: rnd(0, 6.28), face: fromLeft ? 1 : -1 };
+  }
+  function drawPerch(now, f, w) {
+    if (!perch) perch = newPerch(now);
+    var b = perch, t = now - b.t0, a0 = 1 - sstep(0.45, 0.8, w.n);
+    if (t < 0 || a0 < 0.02) { if (t > b.fly + b.sit + b.out) perch = null; return; }
+    var col = ink(), s = sf() * 1.5, d = f.dB, spot = P(b.spot[0], b.spot[1], d), ph = b.ph;
+    if (t < b.fly) {   // прилёт: издалека по дуге, крылья машут, к концу — быстрее и садится
+      var k = t / b.fly, e = 1 - Math.pow(1 - k, 2.2), sx = b.left ? -0.12 : 1.12, from = P(sx, b.spot[1] - 0.16, d);
+      var x = from[0] + (spot[0] - from[0]) * e, y = from[1] + (spot[1] - from[1]) * e - Math.sin(Math.PI * k) * 12 * s;
+      var fl = Math.sin(now * (0.011 + 0.01 * k) + ph);
+      ctx.save(); if (b.face < 0) { ctx.translate(x, y); ctx.scale(-1, 1); ctx.translate(-x, -y); } bird(x, y, 4.6 * s, fl, col, 0.85 * a0, 1.3); ctx.restore();
+    } else if (t < b.fly + b.sit) {   // сидит: иногда поворачивает голову, дёргает хвостом
+      var st = t - b.fly, head = Math.sin(st * 0.0012 + ph) > 0.6 ? Math.sin(st * 0.02) * 0.6 : 0;
+      sitBird(spot[0], spot[1], s, b.face, head, col, 0.9 * a0);
+    } else if (t < b.fly + b.sit + b.out) {   // взлёт: быстрые взмахи, вверх и в сторону
+      var k2 = (t - b.fly - b.sit) / b.out, e2 = k2 * k2, dx = (b.face > 0 ? 1 : -1) * 0.35 * e2, up = -0.2 * e2;
+      var pt = P(b.spot[0] + dx, b.spot[1] + up, d), fl2 = Math.sin(now * 0.02 + ph);
+      ctx.save(); if (b.face < 0) { ctx.translate(pt[0], pt[1]); ctx.scale(-1, 1); ctx.translate(-pt[0], -pt[1]); } bird(pt[0], pt[1], 4.6 * s, fl2, col, 0.85 * a0 * (1 - sstep(0.7, 1, k2)), 1.3); ctx.restore();
+    } else perch = newPerch(now + rnd(2000, 6000) - 1500);
+  }
+  function drawRoofFlag(now, w) {   // мачта на кромке крыши и колышущийся триколор
+    var a = 1 - 0.55 * w.n, s = sf(), f = V.entry(V.frame()), b = V.project(f, MAST[0], MAST[1], f.dB), t = V.project(f, MAST[2], MAST[3], f.dB);
+    var col = ink(), fw = 15 * s, fh = 9 * s, top = t[1] + 1;
+    ctx.save(); ctx.globalAlpha = a; ctx.strokeStyle = 'rgba(' + col + ',0.85)'; ctx.lineWidth = 1.1; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(b[0], b[1]); ctx.lineTo(t[0], t[1] - 1); ctx.stroke();
+    var cols = ['217,32,48', '36,84,200', '244,170,10'], tt = now * 0.004;
+    for (var k = 0; k < 3; k++) {   // три полосы, каждая — волна по ветру
+      ctx.fillStyle = 'rgba(' + cols[k] + ',0.9)'; ctx.beginPath();
+      var y0 = top + k * fh / 3, y1 = top + (k + 1) * fh / 3;
+      ctx.moveTo(t[0], y0);
+      for (var i = 1; i <= 6; i++) ctx.lineTo(t[0] + fw * i / 6, y0 + Math.sin(tt + i * 0.9) * fh * 0.13 * (i / 6));
+      for (i = 6; i >= 0; i--) ctx.lineTo(t[0] + fw * i / 6, y1 + Math.sin(tt + i * 0.9) * fh * 0.13 * (i / 6));
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.strokeStyle = 'rgba(' + col + ',0.7)'; ctx.lineWidth = 0.7; ctx.beginPath(); ctx.moveTo(t[0], top);
+    for (i = 1; i <= 6; i++) ctx.lineTo(t[0] + fw * i / 6, top + Math.sin(tt + i * 0.9) * fh * 0.13 * (i / 6));
+    ctx.lineTo(t[0] + fw, top + fh + Math.sin(tt + 5.4) * fh * 0.13); for (i = 6; i >= 0; i--) ctx.lineTo(t[0] + fw * i / 6, top + fh + Math.sin(tt + i * 0.9) * fh * 0.13 * (i / 6)); ctx.closePath(); ctx.stroke();
+    ctx.restore();
+  }
+  function drawCloseUp(now, w, f) { drawGlints(now, f, w); drawPerch(now, f, w); drawRoofFlag(now, w); }
 
   // ---------- ПАРАД: три истребителя плотным строем слева направо, дымные следы 15–20 с: красный, синий, абрикосовый — флаг Армении ----------
   var PC = [{ day: '214,20,36', night: '255,84,96' }, { day: '32,72,196', night: '104,150,255' }, { day: '242,168,0', night: '255,196,64' }];   // сверху вниз
@@ -489,6 +530,7 @@
   function endParade() { var f = par && par.onEnd; par = null; if (f) f(); }
   function abortParade() { if (par && !par.abort) par.abort = performance.now(); }
   function stepParade(now, w) {
+    if (now - par.t0 > 50000) { endParade(); return; }   // страховка: показ не может длиться дольше 50 с (кнопка не зависнет)
     var t = (now - par.t0) / par.dur, i;
     if (par.flying) {
       var u = lerp(-0.12, 1.12, clamp(t, 0, 1));   // все три идут строем, слева направо
@@ -534,7 +576,7 @@
     var fr = V.frame(), key = todKey(), f = V.entry(fr);
     if (!f) return;
     // смена кадра: события растворяются, небо и машины раскладываются заново; парад прерывается
-    if (fr !== lastFrame) { active = []; traffic = null; abortParade(); buildAmbient(fr); lastFrame = fr; lastKey = key; nextAt = now + rnd(2200, 4200); lastKind = ''; }
+    if (fr !== lastFrame) { active = []; glints = []; perch = null; abortParade(); buildAmbient(fr); lastFrame = fr; lastKey = key; nextAt = now + rnd(2200, 4200); lastKind = ''; }
     else if (key !== lastKey) { active = []; lastKey = key; nextAt = now + rnd(2200, 4200); lastKind = ''; }
     if (V.fading()) { clear(); return; }
     UNIT = unit();
@@ -545,7 +587,7 @@
     drawSun(now, w, fr);
     drawClouds(now, w);
     drawAmbientBirds(now, w);
-    if (ROAD[fr]) { stepTraffic(now); drawTraffic(now, w, fr); }
+    if (fr === 5) drawCloseUp(now, w, f);
     for (var i = active.length - 1; i >= 0; i--) {
       var e = active[i], t = (now - e.t0) / e.dur;
       if (t >= 1) { active.splice(i, 1); continue; }
@@ -566,6 +608,6 @@
     paradeAbort: abortParade,
     paradeBusy: function () { return !!par; },
     // выключить всё (fps ниже порога или «уменьшение движения»): очистить холст, парад прервать
-    off: function () { active = []; traffic = null; if (par) endParade(); clear(); }
+    off: function () { active = []; glints = []; perch = null; if (par) endParade(); clear(); }
   };
 })(window);

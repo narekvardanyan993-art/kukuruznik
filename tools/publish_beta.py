@@ -26,7 +26,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / 'test-assets'
-BETA_VERSION = 'v12'   # метка сборки в панели: «beta · v12 · <дата>»
+BETA_VERSION = 'v12.1'   # метка сборки в панели: «beta · v12.1 · <дата>»
 REMOTE = 'origin'
 BRANCH = 'main'
 
@@ -55,13 +55,14 @@ def build_beta(main_dir):
                         '<meta name="googlebot" content="noindex, nofollow">', 1)
     html = html.replace('<title>3D-фото — тест параллакса глубины</title>', '<title>Кукурузник — beta</title>', 1)
     html = html.replace('../../kukuruznik/index.html', '../kukuruznik/index.html')
-    html = re.sub(r'test/depth-photo · v\d+ · [0-9-]+', 'beta · ' + BETA_VERSION + ' · ' + stamp, html)
+    html = re.sub(r'test/depth-photo · v[\d.]+ · [0-9-]+', 'beta · ' + BETA_VERSION + ' · ' + stamp, html)
     html = re.sub(r"(frames/v_angle_\d(?:_[a-z0-9]+)*)\.png", r"\1.webp", html)
     (beta / 'index.html').write_text(html, encoding='utf-8')
     # фон-стена на ПК (v12): армянские узоры, два варианта (tools/make_wall.py); нарисованные домики (oldtown-bg.svg) больше не нужны
-    for name in ('wall-a.svg', 'wall-b.svg', 'wall-ararat.svg'):
+    for name in ('wall-a.svg', 'wall-b.svg'):
         (beta / name).write_text((SRC / name).read_text(encoding='utf-8'), encoding='utf-8')
     (beta / 'oldtown-bg.svg').unlink(missing_ok=True)
+    (beta / 'wall-ararat.svg').unlink(missing_ok=True)   # был в v12; в v12.1 Арарат внутри самих стен
     # компонент приветствия/загрузки (буквы — tools/build_welcome_letters.py) и шрифт Noto Serif (OFL)
     for name in ('welcome-loader.js', 'welcome-letters.js', 'prep.js', 'details.js', 'viewer.js'):
         (beta / name).write_text((SRC / name).read_text(encoding='utf-8'), encoding='utf-8')

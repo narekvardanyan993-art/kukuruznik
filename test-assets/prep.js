@@ -379,7 +379,7 @@
     for (y = 0; y < h; y++) for (x = 0; x < w; x++) {
       o = (y * w + x) * 4;
       var v = y / h, e = ((Math.min(eh - 1, (v * eh) | 0)) * ew + Math.min(ew - 1, ((x / w) * ew) | 0)) * 4;
-      var r = d[o] / 255, g = d[o + 1] / 255, b = d[o + 2] / 255, lum = 0.299 * r + 0.587 * g + 0.114 * b, rel = lum / ref;
+      var r0 = d[o] / 255, g0 = d[o + 1] / 255, b0 = d[o + 2] / 255, r = r0, g = g0, b = b0, lum = 0.299 * r + 0.587 * g + 0.114 * b, rel = lum / ref;
       var sky = sstep(0.35, 0.85, gd[e + 1] / 255) * (1 - sstep(0.10, 0.19, r - b)) * (1 - sstep(end - 0.03, end + 0.01, v)) * (1 - sstep(0.12, 0.28, gd[e] / 255));
       if (sky > 0.001) {
         var t = sstep(0.02, 0.42, v), tint = Math.min(rel, 1.06), wt = sstep(1.03, 1.12, rel) * 0.75, wv = Math.min(1, lum * 1.05 + 0.02), kp = sstep(0.55, 0.85, rel) * sky;
@@ -394,7 +394,8 @@
         hv[1] = clamp(hv[1] * (1 + gw * (D.GREEN_SAT - 1)) + gw * 0.05, 0, 1);
         var rgb = hsv2rgb(hv[0], hv[1], hv[2]); r = rgb[0]; g = rgb[1]; b = rgb[2];
       }
-      d[o] = clamp(r * 255, 0, 255); d[o + 1] = clamp(g * 255, 0, 255); d[o + 2] = clamp(b * 255, 0, 255);
+      var mx = D.MIX == null ? 1 : D.MIX;   // середина между v11 и v12, как в шейдере
+      d[o] = clamp((r0 + (r - r0) * mx) * 255, 0, 255); d[o + 1] = clamp((g0 + (g - g0) * mx) * 255, 0, 255); d[o + 2] = clamp((b0 + (b - b0) * mx) * 255, 0, 255);
     }
   }
   function makeThumbBlob(img, env, fi) {

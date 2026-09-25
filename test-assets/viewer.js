@@ -159,6 +159,8 @@
     'const float GREEN_HUE = ' + CONFIG.DAY.GREEN_HUE.toFixed(4) + ';',
     'const float GREEN_PULL = ' + CONFIG.DAY.GREEN_PULL.toFixed(4) + ';',
     'const float GREEN_SAT = ' + CONFIG.DAY.GREEN_SAT.toFixed(4) + ';',
+    'const float DAY_MIX = ' + CONFIG.DAY.MIX.toFixed(4) + ';',   // 0 — как v11, 1 — как v12
+    'uniform vec2 uCloudK;',      // сила тени облаков на кадрах A и B
     'uniform vec4 uSkyRef;',      // кадр A: яркость исходной вымывки неба (x) и нижняя граница неба, доля высоты (y); кадр B — z, w
     // на кадр: земля (0), карта глубины+окружения (1), здание (2), окна (3)
     'uniform sampler2D uBgA; uniform sampler2D uDepthA; uniform sampler2D uBldA; uniform sampler2D uEmA;',
@@ -259,6 +261,7 @@
     // ---- день (v12): небо светло-голубое, зелень насыщеннее. Рисунок (штрих, мазки, облака, бумага) сохраняется: небо — умножением
     // на голубой, зелень — сдвигом оттенка и насыщенности только у жёлто-зелёных тонов. Закат и ночь — свои картинки, ниже. ----
     '  {',
+    '    vec3 cOrig = c;',
     '    float lum0 = dot(c, vec3(0.299, 0.587, 0.114));',
     '    float rel = lum0 / skyRef.x;',                                                     // 1 — вымывка неба, >1 облако, <1 штрих
     '    vec3 skyCol = mix(DAY_SKY_TOP, DAY_SKY_HOR, smoothstep(0.02, 0.42, uv.y));',
@@ -288,6 +291,7 @@
     '    hv.x = mix(hv.x, GREEN_HUE, gw * GREEN_PULL);',
     '    hv.y = clamp(hv.y * (1.0 + gw * (GREEN_SAT - 1.0)) + gw * 0.05, 0.0, 1.0);',
     '    c = mix(c, hsv2rgb(hv), step(0.001, gw));',
+    '    c = mix(cOrig, c, DAY_MIX);',
     '  }',
     '  float winNight = eb.r * b.a + eg.g * inv;',
     '  float winBase = max(eb.b * b.a, eg.a * inv);',
@@ -353,7 +357,7 @@
     '  }',
     '  vec3 c = sa.rgb;',
     '  float shadow = cloudShadow(uv, uCloudT);',
-    '  c *= (1.0 - 0.12 * shadow * (1.0 - sa.a) * (1.0 - uNightGnd));',
+    '  c *= (1.0 - mix(uCloudK.x, uCloudK.y, uMix) * shadow * (1.0 - sa.a) * (1.0 - uNightGnd));',
     '  gl_FragColor = vec4(c, 1.0);',
     '}'
   ].join('\n');
@@ -441,7 +445,7 @@
   }
 
   var SCENE_NAMES = ['uBgA', 'uDepthA', 'uBldA', 'uEmA', 'uBgB', 'uDepthB', 'uBldB', 'uEmB',
-    'uKdA', 'uKdB', 'uSkyRef', 'uCropA', 'uCropB', 'uFlagA', 'uFlagB', 'uStarQ', 'uMix', 'uShift', 'uZoom', 'uScale', 'uCoverScale', 'uCoverOffset', 'uTime', 'uCloudT',
+    'uKdA', 'uKdB', 'uSkyRef', 'uCloudK', 'uCropA', 'uCropB', 'uFlagA', 'uFlagB', 'uStarQ', 'uMix', 'uShift', 'uZoom', 'uScale', 'uCoverScale', 'uCoverOffset', 'uTime', 'uCloudT',
     'uSunset', 'uNightSky', 'uNightGnd', 'uStars', 'uFadeZoom', 'uAspect', 'uWindAmp', 'uWindOn', 'uCellPx', 'uShoot', 'uShootP']
     .concat(NI ? ['uSGA', 'uSBA', 'uNGA', 'uNBA', 'uSGB', 'uSBB', 'uNGB', 'uNBB', 'uHasA', 'uHasB', 'uSunMix', 'uNightMix'] : []);
 
@@ -562,6 +566,7 @@
     gl.uniform2f(US.uKdA, fa.kB, fa.dB);
     if (fb) { gl.uniform2f(US.uKdB, fb.kB, fb.dB); gl.uniform4fv(US.uCropB, fb.crop); gl.uniform4fv(US.uFlagB, fb.flag); }
     gl.uniform2f(US.uStarQ, fa.starQ, fb ? fb.starQ : 0);
+    gl.uniform2f(US.uCloudK, CONFIG.CLOUD_SHADOW[fa.idx] || 0.12, fb ? (CONFIG.CLOUD_SHADOW[fb.idx] || 0.12) : 0.12);
     gl.uniform4f(US.uSkyRef, CONFIG.DAY.SKY_REF[fa.idx] || 0.86, CONFIG.DAY.SKY_END[fa.idx] || 0.55,
       fb ? (CONFIG.DAY.SKY_REF[fb.idx] || 0.86) : 0.86, fb ? (CONFIG.DAY.SKY_END[fb.idx] || 0.55) : 0.55);
     if (NI) {
@@ -1095,7 +1100,7 @@
   };
   var perfLevel = 0;                 // 0 — всё; 1 — выключены живые детали и падающие звёзды; 2 — ещё и ветер
   var perfOn = !/[?&]perf=0/.test(location.search);
-  var fpsFrames = 0, fpsT0 = 0, perfSince = 0;
+  var fpsFrames = 0, fpsT0 = 0, perfSince = 0, perfLow = 0, perfGood = 0, perfRecov = 0;
   var nextToggleAt = 0, nextShootAt = 0, shootT0 = -1, secondPending = false;
   var fxRng = rng(99);
 
@@ -1174,10 +1179,19 @@
     var dt = now - fpsT0;
     if (dt >= 2500) {
       var fps = fpsFrames * 1000 / dt;
-      if (fps < CONFIG.PERF_MIN_FPS && perfLevel < 2 && document.visibilityState === 'visible') {
-        perfLevel++;   // сначала отключаем детали (и падающие звёзды), потом ветер
-        flagUpdate();  // «Парад» — тоже новая анимация: выключается вместе с деталями
-        console.info('fps ' + fps.toFixed(1) + ' < ' + CONFIG.PERF_MIN_FPS + ' -> отключаю ' + (perfLevel === 1 ? 'живые детали и падающие звёзды' : 'ветер'));
+      if (fps < CONFIG.PERF_MIN_FPS && document.visibilityState === 'visible') {
+        perfGood = 0;
+        if (perfLevel < 2 && ++perfLow >= 2) {   // два медленных окна подряд (5 с): одиночная заминка (окно на заднем плане, вкладка) не считается
+          perfLow = 0; perfLevel++;              // сначала отключаем детали (и падающие звёзды), потом ветер
+          flagUpdate();                          // «Парад» — тоже новая анимация: выключается вместе с деталями
+          console.info('fps ' + fps.toFixed(1) + ' < ' + CONFIG.PERF_MIN_FPS + ' -> отключаю ' + (perfLevel === 1 ? 'живые детали и падающие звёзды' : 'ветер'));
+        }
+      } else {
+        perfLow = 0;
+        if (perfLevel >= 1 && fps >= 56 && perfRecov < 3 && ++perfGood >= 4) {   // 10 с ровных 56+ fps без деталей — возвращаем (не больше 3 раз)
+          perfGood = 0; perfRecov++; perfLevel--; flagUpdate();
+          console.info('fps ровный -> возвращаю ' + (perfLevel === 0 ? 'живые детали' : 'ветер'));
+        } else if (fps < 56) perfGood = 0;
       }
       fpsT0 = now; fpsFrames = 0;
     }
@@ -1203,18 +1217,26 @@
   // При fps < 45 (детали отключены) и при «уменьшении движения» кнопка скрыта.
   var flagBtns = document.querySelectorAll('.flag-btn');
   var paradeBusy = false, paradeWant = null;
+  var flagOnFrame = true, flagWasOff = false;
+  function flagFrameStep() {   // кнопка живёт только на кадре 1; при переходе на другой кадр гаснет сразу
+    var on = frameIndex === 0 && !fade;
+    if (on === flagOnFrame) return;
+    flagOnFrame = on;
+    flagBtns.forEach(function (b) { b.classList.toggle('off-frame', !on); });
+  }
   function flagUpdate() {
     var off = perfLevel >= 1 || reduced() || !useGL;
+    if (off !== flagWasOff) { flagWasOff = off; console.info('кнопка парада ' + (off ? 'скрыта: ' + (perfLevel >= 1 ? 'fps ниже порога (детали отключены)' : (reduced() ? 'включено «уменьшить движение»' : 'нет WebGL')) : 'снова показана')); }
     flagBtns.forEach(function (b) { b.hidden = off; });
     if (off && paradeWant) { paradeWant = null; setParadeBusy(false); }
   }
   function setParadeBusy(v) {
     paradeBusy = v;
-    flagBtns.forEach(function (b) { b.setAttribute('aria-disabled', v ? 'true' : 'false'); });
+    flagBtns.forEach(function (b) { b.setAttribute('aria-disabled', v ? 'true' : 'false'); b.classList.toggle('busy', v); });
   }
   flagBtns.forEach(function (b) {
     b.addEventListener('click', function () {
-      if (paradeBusy || perfLevel >= 1 || reduced() || !window.Details || !window.Details.parade) return;
+      if (paradeBusy || frameIndex !== 0 || fade || perfLevel >= 1 || reduced() || !window.Details || !window.Details.parade) return;
       closePopup(); closeSheet();
       setParadeBusy(true);
       paradeWant = { since: performance.now(), shown: null };
@@ -1284,7 +1306,7 @@
       if (dp >= 1) demoStop();
       else { var dk = Math.sin(Math.PI * dp); targetX = demo.ax * dk; targetY = demo.ay * dk; }
     }
-    if (useGL) paradeStep(now);
+    if (useGL) { paradeStep(now); flagFrameStep(); }
 
     // --- наклон ---
     if (ret) {
@@ -1323,11 +1345,13 @@
     if (useGL) {
       var tAmb = (now - t0) / 1000; // настоящее время: ветер, мерцание звёзд, «дыхание» фонарей
       fx.windOn = CONFIG.WIND && perfLevel < 2;
-      fx.windAmp = CONFIG.WIND_AMP_PX * (coverUvW / CONFIG.BASE_SCALE) / Math.max(1, stage.clientWidth);
+      fx.windAmp = CONFIG.WIND_AMP_PX * (fb ? CONFIG.WIND_K[fa.idx] + (CONFIG.WIND_K[fb.idx] - CONFIG.WIND_K[fa.idx]) * mixState : CONFIG.WIND_K[fa.idx]) * (coverUvW / CONFIG.BASE_SCALE) / Math.max(1, stage.clientWidth);
       stepNightFx(fa, fb, now);
       fillLamps(fa, fb, mixState, shiftX, shiftY, zoom, tAmb);
       stage.classList.toggle('is-night', tod.sky > 0.5);
-      perfCheck(now, !!(fade || todAnim));
+      var nightNow = tod.night > 0.5 ? '1' : '0';
+      if (document.documentElement.getAttribute('data-night') !== nightNow) document.documentElement.setAttribute('data-night', nightNow);   // тёмная подложка кнопок на телефоне
+      perfCheck(now, !!(fade || todAnim || (window.Details && window.Details.paradeBusy && window.Details.paradeBusy())));
       lastDraw = { fa: fa, fb: fb, mix: mixState, shiftX: shiftX, shiftY: shiftY, zoom: zoom, t: t, tAmb: tAmb };
       if (!glLost) drawGL(fa, fb, mixState, shiftX, shiftY, zoom, t, tAmb);
       if (window.Details && window.Details.frame) { if (perfLevel < 1 && !rm) window.Details.frame(now); else window.Details.off(); }   // живые детали: тот же цикл, не свой rAF
@@ -1375,6 +1399,7 @@
   if (lsGet('chka-panel') === 'collapsed') bodyEl.classList.add('panel-collapsed');
   function closeSheet() { bodyEl.classList.remove('sheet-open'); }
   panelBtn.addEventListener('click', function () {
+    document.documentElement.classList.add('panel-anim');   // анимации закрытия/иконки включаются только после первого нажатия (не при загрузке)
     if (desktopMQ.matches) lsSet('chka-panel', bodyEl.classList.toggle('panel-collapsed') ? 'collapsed' : 'open');
     else bodyEl.classList.toggle('sheet-open');
   });
