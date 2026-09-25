@@ -6,11 +6,22 @@
 <meta name="googlebot" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Кукурузник — beta</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<link rel="preload" href="welcome-loader.js" as="script">
+<link rel="preload" href="welcome-letters.js" as="script">
+<link rel="preload" href="fonts/NotoSerif-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/NotoSerif-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/NotoSerifArmenian-armenian.woff2" as="font" type="font/woff2" crossorigin>
 <style>
+  /* Один шрифт для hy/ru/en — Noto Serif: латиница и кириллица (Noto Serif) и армянский (Noto Serif Armenian)
+     из одной системы дизайна, лицензия OFL (fonts/LICENSE.txt). Подключён локально, один вес 400–700. */
+  @font-face { font-family: "Kukuruznik Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
+    src: url(fonts/NotoSerif-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  @font-face { font-family: "Kukuruznik Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
+    src: url(fonts/NotoSerif-cyrillic.woff2) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+  @font-face { font-family: "Kukuruznik Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
+    src: url(fonts/NotoSerifArmenian-armenian.woff2) format("woff2"); unicode-range: U+0308, U+0530-058F, U+2010, U+2024, U+25CC, U+FB13-FB17; }
   :root {
+    --font: "Kukuruznik Serif", "Noto Serif", Georgia, "Times New Roman", serif;
     --paper: #f5ecda; --paper-2: #ede0c2; --ink: #2f2a25;
     /* Пружина как в iOS: response 0.65 с, damping ratio 0.86 (мягкий разгон, плавное торможение,
        оседание ~0.5% без заметного отскока). Кривая — ступенчатый отклик пружины, оседает за ~0.86 с. */
@@ -34,7 +45,7 @@
     margin: 0; padding: 0; height: 100%;
     background: var(--paper);
     color: var(--ink);
-    font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Armenian", sans-serif;
+    font: 15px/1.4 var(--font);
     overscroll-behavior: none;
   }
   body { user-select: none; }
@@ -78,6 +89,7 @@
     }
   }
 
+  #stage.loading { background: var(--paper); }
   #stage.loading #gl, #stage.loading #fallback { visibility: hidden; }
   /* Откат без WebGL: два слоя (фон + здание) на кадр, двигаются CSS-ом. */
   #fallback { position: absolute; inset: 0; overflow: hidden; background: #000; }
@@ -88,45 +100,45 @@
     object-fit: cover; will-change: transform; pointer-events: none;
   }
 
-  /* Меню в тон скетча: бумажный фон, крупно — аудитория пожилая. */
-  #topBar {
-    position: absolute; left: 0; right: 0; top: 0; z-index: 8;
-    display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: var(--s1);
-    padding: calc(var(--safe-t) + var(--s1)) calc(var(--safe-r) + var(--s2)) var(--s1) calc(var(--safe-l) + var(--s2));
-    background: linear-gradient(rgba(245,236,218,0.92), rgba(245,236,218,0.55) 80%, transparent);
+  /* Бумажная круглая кнопка сайта: карандашный контур, мягкая тень. Так выглядят стрелки ‹ ›, «домой» и кнопка панели;
+     наведение и нажатие — как у кнопок панели (на 4% темнее, при нажатии бумага темнее и кнопка чуть меньше). */
+  .arrow-btn {
+    display: grid; place-items: center; padding: 0; flex: none;
+    border: 2px solid var(--ink); border-radius: 50% 44% 50% 44%; background: var(--paper); color: var(--ink);
+    box-shadow: 0 6px 16px rgba(60,45,20,0.26), 2px 3px 0 rgba(47,42,37,0.14);
+    cursor: pointer; text-decoration: none;
+    transition: filter 200ms var(--spring), transform 200ms var(--spring), background-color 200ms var(--spring);
   }
-  #backLink {
-    display: flex; align-items: center; gap: var(--s1);
-    padding: var(--s1) var(--s2); border-radius: 12px;
-    background: rgba(47,42,37,0.08);
-    color: var(--ink); text-decoration: none;
-    font: 600 16px/1 -apple-system, BlinkMacSystemFont, "Noto Sans Armenian", sans-serif;
-  }
-  #backLink:active { background: rgba(47,42,37,0.18); }
-  #pageTitle {
-    min-width: 0;
-    font: 700 24px/1.15 'Caveat', -apple-system, "Noto Sans Armenian", sans-serif;
-    color: var(--ink);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
+  .arrow-btn svg { display: block; }
+  .arrow-btn:active { background-color: var(--paper-2); transform: scale(0.96); }
+  .nav-next svg { transform: rotate(180deg); }
+  .nav-btn { position: absolute; top: calc(50% - 24px); width: 48px; height: 48px; z-index: 5; }
+  #prevBtn { left: calc(var(--safe-l) + var(--s2)); }
+  #nextBtn { right: calc(var(--safe-r) + var(--s2)); }
 
-  .nav-btn {
-    position: absolute; top: 50%; transform: translateY(-50%);
-    width: 44px; height: 44px; border-radius: 50%;
-    background: rgba(20, 16, 8, 0.35);
-    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
-    border: none; color: #fff; font-size: 20px; line-height: 1;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; z-index: 5;
-    transition: background var(--dur) var(--spring), opacity var(--dur) var(--spring);
+  /* Телефон: одна полоса снизу (с учётом safe-area): слева кнопка панели, по центру название, справа «домой».
+     Сверху на картинке ничего нет. */
+  :root { --bar-h: calc(56px + 2 * var(--s1)); }
+  #bottomBar { display: none; }
+  #barTitle {
+    min-width: 0; text-align: center; color: var(--ink);
+    font: 700 18px/1.2 var(--font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .nav-btn:hover { background: rgba(20, 16, 8, 0.55); }
-  .nav-btn:active { background: rgba(20, 16, 8, 0.7); }
-  #prevBtn { left: calc(var(--safe-l) + var(--s1)); }
-  #nextBtn { right: calc(var(--safe-r) + var(--s1)); }
+  #homeBtn { width: 56px; height: 56px; }
+  @media (max-width: 1023.98px) {
+    #bottomBar {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 55;
+      display: grid; grid-template-columns: 56px minmax(0, 1fr) 56px; align-items: center; column-gap: var(--s1);
+      padding: var(--s1) calc(var(--safe-r) + var(--s2)) calc(var(--safe-b) + var(--s1)) calc(var(--safe-l) + var(--s2));
+      background: var(--paper); border-top: 2px solid var(--ink);
+      box-shadow: 0 -6px 16px rgba(60,45,20,0.16), 0 -2px 0 rgba(47,42,37,0.12);
+    }
+    #barTitle { grid-column: 2; }
+    #homeBtn { grid-column: 3; }
+  }
 
   #dots {
-    position: absolute; left: 50%; bottom: calc(var(--safe-b) + var(--s2)); transform: translateX(-50%);
+    position: absolute; left: 50%; bottom: calc(var(--safe-b) + var(--bar-h) + var(--s1)); transform: translateX(-50%);
     display: flex; gap: var(--s1); z-index: 5;
   }
   #dots span {
@@ -136,15 +148,9 @@
   }
   #dots span.on { background: #fff; transform: scale(1.25); }
 
-  /* hy: заголовки нарисованы карандашом (SVG из tools/build_hy_titles.py), рукописного армянского шрифта нет */
-  .hy-img { display: block; width: auto; max-width: 100%; }
-  .p-title .hy-img { height: 38px; }
-  .p-name .hy-img { height: 40px; }
-  #pageTitle .hy-img { height: 30px; }
-
   #build-version {
-    position: absolute; right: calc(var(--safe-r) + var(--s1)); bottom: calc(var(--safe-b) + var(--s1)); z-index: 5;
-    font: 500 9px/1 -apple-system, sans-serif; color: #fff; opacity: 0.55;
+    position: absolute; right: calc(var(--safe-r) + var(--s1)); bottom: calc(var(--safe-b) + var(--bar-h) + var(--s1)); z-index: 5;
+    font: 500 9px/1 var(--font); color: #fff; opacity: 0.55;
     pointer-events: none;
   }
 
@@ -153,24 +159,19 @@
   /* ПК: на самой картинке остаются только картинка и точки-подсказки; «на сайт» и название — вверху
      панели, стрелки — в пустых полях по бокам, миниатюры вместо кружков-точек. Телефон не меняется. */
   .p-top, .nav-side, .p-build { display: none; }
+  .nav-side { width: 64px; height: 64px; }
   @media (min-width: 1024px) {
-    #topBar, #hint, #dots, #build-version, #prevBtn, #nextBtn, .panel-scroll > .p-title { display: none; }
+    #bottomBar, #hint, #dots, #build-version, #prevBtn, #nextBtn, .panel-scroll > .p-title { display: none; }
     .p-top { display: grid; justify-items: start; row-gap: var(--s1); margin-right: var(--s4); }
     .p-back {
       display: inline-flex; align-items: center; gap: var(--s1); padding: var(--s1) var(--s2); border-radius: 10px;
-      color: var(--ink); text-decoration: none; font: 600 16px/1 -apple-system, "Noto Sans Armenian", sans-serif;
+      color: var(--ink); text-decoration: none; font: 600 16px/1 var(--font);
       background: rgba(47,42,37,0.08);
     }
     .p-back:hover { background: rgba(47,42,37,0.12); }
-    .p-name { font: 700 34px/1.1 'Caveat', -apple-system, "Noto Sans Armenian", sans-serif; }
-    .p-build { display: block; font: 500 10px/1.2 -apple-system, sans-serif; opacity: 0.5; }
-    .nav-side {
-      display: flex; flex: none; width: 64px; height: 64px; padding: 0; align-items: center; justify-content: center;
-      border: 2px solid var(--ink); border-radius: 50% 44% 50% 44%; background: var(--paper); color: var(--ink);
-      box-shadow: 0 6px 16px rgba(60,45,20,0.26), 2px 3px 0 rgba(47,42,37,0.14);
-    }
-    .nav-side svg { display: block; }
-    .nav-next svg { transform: rotate(180deg); }
+    .p-name { font: 700 26px/1.2 var(--font); }
+    .p-build { display: block; font: 500 10px/1.2 var(--font); opacity: 0.5; }
+    .nav-side { display: grid; }
   }
   @media (min-width: 1024px) {
     body::before {
@@ -222,14 +223,14 @@
     .panel-scroll > *:nth-child(11) { transition-delay: 390ms; }
     body.panel-collapsed .panel-scroll > * { opacity: 0; transform: translateX(-22px); transition-delay: 0ms; }
   }
-  .p-title { font: 700 32px/1.1 'Caveat', -apple-system, "Noto Sans Armenian", sans-serif; display: block; margin: 0 var(--s3) 0 0; }
+  .p-title { font: 700 26px/1.2 var(--font); display: block; margin: 0 var(--s3) 0 0; }
   .p-sec { margin: 0; }
-  .p-sec h3 { margin: 0 0 var(--s1); font: 700 26px/1.1 'Caveat', -apple-system, "Noto Sans Armenian", sans-serif; }
+  .p-sec h3 { margin: 0 0 var(--s1); font: 700 20px/1.2 var(--font); }
   .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0; border: 2px solid var(--ink); border-radius: 12px 6px 12px 6px / 6px 12px 6px 12px; overflow: hidden; }
   .seg button {
     min-height: 48px; padding: var(--s1) 4px; border: none; border-right: 1px solid rgba(47,42,37,0.5);
     background: transparent; color: var(--ink); cursor: pointer;
-    font: 600 var(--fs-small)/1.1 -apple-system, "Noto Sans Armenian", sans-serif;
+    font: 600 var(--fs-small)/1.15 var(--font);
   }
   .seg button:last-child { border-right: none; }
   .seg button.on { background: var(--ink); color: var(--paper); }
@@ -257,7 +258,7 @@
     display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; padding: var(--s1) var(--s2); cursor: pointer;
     border: 2px solid var(--ink); border-radius: 12px 6px 12px 6px / 6px 12px 6px 12px;
     background: transparent; color: var(--ink); text-align: center;
-    font: 700 var(--fs-body)/1.1 -apple-system, "Noto Sans Armenian", sans-serif;
+    font: 700 var(--fs-body)/1.15 var(--font);
     transition: background var(--dur) var(--spring), color var(--dur) var(--spring);
   }
   .p-btn[hidden] { display: none; }
@@ -267,18 +268,18 @@
   /* Наведение мышью: подсвечивается только элемент прямо под курсором и еле заметно —
      фон на 4% темнее; без подъёма и теней, группой ничего не подсвечивается. */
   @media (hover: hover) and (pointer: fine) {
-    .seg button, .p-btn, .switch, #thumbs button, #panelBtn, .nav-side { cursor: pointer; }
+    .seg button, .p-btn, .switch, #thumbs button, #panelBtn, .arrow-btn { cursor: pointer; }
     .seg button, .p-btn { transition: background-color 200ms var(--spring); }
-    .switch, #thumbs button, .nav-side { transition: filter 200ms var(--spring); }
+    .switch, #thumbs button { transition: filter 200ms var(--spring); }
     #panelBtn { transition: left var(--dur) var(--spring), filter 200ms var(--spring); }
     .seg button:not(.on):hover, .p-btn:hover { background-color: rgba(47,42,37,0.04); }
-    .switch:hover, #thumbs button:hover, #panelBtn:hover, .nav-side:hover { filter: brightness(0.96); }
+    .switch:hover, #thumbs button:hover, #panelBtn:hover, .arrow-btn:hover { filter: brightness(0.96); }
   }
 
   /* кнопка панели: на ПК — стрелка свернуть/развернуть, на телефоне — круглая кнопка снизу слева */
   #panelBtn {
     position: fixed; z-index: 60; border: 2px solid var(--ink); background: var(--paper); color: var(--ink);
-    cursor: pointer; padding: 0; font: 700 22px/1 -apple-system, sans-serif;
+    cursor: pointer; padding: 0; font: 700 22px/1 var(--font);
     box-shadow: 0 6px 16px rgba(60,45,20,0.3), 2px 3px 0 rgba(47,42,37,0.14);
     display: flex; align-items: center; justify-content: center;
     transition: left var(--dur) var(--spring), transform var(--dur) var(--spring), background var(--dur) var(--spring);
@@ -305,12 +306,13 @@
       transform: translateY(108%); transition: transform 400ms var(--ease); z-index: 70;
     }
     body.sheet-open #panel { transform: none; }
+    .panel-scroll { padding: var(--s4); grid-template-columns: minmax(0, 420px); justify-content: center; scroll-padding: var(--s4) 0; }
     .panel-card {
       left: max(var(--s1), var(--safe-l)); right: max(var(--s1), var(--safe-r)); top: 0; bottom: calc(var(--safe-b) + var(--s1)); width: auto;
       border-radius: 22px 22px 12px 12px / 18px 18px 12px 12px;
     }
     #panelBtn {
-      left: calc(var(--safe-l) + var(--s2)); bottom: calc(var(--safe-b) + var(--s2)); width: 56px; height: 56px; border-radius: 50%;
+      left: calc(var(--safe-l) + var(--s2)); bottom: calc(var(--safe-b) + var(--s1)); width: 56px; height: 56px; border-radius: 50%;
       transition: transform 350ms var(--ease), background 250ms var(--ease);
     }
     body.sheet-open #panelBtn { transform: scale(0.9); }
@@ -327,7 +329,7 @@
   #fallback[data-tod="night"] .fb-frame { filter: brightness(0.38) sepia(0.35) hue-rotate(185deg) saturate(1.5); }
 
   #hint {
-    position: absolute; left: 50%; bottom: calc(var(--safe-b) + 64px); transform: translateX(-50%);
+    position: absolute; left: 50%; bottom: calc(var(--safe-b) + var(--bar-h) + var(--s4)); transform: translateX(-50%);
     z-index: 5; font-size: 12px; color: #fff; text-align: center; max-width: calc(100% - var(--s4));
     background: rgba(20, 16, 8, 0.4); padding: var(--s1) var(--s2); border-radius: 16px;
     -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
@@ -452,79 +454,6 @@
 </head>
 <body>
 
-<div id="layout">
-<aside id="panel" aria-label="Menu">
-  <div class="panel-card sketch"><div class="panel-scroll">
-    <span class="p-title" data-i18n="panelTitle">Кукурузник</span>
-    <div class="p-top">
-      <a class="p-back" href="../kukuruznik/index.html">‹ <span data-i18n="back">на сайт</span></a>
-      <span class="p-name" data-i18n="title">Кукурузник, 1979</span>
-    </div>
-    <section class="p-sec">
-      <h3 data-i18n="tod">Время суток</h3>
-      <div class="seg" id="todSeg" role="group">
-        <button type="button" data-tod="day" class="on" data-i18n="day">День</button>
-        <button type="button" data-tod="sunset" data-i18n="sunset">Закат</button>
-        <button type="button" data-tod="night" data-i18n="night">Ночь</button>
-      </div>
-    </section>
-    <section class="p-sec">
-      <h3 data-i18n="frames">Кадры</h3>
-      <div id="thumbs"></div>
-    </section>
-    <section class="p-sec"><button type="button" id="fsBtn" class="p-btn" data-i18n="fullscreen">Полный экран</button></section>
-    <section class="p-sec"><button type="button" id="cardBtn" class="p-btn" data-i18n="postcard">Сохранить открытку</button></section>
-    <section class="p-sec">
-      <h3 data-i18n="textSize">Размер текста</h3>
-      <div class="seg" id="sizeSeg" role="group">
-        <button type="button" data-size="large" class="on" data-i18n="sizeLarge">Крупный</button>
-        <button type="button" data-size="normal" data-i18n="sizeNormal">Обычный</button>
-      </div>
-    </section>
-    <section class="p-sec">
-      <h3 data-i18n="language">Язык</h3>
-      <div class="seg" id="langSeg" role="group">
-        <button type="button" data-lang="hy">Հայ</button>
-        <button type="button" data-lang="ru">Рус</button>
-        <button type="button" data-lang="en">Eng</button>
-      </div>
-    </section>
-    <section class="p-sec p-about">
-      <h3 data-i18n="about">О здании</h3>
-      <div id="aboutText"></div>
-      <a id="aboutLink" href="../kukuruznik/index.html" data-i18n="more">подробнее ›</a>
-    </section>
-    <div class="p-build">beta · v9 · 2026-09-25 03:09</div>
-  </div></div>
-</aside>
-<button type="button" id="panelBtn" aria-label="Menu"><svg class="ic-menu" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M4.5 7h15M4.5 12h15M4.5 17h15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><svg class="ic-arrow" viewBox="0 0 40 40" width="40" height="40" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 11.5C20.5 15.5 16.8 18.8 14 20.3c3 1.7 6.8 4.9 10 8.7" stroke-width="2.8"/><path d="M24.4 12.4C21 16 17.6 19 15 20.6c3 1.8 6.5 4.8 10 7.8" stroke-width="1.1" opacity=".55"/></g></svg></button>
-<div id="scrim"></div>
-<main id="view">
-<button type="button" id="prevSide" class="nav-side" aria-label="Предыдущий кадр"><svg viewBox="0 0 40 40" width="42" height="42" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 9.5C20.5 14.5 16.8 18.6 13.5 20.3c3.4 1.9 7.3 5.6 10.6 10.6" stroke-width="3"/><path d="M24.6 10.6C21 15.4 17.4 19 14.6 20.7c3.2 2 6.8 5.4 10.4 9.8" stroke-width="1.2" opacity=".55"/></g></svg></button>
-<div id="stage" class="loading">
-  <canvas id="gl"></canvas>
-  <div id="fallback" hidden></div>
-  <div id="topBar">
-    <a id="backLink" href="../kukuruznik/index.html">‹ <span id="backLinkText">на сайт</span></a>
-    <div id="pageTitle">Кукурузник, 1979</div>
-  </div>
-  <button id="prevBtn" class="nav-btn" type="button" aria-label="Предыдущий кадр">‹</button>
-  <button id="nextBtn" class="nav-btn" type="button" aria-label="Следующий кадр">›</button>
-  <div id="dots"></div>
-  <div id="birds" aria-hidden="true">
-    <svg class="bird" style="--y:8%; --fly-dur:39s; --fly-delay:-4s" viewBox="0 0 24 12"><path d="M1,6 Q6,0 12,6 Q18,0 23,6"/></svg>
-    <svg class="bird" style="--y:14%; --fly-dur:48s; --fly-delay:-22s" viewBox="0 0 24 12"><path d="M1,6 Q6,0 12,6 Q18,0 23,6"/></svg>
-    <svg class="bird" style="--y:5%; --fly-dur:44s; --fly-delay:-33s" viewBox="0 0 24 12"><path d="M1,6 Q6,0 12,6 Q18,0 23,6"/></svg>
-  </div>
-  <div id="hotspots"></div>
-  <div id="hsPopup" class="sketch"><div id="hsText"></div><button type="button" id="hsBack" class="p-btn"><span class="lbl-pc" data-i18n="hsBack">‹ назад</span><span class="lbl-phone" data-i18n="hsClose">× закрыть</span></button></div>
-  <div id="hint">Веди пальцем / мышью · свайп — сменить кадр</div>
-  <div id="build-version">beta · v9 · 2026-09-25 03:09</div>
-</div>
-<button type="button" id="nextSide" class="nav-side nav-next" aria-label="Следующий кадр"><svg viewBox="0 0 40 40" width="42" height="42" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 9.5C20.5 14.5 16.8 18.6 13.5 20.3c3.4 1.9 7.3 5.6 10.6 10.6" stroke-width="3"/><path d="M24.6 10.6C21 15.4 17.4 19 14.6 20.7c3.2 2 6.8 5.4 10.4 9.8" stroke-width="1.2" opacity=".55"/></g></svg></button>
-</main>
-</div>
-
 <script src="welcome-letters.js"></script>
 <script src="welcome-loader.js"></script>
 <script>
@@ -585,11 +514,6 @@ var CONFIG = {
   SHOOT_MS: 900,
   WIND: true,                      // ветер в деревьях
   WIND_AMP_PX: 2.5,                // качание макушки дерева, px экрана
-  // Ночной город (v9): россыпь мелких огней окон, отсвет на небе, огоньки машин.
-  CITY_TWINKLE: 0.35,              // глубина очень медленного мерцания части огней (0 — не мерцают)
-  CITY_GLOW: 0.20,                 // сила тёплого отсвета города у горизонта
-  CITY_COOL: 0.25,                 // доля холодных белых огней (остальные тёплые жёлтые)
-  CAR_S: [40, 70],                 // сколько секунд огонёк машины едет по дальней дороге
   PERF_MIN_FPS: 45,                // ниже — сначала выключаем ветер, потом падающие звёзды
 
   // Откат без WebGL: множитель сдвига слоя здания (+) и фона (−).
@@ -603,12 +527,12 @@ var CONFIG = {
   // для отката, если у браузера нет WebGL.
   FRAMES: [
     /* FRAMES:START */
-    { color: 'frames/v_angle_0.webp', depth: 'frames/v_angle_0_depth.webp', bg: { color: 'frames/v_angle_0_bg.webp', depth: 'frames/v_angle_0_bg_depth.webp' }, building: { color: 'frames/v_angle_0_building.webp', depth: 'frames/v_angle_0_depth.webp' }, env: 'frames/v_angle_0_env.webp', win2: 'frames/v_angle_0_win2.webp' },
-    { color: 'frames/v_angle_1.webp', depth: 'frames/v_angle_1_depth.webp', bg: { color: 'frames/v_angle_1_bg.webp', depth: 'frames/v_angle_1_bg_depth.webp' }, building: { color: 'frames/v_angle_1_building.webp', depth: 'frames/v_angle_1_depth.webp' }, env: 'frames/v_angle_1_env.webp', win2: 'frames/v_angle_1_win2.webp' },
-    { color: 'frames/v_angle_2.webp', depth: 'frames/v_angle_2_depth.webp', bg: { color: 'frames/v_angle_2_bg.webp', depth: 'frames/v_angle_2_bg_depth.webp' }, building: { color: 'frames/v_angle_2_building.webp', depth: 'frames/v_angle_2_depth.webp' }, env: 'frames/v_angle_2_env.webp', win2: 'frames/v_angle_2_win2.webp' },
-    { color: 'frames/v_angle_3.webp', depth: 'frames/v_angle_3_depth.webp', bg: { color: 'frames/v_angle_3_bg.webp', depth: 'frames/v_angle_3_bg_depth.webp' }, building: { color: 'frames/v_angle_3_building.webp', depth: 'frames/v_angle_3_depth.webp' }, env: 'frames/v_angle_3_env.webp', win2: 'frames/v_angle_3_win2.webp' },
-    { color: 'frames/v_angle_4.webp', depth: 'frames/v_angle_4_depth.webp', bg: { color: 'frames/v_angle_4_bg.webp', depth: 'frames/v_angle_4_bg_depth.webp' }, building: { color: 'frames/v_angle_4_building.webp', depth: 'frames/v_angle_4_depth.webp' }, env: 'frames/v_angle_4_env.webp', win2: 'frames/v_angle_4_win2.webp' },
-    { color: 'frames/v_angle_5.webp', depth: 'frames/v_angle_5_depth.webp', bg: { color: 'frames/v_angle_5_bg.webp', depth: 'frames/v_angle_5_bg_depth.webp' }, building: { color: 'frames/v_angle_5_building.webp', depth: 'frames/v_angle_5_depth.webp' }, env: 'frames/v_angle_5_env.webp', win2: 'frames/v_angle_5_win2.webp' },
+    { color: 'frames/v_angle_0.webp', depth: 'frames/v_angle_0_depth.webp', bg: { color: 'frames/v_angle_0_bg.webp', depth: 'frames/v_angle_0_bg_depth.webp' }, building: { color: 'frames/v_angle_0_building.webp', depth: 'frames/v_angle_0_depth.webp' }, env: 'frames/v_angle_0_env.webp', win2: 'frames/v_angle_0_win2.webp', night: 'frames/v_angle_0_night.webp' },
+    { color: 'frames/v_angle_1.webp', depth: 'frames/v_angle_1_depth.webp', bg: { color: 'frames/v_angle_1_bg.webp', depth: 'frames/v_angle_1_bg_depth.webp' }, building: { color: 'frames/v_angle_1_building.webp', depth: 'frames/v_angle_1_depth.webp' }, env: 'frames/v_angle_1_env.webp', win2: 'frames/v_angle_1_win2.webp', night: 'frames/v_angle_1_night.webp' },
+    { color: 'frames/v_angle_2.webp', depth: 'frames/v_angle_2_depth.webp', bg: { color: 'frames/v_angle_2_bg.webp', depth: 'frames/v_angle_2_bg_depth.webp' }, building: { color: 'frames/v_angle_2_building.webp', depth: 'frames/v_angle_2_depth.webp' }, env: 'frames/v_angle_2_env.webp', win2: 'frames/v_angle_2_win2.webp', night: 'frames/v_angle_2_night.webp' },
+    { color: 'frames/v_angle_3.webp', depth: 'frames/v_angle_3_depth.webp', bg: { color: 'frames/v_angle_3_bg.webp', depth: 'frames/v_angle_3_bg_depth.webp' }, building: { color: 'frames/v_angle_3_building.webp', depth: 'frames/v_angle_3_depth.webp' }, env: 'frames/v_angle_3_env.webp', win2: 'frames/v_angle_3_win2.webp', night: 'frames/v_angle_3_night.webp' },
+    { color: 'frames/v_angle_4.webp', depth: 'frames/v_angle_4_depth.webp', bg: { color: 'frames/v_angle_4_bg.webp', depth: 'frames/v_angle_4_bg_depth.webp' }, building: { color: 'frames/v_angle_4_building.webp', depth: 'frames/v_angle_4_depth.webp' }, env: 'frames/v_angle_4_env.webp', win2: 'frames/v_angle_4_win2.webp', night: 'frames/v_angle_4_night.webp' },
+    { color: 'frames/v_angle_5.webp', depth: 'frames/v_angle_5_depth.webp', bg: { color: 'frames/v_angle_5_bg.webp', depth: 'frames/v_angle_5_bg_depth.webp' }, building: { color: 'frames/v_angle_5_building.webp', depth: 'frames/v_angle_5_depth.webp' }, env: 'frames/v_angle_5_env.webp', win2: 'frames/v_angle_5_win2.webp', night: 'frames/v_angle_5_night.webp' },
     /* FRAMES:END */
   ],
 
@@ -652,64 +576,26 @@ var CONFIG = {
     ]
   ],
 
-  // Фонари: по кадрам, [u, v лампы, u, v основания столба] в долях кадра (768×1365). Найдены по рисунку
-  // глазами вдоль дорожек, дорог и краёв площадок (4–8 на кадр).
+  // Фонари ночных кадров-картинок (v10): ореолы ставим на фонари, нарисованные на ночном кадре. Формат тот же.
+  // Найдены по ночным картинкам (головы фонарей и основания столбов). Пусто — на ночной картинке нет фонарей (тогда LAMPS v8).
+  NIGHT_LAMPS: [
+    [[0.854, 0.577, 0.854, 0.608], [0.939, 0.588, 0.939, 0.619], [0.134, 0.773, 0.134, 0.839], [0.951, 0.763, 0.951, 0.828], [0.681, 0.79, 0.681, 0.853]],  // v_angle_0
+    [[0.681, 0.558, 0.681, 0.582], [0.814, 0.577, 0.814, 0.602], [0.189, 0.576, 0.189, 0.597], [0.076, 0.822, 0.076, 0.89], [0.417, 0.845, 0.417, 0.916], [0.635, 0.841, 0.635, 0.908], [0.935, 0.817, 0.935, 0.886]],  // v_angle_1
+    [[0.133, 0.748, 0.133, 0.766], [0.245, 0.793, 0.245, 0.823], [0.229, 0.886, 0.229, 0.916], [0.223, 0.952, 0.223, 0.982], [0.616, 0.935, 0.616, 0.965], [0.585, 0.829, 0.585, 0.859], [0.737, 0.711, 0.737, 0.729], [0.197, 0.63, 0.197, 0.648]],  // v_angle_2
+    [[0.684, 0.548, 0.684, 0.593], [0.215, 0.549, 0.215, 0.59], [0.849, 0.555, 0.849, 0.579], [0.022, 0.569, 0.022, 0.61], [0.749, 0.674, 0.749, 0.736], [0.12, 0.795, 0.12, 0.897], [0.59, 0.769, 0.59, 0.853], [0.879, 0.793, 0.879, 0.897]],  // v_angle_3
+    [[0.302, 0.495, 0.302, 0.531], [0.44, 0.775, 0.44, 0.786], [0.474, 0.811, 0.474, 0.822], [0.609, 0.812, 0.609, 0.823], [0.335, 0.815, 0.335, 0.826], [0.785, 0.797, 0.785, 0.808], [0.921, 0.812, 0.921, 0.823], [0.066, 0.876, 0.066, 0.905]],  // v_angle_4
+    [[0.589, 0.929, 0.589, 0.963], [0.794, 0.925, 0.794, 0.96], [0.742, 0.916, 0.742, 0.94]],  // v_angle_5
+  ],
+
+  // Фонари v8 (ночь без картинки, откат): по кадрам, [u, v лампы, u, v основания столба] в долях кадра (768×1365).
+  // Найдены по рисунку глазами; на кадрах 0, 1, 3 фонарей в рисунке нет.
   LAMPS: [
-    [[0.06, 0.802, 0.06, 0.832], [0.34, 0.842, 0.34, 0.872], [0.70, 0.822, 0.70, 0.852], [0.90, 0.792, 0.90, 0.822], [0.68, 0.578, 0.68, 0.598]],  // v_angle_0
-    [[0.08, 0.815, 0.08, 0.845], [0.62, 0.852, 0.62, 0.882], [0.92, 0.815, 0.92, 0.845], [0.36, 0.745, 0.36, 0.775]],  // v_angle_1
+    [],  // v_angle_0
+    [],  // v_angle_1
     [[0.7344, 0.7114, 0.7344, 0.7363], [0.6810, 0.7143, 0.6810, 0.7385], [0.5391, 0.7443, 0.5391, 0.7729], [0.5586, 0.7810, 0.5586, 0.8117], [0.5833, 0.8278, 0.5833, 0.8586]],  // v_angle_2
-    [[0.05, 0.800, 0.05, 0.830], [0.28, 0.832, 0.28, 0.862], [0.46, 0.842, 0.46, 0.872], [0.80, 0.832, 0.80, 0.862], [0.72, 0.752, 0.72, 0.782]],  // v_angle_3
+    [],  // v_angle_3
     [[0.3359, 0.8139, 0.3359, 0.8278], [0.4740, 0.8088, 0.4740, 0.8249], [0.6094, 0.8110, 0.6094, 0.8264], [0.7995, 0.8176, 0.7995, 0.8308], [0.2253, 0.8498, 0.2253, 0.8791], [0.3034, 0.8799, 0.3034, 0.9194], [0.4570, 0.8791, 0.4570, 0.9136]],  // v_angle_4
-    [[0.7396, 0.9172, 0.7396, 0.9648], [0.40, 0.925, 0.40, 0.955], [0.63, 0.925, 0.63, 0.955], [0.52, 0.875, 0.52, 0.895]]  // v_angle_5
-  ],
-
-  // Огни ночного города по кадрам. Зоны — в долях кадра (u, v): box [u0, v0, u1, v1] или poly [[u, v], …].
-  // n — сколько огней, groups — на сколько кучек они собраны (как окна в ночном городе), warm — доля тёплых,
-  // dmin/dmax — из каких глубин (0 далеко … 1 близко); деревья и небо в зоны не попадают.
-  // Чем дальше зона, тем огни мельче и плотнее (размер берётся из карты глубины).
-  CITY: [
-    [ // v_angle_0
-      { box: [0.00, 0.545, 0.34, 0.660], n: 44, groups: 7 },
-      { box: [0.60, 0.585, 0.75, 0.630], n: 12, groups: 2 },
-      { box: [0.00, 0.525, 1.00, 0.590], n: 120, groups: 18, dmax: 0.30 }
-    ],
-    [ // v_angle_1
-      { box: [0.46, 0.660, 0.72, 0.800], n: 22, groups: 5, warm: 0.5 },
-      { box: [0.00, 0.470, 0.42, 0.600], n: 22, groups: 5, dmax: 0.25 },
-      { box: [0.66, 0.535, 1.00, 0.600], n: 40, groups: 6, dmax: 0.35 }
-    ],
-    [ // v_angle_2
-      { box: [0.66, 0.550, 1.00, 0.720], n: 60, groups: 9 },
-      { box: [0.42, 0.610, 0.72, 0.690], n: 14, groups: 3 },
-      { box: [0.00, 0.505, 1.00, 0.585], n: 120, groups: 18, dmax: 0.30 }
-    ],
-    [ // v_angle_3
-      { box: [0.44, 0.620, 0.80, 0.700], n: 16, groups: 4 },
-      { box: [0.86, 0.620, 1.00, 0.700], n: 18, groups: 3 },
-      { box: [0.00, 0.545, 1.00, 0.605], n: 130, groups: 18, dmax: 0.30 }
-    ],
-    [ // v_angle_4
-      { box: [0.00, 0.245, 1.00, 0.318], n: 210, groups: 36 },
-      { poly: [[0.20, 0.66], [0.22, 0.61], [0.55, 0.605], [0.72, 0.62], [0.98, 0.66], [0.98, 0.80], [0.86, 0.83], [0.60, 0.80], [0.50, 0.795], [0.33, 0.795], [0.22, 0.78]], n: 130, groups: 18 },
-      { box: [0.32, 0.925, 0.83, 1.000], n: 46, groups: 8 },
-      { box: [0.92, 0.900, 1.00, 0.990], n: 16, groups: 3 },
-      { box: [0.00, 0.905, 0.10, 0.975], n: 10, groups: 2 }
-    ],
-    [ // v_angle_5
-      { box: [0.02, 0.735, 0.42, 0.780], n: 16, groups: 4 },
-      { box: [0.62, 0.735, 0.98, 0.780], n: 16, groups: 4 },
-      { box: [0.03, 0.815, 0.34, 0.870], n: 10, groups: 3 },
-      { box: [0.66, 0.815, 0.97, 0.870], n: 10, groups: 3 },
-      { box: [0.00, 0.640, 0.14, 0.720], n: 8, groups: 2 },
-      { box: [0.86, 0.640, 1.00, 0.720], n: 8, groups: 2 }
-    ]
-  ],
-
-  // Дальние дороги: по ним медленно едут 1–2 крошечных огонька машин. Нет дороги на кадре — пусто.
-  ROADS: [
-    [], [], [], [],
-    [[[0.00, 0.930], [0.16, 0.924], [0.26, 0.919], [0.38, 0.907], [0.48, 0.899], [0.56, 0.892], [0.62, 0.886]]],  // v_angle_4
-    []
+    [[0.7396, 0.9172, 0.7396, 0.9648]]  // v_angle_5
   ],
 
   // Тексты подсказок. ТОЛЬКО эти пять, свои факты не добавлять.
@@ -746,6 +632,7 @@ var CONFIG = {
   UI_I18N: {
     title: { ru: 'Кукурузник, 1979', en: 'Kukuruznik, 1979', hy: 'Կուկուռուզնիկ, 1979' },
     pageTitle: { ru: 'Кукурузник — beta', en: 'Kukuruznik — beta', hy: 'Կուկուռուզնիկ — beta' },
+    home: { ru: 'Страница здания', en: 'Building page', hy: 'Շենքի էջ' },
     prevFrame: { ru: 'Предыдущий кадр', en: 'Previous frame', hy: 'Նախորդ կադր' },
     nextFrame: { ru: 'Следующий кадр', en: 'Next frame', hy: 'Հաջորդ կադր' },
     back: { ru: 'на сайт', en: 'to site', hy: 'կայք' },
@@ -782,6 +669,102 @@ var CONFIG = {
 };
 /* ==================================================== */
 
+// язык страницы (общий с сайтом: тот же ключ localStorage) — нужен приветствию до основного скрипта
+function chkaLang() {
+  var l = 'hy';
+  try {
+    l = localStorage.getItem('chka-lang') ||
+      ((navigator.languages && navigator.languages[0]) || navigator.language || '').slice(0, 2).toLowerCase();
+  } catch (e) {}
+  if (!CONFIG.I18N.tower1[l]) l = 'hy';
+  return l;
+}
+</script>
+<script>
+// Приветствие + загрузка появляется СРАЗУ, до вёрстки, тяжёлых скриптов и кадров (компонент welcome-loader.js).
+// Пока страница не собрана, оно на всё окно; основной скрипт переносит его на картинку (wl.attach).
+// Касание: основной скрипт подставляет window.__wlTap (запрос на наклон для iOS должен идти из самого касания).
+window.__wl = WelcomeLoader.create({
+  parent: document.body, fixed: true, lang: chkaLang(), minMs: 2000,
+  autoHide: !(window.matchMedia && matchMedia('(pointer: coarse)').matches), autoHideMs: 3000,   // ПК: само через 3 с; телефон ждёт касания
+  text: function (k, l) { return CONFIG.UI_I18N[k][l]; },
+  letters: window.WL_LETTERS || [],
+  onTap: function () { if (window.__wlTap) window.__wlTap(); }
+});
+</script>
+
+<div id="layout">
+<aside id="panel" aria-label="Menu">
+  <div class="panel-card sketch"><div class="panel-scroll">
+    <span class="p-title" data-i18n="panelTitle">Кукурузник</span>
+    <div class="p-top">
+      <a class="p-back" href="../kukuruznik/index.html">‹ <span data-i18n="back">на сайт</span></a>
+      <span class="p-name" data-i18n="title">Кукурузник, 1979</span>
+    </div>
+    <section class="p-sec">
+      <h3 data-i18n="tod">Время суток</h3>
+      <div class="seg" id="todSeg" role="group">
+        <button type="button" data-tod="day" class="on" data-i18n="day">День</button>
+        <button type="button" data-tod="sunset" data-i18n="sunset">Закат</button>
+        <button type="button" data-tod="night" data-i18n="night">Ночь</button>
+      </div>
+    </section>
+    <section class="p-sec">
+      <h3 data-i18n="frames">Кадры</h3>
+      <div id="thumbs"></div>
+    </section>
+    <section class="p-sec"><button type="button" id="fsBtn" class="p-btn" data-i18n="fullscreen">Полный экран</button></section>
+    <section class="p-sec"><button type="button" id="cardBtn" class="p-btn" data-i18n="postcard">Сохранить открытку</button></section>
+    <section class="p-sec">
+      <h3 data-i18n="textSize">Размер текста</h3>
+      <div class="seg" id="sizeSeg" role="group">
+        <button type="button" data-size="large" class="on" data-i18n="sizeLarge">Крупный</button>
+        <button type="button" data-size="normal" data-i18n="sizeNormal">Обычный</button>
+      </div>
+    </section>
+    <section class="p-sec">
+      <h3 data-i18n="language">Язык</h3>
+      <div class="seg" id="langSeg" role="group">
+        <button type="button" data-lang="hy">Հայ</button>
+        <button type="button" data-lang="ru">Рус</button>
+        <button type="button" data-lang="en">Eng</button>
+      </div>
+    </section>
+    <section class="p-sec p-about">
+      <h3 data-i18n="about">О здании</h3>
+      <div id="aboutText"></div>
+      <a id="aboutLink" href="../kukuruznik/index.html" data-i18n="more">подробнее ›</a>
+    </section>
+    <div class="p-build">beta · v10 · 2026-09-25 05:28</div>
+  </div></div>
+</aside>
+<button type="button" id="panelBtn" aria-label="Menu"><svg class="ic-menu" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M4.5 7h15M4.5 12h15M4.5 17h15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><svg class="ic-arrow" viewBox="0 0 40 40" width="40" height="40" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 11.5C20.5 15.5 16.8 18.8 14 20.3c3 1.7 6.8 4.9 10 8.7" stroke-width="2.8"/><path d="M24.4 12.4C21 16 17.6 19 15 20.6c3 1.8 6.5 4.8 10 7.8" stroke-width="1.1" opacity=".55"/></g></svg></button>
+<div id="scrim"></div>
+<div id="bottomBar"><div id="barTitle"></div><a id="homeBtn" class="arrow-btn" href="../kukuruznik/index.html" aria-label="Страница здания"><svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 20.5L20 8.5l13.5 12" stroke-width="2.8"/><path d="M11 18.5V32h18V18.5" stroke-width="2.8"/><path d="M17 32v-8.5h6V32" stroke-width="2.4"/><path d="M7.4 21.2L20.4 9.5l12.9 11.4M12 19.4V32.8h17.4" stroke-width="1.1" opacity=".55"/></g></svg></a></div>
+<main id="view">
+<button type="button" id="prevSide" class="arrow-btn nav-side" aria-label="Предыдущий кадр"><svg viewBox="0 0 40 40" width="42" height="42" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 9.5C20.5 14.5 16.8 18.6 13.5 20.3c3.4 1.9 7.3 5.6 10.6 10.6" stroke-width="3"/><path d="M24.6 10.6C21 15.4 17.4 19 14.6 20.7c3.2 2 6.8 5.4 10.4 9.8" stroke-width="1.2" opacity=".55"/></g></svg></button>
+<div id="stage" class="loading">
+  <canvas id="gl"></canvas>
+  <div id="fallback" hidden></div>
+  <button id="prevBtn" class="arrow-btn nav-btn" type="button" aria-label="Предыдущий кадр"><svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 9.5C20.5 14.5 16.8 18.6 13.5 20.3c3.4 1.9 7.3 5.6 10.6 10.6" stroke-width="3"/><path d="M24.6 10.6C21 15.4 17.4 19 14.6 20.7c3.2 2 6.8 5.4 10.4 9.8" stroke-width="1.2" opacity=".55"/></g></svg></button>
+  <button id="nextBtn" class="arrow-btn nav-btn nav-next" type="button" aria-label="Следующий кадр"><svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 9.5C20.5 14.5 16.8 18.6 13.5 20.3c3.4 1.9 7.3 5.6 10.6 10.6" stroke-width="3"/><path d="M24.6 10.6C21 15.4 17.4 19 14.6 20.7c3.2 2 6.8 5.4 10.4 9.8" stroke-width="1.2" opacity=".55"/></g></svg></button>
+  <div id="dots"></div>
+  <div id="birds" aria-hidden="true">
+    <svg class="bird" style="--y:8%; --fly-dur:39s; --fly-delay:-4s" viewBox="0 0 24 12"><path d="M1,6 Q6,0 12,6 Q18,0 23,6"/></svg>
+    <svg class="bird" style="--y:14%; --fly-dur:48s; --fly-delay:-22s" viewBox="0 0 24 12"><path d="M1,6 Q6,0 12,6 Q18,0 23,6"/></svg>
+    <svg class="bird" style="--y:5%; --fly-dur:44s; --fly-delay:-33s" viewBox="0 0 24 12"><path d="M1,6 Q6,0 12,6 Q18,0 23,6"/></svg>
+  </div>
+  <div id="hotspots"></div>
+  <div id="hsPopup" class="sketch"><div id="hsText"></div><button type="button" id="hsBack" class="p-btn"><span class="lbl-pc" data-i18n="hsBack">‹ назад</span><span class="lbl-phone" data-i18n="hsClose">× закрыть</span></button></div>
+  <div id="hint">Веди пальцем / мышью · свайп — сменить кадр</div>
+  <div id="build-version">beta · v10 · 2026-09-25 05:28</div>
+</div>
+<button type="button" id="nextSide" class="arrow-btn nav-side nav-next" aria-label="Следующий кадр"><svg viewBox="0 0 40 40" width="42" height="42" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 9.5C20.5 14.5 16.8 18.6 13.5 20.3c3.4 1.9 7.3 5.6 10.6 10.6" stroke-width="3"/><path d="M24.6 10.6C21 15.4 17.4 19 14.6 20.7c3.2 2 6.8 5.4 10.4 9.8" stroke-width="1.2" opacity=".55"/></g></svg></button>
+</main>
+</div>
+
+<script>
+
 (function () {
   'use strict';
 
@@ -795,10 +778,10 @@ var CONFIG = {
   var panelBtn = document.getElementById('panelBtn');
 
   // hiddenFrames — кадры-брак, которые не показываем; список точек режем так же
-  var HS = [], LAMPS = [], CITY = [], ROADS = [];
+  var HS = [], LAMPS = [];
   var FRAMES = CONFIG.FRAMES.filter(function (_, i) {
     var keep = CONFIG.hiddenFrames.indexOf(i) < 0;
-    if (keep) { HS.push(CONFIG.HOTSPOTS[i] || []); LAMPS.push(CONFIG.LAMPS[i] || []); CITY.push(CONFIG.CITY[i] || []); ROADS.push(CONFIG.ROADS[i] || []); }
+    if (keep) { HS.push(CONFIG.HOTSPOTS[i] || []); LAMPS.push(CONFIG.LAMPS[i] || []); }
     return keep;
   });
 
@@ -829,40 +812,19 @@ var CONFIG = {
   function lerpK(k, dt) { return 1 - Math.pow(1 - k, dt / 16.667); }
 
   // ---------- язык (общий с сайтом: тот же ключ localStorage) ----------
-  var currentLang = (function () {
-    var l = 'hy';
-    try {
-      l = localStorage.getItem('chka-lang') ||
-        ((navigator.languages && navigator.languages[0]) || navigator.language || '').slice(0, 2).toLowerCase();
-    } catch (e) {}
-    if (!CONFIG.I18N.tower1[l]) l = 'hy';
-    return l;
-  })();
+  var currentLang = chkaLang();
 
-  var backLinkText = document.getElementById('backLinkText');
-  var pageTitleEl = document.getElementById('pageTitle');
+  var pageTitleEl = document.getElementById('barTitle');
   var langButtons = document.querySelectorAll('#langSeg button');
   var hintKey = 'hint'; // какая строка сейчас в подсказке внизу
 
-  // hy: заголовки — карандашные картинки (нет рукописного армянского шрифта); остальное — обычный текст
-  var HY_IMG = { panelTitle: 'hy/title.svg', title: 'hy/title-year.svg' };
-  function setI18n(el, key) {
-    var str = CONFIG.UI_I18N[key][currentLang];
-    if (currentLang === 'hy' && HY_IMG[key]) {
-      el.textContent = '';
-      var img = document.createElement('img');
-      img.className = 'hy-img'; img.src = HY_IMG[key]; img.alt = str; img.draggable = false;
-      el.appendChild(img);
-    } else {
-      el.textContent = str;
-    }
-  }
+  function setI18n(el, key) { el.textContent = CONFIG.UI_I18N[key][currentLang]; }
 
   var wl = null;   // приветствие + загрузка (компонент test-assets/welcome-loader.js) — создаётся ниже, сразу
   function applyLang() {
     var t = CONFIG.UI_I18N;
     setI18n(pageTitleEl, 'title');
-    backLinkText.textContent = t.back[currentLang];
+    document.getElementById('homeBtn').setAttribute('aria-label', t.home[currentLang]);
     hint.textContent = t[hintKey][currentLang];
     document.querySelectorAll('[data-i18n]').forEach(function (el) {
       var key = el.getAttribute('data-i18n');
@@ -898,24 +860,19 @@ var CONFIG = {
   // ---------- приветствие и загрузка: появляется сразу, держится, пока всё не загрузится (минимум 2 с) ----------
   var isTouchDevice = window.matchMedia ? window.matchMedia('(pointer: coarse)').matches
     : (('ontouchstart' in window) || (navigator.maxTouchPoints > 0));
-  wl = WelcomeLoader.create({
-    parent: stage, lang: currentLang, minMs: 2000,
-    autoHide: !isTouchDevice, autoHideMs: 3000,     // ПК: само пропадает через 3 с после «коснись»; телефон ждёт касания
-    text: function (k, l) { return CONFIG.UI_I18N[k][l]; },
-    images: { hy: { welcome: 'hy/welcome.svg', welcomeTap: 'hy/welcome-tap.svg' } },
-    letters: window.WL_LETTERS || [],
-    onTap: function () {
-      // iOS даёт запрос на наклон только из обработчика касания — вызываем requestPermission прямо здесь.
-      if (needsPermission && isTouchDevice) {
-        DeviceOrientationEvent.requestPermission().then(function (state) {
-          if (state === 'granted') startGyro(); // отказ — остаётся управление пальцем
-        }).catch(function (err) { console.warn('Гироскоп: разрешение не выдано —', err && err.message); });
-      } else if (hasOrientation && isTouchDevice && window.isSecureContext === false) {
-        console.warn('Гироскоп недоступен: страница открыта не по https (небезопасный контекст).');
-        setHint('gyroNeedsHttps');
-      }
+  wl = window.__wl;
+  wl.attach(stage);   // с этого момента приветствие только поверх картинки, панель видна
+  window.__wlTap = function () {
+    // iOS даёт запрос на наклон только из обработчика касания — вызываем requestPermission прямо здесь.
+    if (needsPermission && isTouchDevice) {
+      DeviceOrientationEvent.requestPermission().then(function (state) {
+        if (state === 'granted') startGyro(); // отказ — остаётся управление пальцем
+      }).catch(function (err) { console.warn('Гироскоп: разрешение не выдано —', err && err.message); });
+    } else if (hasOrientation && isTouchDevice && window.isSecureContext === false) {
+      console.warn('Гироскоп недоступен: страница открыта не по https (небезопасный контекст).');
+      setHint('gyroNeedsHttps');
     }
-  });
+  };
 
   // ---------- WebGL (если нет — остаётся двухслойный DOM-вариант) ----------
   var wantGL = !/[?&]nogl=1/.test(location.search); // ?nogl=1 — принудительно проверить откат
@@ -945,17 +902,18 @@ var CONFIG = {
     '}'
   ].join('\n');
 
+  // Ночные кадры (v10) — картинки, а не процедурная ночь: на кадр две текстуры (ночная «земля» и ночная башня),
+  // всего 12 текстурных юнитов. Если видеокарта даёт меньше — ночные картинки не используются (откат на ночь v8).
+  var NI = useGL && gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS) >= 12;
   var SCENE_FRAG = [
     'precision highp float;',
     'varying vec2 vUv;',
     // на кадр: земля (0), карта глубины+окружения (1), здание (2), окна (3)
     'uniform sampler2D uBgA; uniform sampler2D uDepthA; uniform sampler2D uBldA; uniform sampler2D uEmA;',
     'uniform sampler2D uBgB; uniform sampler2D uDepthB; uniform sampler2D uBldB; uniform sampler2D uEmB;',
-    // огни ночного города (юниты 8 и 9): R тёплый, G холодный, B мерцание, A задержка включения
-    'uniform sampler2D uCityA; uniform sampler2D uCityB;',
-    'uniform vec2  uHoriz;',       // линия горизонта кадров A/B (доля высоты картинки) — для отсвета города
-    'uniform float uNightLights;', // 0..1: огни зажигаются по одному со второй половины перехода
-    'uniform float uCityOn;',      // 1 — видеокарта умеет 10 текстур (иначе город не рисуем)
+    NI ? 'uniform sampler2D uNGA; uniform sampler2D uNBA; uniform sampler2D uNGB; uniform sampler2D uNBB;' : '',   // ночная земля / ночная башня кадров A и B
+    NI ? 'uniform float uHasNA; uniform float uHasNB;' : '',   // 1 — у кадра есть ночная картинка
+    NI ? 'uniform float uNightMix;' : '',                        // 0..1: дневной кадр растворяется в ночной (3 с)
     'uniform vec2  uKdA;',        // здание кадра A: x = k (-1..1), y = средняя глубина 0..1
     'uniform vec2  uKdB;',
     'uniform vec2  uStarQ;',      // доля ячеек со звездой для кадров A/B (зависит от площади неба)
@@ -1001,7 +959,7 @@ var CONFIG = {
     '}',
     '',
     // Готовый цвет пикселя одного кадра: параллакс, ветер, закат, ночь.
-    'vec3 shadeFrame(sampler2D bg, sampler2D depth, sampler2D bld, sampler2D em, sampler2D city, vec2 kd, float starQ, float horiz, vec2 uv, vec2 sc) {',
+    'vec3 shadeFrame(sampler2D bg, sampler2D depth, sampler2D bld, sampler2D em, vec2 kd, float starQ,' + (NI ? ' sampler2D ng, sampler2D nb, float hasN,' : '') + ' vec2 uv, vec2 sc) {',
     // фон и земля: у каждого пикселя свой сдвиг (3 итерации против «резины» на краях)
     '  vec2 p = uv;',
     '  for (int i = 0; i < 3; i++) {',
@@ -1038,9 +996,12 @@ var CONFIG = {
     '    warm += vec3(1.0, 0.74, 0.44) * winBase * 0.22;',
     '    c = mix(c, warm, uSunset);',
     '  }',
-    // ---- ночь: вся сцена тёмно-синяя (30–35%), небо темнее земли, огни, звёзды ----
+    // ---- ночной кадр-картинка: дневной кадр плавно растворяется в ночной (земля — в координатах фона, башня — в своих) ----
+    NI ? '  float hasNv = hasN;' : '  float hasNv = 0.0;',
+    NI ? '  if (hasNv > 0.5) c = mix(c, texture2D(nb, pb).rgb + texture2D(ng, pc).rgb * inv, uNightMix);' : '',
+    // ---- ночь: без картинки вся сцена тёмно-синяя (30–35%), небо темнее земли, огни; звёзды — поверх всегда ----
     '  if (uNightSky > 0.001 || uNightGnd > 0.001 || uStars > 0.001) {',
-    '    vec3 nc = mix(mix(c, c * vec3(0.30, 0.38, 0.60) + vec3(0.010, 0.016, 0.034), uNightGnd), mix(c, c * vec3(0.14, 0.20, 0.40), uNightSky), sky);',
+    '    vec3 nc = hasNv > 0.5 ? c : mix(mix(c, c * vec3(0.27, 0.34, 0.56), uNightGnd), mix(c, c * vec3(0.14, 0.20, 0.40), uNightSky), sky);',
     '    float star = 0.0;',
     '    if (sky > 0.02 && starQ > 0.0) {',
     '      vec2 g = pc * vec2(32.0, 57.0);',
@@ -1064,17 +1025,6 @@ var CONFIG = {
     '    }',
     '    nc += vec3(0.86, 0.92, 1.0) * star * sky * uStars;',
     '    nc += vec3(1.0, 0.80, 0.42) * winNight * 1.05 + vec3(1.0, 0.70, 0.30) * winNight * winNight * 0.25;',
-    // отсвет города: небо у горизонта чуть светлее и теплее, вверх уходит в тёмно-синий
-    '    float hzd = horiz - pc.y;',
-    '    nc += vec3(1.0, 0.60, 0.28) * exp(-max(hzd, 0.0) * 9.0) * step(-0.03, hzd) * ' + CONFIG.CITY_GLOW.toFixed(3) + ' * sky * uNightSky;',
-    // россыпь огней окон: тёплые жёлтые и немного холодных белых, разной яркости; часть мерцает очень медленно
-    '    if (uCityOn > 0.5) {',
-    '      vec4 cl = texture2D(city, pc);',
-    '      float cg = clamp((uNightLights - cl.a * 0.88) / 0.12, 0.0, 1.0);',
-    '      float tw = 1.0;',
-    '      if (cl.b > 0.004) tw = 1.0 - ' + (CONFIG.CITY_TWINKLE * 0.5).toFixed(3) + ' + ' + (CONFIG.CITY_TWINKLE * 0.5).toFixed(3) + ' * sin(uTime * 6.2832 / (9.0 + 9.0 * fract(cl.b * 13.7)) + cl.b * 43.98);',
-    '      nc += (vec3(1.0, 0.70, 0.34) * cl.r + vec3(0.78, 0.86, 1.0) * cl.g * 0.8) * cg * tw * inv * 1.5;',
-    '    }',
     '    c = nc;',
     '  }',
     '  return c;',
@@ -1084,10 +1034,10 @@ var CONFIG = {
     '  vec2 uv = vUv * uCoverScale + uCoverOffset;',
     '  uv = 0.5 + (uv - 0.5) / uScale;',
     '  vec2 uvA = 0.5 + (uv - 0.5) / uFadeZoom.x;',
-    '  vec3 c = shadeFrame(uBgA, uDepthA, uBldA, uEmA, uCityA, uKdA, uStarQ.x, uHoriz.x, uvA, vUv);',
+    '  vec3 c = shadeFrame(uBgA, uDepthA, uBldA, uEmA, uKdA, uStarQ.x, ' + (NI ? 'uNGA, uNBA, uHasNA, ' : '') + 'uvA, vUv);',
     '  if (uMix > 0.0) {',
     '    vec2 uvB = 0.5 + (uv - 0.5) / uFadeZoom.y;',
-    '    c = mix(c, shadeFrame(uBgB, uDepthB, uBldB, uEmB, uCityB, uKdB, uStarQ.y, uHoriz.y, uvB, vUv), uMix);',
+    '    c = mix(c, shadeFrame(uBgB, uDepthB, uBldB, uEmB, uKdB, uStarQ.y, ' + (NI ? 'uNGB, uNBB, uHasNB, ' : '') + 'uvB, vUv), uMix);',
     '  }',
     '  float shadow = cloudShadow(uv, uCloudT);',
     '  c *= (1.0 - 0.12 * shadow * (1.0 - uNightGnd));',
@@ -1105,7 +1055,6 @@ var CONFIG = {
     'uniform float uAspect;',
     'uniform vec3 uLampH[16];', // ореол у лампы: x,y (текстурные координаты), z = яркость
     'uniform vec3 uLampB[16];', // пятно света на земле под лампой
-    'uniform vec3 uCar[4];',    // огоньки машин на дальней дороге: x,y (текстурные координаты), z = яркость
     'float lum(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }',
     'void main() {',
     '  vec3 c = texture2D(uScene, vTc).rgb;',
@@ -1123,14 +1072,6 @@ var CONFIG = {
     '    c = mix(c, dk, uSunset);',
     '  }',
     '  if (uNight > 0.001) {',
-    '    for (int i = 0; i < 4; i++) {',
-    '      vec3 cr = uCar[i];',
-    '      if (cr.z > 0.001) {',
-    '        vec2 dc = (vTc - cr.xy) * vec2(uAspect, 1.0);',
-    '        float q2 = dot(dc, dc);',
-    '        c += vec3(1.0, 0.90, 0.68) * (exp(-q2 / 0.0000045) * 0.9 + exp(-q2 / 0.00009) * 0.16) * cr.z;',
-    '      }',
-    '    }',
     '    for (int i = 0; i < 16; i++) {',
     '      vec3 lh = uLampH[i];',
     '      if (lh.z > 0.001) {',
@@ -1183,16 +1124,14 @@ var CONFIG = {
 
     scenePrg = makeProgram(SCENE_FRAG, ['uBgA', 'uDepthA', 'uBldA', 'uEmA', 'uBgB', 'uDepthB', 'uBldB', 'uEmB',
       'uKdA', 'uKdB', 'uStarQ', 'uMix', 'uShift', 'uZoom', 'uScale', 'uCoverScale', 'uCoverOffset', 'uTime', 'uCloudT',
-      'uSunset', 'uNightSky', 'uNightGnd', 'uStars', 'uFadeZoom', 'uAspect', 'uWindAmp', 'uWindOn', 'uCellPx', 'uShoot', 'uShootP',
-      'uCityA', 'uCityB', 'uHoriz', 'uNightLights', 'uCityOn'], US);
+      'uSunset', 'uNightSky', 'uNightGnd', 'uStars', 'uFadeZoom', 'uAspect', 'uWindAmp', 'uWindOn', 'uCellPx', 'uShoot', 'uShootP'].concat(NI ? ['uNGA', 'uNBA', 'uNGB', 'uNBB', 'uHasNA', 'uHasNB', 'uNightMix'] : []), US);
     // юниты: A = 0..3 (земля, глубина+окружение, здание, окна), B = 4..7. Сами текстуры
     // подставляются при отрисовке — подгрузки во время показа нет.
     ['uBgA', 'uDepthA', 'uBldA', 'uEmA', 'uBgB', 'uDepthB', 'uBldB', 'uEmB'].forEach(function (n, i) { gl.uniform1i(US[n], i); });
-    gl.uniform1i(US.uCityA, 8); gl.uniform1i(US.uCityB, 9);
-    gl.uniform1f(US.uCityOn, 1);
+    if (NI) { gl.uniform1i(US.uNGA, 8); gl.uniform1i(US.uNBA, 9); gl.uniform1i(US.uNGB, 10); gl.uniform1i(US.uNBB, 11); }
     gl.uniform1f(US.uScale, CONFIG.BASE_SCALE);
 
-    postPrg = makeProgram(POST_FRAG, ['uScene', 'uSunset', 'uNight', 'uAspect', 'uLampH', 'uLampB', 'uCar'], UP);
+    postPrg = makeProgram(POST_FRAG, ['uScene', 'uSunset', 'uNight', 'uAspect', 'uLampH', 'uLampB'], UP);
     gl.uniform1i(UP.uScene, 0);
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
     fbo = null; sceneTex = null; fboW = 0; fboH = 0;
@@ -1228,8 +1167,14 @@ var CONFIG = {
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
     f.emTex = makeTexture(gl.LINEAR);      // окна: R/G свет ночью (башня/другие здания), B/A сами маски
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, f.ew, f.eh, 0, gl.RGBA, gl.UNSIGNED_BYTE, f.emis);
-    f.cityTex = makeTexture(gl.LINEAR);    // огни ночного города: R тёплый, G холодный, B мерцание, A задержка
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, f.ew, f.eh, 0, gl.RGBA, gl.UNSIGNED_BYTE, f.city);
+    if (NI && f.night) {                   // ночной кадр: земля (с подложкой на месте башни) и башня (по маске дневной башни)
+      f.nightGTex = makeTexture(gl.LINEAR);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, f.night.ground);
+      f.nightBTex = makeTexture(gl.LINEAR);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, f.night.bld);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    }
   }
 
   function uploadEm(f) {
@@ -1246,8 +1191,11 @@ var CONFIG = {
       gl.activeTexture(gl.TEXTURE0 + unit0 + i);
       gl.bindTexture(gl.TEXTURE_2D, t[i]);
     }
-    gl.activeTexture(gl.TEXTURE0 + (unit0 ? 9 : 8));   // огни города: юниты 8 (кадр A) и 9 (кадр B)
-    gl.bindTexture(gl.TEXTURE_2D, f.cityTex);
+    if (NI) {   // ночные текстуры: юниты 8, 9 (кадр A) и 10, 11 (кадр B); без ночной картинки — заглушка
+      var nu = unit0 ? 10 : 8;
+      gl.activeTexture(gl.TEXTURE0 + nu); gl.bindTexture(gl.TEXTURE_2D, f.nightGTex || f.bgTex);
+      gl.activeTexture(gl.TEXTURE0 + nu + 1); gl.bindTexture(gl.TEXTURE_2D, f.nightBTex || f.bldTex);
+    }
   }
 
   function ensureFbo(w, h) {
@@ -1277,8 +1225,7 @@ var CONFIG = {
     gl.uniform2f(US.uKdA, fa.kB, fa.dB);
     if (fb) gl.uniform2f(US.uKdB, fb.kB, fb.dB);
     gl.uniform2f(US.uStarQ, fa.starQ, fb ? fb.starQ : 0);
-    gl.uniform2f(US.uHoriz, fa.horiz, fb ? fb.horiz : 0);
-    gl.uniform1f(US.uNightLights, tod.lights);
+    if (NI) { gl.uniform1f(US.uHasNA, fa.night ? 1 : 0); gl.uniform1f(US.uHasNB, fb && fb.night ? 1 : 0); gl.uniform1f(US.uNightMix, tod.night); }
     gl.uniform2f(US.uShift, shiftX, shiftY);
     gl.uniform1f(US.uZoom, zoom);
     gl.uniform1f(US.uMix, mix);
@@ -1308,12 +1255,11 @@ var CONFIG = {
     gl.uniform1f(UP.uAspect, aspect);
     gl.uniform3fv(UP.uLampH, fx.lampH);
     gl.uniform3fv(UP.uLampB, fx.lampB);
-    gl.uniform3fv(UP.uCar, fx.car);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
   var glLost = false;
-  var tod = { p: 0, s: 0, sky: 0, gnd: 0, stars: 0, lights: 0 }; // время суток; p: 0 день, 1 закат, 2.17 ночь
+  var tod = { p: 0, s: 0, sky: 0, gnd: 0, stars: 0, lights: 0, night: 0 }; // время суток; p: 0 день, 1 закат, 2.17 ночь
   if (useGL) {
     try { initGLProgram(); } catch (err) { console.warn('WebGL shader failed, fallback:', err); useGL = false; canvas.style.display = 'none'; }
     canvas.addEventListener('webglcontextlost', function (e) { e.preventDefault(); glLost = true; });
@@ -1515,6 +1461,52 @@ var CONFIG = {
     return { src: c, ground: G.cv, win: { w: w, h: h, d: win }, meanD: meanD };
   }
 
+  // Ночной кадр (картинка от Nano Banana, уже приведена к размеру кадра tools/gemini_intake.py).
+  // Получаем две «ночные» текстуры в той же системе, что и день: земля — ночной кадр, где на месте башни лежит
+  // дневная подложка, затемнённая под ночь (по кольцу вокруг башни), и башня — ночные пиксели по маске дневной башни.
+  function prepareNight(nightImg, bld, dayImg, bgImg) {
+    var w = bld.src.width, h = bld.src.height, n = w * h, i;
+    function pixelsOf(im) {
+      var cc = document.createElement('canvas');
+      cc.width = w; cc.height = h;
+      var x2 = cc.getContext('2d', { willReadFrequently: true });
+      x2.drawImage(im, 0, 0, w, h);
+      return { cv: cc, ctx: x2, id: x2.getImageData(0, 0, w, h) };
+    }
+    var N = pixelsOf(nightImg), D = pixelsOf(dayImg).id.data, P = pixelsOf(bgImg).id.data, np = N.id.data;
+    var A = bld.src.getContext('2d').getImageData(0, 0, w, h).data;
+    var alpha = new Uint8Array(n);
+    for (i = 0; i < n; i++) alpha[i] = A[i * 4 + 3];
+    // 1) во сколько раз ночь темнее дня по кольцу вокруг башни (яркие горящие окна не считаем)
+    var near = alpha.slice(), far = alpha.slice();
+    boxBlur(near, w, h, 8); boxBlur(far, w, h, 26);
+    var sn = [0, 0, 0], sd = [0, 0, 0], k;
+    for (i = 0; i < n; i++) {
+      if (!(far[i] > 0 && near[i] === 0)) continue;
+      var lum = 0.299 * np[i * 4] + 0.587 * np[i * 4 + 1] + 0.114 * np[i * 4 + 2];
+      if (lum > 190) continue;
+      for (k = 0; k < 3; k++) { sn[k] += np[i * 4 + k]; sd[k] += D[i * 4 + k]; }
+    }
+    var ratio = [0, 1, 2].map(function (q) { return sd[q] > 0 ? clamp(sn[q] / sd[q], 0.05, 1.2) : 0.3; });
+    // 2) земля: ночь, а на месте башни — подложка × ratio
+    var hole = alpha.slice();
+    boxBlur(hole, w, h, 3);
+    for (i = 0; i < n; i++) {
+      var ha = Math.min(255, hole[i] * 3) / 255;
+      if (ha <= 0) continue;
+      for (k = 0; k < 3; k++) np[i * 4 + k] = np[i * 4 + k] * (1 - ha) + P[i * 4 + k] * ratio[k] * ha;
+    }
+    N.ctx.putImageData(N.id, 0, 0);
+    // 3) башня: ночные пиксели по маске дневной башни
+    var T = document.createElement('canvas');
+    T.width = w; T.height = h;
+    var tc = T.getContext('2d', { willReadFrequently: true });
+    var nd = pixelsOf(nightImg).id, tp = nd.data;
+    for (i = 0; i < n; i++) tp[i * 4 + 3] = alpha[i];
+    tc.putImageData(nd, 0, 0);
+    return { ground: N.cv, bld: T };
+  }
+
   function makeThumb(img) {
     var c = document.createElement('canvas'), w = 180, h = Math.round(w * img.naturalHeight / img.naturalWidth);
     c.width = w; c.height = h;
@@ -1654,90 +1646,7 @@ var CONFIG = {
         });
       });
     });
-    var city = buildCity(CITY[frameIdx] || [], gd, ew, eh, frameIdx);
-    return { gpuDepth: gd, ew: ew, eh: eh, emis: emis, wins: wins, skyFrac: skyFrac, starQ: starQ, dirty: false, city: city.data, horiz: findHorizon(gd, ew, eh) };
-  }
-
-  // ---------- огни ночного города ----------
-  // Из зон CONFIG.CITY собираем текстуру огней кадра (вдвое мельче кадра, как окна): R — тёплый, G — холодный,
-  // B — признак и фаза очень медленного мерцания, A — когда зажигается (по одному со второй половины перехода).
-  // Огни лежат в той же системе координат, что и фон, поэтому двигаются вместе с ним при параллаксе.
-  function inPoly(u, v, poly) {
-    var c = false;
-    for (var a = 0, b = poly.length - 1; a < poly.length; b = a++) {
-      if ((poly[a][1] > v) !== (poly[b][1] > v) && u < (poly[b][0] - poly[a][0]) * (v - poly[a][1]) / (poly[b][1] - poly[a][1]) + poly[a][0]) c = !c;
-    }
-    return c;
-  }
-  function gauss(R) { return (R() + R() + R() - 1.5) / 1.5; }   // примерно от -1 до 1, сгущается к центру
-
-  function buildCity(zones, gd, ew, eh, frameIdx) {
-    var data = new Uint8Array(ew * eh * 4), total = 0;
-    var R = rng(7000 + frameIdx * 131);
-    function put(x, y, warmI, coolI, tw, dl) {
-      var o = (y * ew + x) * 4;
-      if (warmI > data[o]) data[o] = warmI;
-      if (coolI > data[o + 1]) data[o + 1] = coolI;
-      if (!data[o + 2]) data[o + 2] = tw;
-      data[o + 3] = dl;
-    }
-    zones.forEach(function (z, zi) {
-      var b = z.box || [0, 0, 1, 1];
-      if (z.poly) {
-        var us = z.poly.map(function (q) { return q[0]; }), vs = z.poly.map(function (q) { return q[1]; });
-        b = [Math.min.apply(null, us), Math.min.apply(null, vs), Math.max.apply(null, us), Math.max.apply(null, vs)];
-      }
-      var groups = Math.max(1, z.groups || 1), per = Math.ceil(z.n / groups);
-      var dmin = z.dmin == null ? 0 : z.dmin, dmax = z.dmax == null ? 1 : z.dmax;
-      var warmShare = z.warm == null ? 1 - CONFIG.CITY_COOL : z.warm;
-      var sdU = (b[2] - b[0]) * (z.sdU || 0.10) + 0.006, sdV = (b[3] - b[1]) * (z.sdV || 0.10) + 0.003;   // разброс внутри кучки: ряды окон шире, чем выше
-      var placed = 0;
-      for (var g = 0; g < groups && placed < z.n; g++) {
-        var cu = b[0] + (b[2] - b[0]) * R(), cv = b[1] + (b[3] - b[1]) * R();
-        for (var k = 0; k < per && placed < z.n; k++) {
-          for (var tries = 0; tries < 12; tries++) {
-            var u = cu + gauss(R) * sdU * 2, v = cv + gauss(R) * sdV * 2;
-            if (u < b[0] || u > b[2] || v < b[1] || v > b[3]) continue;
-            if (z.poly && !inPoly(u, v, z.poly)) continue;
-            var x = clamp(Math.round(u * (ew - 1)), 0, ew - 1), y = clamp(Math.round(v * (eh - 1)), 0, eh - 1);
-            var o = (y * ew + x) * 4, d = gd[o] / 255;
-            if (gd[o + 1] > 127 || gd[o + 3] > 0 || d < dmin || d > dmax) continue;   // не небо, не дерево (у дерева есть фаза), из нужной глубины
-            if (gd[(y * ew + Math.min(ew - 1, x + 3)) * 4 + 3] > 0 || gd[(y * ew + Math.max(0, x - 3)) * 4 + 3] > 0 ||
-                gd[(Math.min(eh - 1, y + 3) * ew + x) * 4 + 3] > 0 || gd[(Math.max(0, y - 3) * ew + x) * 4 + 3] > 0) continue;   // и не у самой кроны
-            var I = R() < 0.22 ? 0.3 + 0.18 * R() : 0.62 + 0.38 * R();                  // часть огней тусклая, «как за шторой»
-            var warm = R() < warmShare;
-            var tw = R() < 0.22 ? 1 + ((R() * 254) | 0) : 0;
-            var dl = (R() * 255) | 0, val = (I * 255) | 0;
-            var x1 = x, y1 = y;                                                        // сам огонёк: дальше — мельче (1×1), ближе — крупнее (2×1, 2×2)
-            if (d > 0.22) x1 = Math.min(ew - 1, x + 1);
-            if (d > 0.5) y1 = Math.min(eh - 1, y + 1);
-            for (var yy = y - 1; yy <= y1 + 1; yy++) for (var xx = x - 1; xx <= x1 + 1; xx++) {
-              if (xx < 0 || yy < 0 || xx >= ew || yy >= eh) continue;
-              var core = xx >= x && xx <= x1 && yy >= y && yy <= y1;
-              var edge = (xx < x || xx > x1) && (yy < y || yy > y1);                    // угол ореола слабее
-              var val2 = core ? val : (edge ? 0 : (val * 0.2) | 0);                       // лёгкий ореол в 1 тексель вокруг (по сторонам)
-              put(xx, yy, warm ? val2 : 0, warm ? 0 : val2, tw, dl);
-            }
-            placed++; total++;
-            break;
-          }
-        }
-      }
-      if (/[?&]citydebug=1/.test(location.search)) console.info('city кадр ' + frameIdx + ' зона ' + zi + ': ' + placed + ' из ' + z.n);
-    });
-    return { data: data, count: total };
-  }
-
-  // Линия горизонта: где кончается небо (медиана по столбцам, где неба достаточно), доля высоты картинки.
-  function findHorizon(gd, ew, eh) {
-    var ys = [], x, y;
-    for (x = 0; x < ew; x += 2) {
-      for (y = 0; y < eh && gd[(y * ew + x) * 4 + 1] > 127; y++) {}
-      if (y > eh * 0.15) ys.push(y);
-    }
-    if (!ys.length) return 0.4;
-    ys.sort(function (a, b) { return a - b; });
-    return ys[Math.floor(ys.length * 0.7)] / eh;   // 70-й процент: столбцы, закрытые башней, не считаются
+    return { gpuDepth: gd, ew: ew, eh: eh, emis: emis, wins: wins, skyFrac: skyFrac, starQ: starQ, dirty: false };
   }
 
   // Свет окон на текущий момент: ночь (0..1) со сдвигом по окнам, свои включения/выключения.
@@ -1772,8 +1681,10 @@ var CONFIG = {
 
   function preloadFrame(i) {
     var f = FRAMES[i];
+    // ночной кадр необязателен: нет файла или сбой — у кадра остаётся ночь v8
+    var nightP = (NI && f.night) ? loadImage(f.night, 1).catch(function () { return null; }) : Promise.resolve(null);
     return Promise.all([loadImage(f.color), loadImage(f.depth), loadImage(f.bg.color), loadImage(f.building.color),
-                        loadImage(f.env), loadImage(f.win2)]).then(function (imgs) {
+                        loadImage(f.env), loadImage(f.win2), nightP]).then(function (imgs) {
       var fitBg = fitToCap(imgs[2]);
       var depth = prepareDepth(imgs[1]);
       var bld = analyzeBuilding(imgs[3], depth, imgs[0], imgs[2]);
@@ -1783,14 +1694,8 @@ var CONFIG = {
         dB: bld.meanD, kB: bld.meanD * 2 - 1,
         bgSrc: bld.ground, bldSrc: bld.src,
         gpuDepth: env.gpuDepth, ew: env.ew, eh: env.eh, emis: env.emis, wins: env.wins,
-        skyFrac: env.skyFrac, starQ: env.starQ, emDirty: false, lamps: [], city: env.city, horiz: env.horiz, cars: []
+        skyFrac: env.skyFrac, starQ: env.starQ, emDirty: false, lamps: []
       };
-      (ROADS[i] || []).forEach(function (road, j) {   // огоньки машин: 2 на дорогу, едут навстречу друг другу
-        for (var c = 0; c < 2; c++) {
-          var Rc = rng(900 + i * 17 + j * 5 + c);
-          entry.cars.push({ road: road, dir: c ? -1 : 1, off: Rc(), per: rand(Rc, CONFIG.CAR_S[0], CONFIG.CAR_S[1]), delay: 0.45 + 0.4 * Rc() });
-        }
-      });
       (LAMPS[i] || []).forEach(function (l, j) { // фонари: координаты — из CONFIG.LAMPS (найдены по кадрам глазами)
         var R = rng(500 + i * 31 + j);
         entry.lamps.push({
@@ -1799,7 +1704,20 @@ var CONFIG = {
           phase: R() * 6.2832, period: rand(R, CONFIG.LAMP_PERIOD_S[0], CONFIG.LAMP_PERIOD_S[1]), delay: R() * 0.88
         });
       });
-      if (useGL) { uploadFrame(entry); entry.bgSrc = null; entry.bldSrc = null; }
+      if (imgs[6]) {                        // ночная картинка: свои ночные текстуры, без процедурных окон; фонари — с картинки
+        entry.night = prepareNight(imgs[6], bld, imgs[0], imgs[2]);
+        entry.wins = [];
+        var nl = (CONFIG.NIGHT_LAMPS[i] || []);
+        if (nl.length) {
+          entry.lamps = [];
+          nl.forEach(function (l, j) {
+            var R = rng(500 + i * 31 + j);
+            entry.lamps.push({ hu: l[0], hv: l[1], bu: l[2], bv: l[3], hd: depthAtMap(depth, l[0], l[1]), bd: depthAtMap(depth, l[2], l[3]),
+              phase: R() * 6.2832, period: rand(R, CONFIG.LAMP_PERIOD_S[0], CONFIG.LAMP_PERIOD_S[1]), delay: R() * 0.88 });
+          });
+        }
+      }
+      if (useGL) { uploadFrame(entry); entry.bgSrc = null; entry.bldSrc = null; if (entry.night) entry.night = { ground: null, bld: null, on: true }; }
       else entry.layers = { bg: bld.ground, building: bld.src };
       store[i] = entry;
     });
@@ -2099,7 +2017,7 @@ var CONFIG = {
   var fx = {
     windAmp: 0, windOn: true, zoomA: 1, zoomB: 1,
     shoot: [0, 0, 0, 0], shootP: -1, shootLen: 0.3,
-    lampH: new Float32Array(48), lampB: new Float32Array(48), car: new Float32Array(12)
+    lampH: new Float32Array(48), lampB: new Float32Array(48)
   };
   var perfLevel = 0;                 // 0 — всё; 1 — ветер выключен; 2 — ещё и падающие звёзды
   var perfOn = !/[?&]perf=0/.test(location.search);
@@ -2134,35 +2052,6 @@ var CONFIG = {
     add(fa, fb ? 1 - mix : 1);
     add(fb, mix);
     for (; n < 16; n++) { H[n * 3 + 2] = 0; B[n * 3 + 2] = 0; }
-  }
-
-  // Огоньки машин на дальней дороге (если она есть на кадре): крошечные, едут медленно, зажигаются вместе с фонарями.
-  function fillCars(fa, fb, mix, sx, sy, zoom, tAmb) {
-    var C = fx.car, n = 0;
-    function add(f, wgt) {
-      if (!f || wgt <= 0.001) return;
-      f.cars.forEach(function (c) {
-        if (n >= 4) return;
-        var road = c.road, seg = [], tot = 0, i;
-        for (i = 1; i < road.length; i++) {
-          var l = Math.hypot(road[i][0] - road[i - 1][0], road[i][1] - road[i - 1][1]);
-          seg.push(l); tot += l;
-        }
-        var p = (tAmb / c.per + c.off) % 1; if (c.dir < 0) p = 1 - p;
-        var at = p * tot, q = 0;
-        for (i = 0; i < seg.length - 1 && at > q + seg[i]; i++) q += seg[i];
-        var a = road[i], b = road[i + 1], f01 = seg[i] ? clamp((at - q) / seg[i], 0, 1) : 0;
-        var u = a[0] + (b[0] - a[0]) * f01, v = a[1] + (b[1] - a[1]) * f01;
-        var d = depthAtMap(f.depth, u, v), pr = projectImg(u, v, d, d * 2 - 1, sx, sy, zoom);
-        var edge = Math.min(p, 1 - p) < 0.05 ? Math.min(p, 1 - p) / 0.05 : 1;      // на концах дороги огонёк плавно появляется и гаснет
-        C[n * 3] = pr[0]; C[n * 3 + 1] = 1 - pr[1];
-        C[n * 3 + 2] = clamp((tod.lights - c.delay) / 0.12, 0, 1) * edge * 0.85 * wgt;
-        n++;
-      });
-    }
-    add(fa, fb ? 1 - mix : 1);
-    add(fb, mix);
-    for (; n < 4; n++) C[n * 3 + 2] = 0;
   }
 
   // Окна, раз в 8–12 с одно случайное окно плавно зажигается/гаснет (1.5 с); падающие звёзды раз в 40–60 с.
@@ -2302,7 +2191,6 @@ var CONFIG = {
       fx.windAmp = CONFIG.WIND_AMP_PX * (coverUvW / CONFIG.BASE_SCALE) / Math.max(1, stage.clientWidth);
       stepNightFx(fa, fb, now);
       fillLamps(fa, fb, mixState, shiftX, shiftY, zoom, tAmb);
-      fillCars(fa, fb, mixState, shiftX, shiftY, zoom, tAmb);
       stage.classList.toggle('is-night', tod.sky > 0.5);
       perfCheck(now, !!(fade || todAnim));
       lastDraw = { fa: fa, fb: fb, mix: mixState, shiftX: shiftX, shiftY: shiftY, zoom: zoom, t: t, tAmb: tAmb };
@@ -2371,6 +2259,7 @@ var CONFIG = {
     tod.gnd = q > 0 ? sstep(0.3, 0.9, q) : 0;             // потом земля
     tod.lights = clamp((p - 1.5) / 0.667, 0, 1);          // с середины перехода, в течение 2 с
     tod.stars = q > 0 ? sstep(0.75, 1.1667, q) : 0;       // звёзды — последними
+    tod.night = q > 0 ? sstep(0.0, 1.1667, q) : 0;        // ночной кадр проявляется все 3 с перехода
   }
   function setTod(name) {
     var p1 = TOD_P[name];
@@ -2444,30 +2333,21 @@ var CONFIG = {
     var x = c.getContext('2d');
     x.drawImage(canvas, 0, 0);
     canvas.width = W0; canvas.height = H0; // следующий кадр цикла перерисует холст
-    // hy: название — карандашная картинка (нет рукописного шрифта), «· chka.am» — рукописным латинским
-    var isHy = currentLang === 'hy';
-    var caption = isHy ? '· chka.am' : CONFIG.UI_I18N.title[currentLang] + ' · chka.am';
-    var ready = (document.fonts && document.fonts.load) ? document.fonts.load('700 40px Caveat', caption).catch(function () {}) : Promise.resolve();
-    var titlePic = isHy ? loadImage(HY_IMG.title).catch(function () { return null; }) : Promise.resolve(null);
-    Promise.all([ready, titlePic]).then(function (rs) {
-      var pic = rs[1];
+    var caption = CONFIG.UI_I18N.title[currentLang] + ' · chka.am';
+    var FONT = '"Kukuruznik Serif", "Noto Serif", Georgia, serif';
+    var ready = (document.fonts && document.fonts.load) ? document.fonts.load('700 40px "Kukuruznik Serif"', caption).catch(function () {}) : Promise.resolve();
+    ready.then(function () {
       var capH = Math.round(H * 0.085), lw = Math.max(2, Math.round(W / 300));
       x.fillStyle = '#f5ecda';
       x.fillRect(0, H - capH, W, capH);
       x.fillStyle = 'rgba(47,42,37,0.75)';
-      x.fillRect(0, H - capH, W, lw); // карандашная черта над подписью
-      var fs = Math.round(capH * 0.6);
-      var ph = capH * 0.78, pw = pic ? ph * pic.naturalWidth / pic.naturalHeight : 0, gap = pic ? capH * 0.25 : 0;
-      x.font = '700 ' + fs + 'px Caveat, "Comic Sans MS", cursive';
-      while (pw + gap + x.measureText(caption).width > W * 0.92 && fs > 10) {
-        fs -= 2; ph *= 0.96; pw *= 0.96; gap *= 0.96;
-        x.font = '700 ' + fs + 'px Caveat, "Comic Sans MS", cursive';
-      }
+      x.fillRect(0, H - capH, W, lw); // черта над подписью
+      var fs = Math.round(capH * 0.5);
+      x.font = '700 ' + fs + 'px ' + FONT;
+      while (x.measureText(caption).width > W * 0.92 && fs > 10) { fs -= 2; x.font = '700 ' + fs + 'px ' + FONT; }
       x.fillStyle = '#2f2a25';
-      x.textAlign = 'left'; x.textBaseline = 'middle';
-      var tw = x.measureText(caption).width, x0 = (W - (pw + gap + tw)) / 2, cy = H - capH / 2 + lw;
-      if (pic) x.drawImage(pic, x0, cy - ph / 2, pw, ph);
-      x.fillText(caption, x0 + pw + gap, cy);
+      x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.fillText(caption, W / 2, H - capH / 2 + lw);
       c.toBlob(function (blob) {
         if (!blob) return;
         var a = document.createElement('a');
