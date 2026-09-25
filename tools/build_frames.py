@@ -212,11 +212,12 @@ def update_config_frames(names):
     lines = []
     for name in names:
         lines.append(
-            "    { color: %r, depth: %r, bg: { color: %r, depth: %r }, building: { color: %r, depth: %r }, env: %r, win2: %r },"
+            "    { color: %r, depth: %r, bg: { color: %r, depth: %r }, building: { color: %r, depth: %r }, env: %r, win2: %r%s },"
             % ('frames/%s.png' % name, 'frames/%s_depth.png' % name,
                'frames/%s_bg.png' % name, 'frames/%s_bg_depth.png' % name,
                'frames/%s_building.png' % name, 'frames/%s_depth.png' % name,
-               'frames/%s_env.png' % name, 'frames/%s_win2.png' % name)
+               'frames/%s_env.png' % name, 'frames/%s_win2.png' % name,
+               (", night: %r" % ('frames/%s_night.png' % name)) if (FRAMES_DIR / ('%s_night.png' % name)).exists() else '')
         )
     body = '\n'.join(lines) + '\n'
     new_html = html[:si_line_end] + body + html[ei_line_start:]

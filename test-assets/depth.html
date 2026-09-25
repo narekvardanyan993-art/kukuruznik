@@ -525,12 +525,12 @@ var CONFIG = {
   // для отката, если у браузера нет WebGL.
   FRAMES: [
     /* FRAMES:START */
-    { color: 'frames/v_angle_0.png', depth: 'frames/v_angle_0_depth.png', bg: { color: 'frames/v_angle_0_bg.png', depth: 'frames/v_angle_0_bg_depth.png' }, building: { color: 'frames/v_angle_0_building.png', depth: 'frames/v_angle_0_depth.png' }, env: 'frames/v_angle_0_env.png', win2: 'frames/v_angle_0_win2.png' },
-    { color: 'frames/v_angle_1.png', depth: 'frames/v_angle_1_depth.png', bg: { color: 'frames/v_angle_1_bg.png', depth: 'frames/v_angle_1_bg_depth.png' }, building: { color: 'frames/v_angle_1_building.png', depth: 'frames/v_angle_1_depth.png' }, env: 'frames/v_angle_1_env.png', win2: 'frames/v_angle_1_win2.png' },
-    { color: 'frames/v_angle_2.png', depth: 'frames/v_angle_2_depth.png', bg: { color: 'frames/v_angle_2_bg.png', depth: 'frames/v_angle_2_bg_depth.png' }, building: { color: 'frames/v_angle_2_building.png', depth: 'frames/v_angle_2_depth.png' }, env: 'frames/v_angle_2_env.png', win2: 'frames/v_angle_2_win2.png' },
-    { color: 'frames/v_angle_3.png', depth: 'frames/v_angle_3_depth.png', bg: { color: 'frames/v_angle_3_bg.png', depth: 'frames/v_angle_3_bg_depth.png' }, building: { color: 'frames/v_angle_3_building.png', depth: 'frames/v_angle_3_depth.png' }, env: 'frames/v_angle_3_env.png', win2: 'frames/v_angle_3_win2.png' },
-    { color: 'frames/v_angle_4.png', depth: 'frames/v_angle_4_depth.png', bg: { color: 'frames/v_angle_4_bg.png', depth: 'frames/v_angle_4_bg_depth.png' }, building: { color: 'frames/v_angle_4_building.png', depth: 'frames/v_angle_4_depth.png' }, env: 'frames/v_angle_4_env.png', win2: 'frames/v_angle_4_win2.png' },
-    { color: 'frames/v_angle_5.png', depth: 'frames/v_angle_5_depth.png', bg: { color: 'frames/v_angle_5_bg.png', depth: 'frames/v_angle_5_bg_depth.png' }, building: { color: 'frames/v_angle_5_building.png', depth: 'frames/v_angle_5_depth.png' }, env: 'frames/v_angle_5_env.png', win2: 'frames/v_angle_5_win2.png' },
+    { color: 'frames/v_angle_0.png', depth: 'frames/v_angle_0_depth.png', bg: { color: 'frames/v_angle_0_bg.png', depth: 'frames/v_angle_0_bg_depth.png' }, building: { color: 'frames/v_angle_0_building.png', depth: 'frames/v_angle_0_depth.png' }, env: 'frames/v_angle_0_env.png', win2: 'frames/v_angle_0_win2.png', night: 'frames/v_angle_0_night.png' },
+    { color: 'frames/v_angle_1.png', depth: 'frames/v_angle_1_depth.png', bg: { color: 'frames/v_angle_1_bg.png', depth: 'frames/v_angle_1_bg_depth.png' }, building: { color: 'frames/v_angle_1_building.png', depth: 'frames/v_angle_1_depth.png' }, env: 'frames/v_angle_1_env.png', win2: 'frames/v_angle_1_win2.png', night: 'frames/v_angle_1_night.png' },
+    { color: 'frames/v_angle_2.png', depth: 'frames/v_angle_2_depth.png', bg: { color: 'frames/v_angle_2_bg.png', depth: 'frames/v_angle_2_bg_depth.png' }, building: { color: 'frames/v_angle_2_building.png', depth: 'frames/v_angle_2_depth.png' }, env: 'frames/v_angle_2_env.png', win2: 'frames/v_angle_2_win2.png', night: 'frames/v_angle_2_night.png' },
+    { color: 'frames/v_angle_3.png', depth: 'frames/v_angle_3_depth.png', bg: { color: 'frames/v_angle_3_bg.png', depth: 'frames/v_angle_3_bg_depth.png' }, building: { color: 'frames/v_angle_3_building.png', depth: 'frames/v_angle_3_depth.png' }, env: 'frames/v_angle_3_env.png', win2: 'frames/v_angle_3_win2.png', night: 'frames/v_angle_3_night.png' },
+    { color: 'frames/v_angle_4.png', depth: 'frames/v_angle_4_depth.png', bg: { color: 'frames/v_angle_4_bg.png', depth: 'frames/v_angle_4_bg_depth.png' }, building: { color: 'frames/v_angle_4_building.png', depth: 'frames/v_angle_4_depth.png' }, env: 'frames/v_angle_4_env.png', win2: 'frames/v_angle_4_win2.png', night: 'frames/v_angle_4_night.png' },
+    { color: 'frames/v_angle_5.png', depth: 'frames/v_angle_5_depth.png', bg: { color: 'frames/v_angle_5_bg.png', depth: 'frames/v_angle_5_bg_depth.png' }, building: { color: 'frames/v_angle_5_building.png', depth: 'frames/v_angle_5_depth.png' }, env: 'frames/v_angle_5_env.png', win2: 'frames/v_angle_5_win2.png', night: 'frames/v_angle_5_night.png' },
     /* FRAMES:END */
   ],
 
@@ -575,8 +575,15 @@ var CONFIG = {
   ],
 
   // Фонари ночных кадров-картинок (v10): ореолы ставим на фонари, нарисованные на ночном кадре. Формат тот же.
-  // Пусто — у кадра нет ночной картинки или на ней нет фонарей (тогда работают LAMPS v8 ниже).
-  NIGHT_LAMPS: [[], [], [], [], [], []],
+  // Найдены по ночным картинкам (головы фонарей и основания столбов). Пусто — на ночной картинке нет фонарей (тогда LAMPS v8).
+  NIGHT_LAMPS: [
+    [[0.854, 0.577, 0.854, 0.608], [0.939, 0.588, 0.939, 0.619], [0.134, 0.773, 0.134, 0.839], [0.951, 0.763, 0.951, 0.828], [0.681, 0.79, 0.681, 0.853]],  // v_angle_0
+    [[0.681, 0.558, 0.681, 0.582], [0.814, 0.577, 0.814, 0.602], [0.189, 0.576, 0.189, 0.597], [0.076, 0.822, 0.076, 0.89], [0.417, 0.845, 0.417, 0.916], [0.635, 0.841, 0.635, 0.908], [0.935, 0.817, 0.935, 0.886]],  // v_angle_1
+    [[0.133, 0.748, 0.133, 0.766], [0.245, 0.793, 0.245, 0.823], [0.229, 0.886, 0.229, 0.916], [0.223, 0.952, 0.223, 0.982], [0.616, 0.935, 0.616, 0.965], [0.585, 0.829, 0.585, 0.859], [0.737, 0.711, 0.737, 0.729], [0.197, 0.63, 0.197, 0.648]],  // v_angle_2
+    [[0.684, 0.548, 0.684, 0.593], [0.215, 0.549, 0.215, 0.59], [0.849, 0.555, 0.849, 0.579], [0.022, 0.569, 0.022, 0.61], [0.749, 0.674, 0.749, 0.736], [0.12, 0.795, 0.12, 0.897], [0.59, 0.769, 0.59, 0.853], [0.879, 0.793, 0.879, 0.897]],  // v_angle_3
+    [[0.302, 0.495, 0.302, 0.531], [0.44, 0.775, 0.44, 0.786], [0.474, 0.811, 0.474, 0.822], [0.609, 0.812, 0.609, 0.823], [0.335, 0.815, 0.335, 0.826], [0.785, 0.797, 0.785, 0.808], [0.921, 0.812, 0.921, 0.823], [0.066, 0.876, 0.066, 0.905]],  // v_angle_4
+    [[0.589, 0.929, 0.589, 0.963], [0.794, 0.925, 0.794, 0.96], [0.742, 0.916, 0.742, 0.94]],  // v_angle_5
+  ],
 
   // Фонари v8 (ночь без картинки, откат): по кадрам, [u, v лампы, u, v основания столба] в долях кадра (768×1365).
   // Найдены по рисунку глазами; на кадрах 0, 1, 3 фонарей в рисунке нет.

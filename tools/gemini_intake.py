@@ -3,6 +3,7 @@
 
   python3 tools/gemini_intake.py plate 0 путь/к/картинке.jpeg     # -> проверка + test-assets/frames/v_angle_0_plate_candidate.png
   python3 tools/gemini_intake.py night 0 путь/к/картинке.jpeg
+  python3 tools/gemini_intake.py finalize 0 1 2 3 4 5    # принятые кандидаты -> _bg.png / _night.png (с выравниванием)
 
 Что делает
   1. Приводит картинку к размеру кадра (768×1365), если пропорции те же (иначе сообщает и обрезает по центру).
@@ -92,5 +93,52 @@ def main():
         return 0
 
 
+def best_shift(day, cand, rng=8):
+    """Целочисленный сдвиг (dx, dy), при котором контуры кандидата лучше всего ложатся на контуры дня."""
+    def edges(a):
+        g = ndimage.gaussian_filter(lum(a), 1.2)
+        e = np.hypot(ndimage.sobel(g, 0), ndimage.sobel(g, 1))
+        return e > np.percentile(e, 92)
+    td, tn = edges(day), ndimage.binary_dilation(edges(cand), iterations=1)
+    best = (-1, 0, 0)
+    for dy in range(-rng, rng + 1):
+        for dx in range(-rng, rng + 1):
+            sh = np.roll(np.roll(tn, dy, 0), dx, 1)
+            sc = (td & sh).sum()
+            if sc > best[0]:
+                best = (sc, dx, dy)
+    return best[1], best[2]
+
+
+def shift_img(a, dx, dy):
+    """Сдвиг с повтором краевых пикселей (без чёрных полос)."""
+    h, w = a.shape[:2]
+    pad = max(abs(dx), abs(dy)) + 1
+    p = np.pad(a, ((pad, pad), (pad, pad), (0, 0)), mode='edge')
+    return p[pad - dy:pad - dy + h, pad - dx:pad - dx + w]
+
+
+def finalize(idx):
+    """Кандидат -> рабочий файл: подложка кладётся как <имя>_bg.png (старая версия — в истории git), ночь — <имя>_night.png.
+    Перед этим кандидат выравнивается по дню (целый сдвиг до ±8 px)."""
+    name = f'v_angle_{idx}'
+    day = np.array(Image.open(FR / f'{name}.png').convert('RGB')).astype(np.float32) / 255
+    for mode, dst in (('plate', f'{name}_bg.png'), ('night', f'{name}_night.png')):
+        cf = FR / f'{name}_{mode}_candidate.png'
+        if not cf.exists():
+            continue
+        cand = np.array(Image.open(cf).convert('RGB')).astype(np.float32) / 255
+        dx, dy = best_shift(day, cand)
+        if dx or dy:
+            cand = shift_img(cand, dx, dy)
+        Image.fromarray((np.clip(cand, 0, 1) * 255).astype(np.uint8)).save(FR / dst, optimize=True)
+        cf.unlink()
+        print(f'{name}: {mode} -> {dst} (сдвиг dx={dx}, dy={dy})')
+
+
 if __name__ == '__main__':
+    if sys.argv[1] == 'finalize':
+        for a in sys.argv[2:]:
+            finalize(int(a))
+        raise SystemExit(0)
     raise SystemExit(main())
