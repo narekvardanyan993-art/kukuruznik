@@ -25,7 +25,7 @@ await page.evaluateOnNewDocument(() => {
   const st = document.createElement('style');
   // только сцена: без меню, стрелок, точек, подсказок и меток
   st.textContent = '*,*::before,*::after{animation:none!important;transition:none!important}' +
-    '#topBar,#hint,#dots,#build-version,.nav-btn,#hotspots,#hsPopup,#panelBtn,#birds,#welcome{display:none!important}';
+    '#bottomBar,#hint,#dots,#build-version,.nav-btn,#hotspots,#hsPopup,#panelBtn,#birds,#welcome{display:none!important}';
   document.addEventListener('DOMContentLoaded', () => document.head.appendChild(st));
 });
 const advance = (ms) => page.evaluate((m) => window.__advance(m), ms);

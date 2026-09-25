@@ -21,7 +21,7 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / 'test-assets'
-BETA_VERSION = 'v9'   # метка сборки в панели: «beta · v9 · <дата>»
+BETA_VERSION = 'v10'   # метка сборки в панели: «beta · v9 · <дата>»
 
 
 def main():
@@ -44,12 +44,12 @@ def main():
     html = re.sub(r"(frames/v_angle_\d(?:_[a-z0-9]+)*)\.png", r"\1.webp", html)
     (beta / 'index.html').write_text(html, encoding='utf-8')
     (beta / 'oldtown-bg.svg').write_text((SRC / 'oldtown-bg.svg').read_text(encoding='utf-8'), encoding='utf-8')  # фон страницы на ПК
-    # карандашные армянские заголовки и компонент приветствия/загрузки (tools/build_hy_titles.py)
-    (beta / 'hy').mkdir(exist_ok=True)
-    for f in sorted((SRC / 'hy').glob('*.svg')):
-        (beta / 'hy' / f.name).write_text(f.read_text(encoding='utf-8'), encoding='utf-8')
+    # компонент приветствия/загрузки (буквы — tools/build_welcome_letters.py) и шрифт Noto Serif (OFL)
     for name in ('welcome-loader.js', 'welcome-letters.js'):
         (beta / name).write_text((SRC / name).read_text(encoding='utf-8'), encoding='utf-8')
+    (beta / 'fonts').mkdir(exist_ok=True)
+    for f in sorted((SRC / 'fonts').iterdir()):
+        (beta / 'fonts' / f.name).write_bytes(f.read_bytes())
 
     used = sorted(set(re.findall(r"frames/(v_angle_\d(?:_[a-z0-9]+)*)\.webp", html)))
     total = 0
