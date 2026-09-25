@@ -59,10 +59,11 @@ def build_beta(main_dir):
     html = re.sub(r"(frames/v_angle_\d(?:_[a-z0-9]+)*)\.png", r"\1.webp", html)
     (beta / 'index.html').write_text(html, encoding='utf-8')
     # фон-стена на ПК (v12): армянские узоры, два варианта (tools/make_wall.py); нарисованные домики (oldtown-bg.svg) больше не нужны
-    for name in ('wall-a.svg', 'wall-b.svg'):
+    for name in ('wall-a.svg',):
         (beta / name).write_text((SRC / name).read_text(encoding='utf-8'), encoding='utf-8')
     (beta / 'oldtown-bg.svg').unlink(missing_ok=True)
-    (beta / 'wall-ararat.svg').unlink(missing_ok=True)   # был в v12; в v12.1 Арарат внутри самих стен
+    (beta / 'wall-ararat.svg').unlink(missing_ok=True)   # был в v12; Арарат теперь внутри стены
+    (beta / 'wall-b.svg').unlink(missing_ok=True)        # второй вариант стены убран (v12.2)
     # компонент приветствия/загрузки (буквы — tools/build_welcome_letters.py) и шрифт Noto Serif (OFL)
     for name in ('welcome-loader.js', 'welcome-letters.js', 'prep.js', 'details.js', 'viewer.js'):
         (beta / name).write_text((SRC / name).read_text(encoding='utf-8'), encoding='utf-8')
