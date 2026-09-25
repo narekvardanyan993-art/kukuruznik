@@ -21,7 +21,7 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / 'test-assets'
-BETA_VERSION = 'v10'   # метка сборки в панели: «beta · v9 · <дата>»
+BETA_VERSION = 'v11'   # метка сборки в панели: «beta · v9 · <дата>»
 
 
 def main():
@@ -45,7 +45,7 @@ def main():
     (beta / 'index.html').write_text(html, encoding='utf-8')
     (beta / 'oldtown-bg.svg').write_text((SRC / 'oldtown-bg.svg').read_text(encoding='utf-8'), encoding='utf-8')  # фон страницы на ПК
     # компонент приветствия/загрузки (буквы — tools/build_welcome_letters.py) и шрифт Noto Serif (OFL)
-    for name in ('welcome-loader.js', 'welcome-letters.js'):
+    for name in ('welcome-loader.js', 'welcome-letters.js', 'prep.js', 'details.js', 'viewer.js'):
         (beta / name).write_text((SRC / name).read_text(encoding='utf-8'), encoding='utf-8')
     (beta / 'fonts').mkdir(exist_ok=True)
     for f in sorted((SRC / 'fonts').iterdir()):

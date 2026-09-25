@@ -217,7 +217,7 @@ def update_config_frames(names):
                'frames/%s_bg.png' % name, 'frames/%s_bg_depth.png' % name,
                'frames/%s_building.png' % name, 'frames/%s_depth.png' % name,
                'frames/%s_env.png' % name, 'frames/%s_win2.png' % name,
-               (", night: %r" % ('frames/%s_night.png' % name)) if (FRAMES_DIR / ('%s_night.png' % name)).exists() else '')
+               ''.join(", %s: %r" % (k, 'frames/%s_%s.png' % (name, k)) for k in ('sunset', 'night') if (FRAMES_DIR / ('%s_%s.png' % (name, k))).exists()))
         )
     body = '\n'.join(lines) + '\n'
     new_html = html[:si_line_end] + body + html[ei_line_start:]

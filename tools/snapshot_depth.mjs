@@ -52,6 +52,12 @@ async function capture() {
     }
     throw new Error('viewer did not finish loading');
   }
+  async function waitAll() {   // закат, ночь и остальные кадры догружаются в фоне
+    for (let i = 0; i < 900; i++) {
+      if (await page.evaluate(() => document.documentElement.getAttribute('data-loaded') === 'all')) return;
+      await advance(100); await sleep(100);
+    }
+  }
   async function goToFrame(i) {
     const cur = () => page.evaluate(() => Array.from(document.querySelectorAll('#dots span')).findIndex((s) => s.classList.contains('on')));
     for (let guard = 0; guard < 12 && (await cur()) !== i; guard++) {
@@ -77,6 +83,7 @@ async function capture() {
   await page.setViewport({ width: W, height: H, deviceScaleFactor: 1 });
   await page.goto(URL, { waitUntil: 'load', timeout: 60000 });
   await waitLoaded();
+  await waitAll();
   // Старая версия показывает карточку гироскопа на весь экран — закрываем её,
   // чтобы снимки сравнивали именно картинку.
   await page.evaluate(() => {

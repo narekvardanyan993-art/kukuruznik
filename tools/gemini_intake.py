@@ -78,7 +78,7 @@ def main():
         im.save(FR / f'{name}_plate_candidate.png')
         print('  наложение:', OUT / f'{name}_plate_overlay.png')
         return 0 if mean_d < 0.03 else 1
-    else:
+    else:  # night / sunset: контуры дня против кандидата
         gd = ndimage.gaussian_filter(lum(day), 1.2); gn = ndimage.gaussian_filter(lum(arr), 1.2)
         ed = np.hypot(ndimage.sobel(gd, 0), ndimage.sobel(gd, 1)); en = np.hypot(ndimage.sobel(gn, 0), ndimage.sobel(gn, 1))
         td = ed > np.percentile(ed, 90); tn = en > np.percentile(en, 90)
@@ -88,8 +88,8 @@ def main():
                 sh = np.roll(np.roll(tn, dy, 0), dx, 1)
                 iou = (td & ndimage.binary_dilation(sh, iterations=2)).sum() / max(1, td.sum())
                 if iou > best[0]: best = (iou, dx, dy)
-        print(f'ночь кадр {idx}: совпало контуров дня {best[0]*100:.1f}% (лучший сдвиг dx={best[1]}, dy={best[2]} px) {note}')
-        im.save(FR / f'{name}_night_candidate.png')
+        print(f'{mode} кадр {idx}: совпало контуров дня {best[0]*100:.1f}% (лучший сдвиг dx={best[1]}, dy={best[2]} px) {note}')
+        im.save(FR / f'{name}_{mode}_candidate.png')
         return 0
 
 
@@ -123,7 +123,7 @@ def finalize(idx):
     Перед этим кандидат выравнивается по дню (целый сдвиг до ±8 px)."""
     name = f'v_angle_{idx}'
     day = np.array(Image.open(FR / f'{name}.png').convert('RGB')).astype(np.float32) / 255
-    for mode, dst in (('plate', f'{name}_bg.png'), ('night', f'{name}_night.png')):
+    for mode, dst in (('plate', f'{name}_bg.png'), ('night', f'{name}_night.png'), ('sunset', f'{name}_sunset.png')):
         cf = FR / f'{name}_{mode}_candidate.png'
         if not cf.exists():
             continue

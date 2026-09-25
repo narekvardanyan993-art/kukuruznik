@@ -1,5 +1,6 @@
-// Ночной лист: все 6 кадров просмотрщика ночью в одной сетке 3×2 с номерами (docs/night-sheet.png).
-//   node tools/night_sheet.mjs [выходной.png]
+// Лист времени суток: все 6 кадров просмотрщика в одной сетке 3×2 с номерами (docs/night-sheet.png, docs/sunset-sheet.png).
+//   node tools/night_sheet.mjs [выходной.png]            — ночь
+//   TOD=sunset node tools/night_sheet.mjs docs/sunset-sheet.png
 // Сервер должен стоять на :8080 из корня репозитория (python3 -m http.server 8080).
 // Время виртуальное, как в tools/snapshot_depth.mjs: картинка воспроизводится кадр в кадр.
 import puppeteer from 'puppeteer';
@@ -36,10 +37,15 @@ for (let i = 0; i < 900; i++) {
   if (await page.evaluate(() => !document.getElementById('stage').classList.contains('loading'))) break;
   await sleep(100);
 }
+for (let i = 0; i < 600; i++) {   // закат, ночь и остальные кадры догружаются в фоне
+  if (await page.evaluate(() => document.documentElement.getAttribute('data-loaded') === 'all')) break;
+  await advance(100); await sleep(100);
+}
 await advance(400);
 await page.evaluate(() => { const w = document.getElementById('welcome'); if (w) w.remove(); });
-await page.evaluate(() => document.querySelector('#todSeg [data-tod=night]').click());
-await advance(6800);
+const TOD = process.env.TOD || 'night';
+await page.evaluate((k) => document.querySelector('#todSeg [data-tod=' + k + ']').click(), TOD);
+await advance(TOD === 'night' ? 6800 : 3200);
 
 const tiles = [];
 for (let i = 0; i < 6; i++) {
