@@ -8,7 +8,6 @@
 
   var stage = document.getElementById('stage');
   var canvas = document.getElementById('gl');
-  var hint = document.getElementById('hint');
   var prevBtn = document.getElementById('prevBtn');
   var nextBtn = document.getElementById('nextBtn');
   var dotsEl = document.getElementById('dots');
@@ -45,7 +44,8 @@
   }
   // prefers-reduced-motion: выключаем только фоновое движение (дыхание, облака, птицы); переходы и автопокачивание работают
   var reduceMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
-  function reduced() { return reduceMQ.matches; }
+  var motionForce = /[?&]motion=1/.test(location.search);   // ?motion=1 — для проверки: показать всё движение при включённом «Уменьшить движение»
+  function reduced() { return reduceMQ.matches && !motionForce; }
   // Сглаживание, не зависящее от частоты кадров: k — доля пути за кадр на 60 fps.
   function lerpK(k, dt) { return 1 - Math.pow(1 - k, dt / 16.667); }
 
@@ -54,7 +54,6 @@
 
   var pageTitleEl = document.getElementById('barTitle');
   var langButtons = document.querySelectorAll('#langSeg button');
-  var hintKey = 'hint'; // какая строка сейчас в подсказке внизу
 
   function setI18n(el, key) { el.textContent = CONFIG.UI_I18N[key][currentLang]; }
 
@@ -63,10 +62,13 @@
     var t = CONFIG.UI_I18N;
     setI18n(pageTitleEl, 'title');
     document.getElementById('homeBtn').setAttribute('aria-label', t.home[currentLang]);
-    hint.textContent = t[hintKey][currentLang];
     document.querySelectorAll('[data-i18n]').forEach(function (el) {
       var key = el.getAttribute('data-i18n');
       if (t[key]) setI18n(el, key);
+    });
+    document.querySelectorAll('[data-i18n-title]').forEach(function (el) {   // подписи кнопок без текста: aria-label и всплывающая подсказка
+      var key = el.getAttribute('data-i18n-title');
+      if (t[key]) { el.setAttribute('aria-label', t[key][currentLang]); el.title = t[key][currentLang]; }
     });
     if (wl) wl.setLang(currentLang);
     panelBtn.setAttribute('aria-label', t.menu[currentLang]);
@@ -95,22 +97,24 @@
   });
   applyLang();
 
-  // ---------- приветствие и загрузка: появляется сразу, держится, пока всё не загрузится (минимум 2 с) ----------
+  // ---------- приветствие и загрузка: появляется сразу, держится, пока всё не загрузится (минимум 3 с), потом плавно уходит сам ----------
   var isTouchDevice = window.matchMedia ? window.matchMedia('(pointer: coarse)').matches
     : (('ontouchstart' in window) || (navigator.maxTouchPoints > 0));
   wl = window.__wl;
   wl.attach(stage);   // с этого момента приветствие только поверх картинки, панель видна
-  window.__wlTap = function () {
-    // iOS даёт запрос на наклон только из обработчика касания — вызываем requestPermission прямо здесь.
-    if (needsPermission && isTouchDevice) {
-      DeviceOrientationEvent.requestPermission().then(function (state) {
-        if (state === 'granted') startGyro(); // отказ — остаётся управление пальцем
-      }).catch(function (err) { console.warn('Гироскоп: разрешение не выдано —', err && err.message); });
-    } else if (hasOrientation && isTouchDevice && window.isSecureContext === false) {
-      console.warn('Гироскоп недоступен: страница открыта не по https (небезопасный контекст).');
-      setHint('gyroNeedsHttps');
-    }
-  };
+
+  // iOS даёт запрос на наклон только из обработчика касания. Приветствие больше не ждёт касания (оно уходит само), поэтому запрос
+  // идёт при ПЕРВОМ касании чего угодно на странице (click), один раз. Android и ПК разрешения не просят.
+  function askTilt() {
+    document.removeEventListener('click', askTilt, true);
+    DeviceOrientationEvent.requestPermission().then(function (state) {
+      if (state === 'granted') startGyro(); // отказ — остаётся управление пальцем
+    }).catch(function (err) { console.warn('Гироскоп: разрешение не выдано —', err && err.message); });
+  }
+  if (typeof DeviceOrientationEvent !== 'undefined' && isTouchDevice) {
+    if (window.isSecureContext === false) console.warn('Гироскоп недоступен: страница открыта не по https (небезопасный контекст).');
+    else if (typeof DeviceOrientationEvent.requestPermission === 'function') document.addEventListener('click', askTilt, true);
+  }
 
   // ---------- WebGL (если нет — остаётся двухслойный DOM-вариант) ----------
   var wantGL = !/[?&]nogl=1/.test(location.search); // ?nogl=1 — принудительно проверить откат
@@ -145,9 +149,17 @@
   // (откат на закат и ночь v8).
   var NI = useGL && gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS) >= 16;
   var UB0 = NI ? 8 : 4;   // первый юнит кадра B
+  function vec3lit(a) { return 'vec3(' + a.map(function (x) { return x.toFixed(4); }).join(',') + ')'; }
   var SCENE_FRAG = [
     'precision highp float;',
     'varying vec2 vUv;',
+    // день (v12): цвета неба и настройки зелени — из CONFIG.DAY
+    'const vec3 DAY_SKY_TOP = ' + vec3lit(CONFIG.DAY.SKY_TOP) + ';',
+    'const vec3 DAY_SKY_HOR = ' + vec3lit(CONFIG.DAY.SKY_HOR) + ';',
+    'const float GREEN_HUE = ' + CONFIG.DAY.GREEN_HUE.toFixed(4) + ';',
+    'const float GREEN_PULL = ' + CONFIG.DAY.GREEN_PULL.toFixed(4) + ';',
+    'const float GREEN_SAT = ' + CONFIG.DAY.GREEN_SAT.toFixed(4) + ';',
+    'uniform vec4 uSkyRef;',      // кадр A: яркость исходной вымывки неба (x) и нижняя граница неба, доля высоты (y); кадр B — z, w
     // на кадр: земля (0), карта глубины+окружения (1), здание (2), окна (3)
     'uniform sampler2D uBgA; uniform sampler2D uDepthA; uniform sampler2D uBldA; uniform sampler2D uEmA;',
     'uniform sampler2D uBgB; uniform sampler2D uDepthB; uniform sampler2D uBldB; uniform sampler2D uEmB;',
@@ -180,6 +192,18 @@
     'uniform vec2  uShootP;',     // x = прогресс 0..1 (<0 — нет), y = длина пролёта
     '',
     'float h21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }',
+    'vec3 rgb2hsv(vec3 c) {',
+    '  vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);',
+    '  vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));',
+    '  vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));',
+    '  float d = q.x - min(q.w, q.y);',
+    '  return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + 1e-10)), d / (q.x + 1e-10), q.x);',
+    '}',
+    'vec3 hsv2rgb(vec3 c) {',
+    '  vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);',
+    '  vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);',
+    '  return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);',
+    '}',
     // Мягкое пятно тени от облака: смещённый и чуть "разлохмаченный"
     // синусами круг, край размыт smoothstep — не ровный диск.
     'float blob(vec2 uv, vec2 center, vec2 radius) {',
@@ -201,7 +225,7 @@
     '}',
     '',
     // Готовый цвет пикселя одного кадра: параллакс, ветер, закат, ночь.
-    'vec4 shadeFrame(sampler2D bg, sampler2D depth, sampler2D bld, sampler2D em, vec2 kd, float starQ, vec4 crop, vec4 flag,' + (NI ? ' sampler2D sg, sampler2D sb, sampler2D ng, sampler2D nb, vec2 has,' : '') + ' vec2 uv, vec2 sc) {',
+    'vec4 shadeFrame(sampler2D bg, sampler2D depth, sampler2D bld, sampler2D em, vec2 kd, float starQ, vec2 skyRef, vec4 crop, vec4 flag,' + (NI ? ' sampler2D sg, sampler2D sb, sampler2D ng, sampler2D nb, vec2 has,' : '') + ' vec2 uv, vec2 sc) {',
     '  uv = crop.xy + uv * crop.zw;',   // обрезка белого края бумаги: показываем только внутренний прямоугольник кадра
     // фон и земля: у каждого пикселя свой сдвиг (3 итерации против «резины» на краях)
     '  vec2 p = uv;',
@@ -232,6 +256,39 @@
     '  c = b.rgb + c * (1.0 - b.a);',
     '  float inv = 1.0 - b.a;',
     '  sky *= inv;',
+    // ---- день (v12): небо светло-голубое, зелень насыщеннее. Рисунок (штрих, мазки, облака, бумага) сохраняется: небо — умножением
+    // на голубой, зелень — сдвигом оттенка и насыщенности только у жёлто-зелёных тонов. Закат и ночь — свои картинки, ниже. ----
+    '  {',
+    '    float lum0 = dot(c, vec3(0.299, 0.587, 0.114));',
+    '    float rel = lum0 / skyRef.x;',                                                     // 1 — вымывка неба, >1 облако, <1 штрих
+    '    vec3 skyCol = mix(DAY_SKY_TOP, DAY_SKY_HOR, smoothstep(0.02, 0.42, uv.y));',
+    '    vec3 tinted = skyCol * clamp(rel, 0.0, 1.06);',
+    '    tinted = mix(tinted, vec3(min(1.0, lum0 * 1.05 + 0.02)), smoothstep(1.03, 1.12, rel) * 0.75);',   // облака остаются белыми
+    // светлая «бумажная» кромка вырезки здания (несколько пикселей вокруг контура): у дневного неба она была незаметна, у голубого — видна;
+    // краевые пиксели вырезки, светлые как небо, красим в цвет неба
+    '    float haloW = 0.0;',
+    '    if (b.a > 0.05 && b.a < 0.999 || (b.a >= 0.999 && rel > 0.90)) {',
+    '      vec2 hd = vec2(4.5 / 768.0, 4.5 / 1365.0);',
+    '      float mn = min(min(texture2D(bld, pb + vec2(hd.x, 0.0)).a, texture2D(bld, pb - vec2(hd.x, 0.0)).a), min(texture2D(bld, pb + vec2(0.0, hd.y)).a, texture2D(bld, pb - vec2(0.0, hd.y)).a));',
+    '      haloW = (1.0 - smoothstep(0.3, 0.95, mn)) * smoothstep(0.90, 1.02, rel);',
+    '    }',
+    // такая же светлая кромка вокруг деревьев и предметов у неба: пиксели рядом с маской неба (в пределах ~4–8 пикселей кадра), светлые как небо
+    '    float ringW = 0.0;',
+    '    if (sky < 0.5 && rel > 0.92) {',
+    '      vec2 e1 = vec2(2.0 / 384.0, 2.0 / 683.0), e2 = e1 * 2.0;',
+    '      float sn = max(max(texture2D(depth, p + vec2(e1.x, 0.0)).g, texture2D(depth, p - vec2(e1.x, 0.0)).g), max(texture2D(depth, p + vec2(0.0, e1.y)).g, texture2D(depth, p - vec2(0.0, e1.y)).g));',
+    '      sn = max(sn, max(max(texture2D(depth, p + vec2(e2.x, 0.0)).g, texture2D(depth, p - vec2(e2.x, 0.0)).g), max(texture2D(depth, p + vec2(0.0, e2.y)).g, texture2D(depth, p - vec2(0.0, e2.y)).g)));',
+    '      ringW = smoothstep(0.3, 0.8, sn) * (1.0 - inv * 0.0) * smoothstep(0.92, 1.0, rel);',
+    '    }',
+    '    float skyW = max(max(smoothstep(0.35, 0.85, sky), haloW), ringW);',
+    '    skyW *= (1.0 - smoothstep(0.10, 0.19, c.r - c.b)) * (1.0 - smoothstep(skyRef.y - 0.03, skyRef.y + 0.01, uv.y)) * (1.0 - smoothstep(0.12, 0.28, env.r));',   // и не ближе неба по глубине (маска местами заходит на башню)                                // тёплые дальние холмы остаются тёплыми
+    '    c = mix(c, mix(c, tinted, smoothstep(0.55, 0.85, rel)), skyW);',                // тёмный карандашный штрих — как был
+    '    vec3 hv = rgb2hsv(c);',
+    '    float gw = smoothstep(0.10, 0.16, hv.x) * (1.0 - smoothstep(0.36, 0.45, hv.x)) * smoothstep(0.06, 0.16, hv.y) * smoothstep(0.18, 0.40, hv.z) * (1.0 - skyW);',
+    '    hv.x = mix(hv.x, GREEN_HUE, gw * GREEN_PULL);',
+    '    hv.y = clamp(hv.y * (1.0 + gw * (GREEN_SAT - 1.0)) + gw * 0.05, 0.0, 1.0);',
+    '    c = mix(c, hsv2rgb(hv), step(0.001, gw));',
+    '  }',
     '  float winNight = eb.r * b.a + eg.g * inv;',
     '  float winBase = max(eb.b * b.a, eg.a * inv);',
     NI ? '  float hasSv = has.x, hasNv = has.y;' : '  float hasSv = 0.0, hasNv = 0.0;',
@@ -289,10 +346,10 @@
     '  vec2 uv = vUv * uCoverScale + uCoverOffset;',
     '  uv = 0.5 + (uv - 0.5) / uScale;',
     '  vec2 uvA = 0.5 + (uv - 0.5) / uFadeZoom.x;',
-    '  vec4 sa = shadeFrame(uBgA, uDepthA, uBldA, uEmA, uKdA, uStarQ.x, uCropA, uFlagA, ' + (NI ? 'uSGA, uSBA, uNGA, uNBA, uHasA, ' : '') + 'uvA, vUv);',
+    '  vec4 sa = shadeFrame(uBgA, uDepthA, uBldA, uEmA, uKdA, uStarQ.x, uSkyRef.xy, uCropA, uFlagA, ' + (NI ? 'uSGA, uSBA, uNGA, uNBA, uHasA, ' : '') + 'uvA, vUv);',
     '  if (uMix > 0.0) {',
     '    vec2 uvB = 0.5 + (uv - 0.5) / uFadeZoom.y;',
-    '    sa = mix(sa, shadeFrame(uBgB, uDepthB, uBldB, uEmB, uKdB, uStarQ.y, uCropB, uFlagB, ' + (NI ? 'uSGB, uSBB, uNGB, uNBB, uHasB, ' : '') + 'uvB, vUv), uMix);',
+    '    sa = mix(sa, shadeFrame(uBgB, uDepthB, uBldB, uEmB, uKdB, uStarQ.y, uSkyRef.zw, uCropB, uFlagB, ' + (NI ? 'uSGB, uSBB, uNGB, uNBB, uHasB, ' : '') + 'uvB, vUv), uMix);',
     '  }',
     '  vec3 c = sa.rgb;',
     '  float shadow = cloudShadow(uv, uCloudT);',
@@ -384,7 +441,7 @@
   }
 
   var SCENE_NAMES = ['uBgA', 'uDepthA', 'uBldA', 'uEmA', 'uBgB', 'uDepthB', 'uBldB', 'uEmB',
-    'uKdA', 'uKdB', 'uCropA', 'uCropB', 'uFlagA', 'uFlagB', 'uStarQ', 'uMix', 'uShift', 'uZoom', 'uScale', 'uCoverScale', 'uCoverOffset', 'uTime', 'uCloudT',
+    'uKdA', 'uKdB', 'uSkyRef', 'uCropA', 'uCropB', 'uFlagA', 'uFlagB', 'uStarQ', 'uMix', 'uShift', 'uZoom', 'uScale', 'uCoverScale', 'uCoverOffset', 'uTime', 'uCloudT',
     'uSunset', 'uNightSky', 'uNightGnd', 'uStars', 'uFadeZoom', 'uAspect', 'uWindAmp', 'uWindOn', 'uCellPx', 'uShoot', 'uShootP']
     .concat(NI ? ['uSGA', 'uSBA', 'uNGA', 'uNBA', 'uSGB', 'uSBB', 'uNGB', 'uNBB', 'uHasA', 'uHasB', 'uSunMix', 'uNightMix'] : []);
 
@@ -505,6 +562,8 @@
     gl.uniform2f(US.uKdA, fa.kB, fa.dB);
     if (fb) { gl.uniform2f(US.uKdB, fb.kB, fb.dB); gl.uniform4fv(US.uCropB, fb.crop); gl.uniform4fv(US.uFlagB, fb.flag); }
     gl.uniform2f(US.uStarQ, fa.starQ, fb ? fb.starQ : 0);
+    gl.uniform4f(US.uSkyRef, CONFIG.DAY.SKY_REF[fa.idx] || 0.86, CONFIG.DAY.SKY_END[fa.idx] || 0.55,
+      fb ? (CONFIG.DAY.SKY_REF[fb.idx] || 0.86) : 0.86, fb ? (CONFIG.DAY.SKY_END[fb.idx] || 0.55) : 0.55);
     if (NI) {
       gl.uniform2f(US.uHasA, fa.sG ? 1 : 0, fa.nG ? 1 : 0); gl.uniform2f(US.uHasB, fb && fb.sG ? 1 : 0, fb && fb.nG ? 1 : 0);
       gl.uniform1f(US.uSunMix, tod.sun); gl.uniform1f(US.uNightMix, tod.night);
@@ -607,7 +666,7 @@
     var worker = null, pend = {}, seq = 0, mainReadyP = null;
     var cfg = {
       MAX_TEX_SIZE: CONFIG.MAX_TEX_SIZE, DEPTH_BLUR_PX: CONFIG.DEPTH_BLUR_PX, STARS: CONFIG.STARS,
-      NIGHT_TOWER_LIT: CONFIG.NIGHT_TOWER_LIT, NIGHT_OTHER_LIT: CONFIG.NIGHT_OTHER_LIT, WINDOW_BRIGHT: CONFIG.WINDOW_BRIGHT
+      NIGHT_TOWER_LIT: CONFIG.NIGHT_TOWER_LIT, NIGHT_OTHER_LIT: CONFIG.NIGHT_OTHER_LIT, WINDOW_BRIGHT: CONFIG.WINDOW_BRIGHT, DAY: CONFIG.DAY
     };
     function viaMain(method, args) {
       if (!mainReadyP) {
@@ -765,7 +824,7 @@
     coverOffX = (1 - coverUvW) / 2;
     coverOffY = (1 - coverUvH) / 2;
   }
-  window.addEventListener('resize', function () { resize(true); });
+  window.addEventListener('resize', function () { resize(true); if (window.__penFit) window.__penFit(); });
   window.addEventListener('orientationchange', function () { setTimeout(function () { resize(true); }, 200); });
 
   function setNaturalSize(w, h) {
@@ -947,7 +1006,7 @@
   }
 
   stage.addEventListener('pointerdown', function (e) {
-    hint.classList.add('gone');
+    demoStop();
     if (e.pointerType === 'mouse') { setTiltFromClient(e.clientX, e.clientY); return; }
     // Палец: перетаскивание на всю ширину экрана = полный диапазон сдвига.
     pointerActive = true;
@@ -960,6 +1019,7 @@
 
   stage.addEventListener('pointermove', function (e) {
     if (e.pointerType === 'mouse') {
+      demoStop();
       setTiltFromClient(e.clientX, e.clientY);
       return;
     }
@@ -1017,12 +1077,6 @@
     if (gyroActive) return;
     gyroActive = true;
     window.addEventListener('deviceorientation', onOrientation);
-  }
-
-  function setHint(key) {
-    hintKey = key;
-    hint.textContent = CONFIG.UI_I18N[key][currentLang];
-    hint.classList.remove('gone');
   }
 
   var hasOrientation = typeof DeviceOrientationEvent !== 'undefined';
@@ -1122,10 +1176,60 @@
       var fps = fpsFrames * 1000 / dt;
       if (fps < CONFIG.PERF_MIN_FPS && perfLevel < 2 && document.visibilityState === 'visible') {
         perfLevel++;   // сначала отключаем детали (и падающие звёзды), потом ветер
+        flagUpdate();  // «Парад» — тоже новая анимация: выключается вместе с деталями
         console.info('fps ' + fps.toFixed(1) + ' < ' + CONFIG.PERF_MIN_FPS + ' -> отключаю ' + (perfLevel === 1 ? 'живые детали и падающие звёзды' : 'ветер'));
       }
       fpsT0 = now; fpsFrames = 0;
     }
+  }
+
+  // ---------- демо-наклон: при первом показе картинки один мягкий наклон (~1.5 с) и возврат — видно, что она двигается ----------
+  // Запускается, когда приветствие начало уходить. Не запускается, если картинка уже реагирует на руку (гироскоп даёт наклон,
+  // палец/мышь на сцене) и при «уменьшении движения»; любое касание или движение мыши по сцене его прерывает.
+  var demo = null;
+  function demoStart() {
+    if (demo || reduced() || pointerActive || gyroGotEvent || stage.classList.contains('reading') || stage.classList.contains('loading')) return;
+    demo = { t0: null, dur: 1500, ax: 1.0, ay: -0.3 };
+  }
+  function demoStop() {
+    if (!demo) return;
+    demo = null;
+    targetX = gyroActive ? gyroTargetX : 0; targetY = gyroActive ? gyroTargetY : 0;
+  }
+  window.__demoTilt = function () { setTimeout(demoStart, 250); };   // после начала растворения приветствия
+
+  // ---------- кнопка «Парад» (флаг Армении): три истребителя и дымные следы, рисует details.js ----------
+  // Нажатие: если открыт не кадр 1 — плавный переход на кадр 1, потом показ. Повторные нажатия во время показа игнорируются.
+  // При fps < 45 (детали отключены) и при «уменьшении движения» кнопка скрыта.
+  var flagBtns = document.querySelectorAll('.flag-btn');
+  var paradeBusy = false, paradeWant = null;
+  function flagUpdate() {
+    var off = perfLevel >= 1 || reduced() || !useGL;
+    flagBtns.forEach(function (b) { b.hidden = off; });
+    if (off && paradeWant) { paradeWant = null; setParadeBusy(false); }
+  }
+  function setParadeBusy(v) {
+    paradeBusy = v;
+    flagBtns.forEach(function (b) { b.setAttribute('aria-disabled', v ? 'true' : 'false'); });
+  }
+  flagBtns.forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (paradeBusy || perfLevel >= 1 || reduced() || !window.Details || !window.Details.parade) return;
+      closePopup(); closeSheet();
+      setParadeBusy(true);
+      paradeWant = { since: performance.now(), shown: null };
+    });
+  });
+  (reduceMQ.addEventListener ? reduceMQ.addEventListener('change', flagUpdate) : reduceMQ.addListener(flagUpdate));
+  function paradeStep(now) {   // из рендер-цикла: довести до кадра 1, дать ему осесть, запустить показ
+    if (!paradeWant) return;
+    if (now - paradeWant.since > 9000) { paradeWant = null; setParadeBusy(false); return; }   // что-то не так — не зависаем
+    if (fade) return;
+    if (frameIndex !== 0) { goTo(0); return; }
+    if (paradeWant.shown === null) paradeWant.shown = now;
+    if (now - paradeWant.shown < 450) return;
+    paradeWant = null;
+    if (!window.Details.parade(function () { setParadeBusy(false); })) setParadeBusy(false);
   }
 
   // ---------- рендер-цикл ----------
@@ -1172,6 +1276,15 @@
     // Пока открыта карточка подсказки, картинка за ней стоит: точки и карточка не «плывут» за мышью,
     // GPU не тратится на размытый фон.
     if (stage.classList.contains('reading') && !fade && !todAnim) { fpsT0 = 0; requestAnimationFrame(frame); return; }
+
+    // --- демо-наклон (один раз): туда-обратно по синусоиде; дальше управление возвращается мыши/гироскопу ---
+    if (demo) {
+      if (demo.t0 === null) demo.t0 = now;
+      var dp = (now - demo.t0) / demo.dur;
+      if (dp >= 1) demoStop();
+      else { var dk = Math.sin(Math.PI * dp); targetX = demo.ax * dk; targetY = demo.ay * dk; }
+    }
+    if (useGL) paradeStep(now);
 
     // --- наклон ---
     if (ret) {
@@ -1402,7 +1515,16 @@
   // ---------- старт ----------
   // Сначала грузим и показываем только первый кадр (день). Остальные кадры, закат, ночь — потом, в фоне, по одному, в простое.
   // (Откат без WebGL грузит все кадры сразу: слои для CSS-варианта нужны заранее.)
-  var firstP = useGL ? Promise.all([loadDay(0), glReadyP]) : Promise.all(FRAMES.map(function (_, i) { return loadDay(i); }));
+  // Первый кадр при сбое сети пробуем ещё раз (до 3 попыток): иначе на плохой связи экран загрузки остался бы навсегда.
+  function withRetry(make, tries) {
+    return make().catch(function (err) {
+      if (tries <= 1) throw err;
+      console.warn('кадр не загрузился, пробую ещё раз —', err && err.message);
+      return new Promise(function (r) { setTimeout(r, 700); }).then(function () { return withRetry(make, tries - 1); });
+    });
+  }
+  var firstP = useGL ? Promise.all([withRetry(function () { return loadDay(0); }, 3), glReadyP])
+    : Promise.all(FRAMES.map(function (_, i) { return withRetry(function () { return loadDay(i); }, 3); }));
   firstP.then(function () {
     if (!useGL) buildFallbackDom();
     setNaturalSize(store[0].w, store[0].h);
@@ -1411,7 +1533,8 @@
     buildHotspots(0);
     frame(performance.now());            // первая отрисовка, потом убираем экран загрузки —
     stage.classList.remove('loading');   // пустого кадра не бывает, даже если вкладка в фоне
-    wl.loaded();                         // приветствие держится ещё, если прошло меньше 2 с
+    wl.loaded();                         // приветствие держится ещё, если прошло меньше 3 с; потом уходит само
+    flagUpdate();
     if (useGL) startBackground();
   }).catch(function (err) {
     console.error(err);
