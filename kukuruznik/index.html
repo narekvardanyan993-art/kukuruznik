@@ -1,221 +1,943 @@
 <!DOCTYPE html>
-<html lang="hy">
+<html lang="ru">
 <head>
 <meta charset="utf-8">
-<script>
-(function () {
-  try {
-    var K = 'chka-lang', L = ['hy', 'ru', 'en'], l = localStorage.getItem(K);
-    if (!l) {
-      var n = ((navigator.languages && navigator.languages[0]) || navigator.language || '').toLowerCase();
-      for (var i = 0; i < L.length; i++) { if (n.indexOf(L[i]) === 0) { l = L[i]; break; } }
+<meta name="description" content="Երևանի քանդված Երիտասարդական պալատը՝ վերակենդանացած գծանկարով։ Թեքեք նկարը, փոխեք օրվա ժամը և թերթեք կադրերը։">
+<link rel="canonical" href="https://chka.am/kukuruznik/">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#f5ecda">
+<meta name="viewer-version" content="v12.1">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Չկա">
+<meta property="og:url" content="https://chka.am/kukuruznik/">
+<meta property="og:title" content="Կուկուռուզնիկ — Երիտասարդական պալատ | Չկա">
+<meta property="og:description" content="Երևանի քանդված Երիտասարդական պալատը՝ վերակենդանացած գծանկարով։ Թեքեք նկարը, փոխեք օրվա ժամը և թերթեք կադրերը։">
+<meta property="og:image" content="https://chka.am/kukuruznik/og.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Կուկուռուզնիկը՝ Երիտասարդական պալատը Երևանում, 1979–2006, գծանկար">
+<meta property="og:locale" content="hy_AM">
+<meta property="og:locale:alternate" content="ru_RU">
+<meta property="og:locale:alternate" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Կուկուռուզնիկ — Երիտասարդական պալատ | Չկա">
+<meta name="twitter:description" content="Երևանի քանդված Երիտասարդական պալատը՝ վերակենդանացած գծանկարով։ Թեքեք նկարը, փոխեք օրվա ժամը և թերթեք կադրերը։">
+<meta name="twitter:image" content="https://chka.am/kukuruznik/og.jpg">
+<meta name="twitter:image:alt" content="Կուկուռուզնիկը՝ Երիտասարդական պալատը Երևանում, 1979–2006, գծանկար">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Կուկուռուզնիկ — Երիտասարդական պալատ | Չկա</title>
+<script>/* ?motion=1 — показать всё движение, даже если в системе включено «Уменьшить движение» (для проверки) */
+(function () { if (/[?&]motion=1/.test(location.search)) document.documentElement.setAttribute('data-motion', 'on'); })();</script>
+<link rel="preload" href="welcome-loader.js" as="script">
+<link rel="preload" href="welcome-letters.js" as="script">
+<link rel="preload" href="fonts/NotoSerif-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/NotoSerif-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/NotoSerifArmenian-armenian.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+  /* Один шрифт для hy/ru/en — Noto Serif: латиница и кириллица (Noto Serif) и армянский (Noto Serif Armenian)
+     из одной системы дизайна, лицензия OFL (fonts/LICENSE.txt). Подключён локально, один вес 400–700. */
+  @font-face { font-family: "Kukuruznik Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
+    src: url(fonts/NotoSerif-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  @font-face { font-family: "Kukuruznik Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
+    src: url(fonts/NotoSerif-cyrillic.woff2) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+  @font-face { font-family: "Kukuruznik Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
+    src: url(fonts/NotoSerifArmenian-armenian.woff2) format("woff2"); unicode-range: U+0308, U+0530-058F, U+2010, U+2024, U+25CC, U+FB13-FB17; }
+  :root {
+    --font: "Kukuruznik Serif", "Noto Serif", serif;
+    --paper: #f5ecda; --paper-2: #ede0c2; --ink: #2f2a25;
+    /* Пружина как в iOS: response 0.65 с, damping ratio 0.86 (мягкий разгон, плавное торможение,
+       оседание ~0.5% без заметного отскока). Кривая — ступенчатый отклик пружины, оседает за ~0.86 с. */
+    --spring: cubic-bezier(0.22, 1, 0.36, 1);   /* запасной вариант, если браузер не знает linear() */
+    --dur: 860ms;
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);     /* прежняя кривая — только шторка и окна подсказок на телефоне */
+    --panelW: 416px;   /* v12: панель шире на 30% (было 320) */
+    /* Сетка отступов: шаг 8 px (8 / 16 / 24 / 32) — все внешние и внутренние отступы панели и оверлеев. */
+    --s1: 8px; --s2: 16px; --s3: 24px; --s4: 32px;
+    --safe-t: env(safe-area-inset-top, 0px); --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-l: env(safe-area-inset-left, 0px); --safe-r: env(safe-area-inset-right, 0px);
+    --fs-body: 18px; --fs-small: 15px; --fs-card: 22px;
+  }
+  @supports (transition-timing-function: linear(0, 1)) {
+    :root { --spring: linear(0, 0.0193, 0.0683, 0.1365, 0.2155, 0.2993, 0.3832, 0.4643, 0.5405, 0.6104, 0.6734, 0.7293, 0.7782, 0.8205, 0.8565, 0.8869, 0.9123, 0.9332, 0.9502, 0.9639, 0.9748, 0.9834, 0.9899, 0.9949, 0.9985, 1.0011, 1.0029, 1.0041, 1.0047, 1.005, 1.005, 1.0048, 1.0045, 1.0042, 1.0038, 1.0033, 1.0029, 1.0025, 1.0021, 1.0018, 1); }
+  }
+  /* Размер текста: «крупный» по умолчанию (аудитория пожилая). */
+  html[data-textsize="normal"] { --fs-body: 15px; --fs-small: 13px; --fs-card: 17px; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--paper);
+    color: var(--ink);
+    font: 15px/1.4 var(--font);
+    overscroll-behavior: none;
+  }
+  body { user-select: none; }
+  #layout { height: 100%; }
+  #view { height: 100%; }
+  #stage {
+    position: relative;
+    width: 100vw; height: 100vh; height: 100dvh;
+    overflow: hidden;
+    touch-action: none;
+    background: #000;
+  }
+  #gl { display: block; width: 100%; height: 100%; }
+
+  /* Телефон (до 1024 px): картинка на весь экран, WebGL сам обрезает кадр
+     по принципу "cover" (uCoverScale/uCoverOffset), без искажения. */
+
+  /* ПК (от 1024 px): слева панель 320 px, справа картинка по центру с
+     бумажными полями. Панель сворачивается в тонкую полоску. */
+  @media (min-width: 1024px) {
+    #layout {
+      display: grid; grid-template-columns: var(--panelW) 1fr;
+      transition: grid-template-columns var(--dur) var(--spring);
     }
-    if (L.indexOf(l) === -1) l = 'hy';
-    document.documentElement.setAttribute('data-lang', l);
-    document.documentElement.setAttribute('lang', l);
-  } catch (e) { document.documentElement.setAttribute('data-lang', 'hy'); }
-})();
-</script>
-<script>
-/* крупный текст («А+») и появление главной — до отрисовки, без мигания */
-(function () {
-  var d = document.documentElement;
-  try { if (localStorage.getItem('chka-fs') === 'big') d.classList.add('fs-big'); } catch (e) {}
-})();
-</script>
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#fbfaf7">
-<title>Кукурузник — Дом молодёжи | Չկա</title>
-<meta name="description" content="Кукурузник — снесённый Дом молодёжи в Ереване (1979–2006). Архивные фото, хроника и 3D-модель, которую можно покрутить в браузере.">
-<meta property="og:title" content="Кукурузник — Дом молодёжи | Չկա">
-<meta property="og:description" content="Снесённое здание Еревана, восстановленное в рисунке и в 3D.">
-<meta property="og:type" content="article">
-<link rel="icon" href="../assets/favicon-32.png">
-<link rel="apple-touch-icon" href="../assets/icon-180.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700&family=Noto+Sans+Armenian:wght@500;600;700&family=Caveat:wght@600&display=swap">
-<link rel="stylesheet" href="../assets/hub.css?v=12">
-<link rel="stylesheet" href="../assets/story.css?v=13">
+    body.panel-collapsed { --panelW: 48px; }
+    /* Картинка как экспонат: паспарту (светлая бумага, поля 28 px) в тонкой рамке, мягкая тень — «висит на стене»;
+       рисованный город на фоне — стена зала; под рамкой музейная табличка; стрелки прикреплены к краям рамки по центру высоты. */
+    #view {
+      container-type: inline-size;      /* 100cqw — ширина стены, плавно следует за панелью */
+      display: grid; place-items: center; padding: var(--s3); min-width: 0;
+    }
+    #exhibit { margin: 0; display: grid; justify-items: center; row-gap: var(--s3); }
+    #frame {
+      position: relative; padding: 28px; background: #faf4e6;
+      border: 3px solid #3b332b; border-radius: 3px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.55), 0 1px 0 rgba(47,42,37,0.4), 0 22px 48px rgba(60,45,20,0.30), 0 4px 10px rgba(60,45,20,0.18);
+    }
+    #stage {
+      /* доступная ширина: стена − паспарту − место для стрелок; высота: окно − отступы − паспарту − табличка */
+      width: min(calc(100cqw - 56px - 128px), calc((100dvh - 48px - 56px - 6px - 64px - var(--s3)) * var(--natW, 768) / var(--natH, 1365)));
+      height: auto;
+      aspect-ratio: var(--natW, 768) / var(--natH, 1365);
+      border-radius: 1px;
+      box-shadow: 0 0 0 1px rgba(47,42,37,0.45), inset 0 0 0 1px rgba(47,42,37,0.2);   /* тонкая линия окна паспарту */
+    }
+    #prevSide, #nextSide { position: absolute; top: 50%; z-index: 6; margin-top: -32px; }
+    #prevSide { left: -35px; }
+    #nextSide { right: -35px; }
+    #exhibit #plaque {
+      display: block; max-width: min(460px, 100%); padding: 10px 24px; text-align: center;
+      background: #f8f1e0; color: var(--ink); border: 1px solid rgba(47,42,37,0.55); border-radius: 2px;
+      box-shadow: inset 0 0 0 3px #f8f1e0, inset 0 0 0 4px rgba(47,42,37,0.25), 0 3px 8px rgba(60,45,20,0.22);
+      font: 600 15px/1.35 var(--font); letter-spacing: 0.02em;
+    }
+  }
+  /* телефон: обёртки-экспонат не нужны, картинка на весь экран */
+  @media (max-width: 1023.98px) { #exhibit, #frame { display: contents; } }
+
+  #plaque { display: none; }   /* только на ПК (см. блок выше) */
+  #stage.loading { background: var(--paper); }
+  #stage.loading #gl, #stage.loading #fallback { visibility: hidden; }
+  /* Откат без WebGL: два слоя (фон + здание) на кадр, двигаются CSS-ом. */
+  #fallback { position: absolute; inset: 0; overflow: hidden; background: #000; }
+  #fallback[hidden] { display: none; }
+  .fb-frame { position: absolute; inset: 0; opacity: 0; visibility: hidden; }
+  .fb-layer {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; will-change: transform; pointer-events: none;
+  }
+
+  /* Бумажная круглая кнопка сайта: карандашный контур, мягкая тень. Так выглядят стрелки ‹ ›, «домой» и кнопка панели;
+     наведение и нажатие — как у кнопок панели (на 4% темнее, при нажатии бумага темнее и кнопка чуть меньше). */
+  .arrow-btn {
+    display: grid; place-items: center; padding: 0; flex: none;
+    border: 2px solid var(--ink); border-radius: 50% 44% 50% 44%; background: var(--paper); color: var(--ink);
+    box-shadow: 0 6px 16px rgba(60,45,20,0.26), 2px 3px 0 rgba(47,42,37,0.14);
+    cursor: pointer; text-decoration: none;
+    transition: filter 200ms var(--spring), transform 200ms var(--spring), background-color 200ms var(--spring);
+  }
+  .arrow-btn svg { display: block; }
+  .arrow-btn:active { background-color: var(--paper-2); transform: scale(0.96); }
+  .nav-next svg { transform: rotate(180deg); }
+  .nav-btn { position: absolute; top: calc(50% - 24px); width: 48px; height: 48px; z-index: 5; }
+  #prevBtn { left: calc(var(--safe-l) + var(--s2)); }
+  #nextBtn { right: calc(var(--safe-r) + var(--s2)); }
+
+  /* Телефон: одна полоса снизу (с учётом safe-area): слева кнопка панели, по центру название, справа «домой».
+     Сверху на картинке ничего нет. */
+  :root { --bar-h: calc(56px + 2 * var(--s1)); }
+  #bottomBar { display: none; }
+  #barTitle {
+    min-width: 0; text-align: center; color: var(--ink);
+    font: 700 18px/1.2 var(--font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  #homeBtn { width: 56px; height: 56px; }
+  @media (max-width: 1023.98px) {
+    /* Раскладка нижней полосы (вид кнопок и подписи — в конце файла: мягкая бумажная подложка, v12.1). */
+    #bottomBar {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 55; pointer-events: none;
+      display: grid; grid-template-columns: 56px minmax(0, 1fr) 56px; align-items: center; column-gap: var(--s1);
+      padding: var(--s1) calc(var(--safe-r) + var(--s2)) calc(var(--safe-b) + var(--s1)) calc(var(--safe-l) + var(--s2));
+      background: none; border: 0; box-shadow: none;
+    }
+    #barTitle { grid-column: 2; }
+    #homeBtn { grid-column: 3; }
+    .nav-btn { width: 56px; height: 56px; top: calc(50% - 28px); }
+    .nav-btn svg { width: 36px; height: 36px; }
+    #bottomBar #flagBtnB { display: grid; position: absolute; right: calc(var(--safe-r) + var(--s2)); bottom: 100%; width: 56px; height: 56px; margin-bottom: 0; }
+    #bottomBar #flagBtnB[hidden] { display: none; }
+    #bottomBar #flagBtnB svg { width: 36px; height: 36px; }
+    #build-version { right: auto; left: calc(var(--safe-l) + var(--s1)); max-width: calc(50% - 44px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  }
+
+  /* Кнопка «Парад»: маленькая, флаг Армении карандашом. ПК — в панели рядом с «домиком»; телефон — в нижней полосе над «домой».
+     Живёт только на кадре 1 (на других гаснет). Пока идёт показ, флаг колышется, а ореол переливается красным-синим-абрикосовым.
+     При fps < 45 или «уменьшении движения» кнопка скрыта. */
+  .flag-btn, .p-home { width: 44px; height: 44px; }
+  .flag-btn svg { display: block; width: 30px; height: 30px; overflow: visible; }
+  .p-home svg { display: block; width: 28px; height: 28px; }
+  .flag-btn[aria-disabled="true"] { cursor: default; }
+  .flag-btn[hidden] { display: none; }
+  .flag-btn { transition: opacity 400ms var(--spring), transform 200ms var(--spring); }
+  .flag-btn.off-frame { opacity: 0; pointer-events: none; transform: scale(0.8); }
+  #flagBtnB { display: none; }
+  /* упрощённый парад (слабое устройство, «уменьшить движение», нет WebGL): флаг проявляется в небе, чуть колышется и растворяется, ~6 с */
+  .flag-lite { position: absolute; left: 50%; top: 14%; margin-left: -70px; z-index: 5; pointer-events: none; opacity: 0; animation: liteFlag 6.4s ease-in-out both; }
+  .flag-lite svg { display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.25)); }
+  .flag-lite .fb { transform-box: fill-box; transform-origin: 0% 50%; animation: flagWave 1.2s ease-in-out infinite; }
+  .flag-lite .fb2 { animation-delay: -0.2s; } .flag-lite .fb3 { animation-delay: -0.4s; }
+  @keyframes liteFlag { 0% { opacity: 0; transform: translateY(8px); } 14% { opacity: 1; transform: none; } 82% { opacity: 1; } 100% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { html:not([data-motion="on"]) .flag-lite .fb { animation: none; } }
+  .p-top-row { display: flex; align-items: center; gap: var(--s2); }
+  .flag-btn .fb { transform-box: fill-box; transform-origin: 0% 50%; }
+  .flag-btn.busy .fb { animation: flagWave 800ms ease-in-out infinite; }
+  .flag-btn.busy .fb2 { animation-delay: -130ms; }
+  .flag-btn.busy .fb3 { animation-delay: -260ms; }
+  .flag-btn.busy svg { animation: flagGlow 2.4s linear infinite; }
+  @keyframes flagWave { 0%, 100% { transform: skewY(0deg) scaleX(1); } 50% { transform: skewY(-9deg) scaleX(0.9); } }
+  @keyframes flagGlow {
+    0%, 100% { filter: drop-shadow(0 0 3px rgba(217,0,18,0.95)); }
+    33% { filter: drop-shadow(0 0 4px rgba(36,84,200,0.95)); }
+    66% { filter: drop-shadow(0 0 4px rgba(242,168,0,0.95)); }
+  }
+  @media (prefers-reduced-motion: reduce) { html:not([data-motion="on"]) .flag-btn.busy .fb, html:not([data-motion="on"]) .flag-btn.busy svg { animation: none; } }
+
+  #dots {
+    position: absolute; left: 50%; bottom: calc(var(--safe-b) + var(--bar-h) + var(--s1)); transform: translateX(-50%);
+    display: flex; gap: var(--s1); z-index: 5;
+  }
+  #dots span {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: rgba(255,255,255,0.4);
+    transition: background var(--dur) var(--spring), transform var(--dur) var(--spring);
+  }
+  #dots span.on { background: #fff; transform: scale(1.25); }
+
+  #build-version {
+    position: absolute; right: calc(var(--safe-r) + var(--s1)); bottom: calc(var(--safe-b) + var(--bar-h) + var(--s1)); z-index: 5;
+    font: 500 9px/1 var(--font); color: #fff; opacity: 0.55;
+    pointer-events: none;
+  }
+
+  /* ПК: на самой картинке остаются только картинка и точки-подсказки; «на сайт» и название — вверху
+     панели, стрелки — в пустых полях по бокам, миниатюры вместо кружков-точек. Телефон не меняется. */
+  .p-top, .nav-side, .p-build { display: none; }
+  .nav-side { width: 64px; height: 64px; }
+  @media (min-width: 1024px) {
+    #bottomBar, #dots, #build-version, #prevBtn, #nextBtn, .panel-scroll > .p-title { display: none; }
+    .p-top { display: grid; justify-items: start; row-gap: var(--s1); margin-right: var(--s4); }
+    .p-name { font: 700 26px/1.2 var(--font); }
+    .p-build { display: block; font: 500 10px/1.2 var(--font); opacity: 0.5; }
+    .nav-side { display: grid; }
+  }
+  /* Фон-стена на ПК (v12.2): армянские буквы и несколько тонких символов, тон в тон с бумагой; расстановку под размер окна делает wall.js
+     (данные и буквы Noto Serif Armenian, OFL — wall-data.js). На телефоне стены нет. */
+  #wall { display: none; }
+  @media (min-width: 1024px) {
+    #wall { display: block; position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0; transition: opacity 450ms var(--spring); }
+    #wall.on { opacity: 1; }
+    #wall .w { fill: none; stroke: #5d4c31; stroke-opacity: 0.17; stroke-linecap: round; stroke-linejoin: round; }
+    #layout { position: relative; z-index: 1; }
+  }
+
+  /* ---------- Панель (скетч-стиль: бумага, карандашная рамка, мягкая тень) ---------- */
+  .sketch {
+    background: var(--paper);
+    border: 2px solid var(--ink);
+    border-radius: 22px 8px 18px 10px / 10px 18px 8px 22px;
+    box-shadow: 0 12px 32px rgba(60,45,20,0.24), 3px 4px 0 rgba(47,42,37,0.14);
+    outline: 1px solid rgba(47,42,37,0.3); outline-offset: -7px;
+  }
+  #panel { position: relative; overflow: hidden; z-index: 50; }
+  .panel-card {
+    position: absolute; top: var(--s2); bottom: var(--s2); left: var(--s2); width: 384px;   /* 416 − 2×16: карточка не сжимается, когда колонка сворачивается */
+    display: grid; grid-template-rows: minmax(0, 1fr); overflow: hidden; padding: 0; font-size: var(--fs-body);
+  }
+  /* Прокручивается внутренняя область: пункты стоят сеткой с единым шагом 16, сверху и снизу всегда 24.
+     У краёв контент растворяется маской (16 px), поэтому при прокрутке он не «прилипает» к рамке. */
+  .panel-scroll {
+    min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+    display: grid; align-content: start; row-gap: var(--s2);
+    padding: var(--s3) var(--s2);
+    scroll-padding: var(--s3) 0;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--s2), #000 calc(100% - var(--s2)), transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 var(--s2), #000 calc(100% - var(--s2)), transparent 100%);
+  }
+  .panel-scroll > * { min-width: 0; }
+  /* Перо рисует контур листа (SVG поверх карточки, его путь строит скрипт по размеру карточки). Только ПК. */
+  .pen { display: none; }
+  @media (min-width: 1024px) {
+    #panel { overflow: visible; }   /* карточка и перо не обрезаются, пока колонка сжимается/растёт */
+    .pen { display: block; position: absolute; left: var(--s2); top: var(--s2); width: 384px; height: calc(100% - 2 * var(--s2)); overflow: visible; pointer-events: none; z-index: 2; }
+    .pen path { fill: none; stroke: var(--ink); stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
+    .pen .pen-1 { stroke-width: 2.4; }
+    .pen .pen-2 { stroke-width: 1.1; opacity: 0.4; }
+    .pen .nib { fill: var(--ink); opacity: 0; offset-rotate: 0deg; }   /* кончик пера: точка, бегущая по контуру (offset-path ставит скрипт) */
+    /* свёрнута без анимации (страница открыта уже свёрнутой): карточки нет */
+    body.panel-collapsed .panel-card { opacity: 0; visibility: hidden; pointer-events: none; }
+
+    /* ---- Появление (~1.5 с): перо ведёт основной контур листа (0.15–1.05 с; виден кончик пера), следом внутренний карандашный,
+       потом бумага наливается цветом, потом текст проявляется по пунктам. Запускается при загрузке и при раскрытии панели. ---- */
+    body:not(.panel-collapsed) .pen .pen-1 { animation: penDraw 900ms cubic-bezier(0.4, 0.05, 0.3, 1) 150ms both, penFade 250ms linear 1050ms both; }
+    body:not(.panel-collapsed) .pen .pen-2 { animation: penDraw 800ms cubic-bezier(0.4, 0.05, 0.3, 1) 450ms both, penFade 250ms linear 1250ms both; }
+    body:not(.panel-collapsed) .pen .nib { animation: nibGo 900ms cubic-bezier(0.4, 0.05, 0.3, 1) 150ms both; }
+    body:not(.panel-collapsed) .panel-card { animation: sheetIn 1000ms linear 500ms both; }
+    body:not(.panel-collapsed) .panel-scroll > * { animation: itemIn 380ms var(--ease) both; }
+    body:not(.panel-collapsed) .panel-scroll > *:nth-child(1) { animation-delay: 1000ms; }
+    body:not(.panel-collapsed) .panel-scroll > *:nth-child(2) { animation-delay: 1030ms; }
+    body:not(.panel-collapsed) .panel-scroll > *:nth-child(3) { animation-delay: 1060ms; }
+    body:not(.panel-collapsed) .panel-scroll > *:nth-child(4) { animation-delay: 1090ms; }
+    body:not(.panel-collapsed) .panel-scroll > *:nth-child(5) { animation-delay: 1120ms; }
+    body:not(.panel-collapsed) .panel-scroll > *:nth-child(6) { animation-delay: 1150ms; }
+    body:not(.panel-collapsed) .panel-scroll > *:nth-child(7) { animation-delay: 1180ms; }
+    body:not(.panel-collapsed) .panel-scroll > *:nth-child(8) { animation-delay: 1210ms; }
+    body:not(.panel-collapsed) .panel-scroll > *:nth-child(9) { animation-delay: 1240ms; }
+    body:not(.panel-collapsed) .panel-scroll > *:nth-child(10) { animation-delay: 1270ms; }
+    body:not(.panel-collapsed) .panel-scroll > *:nth-child(11) { animation-delay: 1300ms; }
+
+    /* ---- Закрытие (~0.9 с) — то же наоборот: текст гаснет, бумага бледнеет, контур «собирается» — перо втягивает линию обратно
+       по пути, кончик пера уходит к началу; потом колонка сжимается. Только после первого нажатия кнопки (html.panel-anim). ---- */
+    html.panel-anim body.panel-collapsed .pen .pen-1 { animation: penUndraw 650ms cubic-bezier(0.5, 0, 0.3, 1) 150ms both; }
+    html.panel-anim body.panel-collapsed .pen .pen-2 { animation: penUndraw 550ms cubic-bezier(0.5, 0, 0.3, 1) 100ms both; }
+    html.panel-anim body.panel-collapsed .pen .nib { animation: nibBack 650ms cubic-bezier(0.5, 0, 0.3, 1) 150ms both; }
+    html.panel-anim body.panel-collapsed .panel-card { animation: sheetOut 850ms linear both; }
+    html.panel-anim body.panel-collapsed .panel-scroll > * { animation: itemOut 260ms ease both; }
+    html.panel-anim body.panel-collapsed #layout { transition-delay: 350ms; }
+    html.panel-anim body.panel-collapsed #panelBtn { transition-delay: 350ms, 0ms, 0ms; }
+  }
+  @keyframes penDraw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+  @keyframes penUndraw { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 1; } }
+  @keyframes penFade { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes nibGo { 0% { offset-distance: 0%; opacity: 1; } 96% { offset-distance: 100%; opacity: 1; } 100% { offset-distance: 100%; opacity: 0; } }
+  @keyframes nibBack { 0% { offset-distance: 100%; opacity: 1; } 96% { offset-distance: 0%; opacity: 1; } 100% { offset-distance: 0%; opacity: 0; } }
+  /* бумага: пока идёт контур (первая половина) листа как бы нет — только линия пера; потом заливка, тень и родная рамка (под линией пера) */
+  @keyframes sheetIn {
+    0%, 10% { background-color: rgba(245,236,218,0); border-color: transparent; outline-color: transparent; box-shadow: 0 12px 32px rgba(60,45,20,0), 3px 4px 0 rgba(47,42,37,0); }
+    55% { background-color: rgba(245,236,218,1); border-color: transparent; outline-color: transparent; box-shadow: 0 12px 32px rgba(60,45,20,0.24), 3px 4px 0 rgba(47,42,37,0.14); }
+    70% { border-color: #2f2a25; outline-color: rgba(47,42,37,0.3); }
+    100% { background-color: rgba(245,236,218,1); border-color: #2f2a25; outline-color: rgba(47,42,37,0.3); box-shadow: 0 12px 32px rgba(60,45,20,0.24), 3px 4px 0 rgba(47,42,37,0.14); }
+  }
+  @keyframes sheetOut {
+    0% { opacity: 1; visibility: visible; background-color: rgba(245,236,218,1); border-color: #2f2a25; outline-color: rgba(47,42,37,0.3); box-shadow: 0 12px 32px rgba(60,45,20,0.24), 3px 4px 0 rgba(47,42,37,0.14); }
+    10% { opacity: 1; visibility: visible; border-color: transparent; outline-color: transparent; }
+    30% { opacity: 1; visibility: visible; background-color: rgba(245,236,218,1); border-color: transparent; }
+    85% { opacity: 1; visibility: visible; background-color: rgba(245,236,218,0); border-color: transparent; outline-color: transparent; box-shadow: 0 12px 32px rgba(60,45,20,0), 3px 4px 0 rgba(47,42,37,0); }
+    100% { opacity: 0; visibility: hidden; background-color: rgba(245,236,218,0); border-color: transparent; box-shadow: none; }
+  }
+  @keyframes itemIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes itemOut { from { opacity: 1; } to { opacity: 0; } }
+  /* «Уменьшение движения»: обычное плавное появление и исчезновение, без пера и сдвигов */
+  @media (min-width: 1024px) and (prefers-reduced-motion: reduce) {
+    html:not([data-motion="on"]) .pen { display: none; }
+    html:not([data-motion="on"]) body:not(.panel-collapsed) .panel-card { animation: sheetFade 450ms ease both; }
+    html:not([data-motion="on"]) body:not(.panel-collapsed) .panel-scroll > * { animation: none; }
+    html:not([data-motion="on"]).panel-anim body.panel-collapsed .panel-card { animation: sheetFadeOut 250ms ease both; }
+    html:not([data-motion="on"]).panel-anim body.panel-collapsed .panel-scroll > * { animation: none; }
+    html:not([data-motion="on"]).panel-anim body.panel-collapsed #layout, html:not([data-motion="on"]).panel-anim body.panel-collapsed #panelBtn { transition-delay: 0ms; }
+  }
+  @keyframes sheetFade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes sheetFadeOut { from { opacity: 1; visibility: visible; } 99% { opacity: 0; visibility: visible; } to { opacity: 0; visibility: hidden; } }
+  .p-title { font: 700 26px/1.2 var(--font); display: block; margin: 0 var(--s3) 0 0; }
+  .p-sec { margin: 0; }
+  .p-sec h3 { margin: 0 0 var(--s1); font: 700 20px/1.2 var(--font); }
+  .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0; border: 2px solid var(--ink); border-radius: 12px 6px 12px 6px / 6px 12px 6px 12px; overflow: hidden; }
+  .seg button {
+    min-height: 48px; padding: var(--s1) 4px; border: none; border-right: 1px solid rgba(47,42,37,0.5);
+    background: transparent; color: var(--ink); cursor: pointer;
+    font: 600 var(--fs-small)/1.15 var(--font);
+  }
+  .seg button:last-child { border-right: none; }
+  .seg button.on { background: var(--ink); color: var(--paper); }
+  #thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s1); }
+  #thumbs button {
+    padding: 0; border: 2px solid rgba(47,42,37,0.35); border-radius: 8px 4px 8px 4px;
+    overflow: hidden; cursor: pointer; background: #000; aspect-ratio: 4 / 5;
+    transition: border-color var(--dur) var(--spring), transform var(--dur) var(--spring);
+  }
+  #thumbs button img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 58%; }
+  #thumbs button.on { border-color: var(--ink); transform: scale(1.04); box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink); }
+  .p-row { display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: var(--s1); }
+  .switch {
+    flex: none; width: 54px; height: 30px; border-radius: 15px; border: 2px solid var(--ink);
+    background: transparent; position: relative; cursor: pointer;
+    transition: background var(--dur) var(--spring);
+  }
+  .switch::after {
+    content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%;
+    background: var(--ink); transition: transform var(--dur) var(--spring), background var(--dur) var(--spring);
+  }
+  .switch.on { background: var(--ink); }
+  .switch.on::after { transform: translateX(24px); background: var(--paper); }
+  .p-btn {
+    display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; padding: var(--s1) var(--s2); cursor: pointer;
+    border: 2px solid var(--ink); border-radius: 12px 6px 12px 6px / 6px 12px 6px 12px;
+    background: transparent; color: var(--ink); text-align: center;
+    font: 700 var(--fs-body)/1.15 var(--font);
+    transition: background var(--dur) var(--spring), color var(--dur) var(--spring);
+  }
+  .p-btn[hidden] { display: none; }
+  /* ссылка на страницу здания (история, фото, хроника): тёмная кнопка, заметнее остальных — сразу под названием */
+  a.p-btn { text-decoration: none; }
+  .p-btn.p-history { background: var(--ink); color: var(--paper); }
+  @media (hover: hover) and (pointer: fine) { .p-btn.p-history:hover { background-color: #443c35; } }
+  .p-about p { margin: 0 0 var(--s1); font-size: var(--fs-small); line-height: 1.35; }
+  .p-about a { color: var(--ink); font-weight: 700; font-size: var(--fs-small); }
+
+  /* Наведение мышью: подсвечивается только элемент прямо под курсором и еле заметно —
+     фон на 4% темнее; без подъёма и теней, группой ничего не подсвечивается. */
+  @media (hover: hover) and (pointer: fine) {
+    .seg button, .p-btn, .switch, #thumbs button, #panelBtn, .arrow-btn { cursor: pointer; }
+    .seg button, .p-btn { transition: background-color 200ms var(--spring); }
+    .switch, #thumbs button { transition: filter 200ms var(--spring); }
+    #panelBtn { transition: left var(--dur) var(--spring), filter 200ms var(--spring); }
+    .seg button:not(.on):hover, .p-btn:hover { background-color: rgba(47,42,37,0.04); }
+    .switch:hover, #thumbs button:hover, #panelBtn:hover, .arrow-btn:hover { filter: brightness(0.96); }
+  }
+
+  /* кнопка панели (v12.1): своя иконка — знак вечности (колесо с восемью лучами). На ПК свернуть/развернуть, на телефоне —
+     открыть/закрыть шторку. При переключении колесо поворачивается на пружине, а лучи по очереди прорисовываются заново. */
+  #panelBtn {
+    position: fixed; z-index: 60; border: 2px solid var(--ink); background: var(--paper); color: var(--ink);
+    cursor: pointer; padding: 0;
+    box-shadow: 0 6px 16px rgba(60,45,20,0.3), 2px 3px 0 rgba(47,42,37,0.14);
+    display: flex; align-items: center; justify-content: center;
+    transition: left var(--dur) var(--spring), transform var(--dur) var(--spring), background var(--dur) var(--spring);
+  }
+  #panelBtn:active { background: var(--paper-2); }
+  #panelBtn svg { display: block; flex: none; }
+  .ic-wheel { transition: transform 800ms var(--spring); overflow: visible; }
+  .ic-wheel .arm { stroke-dasharray: 1; stroke-dashoffset: 0; }
+  @keyframes armA { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+  @keyframes armB { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+  #scrim { display: none; }
+
+  @media (min-width: 1024px) {
+    #panelBtn {
+      top: var(--s3); left: calc(var(--panelW) - 56px); width: 40px; height: 40px; border-radius: 50% 42% 50% 42%;
+    }
+    #panelBtn .ic-wheel { width: 28px; height: 28px; transform: rotate(180deg); }
+    body.panel-collapsed #panelBtn { left: 4px; }
+    body.panel-collapsed #panelBtn .ic-wheel { transform: rotate(0deg); }
+    html.panel-anim body:not(.panel-collapsed) #panelBtn .arm { animation: armA 700ms var(--ease) both; animation-delay: calc(var(--i) * 55ms + 150ms); }
+    html.panel-anim body.panel-collapsed #panelBtn .arm { animation: armB 700ms var(--ease) both; animation-delay: calc(var(--i) * 55ms); }
+  }
+
+  /* Телефон: та же панель, свёрнутая в круглую кнопку; по тапу выезжает снизу шторкой на 60% высоты */
+  @media (max-width: 1023.98px) {
+    #panel {
+      position: fixed; left: 0; right: 0; bottom: 0; height: 60vh; height: 60dvh; overflow: visible;
+      transform: translateY(108%); transition: transform 400ms var(--ease); z-index: 70;
+    }
+    body.sheet-open #panel { transform: none; }
+    .panel-scroll { padding: var(--s4); grid-template-columns: minmax(0, 420px); justify-content: center; scroll-padding: var(--s4) 0; }
+    .panel-card {
+      left: max(var(--s1), var(--safe-l)); right: max(var(--s1), var(--safe-r)); top: 0; bottom: calc(var(--safe-b) + var(--s1)); width: auto;
+      border-radius: 22px 22px 12px 12px / 18px 18px 12px 12px;
+    }
+    #panelBtn {
+      left: calc(var(--safe-l) + var(--s2)); bottom: calc(var(--safe-b) + var(--s1)); width: 56px; height: 56px; border-radius: 50%;
+      transition: transform 350ms var(--ease), background 250ms var(--ease);
+    }
+    body.sheet-open #panelBtn { transform: scale(0.9); }
+    #scrim {
+      display: block; position: fixed; inset: 0; z-index: 65; background: rgba(20,16,8,0.32);
+      opacity: 0; pointer-events: none; transition: opacity 300ms var(--ease);
+    }
+    body.sheet-open #scrim { opacity: 1; pointer-events: auto; }
+  }
+
+  /* без WebGL время суток — CSS-фильтром (окна ночью не светятся) */
+  .fb-frame { transition: filter 1500ms var(--spring); }
+  #fallback[data-tod="sunset"] .fb-frame { filter: sepia(0.55) saturate(1.5) hue-rotate(-12deg) brightness(0.93); }
+  #fallback[data-tod="night"] .fb-frame { filter: brightness(0.38) sepia(0.35) hue-rotate(185deg) saturate(1.5); }
+
+
+  /* Точки-подсказки: маленький пульсирующий маркер, привязанный к
+     объекту на слое (двигается вместе с ним при параллаксе — позиция
+     считается в JS той же формулой смещения, что и в шейдере). */
+  /* Птицы, облака, солнце и прочее в небе рисует details.js на 2D-холсте (с v12 — вместо DOM-птиц). */
+
+  #hotspots { position: absolute; inset: 0; z-index: 6; pointer-events: none; }
+  .hs-dot {
+    position: absolute; top: 0; left: 0;
+    width: 22px; height: 22px; margin: -11px;
+    border: none; padding: 0; background: none;
+    pointer-events: auto; cursor: pointer;
+    opacity: 0; transition: opacity var(--dur) var(--spring);
+  }
+  .hs-dot.show { opacity: 1; }
+  .hs-dot::before, .hs-dot::after {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    border-radius: 50%; transform: translate(-50%, -50%);
+  }
+  .hs-dot::before {
+    width: 10px; height: 10px;
+    background: #fff; border: 2px solid rgba(20,16,8,0.55);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+  }
+  .hs-dot::after {
+    width: 10px; height: 10px;
+    background: rgba(255,255,255,0.7);
+    animation: hsPulse 2.2s var(--ease) infinite;
+  }
+  @keyframes hsPulse {
+    0% { transform: translate(-50%, -50%) scale(1); opacity: 0.7; }
+    100% { transform: translate(-50%, -50%) scale(2.8); opacity: 0; }
+  }
+
+  /* Карточка подсказки: бумага, крупный текст, растёт из точки (0.9 -> 1, 350 мс),
+     закрывается за 300 мс. Фон за ней темнеет/размывается/обесцвечивается. */
+  #hsPopup {
+    position: absolute; z-index: 7;
+    width: max-content; max-width: min(84vw, 360px);
+    display: grid; row-gap: var(--s2); padding: var(--s2) var(--s3);
+    font-size: var(--fs-card); line-height: 1.35; color: var(--ink);
+    --shift: 0px;
+    transform-origin: calc(50% - var(--shift)) calc(100% + 16px);
+    transform: translate(calc(-50% + var(--shift)), -100%) translateY(-16px) scale(0.9);
+    opacity: 0; pointer-events: none;
+    transition: opacity 300ms var(--ease), transform 300ms var(--ease);
+  }
+  #hsPopup.show {
+    opacity: 1; pointer-events: auto;
+    transform: translate(calc(-50% + var(--shift)), -100%) translateY(-16px) scale(1);
+    transition-duration: 350ms;
+  }
+  /* точка у верхнего края — карточка раскрывается вниз */
+  #hsPopup.below { transform-origin: calc(50% - var(--shift)) -16px; transform: translate(calc(-50% + var(--shift)), 0) translateY(16px) scale(0.9); }
+  #hsPopup.below.show { transform: translate(calc(-50% + var(--shift)), 0) translateY(16px) scale(1); }
+  #hsPopup::after {
+    /* хвостик остаётся над точкой, даже если сам блок сдвинут от края */
+    content: ''; position: absolute; left: calc(50% - var(--shift)); top: 100%;
+    width: 14px; height: 14px; margin-left: -7px; margin-top: -8px;
+    background: var(--paper); border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink);
+    transform: rotate(45deg);
+  }
+  #hsPopup.below::after { top: 0; margin-top: -6px; border: none; border-left: 2px solid var(--ink); border-top: 2px solid var(--ink); }
+  #hsText { margin: 0; }
+  #hsBack { display: inline-flex; justify-self: start; width: auto; padding: var(--s1) var(--s2); font-size: var(--fs-small); }
+  .lbl-phone { display: none; }
+  /* Телефон: заметная кнопка «× закрыть» внизу карточки (не ниже 44 px), тап мимо тоже закрывает */
+  @media (max-width: 1023.98px) {
+    .lbl-pc { display: none; }
+    .lbl-phone { display: inline; }
+    #hsBack { display: flex; justify-self: stretch; width: 100%; min-height: 48px; padding: var(--s1) var(--s2); font-size: 19px; }
+  }
+
+  #gl, #fallback { transition: filter 650ms var(--ease); }
+  /* ПК: карточка растёт из точки на пружине (0.85 -> 1), фон затемняется/размывается/обесцвечивается
+     за 650 мс; карточка закрывается за 300 мс через 250 мс после ухода мыши. На телефоне остаётся прежнее появление. */
+  @media (min-width: 1024px) {
+    #hsPopup {
+      transform: translate(calc(-50% + var(--shift)), -100%) translateY(-16px) scale(0.85);
+      transition: opacity 300ms var(--spring), transform 300ms var(--spring);   /* закрытие 300 мс */
+    }
+    #hsPopup.show { transform: translate(calc(-50% + var(--shift)), -100%) translateY(-16px) scale(1); transition-duration: var(--dur); }
+    #hsPopup.below { transform: translate(calc(-50% + var(--shift)), 0) translateY(16px) scale(0.85); }
+    #hsPopup.below.show { transform: translate(calc(-50% + var(--shift)), 0) translateY(16px) scale(1); }
+    #gl, #fallback { transition: filter 650ms var(--spring); }
+  }
+  #stage.reading #gl, #stage.reading #fallback { filter: brightness(0.6) saturate(0.4) blur(6px); }
+
+  /* «Уменьшение движения» в системе: отключаем только фоновое бесконечное движение (небо и живые детали, пульс
+     точек, «дыхание», тени облаков, ветер, звёзды). Плавные переходы интерфейса и автопокачивание
+     остаются: у автопокачивания есть свой переключатель в панели. */
+  @media (prefers-reduced-motion: reduce) {
+    .hs-dot::after { display: none; }
+  }
+  /* ТЕЛЕФОН (v12.1): кнопки и название были плохо видны на картинке. Теперь у каждой кнопки и у названия — мягкая полупрозрачная
+     подложка цвета бумаги с растушёванными краями (радиальный градиент, не плашка и не круг с обводкой); значки и текст — тёмное перо.
+     Ночью подложка тёмно-синяя, значки светлые (html[data-night="1"] ставит скрипт). Нажимаемая зона (56 px) прежняя. */
+  :root { --bk: 245,236,218; --fg: #2f2a25; }
+  html[data-night="1"] { --bk: 22,28,50; --fg: #f3e9d2; }
+  @media (max-width: 1023.98px) {
+    .arrow-btn, #panelBtn {
+      pointer-events: auto; color: var(--fg); border: 0; border-radius: 50%; box-shadow: none; filter: none;
+      background: radial-gradient(closest-side, rgba(var(--bk),0.9) 0, rgba(var(--bk),0.86) 60%, rgba(var(--bk),0) 100%);
+    }
+    .arrow-btn:active, #panelBtn:active { background: radial-gradient(closest-side, rgba(var(--bk),0.9) 0, rgba(var(--bk),0.86) 60%, rgba(var(--bk),0) 100%); transform: scale(0.9); opacity: 0.85; }
+    #panelBtn { left: calc(var(--safe-l) + var(--s2)); bottom: calc(var(--safe-b) + var(--s1)); width: 56px; height: 56px; transition: transform 350ms var(--ease), opacity 250ms var(--ease); }
+    #panelBtn .ic-wheel { width: 34px; height: 34px; }
+    body.sheet-open #panelBtn { transform: scale(0.94); }
+    body.sheet-open #panelBtn .ic-wheel { transform: rotate(180deg); }
+    html.panel-anim body.sheet-open #panelBtn .arm { animation: armA 700ms var(--ease) both; animation-delay: calc(var(--i) * 55ms + 150ms); }
+    html.panel-anim body:not(.sheet-open) #panelBtn .arm { animation: armB 700ms var(--ease) both; animation-delay: calc(var(--i) * 55ms); }
+    #barTitle {
+      justify-self: center; max-width: 100%; padding: 12px 16px; color: var(--fg); text-shadow: none; font-size: 17px;
+      background: radial-gradient(ellipse closest-side, rgba(var(--bk),0.88) 0, rgba(var(--bk),0.84) 62%, rgba(var(--bk),0) 100%);
+    }
+    .nav-btn svg { width: 34px; height: 34px; }
+  }
+</style>
 </head>
 <body>
-<nav class="nav"><div class="nav-in">
-  <a class="logo" href="../" aria-label="Все здания — назад в альбом Չկա"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span class="hy">Չկա</span></a>
-  <div class="lang-switch-mount" data-lang-switch></div>
-</div></nav>
+<script>try { if (localStorage.getItem('chka-panel') === 'collapsed') document.body.classList.add('panel-collapsed'); } catch (e) {}   /* панель, свёрнутая в прошлый раз, — сразу свёрнутой, без анимации закрытия */</script>
 
-<main class="page story-wrap">
+<script src="welcome-letters.js"></script>
+<script src="welcome-loader.js"></script>
+<script>
+/* ===================== CONFIG =====================
+   Все параметры эффекта «3D-фото» собраны здесь, ничего похожего
+   больше в коде не настраивается. */
+var CONFIG = {
+  // Смещение по карте глубины: максимум у самых близких/дальних пикселей
+  // фона и земли (плоскость фокуса — середина карты), доли ширины/высоты
+  // кадра. Здание двигается целиком по своей средней глубине, тем же максимумом.
+  MAX_SHIFT_X: 0.02,
+  MAX_SHIFT_Y: 0.012,
+  BASE_SCALE: 1.05,          // общий масштаб, чтобы не были видны края
+  ZOOM_NEAR: 0.02,           // при наклоне к себе ближние части +до 2%
+  DEPTH_BLUR_PX: 6,          // размытие карты глубины фона (6 px) против «резины» на краях
 
-  <header class="s-head reveal">
-    <h1><span class="i18n-inline" lang="hy">Կուկուռուզնիկ</span><span class="i18n-inline" lang="ru">Кукурузник</span><span class="i18n-inline" lang="en">The Corncob</span></h1>
-    <p class="meta"><span class="i18n-inline" lang="hy">Երիտասարդական պալատ · Երևան · 1979–2006</span><span class="i18n-inline" lang="ru">Дом молодёжи · Ереван · 1979–2006</span><span class="i18n-inline" lang="en">Youth Palace · Yerevan · 1979–2006</span></p>
-    <div class="s-actions">
-    <a class="btn btn-3d" href="scene.html"><svg class="cube-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12v9M4 7.5l8 4.5 8-4.5"/></svg><span><span class="i18n-inline" lang="hy">Տեսնել 3D-ով</span><span class="i18n-inline" lang="ru">Смотреть в 3D</span><span class="i18n-inline" lang="en">View in 3D</span></span></a>
-    <a class="btn btn-ghost btn-history" href="history.html"><span class="i18n-inline" lang="hy">Կարդալ պատմությունը</span><span class="i18n-inline" lang="ru">Читать историю</span><span class="i18n-inline" lang="en">Read the history</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-    </div>
-    <p class="hint"><span class="i18n-inline" lang="hy">պտտվում է 360°-ով, փոխվում են օրվա ժամն ու լույսը</span><span class="i18n-inline" lang="ru">крутится на 360°, меняются время суток и свет</span><span class="i18n-inline" lang="en">spins a full 360°, time of day and light change too</span></p>
-  </header>
+  // Кадры и карты глубины ужимаются до этой длинной стороны — иначе iPhone
+  // выгружает большие текстуры из памяти.
+  MAX_TEX_SIZE: 1600,
 
-  <figure class="plate reveal" id="plate">
-    <div class="plate-in" id="plateIn">
-      <div class="layer photo"><picture>
-        <source type="image/webp" srcset="../assets/hero-photo-720.webp 720w, ../assets/hero-photo-1080.webp 1080w" sizes="(min-width: 900px) 720px, calc(100vw - 48px)">
-        <img src="../assets/hero-photo-1080.jpg" width="1080" height="1080" alt="Кукурузник, общий вид с холма" decoding="async">
-      </picture></div>
-      <div class="layer sketch" aria-hidden="true"><picture>
-        <source type="image/webp" srcset="../assets/hero-sketch-720.webp 720w, ../assets/hero-sketch-1080.webp 1080w" sizes="(min-width: 900px) 720px, calc(100vw - 48px)">
-        <img src="../assets/hero-sketch-1080.jpg" width="1080" height="1080" alt="" decoding="async">
-      </picture></div>
-      <div class="split-line" aria-hidden="true"></div>
-      <div class="handle" role="slider" tabindex="0" aria-label="Сравнить архивное фото и рисунок" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7l-5 5 5 5M15 7l5 5-5 5"/></svg>
+  // Наклон гироскопа, дающий полное смещение (мышь/палец — свои правила).
+  MAX_TILT_X_DEG: 20,
+  MAX_TILT_Y_DEG: 20,
+
+  SMOOTH: 0.12,              // сглаживание гироскопа/мыши (доля пути за кадр при 60 fps)
+  RETURN_MS: 800,            // возврат в центр после отпускания пальца
+
+  // Быстрый росчерк пальцем = смена кадра; медленное перетаскивание двигает объём.
+  SWIPE_MIN_PX: 50,
+  SWIPE_MAX_MS: 350,
+
+  // Автопокачивание, если 4 секунды нет ни касаний, ни наклона.
+
+  // "Дыхание" в состоянии покоя.
+  BREATH_AMPLITUDE: 0.004,   // доля ширины кадра
+  BREATH_PERIOD_S: 6,
+
+  // Кроссфейд между кадрами, мс.
+  SPRING_RESPONSE: 0.65,     // пружина: response, с
+  SPRING_DAMPING: 0.86,      // пружина: damping ratio
+  FRAME_CROSSFADE_MS: 1200,
+  DAY_SUNSET_S: 2.5,         // день → закат, с
+  SUNSET_NIGHT_S: 3,         // закат → ночь, с (окна и фонари — со второй половины, за 2 с)
+
+  // Номера кадров (с 0), которые не показываем: брак, который не удалось заменить.
+  hiddenFrames: [],
+
+  // Ночь (v6): сколько окон горит, яркость, переключения, фонари, звёзды, ветер.
+  NIGHT_TOWER_LIT: [0.30, 0.40],   // доля горящих окон башни
+  NIGHT_OTHER_LIT: [0.15, 0.25],   // доля горящих окон других зданий
+  WINDOW_BRIGHT: [0.6, 1.0],       // яркость горящего окна
+  WINDOW_TOGGLE_S: [8, 12],        // раз в столько секунд одно окно зажигается/гаснет
+  WINDOW_FADE_MS: 1500,
+  LAMP_BREATH: 0.08,               // «дыхание» фонарей ±8%
+  LAMP_PERIOD_S: [4, 6],
+  STARS: 120,                      // звёзд на небе (80–150)
+  SHOOT_EVERY_S: [40, 60],         // падающие звёзды
+  SHOOT_MS: 900,
+  WIND: true,                      // ветер в деревьях
+  WIND_AMP_PX: 2.5,                // качание макушки дерева, px экрана
+  PERF_MIN_FPS: 45,                // ниже — сначала выключаем ветер, потом падающие звёзды
+
+  // День (v12): небо светло-голубое (умножение на голубой: бумага, мазки и облака сохраняются, штрих и тёмные линии — как были),
+  // зелень (деревья, трава — по оттенку, без масок) зеленее и насыщеннее. Закат и ночь — свои картинки, их это не трогает.
+  DAY: {
+    SKY_TOP: [0.58, 0.78, 0.97],     // цвет небесной «вымывки» вверху (умножается на детали рисунка)
+    SKY_HOR: [0.83, 0.92, 0.99],     // и у горизонта — светлее
+    SKY_REF: [0.866, 0.85, 0.867, 0.838, 0.932, 0.893],   // яркость исходной вымывки неба по кадрам (медиана): от неё считаем «облако светлее неба»
+    SKY_END: [0.55, 0.55, 0.525, 0.56, 0.28, 0.70],       // ниже этой доли высоты кадра неба нет (маска местами затекает на газон)
+    MIX: 0.55,                       // v12.1: середина между v11 (0) и v12 (1) — без «мультяшности»
+    GREEN_HUE: 0.30,                 // куда тянем оттенок зелени (0.30 = 108°)
+    GREEN_PULL: 0.78,                // насколько сильно (0..1)
+    GREEN_SAT: 1.9                   // во сколько раз насыщеннее
+  },
+
+  // Тени облаков по кадрам (сила; на крупном плане кадра 6 они заметно ползут по фасаду) и ветер (множитель, у крупного плана сильнее).
+  CLOUD_SHADOW: [0.12, 0.12, 0.12, 0.12, 0.12, 0.26],
+  WIND_K: [1, 1, 1, 1, 1, 1.9],
+
+  // Откат без WebGL: множитель сдвига слоя здания (+) и фона (−).
+  FALLBACK_LAYER_K: 0.6,
+
+  // Список ниже между метками генерируется автоматически командой
+  // .venv-depth/bin/python tools/build_frames.py — руками не редактировать,
+  // править картинки в test-assets/frames/ и перезапускать скрипт.
+  // color/depth — цельный кадр и его карта глубины (для WebGL).
+  // bg/building — два слоя (фон без здания и вырезка здания) — только
+  // для отката, если у браузера нет WebGL.
+  FRAMES: [
+    /* FRAMES:START */
+    { color: 'frames/v_angle_0.webp', depth: 'frames/v_angle_0_depth.webp', bg: { color: 'frames/v_angle_0_bg.webp', depth: 'frames/v_angle_0_bg_depth.webp' }, building: { color: 'frames/v_angle_0_building.webp', depth: 'frames/v_angle_0_depth.webp' }, env: 'frames/v_angle_0_env.webp', win2: 'frames/v_angle_0_win2.webp', sunset: 'frames/v_angle_0_sunset.webp', night: 'frames/v_angle_0_night.webp' },
+    { color: 'frames/v_angle_1.webp', depth: 'frames/v_angle_1_depth.webp', bg: { color: 'frames/v_angle_1_bg.webp', depth: 'frames/v_angle_1_bg_depth.webp' }, building: { color: 'frames/v_angle_1_building.webp', depth: 'frames/v_angle_1_depth.webp' }, env: 'frames/v_angle_1_env.webp', win2: 'frames/v_angle_1_win2.webp', sunset: 'frames/v_angle_1_sunset.webp', night: 'frames/v_angle_1_night.webp' },
+    { color: 'frames/v_angle_2.webp', depth: 'frames/v_angle_2_depth.webp', bg: { color: 'frames/v_angle_2_bg.webp', depth: 'frames/v_angle_2_bg_depth.webp' }, building: { color: 'frames/v_angle_2_building.webp', depth: 'frames/v_angle_2_depth.webp' }, env: 'frames/v_angle_2_env.webp', win2: 'frames/v_angle_2_win2.webp', sunset: 'frames/v_angle_2_sunset.webp', night: 'frames/v_angle_2_night.webp' },
+    { color: 'frames/v_angle_3.webp', depth: 'frames/v_angle_3_depth.webp', bg: { color: 'frames/v_angle_3_bg.webp', depth: 'frames/v_angle_3_bg_depth.webp' }, building: { color: 'frames/v_angle_3_building.webp', depth: 'frames/v_angle_3_depth.webp' }, env: 'frames/v_angle_3_env.webp', win2: 'frames/v_angle_3_win2.webp', sunset: 'frames/v_angle_3_sunset.webp', night: 'frames/v_angle_3_night.webp' },
+    { color: 'frames/v_angle_4.webp', depth: 'frames/v_angle_4_depth.webp', bg: { color: 'frames/v_angle_4_bg.webp', depth: 'frames/v_angle_4_bg_depth.webp' }, building: { color: 'frames/v_angle_4_building.webp', depth: 'frames/v_angle_4_depth.webp' }, env: 'frames/v_angle_4_env.webp', win2: 'frames/v_angle_4_win2.webp', sunset: 'frames/v_angle_4_sunset.webp', night: 'frames/v_angle_4_night.webp' },
+    { color: 'frames/v_angle_5.webp', depth: 'frames/v_angle_5_depth.webp', bg: { color: 'frames/v_angle_5_bg.webp', depth: 'frames/v_angle_5_bg_depth.webp' }, building: { color: 'frames/v_angle_5_building.webp', depth: 'frames/v_angle_5_depth.webp' }, env: 'frames/v_angle_5_env.webp', win2: 'frames/v_angle_5_win2.webp', sunset: 'frames/v_angle_5_sunset.webp', night: 'frames/v_angle_5_night.webp' },
+    /* FRAMES:END */
+  ],
+
+  // Точки-подсказки: 2-4 на кадр. u/v — позиция на исходной картинке
+  // (0..1, как у текстур). В режиме WebGL глубина точки читается из той же
+  // (размытой) карты, что и в шейдере, — точка двигается ровно как то место,
+  // к которому привязана. layer (building/bg) нужен только для отката без
+  // WebGL; поле depth — справочное. key — ключ текста в I18N ниже.
+  HOTSPOTS: [
+    [ // v_angle_0
+      { key: 'tower1', layer: 'building', u: 0.50, v: 0.50, depth: 0.247 },
+      { key: 'tower2', layer: 'building', u: 0.50, v: 0.36, depth: 0.251 },
+      { key: 'architects', layer: 'bg', u: 0.15, v: 0.60, depth: 0.220 }
+    ],
+    [ // v_angle_1
+      { key: 'tower1', layer: 'building', u: 0.48, v: 0.50, depth: 0.463 },
+      { key: 'tower2', layer: 'building', u: 0.48, v: 0.37, depth: 0.486 },
+      { key: 'architects', layer: 'bg', u: 0.60, v: 0.68, depth: 0.306 },
+      { key: 'mother_armenia', layer: 'bg', u: 0.17, v: 0.43, depth: 0.071 }
+    ],
+    [ // v_angle_2
+      { key: 'tower1', layer: 'building', u: 0.47, v: 0.48, depth: 0.384 },
+      { key: 'tower2', layer: 'building', u: 0.47, v: 0.35, depth: 0.369 },
+      { key: 'architects', layer: 'bg', u: 0.80, v: 0.62, depth: 0.361 }
+    ],
+    [ // v_angle_3
+      { key: 'tower1', layer: 'building', u: 0.50, v: 0.55, depth: 0.275 },
+      { key: 'tower2', layer: 'building', u: 0.50, v: 0.38, depth: 0.290 },
+      { key: 'architects', layer: 'bg', u: 0.50, v: 0.635, depth: 0.176 }
+    ],
+    [ // v_angle_4
+      { key: 'tower1', layer: 'building', u: 0.62, v: 0.48, depth: 0.498 },
+      { key: 'tower2', layer: 'building', u: 0.62, v: 0.38, depth: 0.486 },
+      { key: 'mother_armenia', layer: 'bg', u: 0.87, v: 0.25, depth: 0.031 },
+      { key: 'construction', layer: 'bg', u: 0.90, v: 0.58, depth: 0.455 }
+    ],
+    [ // v_angle_5
+      { key: 'tower1', layer: 'building', u: 0.45, v: 0.45, depth: 0.514 },
+      { key: 'tower2', layer: 'building', u: 0.55, v: 0.12, depth: 0.486 },
+      { key: 'architects', layer: 'bg', u: 0.50, v: 0.88, depth: 0.800 }
+    ]
+  ],
+
+  // Фонари ночных кадров-картинок (v10): ореолы ставим на фонари, нарисованные на ночном кадре. Формат тот же.
+  // Найдены по ночным картинкам (головы фонарей и основания столбов). Пусто — на ночной картинке нет фонарей (тогда LAMPS v8).
+  // Обрезка кадров от белого края бумаги (tools/find_edges.py): [x0, y0, x1, y1] в долях кадра, те же пропорции, что и у кадра.
+  CROP: [[0, 0, 1, 1], [0.026, 0, 0.974, 0.948], [0, 0, 1, 1], [0.0176, 0, 0.9824, 0.9648], [0, 0, 1, 1], [0.056, 0.0667, 0.9505, 0.9612]],
+  // Флаги, которые колышутся (шейдер, только по своему прямоугольнику): [x, y, ширина, высота] в долях кадра; нет флагов — [0, 0, 0, 0].
+  FLAGS: [[0, 0, 0, 0], [0.066, 0.5975, 0.044, 0.0255], [0.347, 0.711, 0.149, 0.022], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+  NIGHT_DIM: 0.64,                 // тёмное на ночных картинках темнее на 36% (свет окон и фонарей — как нарисован)
+  NIGHT_HALO: [1, 1, 0.3, 1, 1, 0.3],   // сила ореолов фонарей по кадрам: на кадрах 3 и 6 — до уровня нарисованного света
+  NIGHT_LAMPS: [
+    [[0.854, 0.577, 0.854, 0.608], [0.939, 0.588, 0.939, 0.619], [0.134, 0.773, 0.134, 0.839], [0.951, 0.763, 0.951, 0.828], [0.681, 0.79, 0.681, 0.853]],  // v_angle_0
+    [[0.681, 0.558, 0.681, 0.582], [0.814, 0.577, 0.814, 0.602], [0.189, 0.576, 0.189, 0.597], [0.076, 0.822, 0.076, 0.89], [0.417, 0.845, 0.417, 0.916], [0.635, 0.841, 0.635, 0.908], [0.935, 0.817, 0.935, 0.886]],  // v_angle_1
+    [[0.133, 0.748, 0.133, 0.766], [0.245, 0.793, 0.245, 0.823], [0.229, 0.886, 0.229, 0.916], [0.223, 0.952, 0.223, 0.982], [0.616, 0.935, 0.616, 0.965], [0.585, 0.829, 0.585, 0.859], [0.737, 0.711, 0.737, 0.729], [0.197, 0.63, 0.197, 0.648]],  // v_angle_2
+    [[0.684, 0.548, 0.684, 0.593], [0.215, 0.549, 0.215, 0.59], [0.849, 0.555, 0.849, 0.579], [0.022, 0.569, 0.022, 0.61], [0.749, 0.674, 0.749, 0.736], [0.12, 0.795, 0.12, 0.897], [0.59, 0.769, 0.59, 0.853], [0.879, 0.793, 0.879, 0.897]],  // v_angle_3
+    [[0.302, 0.495, 0.302, 0.531], [0.44, 0.775, 0.44, 0.786], [0.474, 0.811, 0.474, 0.822], [0.609, 0.812, 0.609, 0.823], [0.335, 0.815, 0.335, 0.826], [0.785, 0.797, 0.785, 0.808], [0.921, 0.812, 0.921, 0.823], [0.066, 0.876, 0.066, 0.905]],  // v_angle_4
+    [[0.589, 0.929, 0.589, 0.963], [0.794, 0.925, 0.794, 0.96], [0.742, 0.916, 0.742, 0.94]],  // v_angle_5
+  ],
+
+  // Фонари v8 (ночь без картинки, откат): по кадрам, [u, v лампы, u, v основания столба] в долях кадра (768×1365).
+  // Найдены по рисунку глазами; на кадрах 0, 1, 3 фонарей в рисунке нет.
+  LAMPS: [
+    [],  // v_angle_0
+    [],  // v_angle_1
+    [[0.7344, 0.7114, 0.7344, 0.7363], [0.6810, 0.7143, 0.6810, 0.7385], [0.5391, 0.7443, 0.5391, 0.7729], [0.5586, 0.7810, 0.5586, 0.8117], [0.5833, 0.8278, 0.5833, 0.8586]],  // v_angle_2
+    [],  // v_angle_3
+    [[0.3359, 0.8139, 0.3359, 0.8278], [0.4740, 0.8088, 0.4740, 0.8249], [0.6094, 0.8110, 0.6094, 0.8264], [0.7995, 0.8176, 0.7995, 0.8308], [0.2253, 0.8498, 0.2253, 0.8791], [0.3034, 0.8799, 0.3034, 0.9194], [0.4570, 0.8791, 0.4570, 0.9136]],  // v_angle_4
+    [[0.7396, 0.9172, 0.7396, 0.9648]]  // v_angle_5
+  ],
+
+  // Тексты подсказок. ТОЛЬКО эти пять, свои факты не добавлять.
+  // hy (армянский) — утверждён владельцем.
+  I18N: {
+    tower1: {
+      ru: 'Дом молодёжи, открыт в 1979. В народе — Кукурузник',
+      en: 'Youth Palace, opened in 1979. Nicknamed "the Corncob"',
+      hy: 'Երիտասարդական պալատ, բացվել է 1979-ին։ Ժողովրդի մեջ՝ «Կուկուռուզնիկ»'
+    },
+    tower2: {
+      ru: 'Снесён в 2006, официально — из-за сейсмической безопасности',
+      en: 'Demolished in 2006, officially for seismic safety reasons',
+      hy: 'Քանդվել է 2006-ին, պաշտոնապես՝ սեյսմիկ անվտանգության պատճառով'
+    },
+    architects: {
+      ru: 'Архитекторы: А. Тарханян, Г. Погосян, С. Хачикян',
+      en: 'Architects: A. Tarkhanyan, H. Poghosyan, S. Khachikyan',
+      hy: 'Ճարտարապետներ՝ Ա. Թարխանյան, Հ. Պողոսյան, Ս. Խաչիկյան'
+    },
+    mother_armenia: {
+      ru: 'Мать Армения, 1967',
+      en: 'Mother Armenia, 1967',
+      hy: 'Մայր Հայաստան, 1967'
+    },
+    construction: {
+      ru: 'Строительство, 1970-е',
+      en: 'Construction, 1970s',
+      hy: 'Շինարարություն, 1970-ականներ'
+    }
+  },
+
+  // Тексты интерфейса меню (не факты про здание — просто UI).
+  UI_I18N: {
+    title: { ru: 'Кукурузник, 1979', en: 'Kukuruznik, 1979', hy: 'Կուկուռուզնիկ, 1979' },
+    pageTitle: { ru: 'Кукурузник — Дом молодёжи | Չկա', en: 'Kukuruznik — Youth Palace | Չկա', hy: 'Կուկուռուզնիկ — Երիտասարդական պալատ | Չկա' },
+    home: { ru: 'На главную', en: 'Home', hy: 'Գլխավոր էջ' },   // «домой» — главная сайта (chka.am)
+    plaque: {
+      ru: 'Кукурузник · 1979–2006 · художественная реконструкция',
+      en: 'Kukuruznik · 1979–2006 · artistic reconstruction',
+      hy: 'Կուկուռուզնիկ · 1979–2006 · գեղարվեստական վերակառուցում'
+    },
+    prevFrame: { ru: 'Предыдущий кадр', en: 'Previous frame', hy: 'Նախորդ կադր' },
+    nextFrame: { ru: 'Следующий кадр', en: 'Next frame', hy: 'Հաջորդ կադր' },
+    hsBack: { ru: '‹ назад', en: '‹ back', hy: '‹ հետ' },
+    hsClose: { ru: '× закрыть', en: '× close', hy: '× փակել' },
+    panelTitle: { ru: 'Кукурузник', en: 'Kukuruznik', hy: 'Կուկուռուզնիկ' },
+    menu: { ru: 'Меню', en: 'Menu', hy: 'Ընտրացանկ' },
+    history: { ru: 'История здания ›', en: 'Building history ›', hy: 'Շենքի պատմությունը ›' },
+    tod: { ru: 'Время суток', en: 'Time of day', hy: 'Օրվա ժամը' },
+    day: { ru: 'День', en: 'Day', hy: 'Ցերեկ' },
+    sunset: { ru: 'Закат', en: 'Sunset', hy: 'Մայրամուտ' },
+    night: { ru: 'Ночь', en: 'Night', hy: 'Գիշեր' },
+    frames: { ru: 'Кадры', en: 'Views', hy: 'Կադրեր' },
+    fullscreen: { ru: 'Полный экран', en: 'Full screen', hy: 'լայնէկրան' },
+    postcard: { ru: 'Сохранить открытку', en: 'Save postcard', hy: 'պահպանել' },
+    textSize: { ru: 'Размер текста', en: 'Text size', hy: 'Տառերի չափը' },
+    sizeLarge: { ru: 'Крупный', en: 'Large', hy: 'Մեծ' },
+    sizeNormal: { ru: 'Обычный', en: 'Normal', hy: 'դասական' },
+    language: { ru: 'Язык', en: 'Language', hy: 'Լեզու' },
+    about: { ru: 'О здании', en: 'About the building', hy: 'Շենքի մասին' },
+    welcome: { ru: 'Добро пожаловать в интерактивный Кукурузник', en: 'Welcome to the interactive Kukuruznik', hy: 'Բարի գալուստ ինտերակտիվ «Կուկուռուզնիկ»' },
+    flag: { ru: 'Парад в небе: флаг Армении', en: 'Sky parade: flag of Armenia', hy: 'Երկնային շքերթ՝ Հայաստանի դրոշը' }
+  }
+};
+/* ==================================================== */
+
+// язык страницы (общий с сайтом: тот же ключ localStorage) — нужен приветствию до основного скрипта
+function chkaLang() {
+  var l = 'hy';
+  try {
+    l = localStorage.getItem('chka-lang') ||
+      ((navigator.languages && navigator.languages[0]) || navigator.language || '').slice(0, 2).toLowerCase();
+  } catch (e) {}
+  if (!CONFIG.I18N.tower1[l]) l = 'hy';
+  return l;
+}
+</script>
+<script>
+// Приветствие + загрузка появляется СРАЗУ, до вёрстки, тяжёлых скриптов и кадров (компонент welcome-loader.js).
+// Пока страница не собрана, оно на всё окно; основной скрипт переносит его на картинку (wl.attach).
+// v12: показывается минимум 3 с от открытия, буква, которую перо уже начало, всегда дорисовывается до конца, потом плавный уход
+// на всех устройствах (без касания и без слов). Если загрузка сама дольше — ничего не добавляется. Как только приветствие
+// уходит, основной скрипт показывает один демо-наклон картинки (window.__demoTilt).
+window.__wl = WelcomeLoader.create({
+  parent: document.body, fixed: true, lang: chkaLang(), minMs: 3000,
+  text: function (k, l) { return CONFIG.UI_I18N[k][l]; },
+  letters: window.WL_LETTERS || [],
+  onHide: function () { if (window.__demoTilt) window.__demoTilt(); }
+});
+</script>
+
+<div id="layout">
+<aside id="panel" aria-label="Menu">
+  <svg class="pen" id="pen" aria-hidden="true"><path class="pen-1" pathLength="1"/><path class="pen-2" pathLength="1"/><circle class="nib" r="3.2" cx="0" cy="0"/></svg>
+  <div class="panel-card sketch"><div class="panel-scroll">
+    <span class="p-title" data-i18n="panelTitle">Кукурузник</span>
+    <div class="p-top">
+      <div class="p-top-row">
+        <a class="arrow-btn p-home" id="homeBtnP" href="../" aria-label="На главную" data-i18n-title="home"><svg viewBox="0 0 40 40" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 20.5L20 8.5l13.5 12" stroke-width="2.8"/><path d="M11 18.5V32h18V18.5" stroke-width="2.8"/><path d="M17 32v-8.5h6V32" stroke-width="2.4"/><path d="M7.4 21.2L20.4 9.5l12.9 11.4M12 19.4V32.8h17.4" stroke-width="1.1" opacity=".55"/></g></svg></a>
+        <button type="button" id="flagBtnP" class="arrow-btn flag-btn" aria-label="Парад" data-i18n-title="flag"><svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g stroke-linecap="round" stroke-linejoin="round"><path class="fb fb1" d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 13 Q29 16 23 13 Q17 10 11 13 Z" fill="#d90012"/><path class="fb fb2" d="M11 13 Q17 10 23 13 Q29 16 35 13 L35 19 Q29 22 23 19 Q17 16 11 19 Z" fill="#1c4cc0"/><path class="fb fb3" d="M11 19 Q17 16 23 19 Q29 22 35 19 L35 25 Q29 28 23 25 Q17 22 11 25 Z" fill="#f2a800"/><g fill="none" stroke="currentColor"><path d="M9.2 5.5 L9.6 35.5" stroke-width="2.6"/><path d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 25 Q29 28 23 25 Q17 22 11 25 Z" stroke-width="2"/><path d="M11.6 7.8 Q17 5 23 8 Q29 11 34.6 8.2 M11.4 24.4 Q17 21.6 23 24.6 Q29 27.6 34.6 24.4" stroke-width="0.9" opacity=".55"/></g></g></svg></button>
       </div>
-      <span class="edge-tag tag-l"><span class="i18n-inline" lang="hy">լուսանկար</span><span class="i18n-inline" lang="ru">фото</span><span class="i18n-inline" lang="en">photo</span></span>
-      <span class="edge-tag tag-r"><span class="i18n-inline" lang="hy">նկար</span><span class="i18n-inline" lang="ru">рисунок</span><span class="i18n-inline" lang="en">drawing</span></span>
+      <span class="p-name" data-i18n="title">Кукурузник, 1979</span>
     </div>
-    <figcaption class="note">
-      <p class="cred"><span class="i18n-inline" lang="hy">լուսանկարը՝</span><span class="i18n-inline" lang="ru">фото:</span><span class="i18n-inline" lang="en">photo:</span> <a href="https://commons.wikimedia.org/wiki/File:Youth_Palace_02.tif" target="_blank" rel="noopener">Karen Demirchyan Museum / Wikimedia Commons</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a> · <span class="i18n-inline" lang="hy">կրճատված և սեղմված</span><span class="i18n-inline" lang="ru">обрезано и сжато</span><span class="i18n-inline" lang="en">cropped and compressed</span></p>
-    </figcaption>
-    <div class="restore-note">
-      <span class="i18n-block" lang="hy"><strong>Երիտասարդական պալատ</strong> («Կուկուռուզնիկ»), Երևան։ Ճարտարապետներ՝ Ա. Թարխանյան, Ս. Խաչիկյան, Գ. Պողոսյան։</span><span class="i18n-block" lang="ru"><strong>Дом молодёжи</strong> («Кукурузник»), Ереван. Архитекторы: А. Тарханян, С. Хачикян, Г. Погосян.</span><span class="i18n-block" lang="en"><strong>Youth Palace</strong> (“the Corncob”), Yerevan. Architects: A. Tarkhanyan, S. Khachikyan, G. Poghosyan.</span>
-      <span class="i18n-block" lang="hy">Բացվել է 1979-ին, քանդվել՝ 2006-ին։</span><span class="i18n-block" lang="ru">Открыт в 1979, снесён в 2006.</span><span class="i18n-block" lang="en">Opened in 1979, demolished in 2006.</span>
-      <span class="i18n-block" lang="hy">Արխիվային լուսանկարը ↔ իմ 3D-նկարը․ քաշեք սահմանը՝ համեմատելու համար։</span><span class="i18n-block" lang="ru">Архивное фото ↔ мой 3D-рисунок — потяните границу, чтобы сравнить.</span><span class="i18n-block" lang="en">Archival photo ↔ my 3D drawing — drag the line to compare.</span>
-    </div>
-  </figure>
-
-  <section class="sec gallery-sec reveal" aria-labelledby="gal-h">
-    <h2 id="gal-h"><span class="i18n-inline" lang="hy">Արխիվ</span><span class="i18n-inline" lang="ru">Архив</span><span class="i18n-inline" lang="en">Archive</span></h2>
-    <div class="gallery" id="gallery">
-      <button class="g-item" type="button" data-full="gallery/design-plan.webp" data-w="1189" data-h="1326"
-              data-cap-hy="Ճարտարապետական նախագիծ" data-cap-ru="Архитектурный проект" data-cap-en="Architectural design"
-              data-credit-hy="լուսանկարը՝ &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_design_plan.jpg&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · կրճատված և սեղմված" data-credit-ru="фото: &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_design_plan.jpg&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · обрезано и сжато" data-credit-en="photo: &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_design_plan.jpg&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · cropped and compressed">
-        <div class="g-pic"><img src="gallery/design-plan-thumb.webp" width="480" height="480" alt="Кукурузник, архитектурный проект" loading="lazy" decoding="async"></div>
-      </button>
-      <button class="g-item" type="button" data-full="gallery/hillview.webp" data-w="1200" data-h="1755"
-              data-cap-hy="Ընդհանուր տեսք բլրից" data-cap-ru="Общий вид с холма" data-cap-en="General view from the hill"
-              data-credit-hy="լուսանկարը՝ &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_02.tif&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · սեղմված" data-credit-ru="фото: &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_02.tif&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · сжато" data-credit-en="photo: &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_02.tif&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · compressed">
-        <div class="g-pic"><img src="gallery/hillview-thumb.webp" width="480" height="480" alt="Кукурузник, общий вид с холма" loading="lazy" decoding="async"></div>
-      </button>
-      <button class="g-item" type="button" data-full="gallery/entrance-1999.webp" data-w="592" data-h="896"
-              data-cap-hy="Մուտքի մոտ, 1999" data-cap-ru="У главного входа, 1999" data-cap-en="At the entrance, 1999"
-              data-credit-hy="լուսանկարը՝ &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Raffi_kojian-AM2000-7000_402.jpg&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Raffi Kojian / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY 4.0&lt;/a&gt; · սեղմված" data-credit-ru="фото: &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Raffi_kojian-AM2000-7000_402.jpg&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Raffi Kojian / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY 4.0&lt;/a&gt; · сжато" data-credit-en="photo: &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Raffi_kojian-AM2000-7000_402.jpg&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Raffi Kojian / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY 4.0&lt;/a&gt; · compressed">
-        <div class="g-pic"><img src="gallery/entrance-1999-thumb.webp" width="480" height="480" alt="Кукурузник, у входа, 1999" loading="lazy" decoding="async"></div>
-      </button>
-      <button class="g-item" type="button" data-full="gallery/facade.webp" data-w="768" data-h="688"
-              data-cap-hy="Ճակատամասը" data-cap-ru="Фасад" data-cap-en="Facade"
-              data-credit-hy="լուսանկարը՝ &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_01.jpg&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · սեղմված" data-credit-ru="фото: &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_01.jpg&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · сжато" data-credit-en="photo: &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_01.jpg&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · compressed">
-        <div class="g-pic"><img src="gallery/facade-thumb.webp" width="480" height="480" alt="Кукурузник, фасад" loading="lazy" decoding="async"></div>
-      </button>
-      <button class="g-item" type="button" data-full="gallery/sculpture.webp" data-w="1200" data-h="1792"
-              data-cap-hy="Քանդակը հանդիսադահլիճում" data-cap-ru="Скульптура в вестибюле" data-cap-en="Sculpture in the lobby"
-              data-credit-hy="լուսանկարը՝ &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_sculpture.tif&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · սեղմված" data-credit-ru="фото: &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_sculpture.tif&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · сжато" data-credit-en="photo: &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_sculpture.tif&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · compressed">
-        <div class="g-pic"><img src="gallery/sculpture-thumb.webp" width="480" height="480" alt="Кукурузник, скульптура в вестибюле" loading="lazy" decoding="async"></div>
-      </button>
-      <button class="g-item" type="button" data-full="gallery/bar.webp" data-w="1200" data-h="801"
-              data-cap-hy="Բար" data-cap-ru="Бар" data-cap-en="The bar"
-              data-credit-hy="լուսանկարը՝ &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_bar.jpg&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · սեղմված" data-credit-ru="фото: &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_bar.jpg&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · сжато" data-credit-en="photo: &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_bar.jpg&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · compressed">
-        <div class="g-pic"><img src="gallery/bar-thumb.webp" width="480" height="480" alt="Кукурузник, бар" loading="lazy" decoding="async"></div>
-      </button>
-    </div>
-    <p class="g-hint"><span class="i18n-inline" lang="hy">սահեցրու՝ մյուսները տեսնելու համար · աղբյուրը՝ լուսանկարը մեծացնելիս</span><span class="i18n-inline" lang="ru">свайп по фото · подпись и источник — при открытии фото крупно</span><span class="i18n-inline" lang="en">swipe through the photos · source shown when you open one</span></p>
-  </section>
-
-  <section class="sec timeline-sec reveal" aria-labelledby="tl-h">
-    <h2 id="tl-h"><span class="i18n-inline" lang="hy">Ժամանակագրություն</span><span class="i18n-inline" lang="ru">Хроника</span><span class="i18n-inline" lang="en">Timeline</span></h2>
-    <ol class="timeline">
-      <li class="reveal"><span class="i18n-inline t-y" lang="hy">Ճարտարապետներ</span><span class="i18n-inline t-y" lang="ru">Архитекторы</span><span class="i18n-inline t-y" lang="en">Architects</span><div><span class="i18n-block" lang="hy">Ա. Թարխանյան, Ս. Խաչիկյան, Գ. Պողոսյան</span><span class="i18n-block" lang="ru">А. Тарханян, С. Хачикян, Г. Погосян</span><span class="i18n-block" lang="en">A. Tarkhanyan, S. Khachikyan, G. Poghosyan</span></div></li>
-      <li class="reveal"><span class="t-y">1976–1977</span><div><span class="i18n-block" lang="hy">Շինարարություն</span><span class="i18n-block" lang="ru">Строительство</span><span class="i18n-block" lang="en">Construction</span><div class="t-recon"><img src="../assets/hero-sketch-720.webp" width="120" height="120" alt="" loading="lazy" decoding="async"><span class="i18n-inline t-recon-cap" lang="hy">վերակառուցում</span><span class="i18n-inline t-recon-cap" lang="ru">реконструкция</span><span class="i18n-inline t-recon-cap" lang="en">reconstruction</span></div></div></li>
-      <li class="reveal"><span class="t-y">1979</span><div><span class="i18n-block" lang="hy">Երիտասարդական պալատի բացումը</span><span class="i18n-block" lang="ru">Открытие Дома молодёжи</span><span class="i18n-block" lang="en">Youth Palace opens</span></div></li>
-      <li class="reveal"><span class="t-y">2005</span><div><span class="i18n-block" lang="hy">Քաղաքապետարանի թիվ 40 որոշումը քանդման մասին, հոկտեմբեր</span><span class="i18n-block" lang="ru">Разрешение мэрии №40 на снос, октябрь</span><span class="i18n-block" lang="en">City hall permit No. 40 for demolition, October</span></div></li>
-      <li class="reveal"><span class="t-y">2006</span><div><span class="i18n-block" lang="hy">Շենքի քանդումը։ Պաշտոնական պատճառ՝ սեյսմակայունություն</span><span class="i18n-block" lang="ru">Снос здания. Формальная причина — сейсмостойкость</span><span class="i18n-block" lang="en">Building demolished. Official reason: seismic safety</span></div></li>
-    </ol>
-  </section>
-
-  <section class="sec quiz-sec reveal" aria-labelledby="quiz-h">
-    <h2 id="quiz-h"><span class="i18n-inline" lang="hy">Գուշակիր տարին</span><span class="i18n-inline" lang="ru">Угадай год</span><span class="i18n-inline" lang="en">Guess the year</span></h2>
-    <div class="quiz" id="quiz"></div>
-  </section>
-
-  <section class="next-sec reveal">
-    <div class="voice-bars" aria-hidden="true"><span style="--h:38%;--i:0"></span><span style="--h:64%;--i:1"></span><span style="--h:46%;--i:2"></span><span style="--h:80%;--i:3"></span><span style="--h:55%;--i:4"></span><span style="--h:70%;--i:5"></span><span style="--h:42%;--i:6"></span></div>
-    <h2><span class="i18n-inline" lang="hy">Ի՞նչ նկարել հաջորդը</span><span class="i18n-inline" lang="ru">Что рисовать следующим?</span><span class="i18n-inline" lang="en">What should I draw next?</span></h2>
-    <p><span class="i18n-block" lang="hy">Գրեք մեկնաբանություններում TikTok-ում — կարդում եմ բոլորը։</span><span class="i18n-block" lang="ru">Пишите в комментариях в TikTok — читаю все.</span><span class="i18n-block" lang="en">Leave a comment on TikTok — I read them all.</span></p>
-    <a class="btn" href="https://www.tiktok.com/@ht_product"><span class="i18n-inline" lang="hy">TikTok-ում</span><span class="i18n-inline" lang="ru">мой TikTok</span><span class="i18n-inline" lang="en">my TikTok</span></a>
-  </section>
-
-  <footer class="foot reveal">
-    <p class="brand"><span class="hy">Չկա</span> · <a href="../"><span class="i18n-inline" lang="hy">գլխավոր էջ</span><span class="i18n-inline" lang="ru">на главную альбома</span><span class="i18n-inline" lang="en">back to the album</span></a></p>
-    <p class="photo-rights"><span class="i18n-block" lang="hy">Արխիվային լուսանկարները պատկանում են իրենց հեղինակներին և արխիվներին։ Օգտագործվում են ոչ առևտրային նախագծում՝ աղբյուրը նշելով։ Եթե դուք հեղինակն եք և ցանկանում եք ուղղել ստորագրությունը կամ հեռացնել լուսանկարը՝ <a href="https://www.tiktok.com/@ht_product">գրեք ինձ</a>։</span><span class="i18n-block" lang="ru">Архивные фото принадлежат их авторам и архивам. Используются в некоммерческом проекте с указанием источника. Если вы автор и хотите исправить подпись или убрать фото — <a href="https://www.tiktok.com/@ht_product">напишите мне</a>.</span><span class="i18n-block" lang="en">Archival photos belong to their authors and archives. Used in a non-commercial project with the source credited. If you are the author and want to fix a caption or remove a photo — <a href="https://www.tiktok.com/@ht_product">message me</a>.</span></p>
-    <p class="tiktok"><a class="btn" href="https://www.tiktok.com/@ht_product"><span class="i18n-inline" lang="hy">TikTok-ում</span><span class="i18n-inline" lang="ru">мой TikTok</span><span class="i18n-inline" lang="en">my TikTok</span></a></p>
-  </footer>
-
+    <section class="p-sec"><a class="p-btn p-history" id="historyLink" href="about.html" data-i18n="history">История здания ›</a></section>
+    <section class="p-sec">
+      <h3 data-i18n="tod">Время суток</h3>
+      <div class="seg" id="todSeg" role="group">
+        <button type="button" data-tod="day" class="on" data-i18n="day">День</button>
+        <button type="button" data-tod="sunset" data-i18n="sunset">Закат</button>
+        <button type="button" data-tod="night" data-i18n="night">Ночь</button>
+      </div>
+    </section>
+    <section class="p-sec">
+      <h3 data-i18n="frames">Кадры</h3>
+      <div id="thumbs"></div>
+    </section>
+    <section class="p-sec"><button type="button" id="fsBtn" class="p-btn" data-i18n="fullscreen">Полный экран</button></section>
+    <section class="p-sec"><button type="button" id="cardBtn" class="p-btn" data-i18n="postcard">Сохранить открытку</button></section>
+    <section class="p-sec">
+      <h3 data-i18n="textSize">Размер текста</h3>
+      <div class="seg" id="sizeSeg" role="group">
+        <button type="button" data-size="large" class="on" data-i18n="sizeLarge">Крупный</button>
+        <button type="button" data-size="normal" data-i18n="sizeNormal">Обычный</button>
+      </div>
+    </section>
+    <section class="p-sec">
+      <h3 data-i18n="language">Язык</h3>
+      <div class="seg" id="langSeg" role="group">
+        <button type="button" data-lang="hy">Հայ</button>
+        <button type="button" data-lang="ru">Рус</button>
+        <button type="button" data-lang="en">Eng</button>
+      </div>
+    </section>
+    <section class="p-sec p-about">
+      <h3 data-i18n="about">О здании</h3>
+      <div id="aboutText"></div>
+    </section>
+  </div></div>
+</aside>
+<script>
+/* Перо (ПК): путь по границе карточки панели — углы те же, что у рамки .sketch (22/8/18/10 px по горизонтали, 10/18/8/22 по вертикали).
+   Ставится сразу, до первой отрисовки, чтобы прорисовка началась с готового контура; при смене высоты окна пересчитывается. */
+(function () {
+  var pen = document.getElementById('pen'); if (!pen) return;
+  var H = [22, 8, 18, 10], V = [10, 18, 8, 22];   // радиусы углов: левый верх, правый верх, правый низ, левый низ
+  function path(w, h, i) {
+    var r = H.map(function (x, k) { return [Math.max(0.5, x - i), Math.max(0.5, V[k] - i)]; }), x0 = i, y0 = i, x1 = w - i, y1 = h - i;
+    return ['M', x0 + r[0][0], y0, 'L', x1 - r[1][0], y0, 'A', r[1][0], r[1][1], 0, 0, 1, x1, y0 + r[1][1], 'L', x1, y1 - r[2][1],
+      'A', r[2][0], r[2][1], 0, 0, 1, x1 - r[2][0], y1, 'L', x0 + r[3][0], y1, 'A', r[3][0], r[3][1], 0, 0, 1, x0, y1 - r[3][1],
+      'L', x0, y0 + r[0][1], 'A', r[0][0], r[0][1], 0, 0, 1, x0 + r[0][0], y0].join(' ');
+  }
+  function fit() {
+    var w = 384, h = Math.max(200, window.innerHeight - 32);
+    pen.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+    var d1 = path(w, h, 1);
+    pen.querySelector('.pen-1').setAttribute('d', d1);                 // центр 2-пиксельной рамки
+    pen.querySelector('.nib').style.offsetPath = 'path("' + d1 + '")';   // кончик пера бежит по тому же пути
+    pen.querySelector('.pen-2').setAttribute('d', path(w, h, 6.5));   // внутренняя карандашная линия (outline-offset −7)
+  }
+  fit();
+  window.__penFit = fit;
+})();
+</script>
+<button type="button" id="panelBtn" aria-label="Menu"><svg class="ic-wheel" viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="20" cy="20" r="16.5" stroke-width="2.2"/><circle cx="20" cy="20" r="14.2" stroke-width="0.8" opacity=".55"/><g class="arms"><g transform="rotate(0 20 20)"><path class="arm" style="--i:0" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(45 20 20)"><path class="arm" style="--i:1" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(90 20 20)"><path class="arm" style="--i:2" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(135 20 20)"><path class="arm" style="--i:3" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(180 20 20)"><path class="arm" style="--i:4" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(225 20 20)"><path class="arm" style="--i:5" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(270 20 20)"><path class="arm" style="--i:6" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(315 20 20)"><path class="arm" style="--i:7" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g></g><circle cx="20" cy="20" r="2.7" stroke-width="1.7"/></g></svg></button>
+<div id="scrim"></div>
+<div id="bottomBar"><button type="button" id="flagBtnB" class="arrow-btn flag-btn" aria-label="Парад" data-i18n-title="flag"><svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g stroke-linecap="round" stroke-linejoin="round"><path class="fb fb1" d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 13 Q29 16 23 13 Q17 10 11 13 Z" fill="#d90012"/><path class="fb fb2" d="M11 13 Q17 10 23 13 Q29 16 35 13 L35 19 Q29 22 23 19 Q17 16 11 19 Z" fill="#1c4cc0"/><path class="fb fb3" d="M11 19 Q17 16 23 19 Q29 22 35 19 L35 25 Q29 28 23 25 Q17 22 11 25 Z" fill="#f2a800"/><g fill="none" stroke="currentColor"><path d="M9.2 5.5 L9.6 35.5" stroke-width="2.6"/><path d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 25 Q29 28 23 25 Q17 22 11 25 Z" stroke-width="2"/><path d="M11.6 7.8 Q17 5 23 8 Q29 11 34.6 8.2 M11.4 24.4 Q17 21.6 23 24.6 Q29 27.6 34.6 24.4" stroke-width="0.9" opacity=".55"/></g></g></svg></button><div id="barTitle"></div><a id="homeBtn" class="arrow-btn" href="../" aria-label="На главную"><svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 20.5L20 8.5l13.5 12" stroke-width="2.8"/><path d="M11 18.5V32h18V18.5" stroke-width="2.8"/><path d="M17 32v-8.5h6V32" stroke-width="2.4"/><path d="M7.4 21.2L20.4 9.5l12.9 11.4M12 19.4V32.8h17.4" stroke-width="1.1" opacity=".55"/></g></svg></a></div>
+<main id="view">
+<figure id="exhibit"><div id="frame">
+<button type="button" id="prevSide" class="arrow-btn nav-side" aria-label="Предыдущий кадр"><svg viewBox="0 0 40 40" width="42" height="42" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 9.5C20.5 14.5 16.8 18.6 13.5 20.3c3.4 1.9 7.3 5.6 10.6 10.6" stroke-width="3"/><path d="M24.6 10.6C21 15.4 17.4 19 14.6 20.7c3.2 2 6.8 5.4 10.4 9.8" stroke-width="1.2" opacity=".55"/></g></svg></button>
+<div id="stage" class="loading">
+  <canvas id="gl"></canvas>
+  <div id="fallback" hidden></div>
+  <button id="prevBtn" class="arrow-btn nav-btn" type="button" aria-label="Предыдущий кадр"><svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 9.5C20.5 14.5 16.8 18.6 13.5 20.3c3.4 1.9 7.3 5.6 10.6 10.6" stroke-width="3"/><path d="M24.6 10.6C21 15.4 17.4 19 14.6 20.7c3.2 2 6.8 5.4 10.4 9.8" stroke-width="1.2" opacity=".55"/></g></svg></button>
+  <button id="nextBtn" class="arrow-btn nav-btn nav-next" type="button" aria-label="Следующий кадр"><svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 9.5C20.5 14.5 16.8 18.6 13.5 20.3c3.4 1.9 7.3 5.6 10.6 10.6" stroke-width="3"/><path d="M24.6 10.6C21 15.4 17.4 19 14.6 20.7c3.2 2 6.8 5.4 10.4 9.8" stroke-width="1.2" opacity=".55"/></g></svg></button>
+  <div id="dots"></div>
+  <div id="hotspots"></div>
+  <div id="hsPopup" class="sketch"><div id="hsText"></div><button type="button" id="hsBack" class="p-btn"><span class="lbl-pc" data-i18n="hsBack">‹ назад</span><span class="lbl-phone" data-i18n="hsClose">× закрыть</span></button></div>
+</div>
+<button type="button" id="nextSide" class="arrow-btn nav-side nav-next" aria-label="Следующий кадр"><svg viewBox="0 0 40 40" width="42" height="42" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 9.5C20.5 14.5 16.8 18.6 13.5 20.3c3.4 1.9 7.3 5.6 10.6 10.6" stroke-width="3"/><path d="M24.6 10.6C21 15.4 17.4 19 14.6 20.7c3.2 2 6.8 5.4 10.4 9.8" stroke-width="1.2" opacity=".55"/></g></svg></button>
+</div><figcaption id="plaque" data-i18n="plaque"></figcaption></figure>
 </main>
-
-<div class="scene-overlay" id="sceneOverlay" hidden>
-  <button class="scene-close" id="sceneClose" type="button" aria-label="Закрыть 3D">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
-  </button>
-  <iframe id="sceneFrame" title="Кукурузник — 3D" allow="autoplay"></iframe>
 </div>
 
-<script>
-  window.CHKA_BUILDING = {
-    scene: 'scene.html',
-    share: {
-      title: { ru: 'Չկա — Кукурузник', hy: 'Չկա — Կուկուռուզնիկ', en: 'Չկա — The Corncob' },
-      text: {
-        ru: 'Угадал {score} из {total} в игре про снесённый ереванский Кукурузник! Проверь себя:',
-        hy: 'Գուշակեցի {score}-ը {total}-ից՝ Երևանի քանդված Կուկուռուզնիկի խաղում։ Փորձիր դու էլ.',
-        en: 'Guessed {score} out of {total} in a game about Yerevan’s demolished Corncob! Try it yourself:'
-      }
-    },
-    quiz: [
-      {
-        q: {
-          ru: 'В каком году открылся Кукурузник?',
-          hy: 'Ո՞ր տարում է բացվել Կուկուռուզնիկը',
-          en: 'What year did the Corncob open?'
-        },
-        options: ['1975', '1979', '1983'],
-        correct: 1
-      },
-      {
-        q: {
-          ru: 'Сколько архитекторов работали над зданием?',
-          hy: 'Քանի՞ ճարտարապետ է աշխատել շենքի վրա',
-          en: 'How many architects worked on the building?'
-        },
-        options: ['2', '3', '4'],
-        correct: 1
-      },
-      {
-        q: {
-          ru: 'В каком году снесли Кукурузник?',
-          hy: 'Ո՞ր տարում է քանդվել Կուկուռուզնիկը',
-          en: 'What year was the Corncob demolished?'
-        },
-        options: ['2003', '2006', '2010'],
-        correct: 1
-      },
-      {
-        q: {
-          ru: 'Официальная причина сноса?',
-          hy: 'Քանդման պաշտոնական պատճա՞ռը',
-          en: 'What was the official reason for demolition?'
-        },
-        options: [
-          { ru: 'пожар', hy: 'հրդեհ', en: 'fire' },
-          { ru: 'сейсмостойкость', hy: 'սեյսմակայունություն', en: 'earthquake safety' },
-          { ru: 'расширение дороги', hy: 'ճանապարհի ընդլայնում', en: 'road widening' }
-        ],
-        correct: 1
-      }
-    ]
-  };
+<script src="wall-data.js" defer></script>
+<script src="wall.js" defer></script>
+<script src="viewer.js" defer>
 </script>
-<script src="../assets/i18n.js?v=2" defer></script>
-<script src="../assets/chka-common.js?v=2" defer></script>
-<script src="../assets/story.js?v=7" defer></script>
-<script src="../assets/gallery.js?v=1" defer></script>
 </body>
 </html>

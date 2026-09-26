@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+<meta charset="utf-8">
+<script>
+(function () {
+  try {
+    var K = 'chka-lang', L = ['hy', 'ru', 'en'], l = localStorage.getItem(K);
+    if (!l) {
+      var n = ((navigator.languages && navigator.languages[0]) || navigator.language || '').toLowerCase();
+      for (var i = 0; i < L.length; i++) { if (n.indexOf(L[i]) === 0) { l = L[i]; break; } }
+    }
+    if (L.indexOf(l) === -1) l = 'hy';
+    document.documentElement.setAttribute('data-lang', l);
+    document.documentElement.setAttribute('lang', l);
+  } catch (e) { document.documentElement.setAttribute('data-lang', 'hy'); }
+})();
+</script>
+<script>
+/* крупный текст («А+») и появление главной — до отрисовки, без мигания */
+(function () {
+  var d = document.documentElement;
+  try { if (localStorage.getItem('chka-fs') === 'big') d.classList.add('fs-big'); } catch (e) {}
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fbfaf7">
+<title>Кукурузник — Дом молодёжи | Չկա</title>
+<meta name="description" content="Кукурузник — снесённый Дом молодёжи в Ереване (1979–2006). Архивные фото, хроника и 3D-модель, которую можно покрутить в браузере.">
+<meta property="og:title" content="Кукурузник — Дом молодёжи | Չկա">
+<meta property="og:description" content="Снесённое здание Еревана, восстановленное в рисунке и в 3D.">
+<meta property="og:type" content="article">
+<link rel="icon" href="../assets/favicon-32.png">
+<link rel="apple-touch-icon" href="../assets/icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700&family=Noto+Sans+Armenian:wght@500;600;700&family=Caveat:wght@600&display=swap">
+<link rel="stylesheet" href="../assets/hub.css?v=12">
+<link rel="stylesheet" href="../assets/story.css?v=13">
+</head>
+<body>
+<nav class="nav"><div class="nav-in">
+  <a class="logo" href="../" aria-label="Все здания — назад в альбом Չկա"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span class="hy">Չկա</span></a>
+  <div class="lang-switch-mount" data-lang-switch></div>
+</div></nav>
+
+<main class="page story-wrap">
+
+  <header class="s-head reveal">
+    <h1><span class="i18n-inline" lang="hy">Կուկուռուզնիկ</span><span class="i18n-inline" lang="ru">Кукурузник</span><span class="i18n-inline" lang="en">The Corncob</span></h1>
+    <p class="meta"><span class="i18n-inline" lang="hy">Երիտասարդական պալատ · Երևան · 1979–2006</span><span class="i18n-inline" lang="ru">Дом молодёжи · Ереван · 1979–2006</span><span class="i18n-inline" lang="en">Youth Palace · Yerevan · 1979–2006</span></p>
+    <div class="s-actions">
+    <a class="btn btn-3d" href="./"><svg class="cube-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12v9M4 7.5l8 4.5 8-4.5"/></svg><span><span class="i18n-inline" lang="hy">Տեսնել 3D-ով</span><span class="i18n-inline" lang="ru">Смотреть в 3D</span><span class="i18n-inline" lang="en">View in 3D</span></span></a>
+    <a class="btn btn-ghost btn-history" href="history.html"><span class="i18n-inline" lang="hy">Կարդալ պատմությունը</span><span class="i18n-inline" lang="ru">Читать историю</span><span class="i18n-inline" lang="en">Read the history</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+    </div>
+    <p class="hint"><span class="i18n-inline" lang="hy">պտտվում է 360°-ով, փոխվում են օրվա ժամն ու լույսը</span><span class="i18n-inline" lang="ru">крутится на 360°, меняются время суток и свет</span><span class="i18n-inline" lang="en">spins a full 360°, time of day and light change too</span></p>
+  </header>
+
+  <figure class="plate reveal" id="plate">
+    <div class="plate-in" id="plateIn">
+      <div class="layer photo"><picture>
+        <source type="image/webp" srcset="../assets/hero-photo-720.webp 720w, ../assets/hero-photo-1080.webp 1080w" sizes="(min-width: 900px) 720px, calc(100vw - 48px)">
+        <img src="../assets/hero-photo-1080.jpg" width="1080" height="1080" alt="Кукурузник, общий вид с холма" decoding="async">
+      </picture></div>
+      <div class="layer sketch" aria-hidden="true"><picture>
+        <source type="image/webp" srcset="../assets/hero-sketch-720.webp 720w, ../assets/hero-sketch-1080.webp 1080w" sizes="(min-width: 900px) 720px, calc(100vw - 48px)">
+        <img src="../assets/hero-sketch-1080.jpg" width="1080" height="1080" alt="" decoding="async">
+      </picture></div>
+      <div class="split-line" aria-hidden="true"></div>
+      <div class="handle" role="slider" tabindex="0" aria-label="Сравнить архивное фото и рисунок" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7l-5 5 5 5M15 7l5 5-5 5"/></svg>
+      </div>
+      <span class="edge-tag tag-l"><span class="i18n-inline" lang="hy">լուսանկար</span><span class="i18n-inline" lang="ru">фото</span><span class="i18n-inline" lang="en">photo</span></span>
+      <span class="edge-tag tag-r"><span class="i18n-inline" lang="hy">նկար</span><span class="i18n-inline" lang="ru">рисунок</span><span class="i18n-inline" lang="en">drawing</span></span>
+    </div>
+    <figcaption class="note">
+      <p class="cred"><span class="i18n-inline" lang="hy">լուսանկարը՝</span><span class="i18n-inline" lang="ru">фото:</span><span class="i18n-inline" lang="en">photo:</span> <a href="https://commons.wikimedia.org/wiki/File:Youth_Palace_02.tif" target="_blank" rel="noopener">Karen Demirchyan Museum / Wikimedia Commons</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a> · <span class="i18n-inline" lang="hy">կրճատված և սեղմված</span><span class="i18n-inline" lang="ru">обрезано и сжато</span><span class="i18n-inline" lang="en">cropped and compressed</span></p>
+    </figcaption>
+    <div class="restore-note">
+      <span class="i18n-block" lang="hy"><strong>Երիտասարդական պալատ</strong> («Կուկուռուզնիկ»), Երևան։ Ճարտարապետներ՝ Ա. Թարխանյան, Ս. Խաչիկյան, Գ. Պողոսյան։</span><span class="i18n-block" lang="ru"><strong>Дом молодёжи</strong> («Кукурузник»), Ереван. Архитекторы: А. Тарханян, С. Хачикян, Г. Погосян.</span><span class="i18n-block" lang="en"><strong>Youth Palace</strong> (“the Corncob”), Yerevan. Architects: A. Tarkhanyan, S. Khachikyan, G. Poghosyan.</span>
+      <span class="i18n-block" lang="hy">Բացվել է 1979-ին, քանդվել՝ 2006-ին։</span><span class="i18n-block" lang="ru">Открыт в 1979, снесён в 2006.</span><span class="i18n-block" lang="en">Opened in 1979, demolished in 2006.</span>
+      <span class="i18n-block" lang="hy">Արխիվային լուսանկարը ↔ իմ 3D-նկարը․ քաշեք սահմանը՝ համեմատելու համար։</span><span class="i18n-block" lang="ru">Архивное фото ↔ мой 3D-рисунок — потяните границу, чтобы сравнить.</span><span class="i18n-block" lang="en">Archival photo ↔ my 3D drawing — drag the line to compare.</span>
+    </div>
+  </figure>
+
+  <section class="sec gallery-sec reveal" aria-labelledby="gal-h">
+    <h2 id="gal-h"><span class="i18n-inline" lang="hy">Արխիվ</span><span class="i18n-inline" lang="ru">Архив</span><span class="i18n-inline" lang="en">Archive</span></h2>
+    <div class="gallery" id="gallery">
+      <button class="g-item" type="button" data-full="gallery/design-plan.webp" data-w="1189" data-h="1326"
+              data-cap-hy="Ճարտարապետական նախագիծ" data-cap-ru="Архитектурный проект" data-cap-en="Architectural design"
+              data-credit-hy="լուսանկարը՝ &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_design_plan.jpg&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · կրճատված և սեղմված" data-credit-ru="фото: &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_design_plan.jpg&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · обрезано и сжато" data-credit-en="photo: &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_design_plan.jpg&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · cropped and compressed">
+        <div class="g-pic"><img src="gallery/design-plan-thumb.webp" width="480" height="480" alt="Кукурузник, архитектурный проект" loading="lazy" decoding="async"></div>
+      </button>
+      <button class="g-item" type="button" data-full="gallery/hillview.webp" data-w="1200" data-h="1755"
+              data-cap-hy="Ընդհանուր տեսք բլրից" data-cap-ru="Общий вид с холма" data-cap-en="General view from the hill"
+              data-credit-hy="լուսանկարը՝ &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_02.tif&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · սեղմված" data-credit-ru="фото: &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_02.tif&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · сжато" data-credit-en="photo: &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_02.tif&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · compressed">
+        <div class="g-pic"><img src="gallery/hillview-thumb.webp" width="480" height="480" alt="Кукурузник, общий вид с холма" loading="lazy" decoding="async"></div>
+      </button>
+      <button class="g-item" type="button" data-full="gallery/entrance-1999.webp" data-w="592" data-h="896"
+              data-cap-hy="Մուտքի մոտ, 1999" data-cap-ru="У главного входа, 1999" data-cap-en="At the entrance, 1999"
+              data-credit-hy="լուսանկարը՝ &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Raffi_kojian-AM2000-7000_402.jpg&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Raffi Kojian / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY 4.0&lt;/a&gt; · սեղմված" data-credit-ru="фото: &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Raffi_kojian-AM2000-7000_402.jpg&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Raffi Kojian / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY 4.0&lt;/a&gt; · сжато" data-credit-en="photo: &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Raffi_kojian-AM2000-7000_402.jpg&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Raffi Kojian / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY 4.0&lt;/a&gt; · compressed">
+        <div class="g-pic"><img src="gallery/entrance-1999-thumb.webp" width="480" height="480" alt="Кукурузник, у входа, 1999" loading="lazy" decoding="async"></div>
+      </button>
+      <button class="g-item" type="button" data-full="gallery/facade.webp" data-w="768" data-h="688"
+              data-cap-hy="Ճակատամասը" data-cap-ru="Фасад" data-cap-en="Facade"
+              data-credit-hy="լուսանկարը՝ &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_01.jpg&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · սեղմված" data-credit-ru="фото: &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_01.jpg&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · сжато" data-credit-en="photo: &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_01.jpg&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · compressed">
+        <div class="g-pic"><img src="gallery/facade-thumb.webp" width="480" height="480" alt="Кукурузник, фасад" loading="lazy" decoding="async"></div>
+      </button>
+      <button class="g-item" type="button" data-full="gallery/sculpture.webp" data-w="1200" data-h="1792"
+              data-cap-hy="Քանդակը հանդիսադահլիճում" data-cap-ru="Скульптура в вестибюле" data-cap-en="Sculpture in the lobby"
+              data-credit-hy="լուսանկարը՝ &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_sculpture.tif&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · սեղմված" data-credit-ru="фото: &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_sculpture.tif&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · сжато" data-credit-en="photo: &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_sculpture.tif&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · compressed">
+        <div class="g-pic"><img src="gallery/sculpture-thumb.webp" width="480" height="480" alt="Кукурузник, скульптура в вестибюле" loading="lazy" decoding="async"></div>
+      </button>
+      <button class="g-item" type="button" data-full="gallery/bar.webp" data-w="1200" data-h="801"
+              data-cap-hy="Բար" data-cap-ru="Бар" data-cap-en="The bar"
+              data-credit-hy="լուսանկարը՝ &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_bar.jpg&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · սեղմված" data-credit-ru="фото: &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_bar.jpg&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · сжато" data-credit-en="photo: &lt;a href=&#x27;https://commons.wikimedia.org/wiki/File:Youth_Palace_bar.jpg&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;Karen Demirchyan Museum / Wikimedia Commons&lt;/a&gt;, &lt;a href=&#x27;https://creativecommons.org/licenses/by-sa/4.0/&#x27; target=&#x27;_blank&#x27; rel=&#x27;noopener&#x27;&gt;CC BY-SA 4.0&lt;/a&gt; · compressed">
+        <div class="g-pic"><img src="gallery/bar-thumb.webp" width="480" height="480" alt="Кукурузник, бар" loading="lazy" decoding="async"></div>
+      </button>
+    </div>
+    <p class="g-hint"><span class="i18n-inline" lang="hy">սահեցրու՝ մյուսները տեսնելու համար · աղբյուրը՝ լուսանկարը մեծացնելիս</span><span class="i18n-inline" lang="ru">свайп по фото · подпись и источник — при открытии фото крупно</span><span class="i18n-inline" lang="en">swipe through the photos · source shown when you open one</span></p>
+  </section>
+
+  <section class="sec timeline-sec reveal" aria-labelledby="tl-h">
+    <h2 id="tl-h"><span class="i18n-inline" lang="hy">Ժամանակագրություն</span><span class="i18n-inline" lang="ru">Хроника</span><span class="i18n-inline" lang="en">Timeline</span></h2>
+    <ol class="timeline">
+      <li class="reveal"><span class="i18n-inline t-y" lang="hy">Ճարտարապետներ</span><span class="i18n-inline t-y" lang="ru">Архитекторы</span><span class="i18n-inline t-y" lang="en">Architects</span><div><span class="i18n-block" lang="hy">Ա. Թարխանյան, Ս. Խաչիկյան, Գ. Պողոսյան</span><span class="i18n-block" lang="ru">А. Тарханян, С. Хачикян, Г. Погосян</span><span class="i18n-block" lang="en">A. Tarkhanyan, S. Khachikyan, G. Poghosyan</span></div></li>
+      <li class="reveal"><span class="t-y">1976–1977</span><div><span class="i18n-block" lang="hy">Շինարարություն</span><span class="i18n-block" lang="ru">Строительство</span><span class="i18n-block" lang="en">Construction</span><div class="t-recon"><img src="../assets/hero-sketch-720.webp" width="120" height="120" alt="" loading="lazy" decoding="async"><span class="i18n-inline t-recon-cap" lang="hy">վերակառուցում</span><span class="i18n-inline t-recon-cap" lang="ru">реконструкция</span><span class="i18n-inline t-recon-cap" lang="en">reconstruction</span></div></div></li>
+      <li class="reveal"><span class="t-y">1979</span><div><span class="i18n-block" lang="hy">Երիտասարդական պալատի բացումը</span><span class="i18n-block" lang="ru">Открытие Дома молодёжи</span><span class="i18n-block" lang="en">Youth Palace opens</span></div></li>
+      <li class="reveal"><span class="t-y">2005</span><div><span class="i18n-block" lang="hy">Քաղաքապետարանի թիվ 40 որոշումը քանդման մասին, հոկտեմբեր</span><span class="i18n-block" lang="ru">Разрешение мэрии №40 на снос, октябрь</span><span class="i18n-block" lang="en">City hall permit No. 40 for demolition, October</span></div></li>
+      <li class="reveal"><span class="t-y">2006</span><div><span class="i18n-block" lang="hy">Շենքի քանդումը։ Պաշտոնական պատճառ՝ սեյսմակայունություն</span><span class="i18n-block" lang="ru">Снос здания. Формальная причина — сейсмостойкость</span><span class="i18n-block" lang="en">Building demolished. Official reason: seismic safety</span></div></li>
+    </ol>
+  </section>
+
+  <section class="sec quiz-sec reveal" aria-labelledby="quiz-h">
+    <h2 id="quiz-h"><span class="i18n-inline" lang="hy">Գուշակիր տարին</span><span class="i18n-inline" lang="ru">Угадай год</span><span class="i18n-inline" lang="en">Guess the year</span></h2>
+    <div class="quiz" id="quiz"></div>
+  </section>
+
+  <section class="next-sec reveal">
+    <div class="voice-bars" aria-hidden="true"><span style="--h:38%;--i:0"></span><span style="--h:64%;--i:1"></span><span style="--h:46%;--i:2"></span><span style="--h:80%;--i:3"></span><span style="--h:55%;--i:4"></span><span style="--h:70%;--i:5"></span><span style="--h:42%;--i:6"></span></div>
+    <h2><span class="i18n-inline" lang="hy">Ի՞նչ նկարել հաջորդը</span><span class="i18n-inline" lang="ru">Что рисовать следующим?</span><span class="i18n-inline" lang="en">What should I draw next?</span></h2>
+    <p><span class="i18n-block" lang="hy">Գրեք մեկնաբանություններում TikTok-ում — կարդում եմ բոլորը։</span><span class="i18n-block" lang="ru">Пишите в комментариях в TikTok — читаю все.</span><span class="i18n-block" lang="en">Leave a comment on TikTok — I read them all.</span></p>
+    <a class="btn" href="https://www.tiktok.com/@ht_product"><span class="i18n-inline" lang="hy">TikTok-ում</span><span class="i18n-inline" lang="ru">мой TikTok</span><span class="i18n-inline" lang="en">my TikTok</span></a>
+  </section>
+
+  <footer class="foot reveal">
+    <p class="brand"><span class="hy">Չկա</span> · <a href="../"><span class="i18n-inline" lang="hy">գլխավոր էջ</span><span class="i18n-inline" lang="ru">на главную альбома</span><span class="i18n-inline" lang="en">back to the album</span></a></p>
+    <p class="photo-rights"><span class="i18n-block" lang="hy">Արխիվային լուսանկարները պատկանում են իրենց հեղինակներին և արխիվներին։ Օգտագործվում են ոչ առևտրային նախագծում՝ աղբյուրը նշելով։ Եթե դուք հեղինակն եք և ցանկանում եք ուղղել ստորագրությունը կամ հեռացնել լուսանկարը՝ <a href="https://www.tiktok.com/@ht_product">գրեք ինձ</a>։</span><span class="i18n-block" lang="ru">Архивные фото принадлежат их авторам и архивам. Используются в некоммерческом проекте с указанием источника. Если вы автор и хотите исправить подпись или убрать фото — <a href="https://www.tiktok.com/@ht_product">напишите мне</a>.</span><span class="i18n-block" lang="en">Archival photos belong to their authors and archives. Used in a non-commercial project with the source credited. If you are the author and want to fix a caption or remove a photo — <a href="https://www.tiktok.com/@ht_product">message me</a>.</span></p>
+    <p class="tiktok"><a class="btn" href="https://www.tiktok.com/@ht_product"><span class="i18n-inline" lang="hy">TikTok-ում</span><span class="i18n-inline" lang="ru">мой TikTok</span><span class="i18n-inline" lang="en">my TikTok</span></a></p>
+  </footer>
+
+</main>
+
+<div class="scene-overlay" id="sceneOverlay" hidden>
+  <button class="scene-close" id="sceneClose" type="button" aria-label="Закрыть 3D">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
+  <iframe id="sceneFrame" title="Кукурузник — 3D" allow="autoplay"></iframe>
+</div>
+
+<script>
+  window.CHKA_BUILDING = {
+    share: {
+      title: { ru: 'Չկա — Кукурузник', hy: 'Չկա — Կուկուռուզնիկ', en: 'Չկա — The Corncob' },
+      text: {
+        ru: 'Угадал {score} из {total} в игре про снесённый ереванский Кукурузник! Проверь себя:',
+        hy: 'Գուշակեցի {score}-ը {total}-ից՝ Երևանի քանդված Կուկուռուզնիկի խաղում։ Փորձիր դու էլ.',
+        en: 'Guessed {score} out of {total} in a game about Yerevan’s demolished Corncob! Try it yourself:'
+      }
+    },
+    quiz: [
+      {
+        q: {
+          ru: 'В каком году открылся Кукурузник?',
+          hy: 'Ո՞ր տարում է բացվել Կուկուռուզնիկը',
+          en: 'What year did the Corncob open?'
+        },
+        options: ['1975', '1979', '1983'],
+        correct: 1
+      },
+      {
+        q: {
+          ru: 'Сколько архитекторов работали над зданием?',
+          hy: 'Քանի՞ ճարտարապետ է աշխատել շենքի վրա',
+          en: 'How many architects worked on the building?'
+        },
+        options: ['2', '3', '4'],
+        correct: 1
+      },
+      {
+        q: {
+          ru: 'В каком году снесли Кукурузник?',
+          hy: 'Ո՞ր տարում է քանդվել Կուկուռուզնիկը',
+          en: 'What year was the Corncob demolished?'
+        },
+        options: ['2003', '2006', '2010'],
+        correct: 1
+      },
+      {
+        q: {
+          ru: 'Официальная причина сноса?',
+          hy: 'Քանդման պաշտոնական պատճա՞ռը',
+          en: 'What was the official reason for demolition?'
+        },
+        options: [
+          { ru: 'пожар', hy: 'հրդեհ', en: 'fire' },
+          { ru: 'сейсмостойкость', hy: 'սեյսմակայունություն', en: 'earthquake safety' },
+          { ru: 'расширение дороги', hy: 'ճանապարհի ընդլայնում', en: 'road widening' }
+        ],
+        correct: 1
+      }
+    ]
+  };
+</script>
+<script src="../assets/i18n.js?v=2" defer></script>
+<script src="../assets/chka-common.js?v=2" defer></script>
+<script src="../assets/story.js?v=7" defer></script>
+<script src="../assets/gallery.js?v=1" defer></script>
+</body>
+</html>
