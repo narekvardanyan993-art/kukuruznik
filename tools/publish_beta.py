@@ -54,7 +54,7 @@ def build_beta(main_dir):
                         '<meta charset="utf-8">\n<meta name="robots" content="noindex, nofollow, noarchive">\n'
                         '<meta name="googlebot" content="noindex, nofollow">', 1)
     html = html.replace('<title>3D-фото — тест параллакса глубины</title>', '<title>Кукурузник — beta</title>', 1)
-    html = html.replace('../../kukuruznik/index.html', '../kukuruznik/index.html')
+    html = html.replace('../../kukuruznik/about.html', '../kukuruznik/about.html')   # страница здания (с v12.1 index.html в kukuruznik/ — сам просмотрщик)
     html = re.sub(r'test/depth-photo · v[\d.]+ · [0-9-]+', 'beta · ' + BETA_VERSION + ' · ' + stamp, html)
     html = re.sub(r"(frames/v_angle_\d(?:_[a-z0-9]+)*)\.png", r"\1.webp", html)
     (beta / 'index.html').write_text(html, encoding='utf-8')

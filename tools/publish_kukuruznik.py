@@ -13,7 +13,8 @@
   2. kukuruznik/index.html = просмотрщик из test-assets/ (index.html, details.js, prep.js, viewer.js, welcome-*.js, wall*.js, fonts/, frames/ в WebP,
      og.jpg). Без метки «beta» и без видимой версии (версия — только в коде: <meta name="viewer-version">), без noindex; с og:/twitter: превью
      (заголовок и описание на армянском, картинка 1200×630), canonical и иконками. «Домой» ведёт на страницу здания (about.html).
-  3. Не трогает: главную, /beta/, scene.html и старые адреса (scene.html, history.html, scene3d.html, webgl/, manifest.json).
+  3. Старая 3D-сцена: scene.html -> страница-перенаправление на /kukuruznik/, все ссылки на неё с сайта убраны (about.html, manifest.json).
+  4. Не трогает: главную, /beta/; старые адреса history.html, scene3d.html, webgl/ живут.
 Как и publish_beta.py: временный worktree от origin/main, коммит только того, что положено, пуш HEAD в origin/main, worktree всегда удаляется.
 """
 import argparse
@@ -63,6 +64,25 @@ HEAD = '''<meta charset="utf-8">
 <meta name="twitter:image:alt" content="%(alt)s">''' % dict(desc=DESC_HY, url=URL, ver=VERSION, title=TITLE['hy'], alt=ALT_HY)
 
 
+SCENE_REDIRECT = '''<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta http-equiv="refresh" content="0; url=./">
+<link rel="canonical" href="https://chka.am/kukuruznik/">
+<title>Кукурузник — Չկա</title>
+<script>location.replace('./' + location.hash);</script>
+</head>
+<body>
+<!-- Старая 3D-сцена больше не показывается: её место занял просмотрщик «3D-фото» по адресу /kukuruznik/. -->
+<p><a href="./">Кукурузник → chka.am/kukuruznik/</a></p>
+</body>
+</html>
+'''
+
+
 def viewer_html():
     html = (SRC / 'depth.html').read_text(encoding='utf-8')
 
@@ -79,7 +99,7 @@ def viewer_html():
     if n != 1:
         raise SystemExit('не нашёл pageTitle')
     # «домой»: на страницу здания (кнопка в панели на ПК, «домой» на телефоне, «подробнее» в справке)
-    sub('../../kukuruznik/index.html', 'about.html', count=html.count('../../kukuruznik/index.html'))
+    sub('../../kukuruznik/about.html', 'about.html', count=html.count('../../kukuruznik/about.html'))
     # без метки «beta» и без видимой версии
     html, n1 = re.subn(r'\s*<div id="build-version">[^<]*</div>', '', html)
     html, n2 = re.subn(r'\s*<div class="p-build">[^<]*</div>', '', html)
@@ -103,11 +123,17 @@ def build(site):
         if not (k / 'index.html').exists():
             raise SystemExit('нет kukuruznik/index.html')
         subprocess.run(['git', '-C', str(site), 'mv', 'kukuruznik/index.html', 'kukuruznik/about.html'], check=True)
-    for name, pairs in (('scene.html', [('href="./"', 'href="about.html"')]), ('history.html', [('href="./"', 'href="about.html"')])):
-        t = (k / name).read_text(encoding='utf-8')
-        for old, new in pairs:
-            t = t.replace(old, new)
-        (k / name).write_text(t, encoding='utf-8')
+    t = (k / 'history.html').read_text(encoding='utf-8')
+    (k / 'history.html').write_text(t.replace('href="./"', 'href="about.html"'), encoding='utf-8')   # «назад» — на страницу здания
+    # старая 3D-сцена: все ссылки на неё убираем, сама страница — перенаправление на просмотрщик (/kukuruznik/)
+    a = (k / 'about.html').read_text(encoding='utf-8')
+    a = a.replace('href="scene.html"', 'href="./"').replace("    scene: 'scene.html',\n", '')   # кнопки «Смотреть в 3D» ведут в просмотрщик; без cfg.scene окно-iframe не открывается
+    if 'scene.html' in a:
+        raise SystemExit('в about.html остались ссылки на scene.html')
+    (k / 'about.html').write_text(a, encoding='utf-8')
+    mf = (k / 'manifest.json').read_text(encoding='utf-8').replace('"start_url": "./scene.html"', '"start_url": "./"')
+    (k / 'manifest.json').write_text(mf, encoding='utf-8')
+    (k / 'scene.html').write_text(SCENE_REDIRECT, encoding='utf-8')
     # 2. просмотрщик
     (k / 'index.html').write_text(viewer_html(), encoding='utf-8')
     for name in ('details.js', 'prep.js', 'viewer.js', 'welcome-loader.js', 'welcome-letters.js', 'wall.js', 'wall-data.js'):
