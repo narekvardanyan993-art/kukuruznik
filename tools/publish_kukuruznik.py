@@ -12,7 +12,8 @@
      (было ./) переставляются на about.html.
   2. kukuruznik/index.html = просмотрщик из test-assets/ (index.html, details.js, prep.js, viewer.js, welcome-*.js, wall*.js, fonts/, frames/ в WebP,
      og.jpg). Без метки «beta» и без видимой версии (версия — только в коде: <meta name="viewer-version">), без noindex; с og:/twitter: превью
-     (заголовок и описание на армянском, картинка 1200×630), canonical и иконками. «Домой» ведёт на страницу здания (about.html).
+     (заголовок и описание на армянском, картинка 1200×630), canonical и иконками. Значок «домой» ведёт на главную сайта (../),
+     а на страницу здания (about.html) — только кнопка «История здания».
   3. Старая 3D-сцена: scene.html -> страница-перенаправление на /kukuruznik/, все ссылки на неё с сайта убраны (about.html, manifest.json).
   4. Не трогает: главную, /beta/; старые адреса history.html, scene3d.html, webgl/ живут.
 Как и publish_beta.py: временный worktree от origin/main, коммит только того, что положено, пуш HEAD в origin/main, worktree всегда удаляется.
@@ -98,7 +99,7 @@ def viewer_html():
     html, n = re.subn(r"pageTitle: \{[^}]*\},", "pageTitle: { ru: '%s', en: '%s', hy: '%s' }," % (TITLE['ru'], TITLE['en'], TITLE['hy']), html)
     if n != 1:
         raise SystemExit('не нашёл pageTitle')
-    # «домой»: на страницу здания (кнопка в панели на ПК, «домой» на телефоне, «подробнее» в справке)
+    # кнопка «История здания» -> страница здания (about.html); значки «домой» уже ведут на главную (../) и не меняются
     sub('../../kukuruznik/about.html', 'about.html', count=html.count('../../kukuruznik/about.html'))
     # без метки «beta» и без видимой версии
     html, n1 = re.subn(r'\s*<div id="build-version">[^<]*</div>', '', html)
