@@ -59,6 +59,8 @@ tools/color_match.py я не меняю сам. Разрешено без спр
 логику менять разрешили прямо — после каждой правило снова действует
 как обычно: заморожено на состоянии тега depth-photo-v3, менять
 нельзя без нового прямого разрешения.
+Исключение: этапы 1–6 выноса движка по docs/ENGINE-PLAN.md — только в их
+рамках. Перед работой над движком прочитать план.
 
 Формат ответа для этой ветки — постоянное правило, заменяет общий формат
 выше именно для задач по test/depth-photo:
@@ -67,3 +69,11 @@ tools/color_match.py я не меняю сам. Разрешено без спр
 3. Вне блока — что сделать руками на Mac/iPhone, если нужно.
 4. Две ссылки, каждая на отдельной строке: Mac (localhost) и iPhone (адрес
    Mac в Wi-Fi, 192.168.x.x).
+
+## Start of every session
+@../мои-инструменты.md
+- Read chka-log.md (latest entries) for current state.
+
+## End of every session
+- Append to chka-log.md: date, what was done, what broke, next step (3–6 lines).
+- If anything was installed or a subscription changed, update ../мои-инструменты.md.

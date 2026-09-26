@@ -16,5 +16,13 @@
 - отдельно, вне блока — что нужно сделать мне руками на Mac (если нужно).
 
 ### test/depth-photo — test-assets/depth.html
-- Логику depth.html (шейдер, ввод, вёрстку, меню, точки-подсказки) и tools/build_frames.py, tools/color_match.py не менять без прямой просьбы. Разрешено без спроса: картинки в test-assets/frames/ + запуск `tools/build_frames.py`/`tools/color_match.py`, числа внутри CONFIG (кроме списков FRAMES/HOTSPOTS — их не подбирать на глаз) и переводы в CONFIG.I18N/UI_I18N (без добавления новых фактов о здании). Заморожено на состоянии тега depth-photo-v3.
+- Логику depth.html (шейдер, ввод, вёрстку, меню, точки-подсказки) и tools/build_frames.py, tools/color_match.py не менять без прямой просьбы. Разрешено без спроса: картинки в test-assets/frames/ + запуск `tools/build_frames.py`/`tools/color_match.py`, числа внутри CONFIG (кроме списков FRAMES/HOTSPOTS — их не подбирать на глаз) и переводы в CONFIG.I18N/UI_I18N (без добавления новых фактов о здании). Заморожено на состоянии тега depth-photo-v3. Исключение: этапы 1–6 выноса движка по docs/ENGINE-PLAN.md — только в их рамках. Перед работой над движком прочитать план.
 - Формат ответа по этой ветке: 2–3 строки простыми словами → блок ОТЧЁТ одним блоком кода → вне блока что сделать руками → две ссылки (Mac localhost, iPhone 192.168.x.x) каждая на отдельной строке.
+
+## Start of every session
+- Read ../мои-инструменты.md (tools, subscriptions, disk/RAM limits). Prefer tools already listed.
+- Read chka-log.md (latest entries) for current state.
+
+## End of every session
+- Append to chka-log.md: date, what was done, what broke, next step (3–6 lines).
+- If anything was installed or a subscription changed, update ../мои-инструменты.md.
