@@ -12,6 +12,9 @@
      q90, маски и глубина — без потерь: ~10 МБ вместо ~35 МБ);
   3. коммитит ТОЛЬКО beta/ и пушит HEAD в origin/main (обычный пуш, без --force);
   4. в конце ВСЕГДА удаляет временный worktree — и при успехе, и при ошибке, и при Ctrl+C.
+Перед коммитом запускает защитную проверку tools/check_site.mjs (docs/ENGINE-PLAN.md, п.7): снимки всех зданий и страниц «до/после»,
+fps, ошибки и 404. Ноль различий требуется везде, кроме самой беты (--allow-change beta); красная проверка останавливает публикацию.
+Обойти можно только явным флагом --skip-check (об этом печатается предупреждение). Отчёт проверки — ссылка в конце её вывода.
 Больше ничего в main не трогает (ни CNAME, ни корень, ни другие страницы) и не ставит ни одной ссылки
 на /beta/ с сайта. Кухня (~/Documents/chka-kitchen) не затрагивается.
 """
@@ -90,6 +93,15 @@ def build_beta(main_dir):
     return len(used), total
 
 
+def run_check(candidate):
+    """Запускает tools/check_site.mjs: origin/main против собранного кандидата. True — зелёная проверка."""
+    r = subprocess.run(['node', str(ROOT / 'tools' / 'check_site.mjs'), '--candidate', str(candidate), '--allow-change', 'beta'], cwd=str(ROOT))
+    if r.returncode == 0:
+        return True
+    print('\nПРОВЕРКА %s (код %d).' % ('КРАСНАЯ' if r.returncode == 1 else 'НЕ СМОГЛА ОТРАБОТАТЬ', r.returncode))
+    return False
+
+
 def remove_worktree(tmp):
     """Удаляет временный worktree и папку. Не падает, чтобы не скрыть исходную ошибку."""
     subprocess.run(['git', '-C', str(ROOT), 'worktree', 'remove', '--force', str(tmp)], capture_output=True)
@@ -100,6 +112,7 @@ def remove_worktree(tmp):
 def main():
     ap = argparse.ArgumentParser(description='Публикация закрытой беты в main через временный worktree.')
     ap.add_argument('--dry-run', action='store_true', help='собрать во временной копии и показать изменения; без коммита и пуша')
+    ap.add_argument('--skip-check', action='store_true', help='ОБХОД защитной проверки (tools/check_site.mjs) — только осознанно')
     ap.add_argument('-m', '--message', help='сообщение коммита (по умолчанию «beta: <версия> — <дата>»)')
     args = ap.parse_args()
     dry = args.dry_run
@@ -129,6 +142,11 @@ def main():
             return
         print('%sизменено файлов в beta/: %d' % (tag, len(staged)))
         print(git(tmp, 'diff', '--cached', '--stat', '--stat-width=100').splitlines()[-1])
+
+        if args.skip_check:
+            print('%s!!! ЗАЩИТНАЯ ПРОВЕРКА ПРОПУЩЕНА (--skip-check) !!!' % tag)
+        elif not run_check(tmp):
+            raise SystemExit('%sпубликация остановлена: защитная проверка не зелёная. Открой отчёт (ссылка выше), исправь и повтори; обход — только явным --skip-check.' % tag)
 
         if dry:
             print('[dry-run] СДЕЛАЛ БЫ: git commit -m "%s"' % message)
