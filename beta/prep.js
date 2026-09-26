@@ -350,7 +350,7 @@
       // список окон башни (центр и размер, доли кадра) — для «живых» деталей ночью
       var winList = (env.winsT || []).map(function (q) { return { u: q.cx / env.ew, v: q.cy / env.eh, w: q.bw / env.ew, h: q.bh / env.eh }; });
       STATE[i] = { w: bld.w, h: bld.h, alpha: bld.alpha, dayPx: bld.dayPx, plate: bld.plate, ew: env.ew, eh: env.eh, winList: winList };
-      var thumb = makeThumbBlob(imgs[0]);
+      var thumb = makeThumbBlob(imgs[0], env, i);
       return Promise.resolve(thumb).then(function (tb) {
         var out = {
           w: bld.w, h: bld.h, depth: depth, kB: bld.meanD * 2 - 1, dB: bld.meanD,
@@ -362,10 +362,48 @@
     });
   }
 
-  function makeThumbBlob(img) {
+  // Миниатюра дня в тех же красках, что и кадр (шейдер: небо голубое, зелень зеленее) — упрощённая копия той же формулы.
+  function sstep(a, b, x) { x = clamp((x - a) / (b - a), 0, 1); return x * x * (3 - 2 * x); }
+  function rgb2hsv(r, g, b) {
+    var mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, h = 0;
+    if (d > 1e-6) { h = mx === r ? ((g - b) / d) % 6 : (mx === g ? (b - r) / d + 2 : (r - g) / d + 4); h /= 6; if (h < 0) h += 1; }
+    return [h, mx > 1e-6 ? d / mx : 0, mx];
+  }
+  function hsv2rgb(h, s, v) {
+    var k = function (n) { return (n + h * 6) % 6; }, f = function (n) { return v - v * s * Math.max(0, Math.min(k(n), 4 - k(n), 1)); };
+    return [f(5), f(3), f(1)];
+  }
+  function gradeThumb(im, w, h, env, fi) {
+    var D = CONFIG.DAY; if (!D) return;
+    var ref = D.SKY_REF[fi] || 0.86, end = D.SKY_END[fi] || 0.55, gd = env.gpuDepth, ew = env.ew, eh = env.eh, d = im.data, x, y, o, k;
+    for (y = 0; y < h; y++) for (x = 0; x < w; x++) {
+      o = (y * w + x) * 4;
+      var v = y / h, e = ((Math.min(eh - 1, (v * eh) | 0)) * ew + Math.min(ew - 1, ((x / w) * ew) | 0)) * 4;
+      var r0 = d[o] / 255, g0 = d[o + 1] / 255, b0 = d[o + 2] / 255, r = r0, g = g0, b = b0, lum = 0.299 * r + 0.587 * g + 0.114 * b, rel = lum / ref;
+      var sky = sstep(0.35, 0.85, gd[e + 1] / 255) * (1 - sstep(0.10, 0.19, r - b)) * (1 - sstep(end - 0.03, end + 0.01, v)) * (1 - sstep(0.12, 0.28, gd[e] / 255));
+      if (sky > 0.001) {
+        var t = sstep(0.02, 0.42, v), tint = Math.min(rel, 1.06), wt = sstep(1.03, 1.12, rel) * 0.75, wv = Math.min(1, lum * 1.05 + 0.02), kp = sstep(0.55, 0.85, rel) * sky;
+        var q = [0, 1, 2].map(function (c) { return (D.SKY_TOP[c] + (D.SKY_HOR[c] - D.SKY_TOP[c]) * t) * Math.max(0, tint); });
+        var col = [r, g, b];
+        for (k = 0; k < 3; k++) { var tk = q[k] + (wv - q[k]) * wt; col[k] = col[k] + (tk - col[k]) * kp; }
+        r = col[0]; g = col[1]; b = col[2]; sky = kp;
+      }
+      var hv = rgb2hsv(r, g, b), gw = sstep(0.10, 0.16, hv[0]) * (1 - sstep(0.36, 0.45, hv[0])) * sstep(0.06, 0.16, hv[1]) * sstep(0.18, 0.40, hv[2]) * (1 - sky);
+      if (gw > 0.001) {
+        hv[0] = hv[0] + (D.GREEN_HUE - hv[0]) * gw * D.GREEN_PULL;
+        hv[1] = clamp(hv[1] * (1 + gw * (D.GREEN_SAT - 1)) + gw * 0.05, 0, 1);
+        var rgb = hsv2rgb(hv[0], hv[1], hv[2]); r = rgb[0]; g = rgb[1]; b = rgb[2];
+      }
+      var mx = D.MIX == null ? 1 : D.MIX;   // середина между v11 и v12, как в шейдере
+      d[o] = clamp((r0 + (r - r0) * mx) * 255, 0, 255); d[o + 1] = clamp((g0 + (g - g0) * mx) * 255, 0, 255); d[o + 2] = clamp((b0 + (b - b0) * mx) * 255, 0, 255);
+    }
+  }
+  function makeThumbBlob(img, env, fi) {
     var c = mkCanvas(), w = 180, h = Math.round(w * nh(img) / nw(img));
     c.width = w; c.height = h;
-    c.getContext('2d').drawImage(img, 0, 0, w, h);
+    var cx = c.getContext('2d', { willReadFrequently: true });
+    cx.drawImage(img, 0, 0, w, h);
+    try { var im = cx.getImageData(0, 0, w, h); gradeThumb(im, w, h, env, fi); cx.putImageData(im, 0, 0); } catch (e) { /* не вышло — миниатюра остаётся как есть */ }
     if (c.convertToBlob) return c.convertToBlob({ type: 'image/jpeg', quality: 0.7 }).catch(function () { return null; });
     return new Promise(function (res) { c.toBlob(function (b) { res(b); }, 'image/jpeg', 0.7); });
   }
