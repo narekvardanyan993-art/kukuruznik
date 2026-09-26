@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
-"""Фон-стена просмотрщика на ПК (v12.2): страница старой рукописи — много пустой бумаги, тон в тон.
+"""Данные для фона-стены просмотрщика на ПК: test-assets/wall-data.js (v12.2). Саму расстановку делает test-assets/wall.js в браузере —
+под размер окна, чтобы ни одна буква и ни один символ не попадали под экспонат, панель и стрелки.
 
-  python3 tools/make_wall.py        # -> test-assets/wall-a.svg
+  python3 tools/make_wall.py        # -> test-assets/wall-data.js
 
-Главное — армянский алфавит: заглавные буквы Месропа разного размера, разбросаны спокойно, без тесноты (контуры Noto Serif Armenian, OFL,
-tools/wall_letters.json; ерkatagir в строгом смысле — рукописный шрифт, здесь его ближайший печатный родственник). Из символов — по
-одному-двум: знак вечности, гранат, фрагмент орнамента хачкара (крест с розеткой и завитками), тонкий силуэт Арарата.
-Линия тонкая, у крупных букв — лёгкая тень-копия со сдвигом, как у гравюры. Скрипт детерминирован.
+Буквы — 38 заглавных армянского алфавита, контуры Noto Serif Armenian (SIL Open Font License 1.1; tools/build_wall_letters.py, файл
+шрифта test-assets/fonts/NotoSerifArmenian-armenian.woff2). Символы: знак вечности, гранат, фрагмент орнамента хачкара, тонкий силуэт Арарата.
 """
 import json
 import math
-import random
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -138,69 +136,22 @@ def ararat(W, H):
     return ''.join(o)
 
 
-# ---------------------------------------------------------------- буквы
-def defs_letters():
-    return '<defs>' + ''.join('<path id="L%d" d="%s" vector-effect="non-scaling-stroke"/>' % (i, l['d']) for i, l in enumerate(LETTERS)) + '</defs>'
-
-
-def L(i, size, x, y, rot=0, w=0.9, op=1.0):
-    """Буква i высотой size, центр по x в точке x, база на y; у крупных — вторая копия чуть в сторону (тень гравюры)."""
-    l = LETTERS[i % len(LETTERS)]
-    sc = size / 714.0
-    t = 'translate(%s %s)' % (f(x), f(y))
-    if rot:
-        t += ' rotate(%s)' % f(rot)
-    t += ' translate(%s 0) scale(%.5f)' % (f(-l['adv'] * sc / 2), sc)
-    out = '<use href="#L%d" transform="%s" stroke-width="%s"%s/>' % (i % len(LETTERS), t, f(w), (' opacity="%s"' % f(op)) if op != 1.0 else '')
-    if size >= 100:
-        t2 = t.replace('translate(%s %s)' % (f(x), f(y)), 'translate(%s %s)' % (f(x + size * 0.012), f(y + size * 0.012)), 1)
-        out += '<use href="#L%d" transform="%s" stroke-width="%s" opacity="0.4"/>' % (i % len(LETTERS), t2, f(w * 0.8))
-    return out
-
-
-def svg(w, h, body, op, extra_attrs=''):
-    return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d" %s>\n%s\n'
-            '<g fill="none" stroke="%s" stroke-opacity="%s" stroke-linecap="round" stroke-linejoin="round">\n%s\n</g>\n</svg>\n') % (w, h, w, h, extra_attrs, defs_letters(), INK, op, body)
-
-
-def wall():
-    """Одна композиция 1600×1000 (на странице cover). Экспонат закрывает середину, поэтому почти всё — в боковых полосах."""
-    W, H = 1600, 1000
-    R = random.Random(20260926)
-    P = []
-    placed = []   # (x, y, радиус) — занятое место
-    def free(x, y, r, gap=1.25):
-        return all(math.hypot(x - a, y - b) > (r + rr) * gap for a, b, rr in placed)
-    # символы — по одному-двум, фиксированные места (радиус — с запасом)
-    P.append(g(arevakhach(70), tx=1440, ty=210));                 placed.append((1440, 210, 80))
-    P.append(g(cross_lace(64), tx=610, ty=470));                  placed.append((610, 470, 78))
-    P.append(g(pomegranate(34), tx=1420, ty=560));                placed.append((1420, 560, 52))
-    P.append(g(pomegranate(24), tx=560, ty=180));                 placed.append((560, 180, 40))
-    P.append(g(ararat(760, 190), tx=830, ty=780));                placed.append((1250, 860, 120)); placed.append((1400, 860, 120))
-    # буквы: разного размера, спокойно; большинство — в боковых полосах, где видно
-    sizes = [220, 150, 150, 104, 104, 104, 74, 74, 74, 52, 52, 52, 52, 40, 40]
-    order = list(range(len(LETTERS))); R.shuffle(order)
-    k = 0
-    for size in sizes:
-        for _ in range(400):
-            rad = size * 0.62
-            lo, hi = (505 + rad * 0.5, 775 - rad * 0.5) if R.random() < 0.5 else (1305 + rad * 0.5, 1570 - rad * 0.5)   # только боковые полосы: середину закрывает экспонат
-            if hi <= lo:
-                continue
-            x = R.uniform(lo, hi)
-            y = R.uniform(70 + size, H - 60)
-            if free(x, y - size * 0.5, rad):
-                placed.append((x, y - size * 0.5, rad))
-                P.append(L(order[k % len(order)], size, x, y, rot=R.uniform(-3, 3), w=0.9 if size < 100 else 1.05, op=1.0 if size >= 74 else 0.85))
-                k += 1
-                break
-    return svg(W, H, '\n'.join(P), 0.15, 'preserveAspectRatio="xMidYMid slice"')
-
-
+# ---------------------------------------------------------------- данные
 def main():
-    content = wall()
-    (OUT / 'wall-a.svg').write_text(content, encoding='utf-8')
-    print('wall-a.svg', len(content) // 1024, 'KB')
+    data = {
+        'letters': [[l['adv'], l['d']] for l in LETTERS],
+        # символы в своих координатах: r — радиус охватывающего прямоугольника (полуширина, полувысота), для расстановки
+        'sym': {
+            'arevakhach': {'svg': arevakhach(50), 'w': 104, 'h': 104, 'ox': 0, 'oy': 0},
+            'pomegranate': {'svg': pomegranate(30), 'w': 96, 'h': 92, 'ox': 0, 'oy': -6},
+            'cross': {'svg': cross_lace(50), 'w': 100, 'h': 110, 'ox': 0, 'oy': 0},
+            'ararat': {'svg': ararat(600, 150), 'w': 600, 'h': 150, 'ox': 300, 'oy': 75},
+        },
+    }
+    js = ('/* Генерируется tools/make_wall.py — руками не править. Буквы: Noto Serif Armenian (OFL). */\n'
+          'window.WALL_DATA = ' + json.dumps(data, ensure_ascii=False, separators=(',', ':')) + ';\n')
+    (OUT / 'wall-data.js').write_text(js, encoding='utf-8')
+    print('wall-data.js', len(js) // 1024, 'KB')
 
 
 if __name__ == '__main__':

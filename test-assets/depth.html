@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>3D-фото — тест параллакса глубины</title>
-<script>/* вариант фона-стены на ПК: ?wall=a (по умолчанию) или ?wall=b; ?motion=1 — показать всё движение, даже если в системе включено «Уменьшить движение» (для проверки) */
-(function () { var m = /[?&]wall=([ab])/.exec(location.search); document.documentElement.setAttribute('data-wall', m ? m[1] : 'a'); if (/[?&]motion=1/.test(location.search)) document.documentElement.setAttribute('data-motion', 'on'); })();</script>
+<script>/* ?motion=1 — показать всё движение, даже если в системе включено «Уменьшить движение» (для проверки) */
+(function () { if (/[?&]motion=1/.test(location.search)) document.documentElement.setAttribute('data-motion', 'on'); })();</script>
 <link rel="preload" href="welcome-loader.js" as="script">
 <link rel="preload" href="welcome-letters.js" as="script">
 <link rel="preload" href="fonts/NotoSerif-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -170,6 +170,13 @@
   .flag-btn { transition: opacity 400ms var(--spring), transform 200ms var(--spring); }
   .flag-btn.off-frame { opacity: 0; pointer-events: none; transform: scale(0.8); }
   #flagBtnB { display: none; }
+  /* упрощённый парад (слабое устройство, «уменьшить движение», нет WebGL): флаг проявляется в небе, чуть колышется и растворяется, ~6 с */
+  .flag-lite { position: absolute; left: 50%; top: 14%; margin-left: -70px; z-index: 5; pointer-events: none; opacity: 0; animation: liteFlag 6.4s ease-in-out both; }
+  .flag-lite svg { display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.25)); }
+  .flag-lite .fb { transform-box: fill-box; transform-origin: 0% 50%; animation: flagWave 1.2s ease-in-out infinite; }
+  .flag-lite .fb2 { animation-delay: -0.2s; } .flag-lite .fb3 { animation-delay: -0.4s; }
+  @keyframes liteFlag { 0% { opacity: 0; transform: translateY(8px); } 14% { opacity: 1; transform: none; } 82% { opacity: 1; } 100% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { html:not([data-motion="on"]) .flag-lite .fb { animation: none; } }
   .p-top-row { display: flex; align-items: center; gap: var(--s2); }
   .flag-btn .fb { transform-box: fill-box; transform-origin: 0% 50%; }
   .flag-btn.busy .fb { animation: flagWave 800ms ease-in-out infinite; }
@@ -212,15 +219,13 @@
     .p-build { display: block; font: 500 10px/1.2 var(--font); opacity: 0.5; }
     .nav-side { display: grid; }
   }
-  /* Фон-стена на ПК (v12): вместо нарисованных домиков — армянские узоры и знаки, тон в тон с бумагой, как обои в музее:
-     орнамент ковра, кружево хачкара, знак вечности, гранат, силуэт Арарата, армянские буквы. Тон (прозрачность линий)
-     заложен в самих SVG (tools/make_wall.py). Два варианта на выбор: ?wall=a (обои-узор) и ?wall=b (панно со стеной).
-     На телефоне не показывается. */
+  /* Фон-стена на ПК (v12.2): армянские буквы и несколько тонких символов, тон в тон с бумагой; расстановку под размер окна делает wall.js
+     (данные и буквы Noto Serif Armenian, OFL — wall-data.js). На телефоне стены нет. */
+  #wall { display: none; }
   @media (min-width: 1024px) {
-    body::before {
-      content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-      background: url(wall-a.svg) center / cover no-repeat;
-    }
+    #wall { display: block; position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0; transition: opacity 450ms var(--spring); }
+    #wall.on { opacity: 1; }
+    #wall .w { fill: none; stroke: #5d4c31; stroke-opacity: 0.17; stroke-linecap: round; stroke-linejoin: round; }
     #layout { position: relative; z-index: 1; }
   }
 
@@ -904,6 +909,8 @@ window.__wl = WelcomeLoader.create({
 </main>
 </div>
 
+<script src="wall-data.js" defer></script>
+<script src="wall.js" defer></script>
 <script src="viewer.js" defer>
 </script>
 </body>

@@ -1183,13 +1183,12 @@
         perfGood = 0;
         if (perfLevel < 2 && ++perfLow >= 2) {   // два медленных окна подряд (5 с): одиночная заминка (окно на заднем плане, вкладка) не считается
           perfLow = 0; perfLevel++;              // сначала отключаем детали (и падающие звёзды), потом ветер
-          flagUpdate();                          // «Парад» — тоже новая анимация: выключается вместе с деталями
           console.info('fps ' + fps.toFixed(1) + ' < ' + CONFIG.PERF_MIN_FPS + ' -> отключаю ' + (perfLevel === 1 ? 'живые детали и падающие звёзды' : 'ветер'));
         }
       } else {
         perfLow = 0;
-        if (perfLevel >= 1 && fps >= 56 && perfRecov < 3 && ++perfGood >= 4) {   // 10 с ровных 56+ fps без деталей — возвращаем (не больше 3 раз)
-          perfGood = 0; perfRecov++; perfLevel--; flagUpdate();
+        if (perfLevel >= 1 && fps >= 56 && ++perfGood >= Math.min(24, 4 + 2 * perfRecov)) {   // 10 с ровных 56+ fps без деталей — возвращаем; после каждого срыва ждём дольше (до 60 с), чтобы детали не «мигали»
+          perfGood = 0; perfRecov++; perfLevel--;
           console.info('fps ровный -> возвращаю ' + (perfLevel === 0 ? 'живые детали' : 'ветер'));
         } else if (fps < 56) perfGood = 0;
       }
@@ -1217,18 +1216,30 @@
   // При fps < 45 (детали отключены) и при «уменьшении движения» кнопка скрыта.
   var flagBtns = document.querySelectorAll('.flag-btn');
   var paradeBusy = false, paradeWant = null;
-  var flagOnFrame = true, flagWasOff = false;
+  var flagOnFrame = true;
   function flagFrameStep() {   // кнопка живёт только на кадре 1; при переходе на другой кадр гаснет сразу
     var on = frameIndex === 0 && !fade;
     if (on === flagOnFrame) return;
     flagOnFrame = on;
     flagBtns.forEach(function (b) { b.classList.toggle('off-frame', !on); });
   }
-  function flagUpdate() {
-    var off = perfLevel >= 1 || reduced() || !useGL;
-    if (off !== flagWasOff) { flagWasOff = off; console.info('кнопка парада ' + (off ? 'скрыта: ' + (perfLevel >= 1 ? 'fps ниже порога (детали отключены)' : (reduced() ? 'включено «уменьшить движение»' : 'нет WebGL')) : 'снова показана')); }
-    flagBtns.forEach(function (b) { b.hidden = off; });
-    if (off && paradeWant) { paradeWant = null; setParadeBusy(false); }
+  // Кнопка не исчезает никогда (только гаснет на кадрах 2–6). На слабом устройстве (fps < 45), при «уменьшении движения» и без WebGL
+  // показывается упрощённый парад: флаг Армении просто проявляется в небе, чуть колышется и растворяется (simpleParade).
+  function flagUpdate() { flagBtns.forEach(function (b) { b.hidden = false; }); }
+  function simpleParade(done) {
+    var el = document.createElement('div');
+    el.className = 'flag-lite'; el.setAttribute('aria-hidden', 'true');
+    el.innerHTML = '<svg viewBox="0 0 46 34" width="140" height="103"><g stroke-linejoin="round">' +
+      '<path class="fb fb1" d="M4 4 Q13 1 23 4 Q33 7 42 4 L42 12 Q33 15 23 12 Q13 9 4 12 Z" fill="#d90012"/>' +
+      '<path class="fb fb2" d="M4 12 Q13 9 23 12 Q33 15 42 12 L42 20 Q33 23 23 20 Q13 17 4 20 Z" fill="#1c4cc0"/>' +
+      '<path class="fb fb3" d="M4 20 Q13 17 23 20 Q33 23 42 20 L42 28 Q33 31 23 28 Q13 25 4 28 Z" fill="#f2a800"/>' +
+      '<path d="M4 4 Q13 1 23 4 Q33 7 42 4 L42 28 Q33 31 23 28 Q13 25 4 28 Z" fill="none" stroke="#2f2a25" stroke-width="1.1" opacity=".75"/>' +
+      '<path d="M3 2 L3.4 33" fill="none" stroke="#2f2a25" stroke-width="1.6" stroke-linecap="round"/></g></svg>';
+    stage.appendChild(el);
+    var finished = false;
+    function end() { if (finished) return; finished = true; if (el.parentNode) el.parentNode.removeChild(el); done(); }
+    el.addEventListener('animationend', function (e) { if (e.animationName === 'liteFlag') end(); });
+    setTimeout(end, 9000);   // страховка
   }
   function setParadeBusy(v) {
     paradeBusy = v;
@@ -1236,7 +1247,7 @@
   }
   flagBtns.forEach(function (b) {
     b.addEventListener('click', function () {
-      if (paradeBusy || frameIndex !== 0 || fade || perfLevel >= 1 || reduced() || !window.Details || !window.Details.parade) return;
+      if (paradeBusy || frameIndex !== 0 || fade) return;
       closePopup(); closeSheet();
       setParadeBusy(true);
       paradeWant = { since: performance.now(), shown: null };
@@ -1251,7 +1262,9 @@
     if (paradeWant.shown === null) paradeWant.shown = now;
     if (now - paradeWant.shown < 450) return;
     paradeWant = null;
-    if (!window.Details.parade(function () { setParadeBusy(false); })) setParadeBusy(false);
+    var done = function () { setParadeBusy(false); };
+    var full = useGL && perfLevel < 1 && !reduced() && window.Details && window.Details.parade;
+    if (!(full && window.Details.parade(done))) simpleParade(done);   // слабое устройство, «уменьшить движение», нет WebGL или занято — упрощённый парад
   }
 
   // ---------- рендер-цикл ----------
@@ -1306,7 +1319,7 @@
       if (dp >= 1) demoStop();
       else { var dk = Math.sin(Math.PI * dp); targetX = demo.ax * dk; targetY = demo.ay * dk; }
     }
-    if (useGL) { paradeStep(now); flagFrameStep(); }
+    paradeStep(now); flagFrameStep();
 
     // --- наклон ---
     if (ret) {
