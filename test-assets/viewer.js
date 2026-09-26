@@ -1513,7 +1513,7 @@
     x.drawImage(canvas, 0, 0);
     canvas.width = W0; canvas.height = H0; // следующий кадр цикла перерисует холст
     var caption = CONFIG.UI_I18N.title[currentLang] + ' · chka.am';
-    var FONT = '"Kukuruznik Serif", "Noto Serif", Georgia, serif';
+    var FONT = '"Kukuruznik Serif", "Noto Serif", serif';
     var ready = (document.fonts && document.fonts.load) ? document.fonts.load('700 40px "Kukuruznik Serif"', caption).catch(function () {}) : Promise.resolve();
     ready.then(function () {
       var capH = Math.round(H * 0.085), lw = Math.max(2, Math.round(W / 300));

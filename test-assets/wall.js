@@ -1,9 +1,9 @@
 /* ============================================================================
    ФОН-СТЕНА НА ПК (v12.2): армянские заглавные буквы (Noto Serif Armenian, OFL — данные в wall-data.js) и несколько тонких символов
-   (знак вечности, гранат ×2, фрагмент орнамента хачкара, силуэт Арарата) — тон в тон с бумагой, много пустой бумаги.
+   (знак вечности, гранат ×2 — на окнах шире 1280 px, фрагмент орнамента хачкара, силуэт Арарата) — тон в тон с бумагой, много пустой бумаги.
 
    Расстановка считается под размер окна: ни одна буква и ни один символ не заходят под экспонат (рамка, стрелки, табличка) и панель.
-   Пересчёт при смене размера окна, размера рамки и сворачивании панели (плавно: стена гаснет и проявляется заново).
+   Пересчёт при смене размера окна, размера рамки и сворачивании панели: старая расстановка остаётся, пока не готова новая, и заменяется разом.
    На телефоне стены нет.
    ============================================================================ */
 (function () {
@@ -67,13 +67,15 @@
     var sym = D.sym, k = Math.max(0.6, Math.min(1.25, (Math.max(leftW, 0) + Math.max(rightW, 0)) / 560)), out = [];
     // символы — по одному-двум. Арарат — тонкой линией у нижнего края в самой широкой свободной полосе
     var araW = Math.min(420, Math.max(leftW, rightW) - 10);
-    if (araW > 140) {
+    if (araW > 96) {
       var right = rightW >= leftW, ax = right ? eR + GAP + (rightW - araW) / 2 : busy[0].r + GAP + (leftW - araW) / 2, ah = araW * sym.ararat.h / sym.ararat.w;
       var ara = { l: ax, t: H - keep - ah, r: ax + araW, b: H - keep };
       placed.push(ara);
       out.push({ sym: 'ararat', x: ax, y: ara.t, sc: araW / sym.ararat.w, ox: 0, oy: 0 });
     }
-    [['arevakhach', 0.85 * k], ['cross', 0.9 * k], ['pomegranate', 0.8 * k], ['pomegranate', 0.55 * k]].forEach(function (s) {
+    var syms = [['arevakhach', 0.85 * k], ['cross', 0.9 * k], ['pomegranate', 0.8 * k], ['pomegranate', 0.55 * k]];
+    if (W <= 1280) syms = syms.filter(function (s) { return s[0] !== 'pomegranate'; });   // на узких окнах (1280 и уже) гранат не показываем
+    syms.forEach(function (s) {
       var d = sym[s[0]], w = d.w * s[1], h = d.h * s[1], c = tryPut(w, h, 46 * k);
       if (c) out.push({ sym: s[0], x: c.l + w / 2, y: c.t + h / 2 - d.oy * s[1], sc: s[1] });
     });
@@ -112,8 +114,7 @@
     requestAnimationFrame(function () { svg.classList.add('on'); });
   }
 
-  function schedule(ms) {   // стена гаснет, через ms пересчитывается и проявляется
-    if (svg) svg.classList.remove('on');
+  function schedule(ms) {   // пересчёт через ms; пока новая расстановка не готова, старая остаётся на месте (не гаснет), потом заменяется разом
     clearTimeout(timer); timer = setTimeout(build, ms);
   }
   window.addEventListener('resize', function () { schedule(300); });

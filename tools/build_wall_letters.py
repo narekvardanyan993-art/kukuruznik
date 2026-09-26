@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Контуры заглавных армянских букв для фона-стены: tools/wall_letters.json.
 
-  python3 -m venv /tmp/fontvenv && /tmp/fontvenv/bin/pip install fonttools brotli
+  python3 -m venv /tmp/fontvenv && /tmp/fontvenv/bin/pip install fonttools brotli skia-pathops
   /tmp/fontvenv/bin/python tools/build_wall_letters.py
 
 Шрифт — Noto Serif Armenian (SIL Open Font License 1.1, https://openfontlicense.org), тот самый файл, что лежит в проекте:
@@ -14,9 +14,13 @@ from pathlib import Path
 from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.pens.transformPen import TransformPen
 from fontTools.ttLib import TTFont
+from fontTools.ttLib.removeOverlaps import removeOverlaps
+from fontTools.varLib.instancer import instantiateVariableFont
 
 ROOT = Path(__file__).resolve().parent.parent
 font = TTFont(ROOT / 'test-assets' / 'fonts' / 'NotoSerifArmenian-armenian.woff2')
+font = instantiateVariableFont(font, {'wght': 400})   # переменный шрифт -> обычный вес 400
+removeOverlaps(font)                                   # склеить налегающие контуры (иначе внутри буквы видны лишние линии)
 gs, cmap = font.getGlyphSet(), font.getBestCmap()
 out = []
 for cp in range(0x531, 0x557):   # Ա … Ֆ, 38 заглавных

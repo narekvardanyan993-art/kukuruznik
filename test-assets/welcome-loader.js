@@ -38,11 +38,11 @@
     /* подложка — сплошная бумага, пока кадры грузятся; уходит вместе со всем приветствием (никаких пятен поверх картинки) */
     '.wl::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: var(--paper, #f5ecda); }',
     '.wl-box { position: relative; z-index: 1; display: grid; justify-items: center; row-gap: 16px; max-width: 100%; }',
-    '.wl-title { max-width: 16em; font: 700 30px/1.25 var(--font, Georgia, serif); color: var(--ink, #2f2a25); }',
+    '.wl-title { max-width: 16em; font: 700 30px/1.25 var(--font, serif); color: var(--ink, #2f2a25); }',
     '.wl-under { position: relative; width: 160px; height: 144px; }',
     '.wl-pen { position: absolute; inset: 0; display: grid; place-items: center; }',
     '.wl-pen svg { width: 100%; height: 100%; overflow: visible; }',
-    '.wl-err { max-width: 80%; font: 600 16px/1.3 var(--font, Georgia, serif); color: var(--ink, #2f2a25); }'
+    '.wl-err { max-width: 80%; font: 600 16px/1.3 var(--font, serif); color: var(--ink, #2f2a25); }'
   ].join('\n');
 
   var uid = 0;

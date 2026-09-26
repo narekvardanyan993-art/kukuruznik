@@ -25,7 +25,7 @@ const col = (l) => { const t = T[l]; return `<section>
   <h3>${t.frames}</h3><div class="btn">${t.fs}</div><div class="btn">${t.card}</div><h3>${t.size}</h3>
   <h3>${t.about}</h3><p>${t.text}</p><a>${t.more}</a></div></section>`; };
 const page = `<!doctype html><meta charset="utf-8"><style>${ff}
-:root{--font:"Kukuruznik Serif",Georgia,serif;--paper:#f5ecda;--ink:#2f2a25}
+:root{--font:"Kukuruznik Serif",serif;--paper:#f5ecda;--ink:#2f2a25}
 body{margin:0;background:#f5ecda;color:#2f2a25;font:15px/1.4 var(--font);padding:32px;display:grid;grid-template-columns:repeat(3,400px);gap:32px}
 section{border:2px solid #2f2a25;border-radius:22px 8px 18px 10px/10px 18px 8px 22px;padding:24px;background:#f5ecda;box-shadow:3px 4px 0 rgba(47,42,37,.14)}
 .lang{font:600 13px var(--font);opacity:.5;margin-bottom:16px}
