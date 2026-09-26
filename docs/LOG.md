@@ -1982,3 +1982,9 @@ Custom domain, сохранить, подождать минуту и вписа
 - Шрифт стены: Noto Serif Armenian (SIL Open Font License 1.1), файл test-assets/fonts/NotoSerifArmenian-armenian.woff2, контуры — tools/build_wall_letters.py (fontTools). Прежний wall_letters.json был снят с системного Noto Sans Armenian macOS (tools/glyph_paths.swift) — заменён.
   ОТКРЫТО: буквы приветствия (welcome-letters.js) по-прежнему сняты с системного Noto Sans Armenian через glyph_paths.swift (Noto — OFL, но файл системный), хотя в docs названы «Serif»; перегенерировать из Noto Serif Armenian — по решению владельца.
 - Кнопка флага не исчезает никогда (гаснет только на кадрах 2–6). Слабое устройство (fps < 45), «уменьшить движение», нет WebGL → упрощённый парад: флаг Армении проявляется в небе, чуть колышется, растворяется (~6 с). Лимит «3 возврата» убран: детали возвращаются после ровных 56+ fps, каждый следующий раз ждут дольше (до 60 с). Проверено: 6 нажатий в режиме «уменьшить движение», 6 нажатий на слабом устройстве (CPU ×40, защита сработала — упрощённый парад).
+
+## Публикация беты v12.1 (26.09.2026)
+- `python3 tools/publish_beta.py` → коммит 2108d7d в origin/main (только beta/, 9 файлов, +1042 / −3838; обычный пуш). Бета на main до этого была v11, поэтому в публикацию вошли и v12, и v12.1 (v12 отдельно не публиковалась).
+- Новое в beta/: wall.js, wall-data.js (стена считается в браузере); удалён oldtown-bg.svg; изменены details.js, index.html, prep.js, viewer.js, welcome-letters.js (Noto Serif Armenian, OFL), welcome-loader.js.
+- Тег depth-photo-v12.1 — на коммите с этой записью в LOG (ветка claude/viewer-visual-polish-a8a0a1). Ссылка: https://chka.am/beta/
+- Открыто: ветку test/depth-photo (в основной папке репозитория) я не двигал — её нужно довести до этого коммита (`git merge --ff-only claude/viewer-visual-polish-a8a0a1` в ~/Documents/chka.am), если работа продолжится там.
