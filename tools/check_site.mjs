@@ -3,11 +3,17 @@
 //
 // Берёт две копии сайта — «как сейчас» (origin/main, распакованный во временную папку вне репозитория)
 // и «кандидат» — и сравнивает их снимки:
-//   • каждое здание с просмотрщиком (kukuruznik/, beta/, beta/<имя>/, любая папка с building.json и id="stage" в index.html):
+//   • каждое здание с просмотрщиком (kukuruznik/, beta/, beta/<имя>/, любая папка с index.html, где есть id="stage"):
 //     каждый кадр × день/закат/ночь × телефон 390×844 и ПК 1440×900, плюс парад и «живые детали» (принудительно);
+//   • прогулка по кликам (телефон и ПК): приветствие доходит до конца, панель открывается/закрывается, карточка точки-подсказки,
+//     языки hy/ru/en, кнопка парада (на кадре 2 не срабатывает, на кадре 1 — парад), сохранение открытки (сама картинка);
 //   • страницы: главная, about.html и history.html каждого здания (вверху и целиком);
-//   • попиксельное сравнение с рамкой «где» и картинкой-разницей. Допуск только на шум растеризации Chrome: не больше 200 пикселей с разницей каналов не больше 60 из 255
-//     (телефонная раскладка и картинка просмотрщика воспроизводятся до пикселя, DOM-панель на ПК и обычные страницы — с шумом на краях; см. NOISE_PX ниже). Всё, что больше, — различие;
+//   • СТРОГОЕ попиксельное сравнение: любой отличающийся пиксель — различие. Два исключения, оба с объяснением в отчёте:
+//       – ПК, области панели и миниатюр (их рамки записываются в каждый снимок): шум растеризации Chrome на краях кнопок и
+//         миниатюр, до NOISE_PX пикселей с разницей до NOISE_DELTA из 255 — в допуске; вне этих областей — ноль;
+//       – обычные страницы Chrome рисует при каждой загрузке в одном из нескольких устойчивых вариантов (углы картинок со скруглением);
+//         поэтому «как на сайте» снимается 3 раза, а снимок кандидата должен ПОБАЙТНО совпасть с одним из этих вариантов
+//         (кандидат при несовпадении переснимается до 5 раз). Допуска по пикселям на страницах нет;
 //   • fps (эмуляция телефона, процессор ×4, реальный GPU): день, день+детали, ночь+детали, ночь кадр 2;
 //   • ошибки в консоли и файлы, которые не загрузились (404 и любые ≥400).
 // Время подменено (requestAnimationFrame/performance.now крутит сам скрипт), случайность зафиксирована — снимки
@@ -19,7 +25,10 @@
 //   node tools/check_site.mjs --candidate-ref REF                   # кандидат = git-ref (тег, ветка)
 //   node tools/check_site.mjs --save-baseline v12.1 [--ref TAG]     # снять эталон (в ~/Documents/chka-kitchen/_эталоны/)
 //   node tools/check_site.mjs --baseline v12.1 --candidate DIR      # сравнивать не с живым сайтом, а с эталоном
-//   параметры: --only id,id  --viewports phone,pc  --tods day,night  --frames 0,1  --no-fps  --out DIR  --renderer metal|swiftshader
+//   параметры: --only id,id  --viewports phone,pc  --tods day,night  --frames 0,1  --no-fps  --no-walk  --out DIR  --renderer metal|swiftshader
+//   --compare-as B=A[,B=A]  — цель кандидата B сравнивать с целью A живого сайта (например beta/kukuruznik=kukuruznik:
+//                           бета-Кукурузник должен совпасть с живым). Такая пара строгая, даже если B попадает под --allow-change,
+//                           кроме случая, когда B указан в --allow-change дословно;
 //   --allow-change ID,ID  — для этих целей различия картинок допустимы (показываются в отчёте, не проваливают);
 //                           ошибки, 404 и fps проверяются всегда. Пусто = ноль различий везде.
 //   --known FILE          — список известных проблем (по умолчанию tools/check_site.known.json)
@@ -41,20 +50,20 @@ const OUT_ROOT = fs.existsSync(KITCHEN) ? path.join(KITCHEN, '_проверки'
 const BASE_ROOT = fs.existsSync(KITCHEN) ? path.join(KITCHEN, '_эталоны') : path.join(os.tmpdir(), 'chka-check-baselines');
 const KEEP_RUNS = 5;                 // сколько последних прогонов держать в папке проверок
 const FPS_MIN = 50, FPS_DROP = 0.10; // порог fps: не ниже 50 и не хуже прежнего больше чем на 10%
-// Допуск на шум растеризации Chrome. Картинка просмотрщика (WebGL) и телефонная раскладка воспроизводятся до пикселя, но DOM-панель на ПК и обычные страницы
-// (главная, about, history) выходят от прогона к прогону в двух вариантах: краевые пиксели кнопок, миниатюр, теней — до ~110 пикселей с разницей до ~21 из 255.
-// Поэтому различие в пределах «не больше NOISE_PX пикселей И разница каналов не больше NOISE_DELTA» считается шумом (показывается в отчёте отдельно, не проваливает).
-// Реальная правка (сдвиг элемента, цвет, текст, картинка) даёт либо разницу в десятки-сотни уровней на краях, либо тысячи пикселей — сюда не попадает.
-const NOISE_PX = 200, NOISE_DELTA = 60;   // измерено по 29 шумовым различиям из повторных прогонов одного и того же сайта: максимум 109 пикселей и 48 из 255; взят запас примерно вдвое
-const isNoise = (d, md) => d > 0 && d <= NOISE_PX && md <= NOISE_DELTA;
+// Допуск на шум растеризации Chrome — ТОЛЬКО внутри областей панели и миниатюр на ПК (рамки записываются в снимок в момент съёмки).
+// Измерено по повторным прогонам одного и того же сайта: шум там до 109 пикселей с разницей до 48 из 255. Вне этих областей — строгий ноль.
+const NOISE_PX = 200, NOISE_DELTA = 60, REGION_PAD = 6;
+const PAGE_ATTEMPTS_A = 3, PAGE_ATTEMPTS_B = 5;
+const VIEWER_RETRIES_B = 2;   // просмотрщик кандидата: если снимок вне областей допуска не совпал — переснять весь проход ещё до 2 раз (Chrome изредка по-другому растрирует мелкие детали, например край точки-подсказки)   // обычные страницы: сколько раз снимать «как на сайте» (варианты Chrome) и сколько раз переснимать кандидата
 const VIEWPORTS = { phone: { width: 390, height: 844 }, pc: { width: 1440, height: 900 } };
 const TODS = ['day', 'sunset', 'night'];
+const WALK_LANGS = ['hy', 'ru', 'en'];
 const EVENTS = { day: ['birds', 'plane', 'cranes'], sunset: ['birds', 'cranes'], night: ['plane', 'moths'] };  // «живые детали», показываем принудительно
 const SKIP_DIRS = new Set(['assets', 'docs', 'tools', 'node_modules', 'src', 'engine3d', 'test-assets', 'fonts', 'frames']);
 
 // ---------- аргументы ----------
 const argv = process.argv.slice(2);
-const opt = { renderer: 'metal', fps: true };
+const opt = { renderer: 'metal', fps: true, walk: true };
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   const val = () => argv[++i];
@@ -69,14 +78,18 @@ for (let i = 0; i < argv.length; i++) {
   else if (a === '--tods') opt.tods = val().split(',');
   else if (a === '--frames') opt.frames = val().split(',').map(Number);
   else if (a === '--no-fps') opt.fps = false;
+  else if (a === '--no-walk') opt.walk = false;
+  else if (a === '--compare-as') opt.pairs = (opt.pairs || []).concat(val().split(',').filter(Boolean).map((x) => { const [b, a] = x.split('='); if (!a || !b) { console.error('--compare-as: нужно B=A'); process.exit(2); } return { b, a }; }));
   else if (a === '--out') opt.out = path.resolve(val());
   else if (a === '--renderer') opt.renderer = val();
   else if (a === '--known') opt.known = path.resolve(val());
   else if (a === '--ignore-env') opt.ignoreEnv = true;
-  else if (a === '-h' || a === '--help') { console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 30).map((l) => l.replace(/^\/\/ ?/, '')).join('\n')); process.exit(0); }
+  else if (a === '-h' || a === '--help') { console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 43).map((l) => l.replace(/^\/\/ ?/, '')).join('\n')); process.exit(0); }
   else { console.error('неизвестный параметр', a); process.exit(2); }
 }
 opt.allow = opt.allow || [];
+opt.pairs = opt.pairs || [];
+const pairFor = (bId) => opt.pairs.find((p) => p.b === bId);
 const vpNames = (opt.viewports || Object.keys(VIEWPORTS)).filter((v) => VIEWPORTS[v]);
 const todNames = (opt.tods || TODS).filter((t) => TODS.includes(t));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -137,7 +150,7 @@ function discover(root) {
     addDir(d);
     if (d === 'beta') for (const s of fs.readdirSync(path.join(root, d), { withFileTypes: true }).filter((x) => x.isDirectory() && SKIP_DIRS.has(x.name) === false).map((x) => x.name).sort()) addDir(`${d}/${s}`);
   }
-  return targets.filter((t) => !opt.only || opt.only.some((o) => t.id === o || t.id.startsWith(o + '/')));
+  return targets.filter((t) => !opt.only || opt.only.some((o) => t.id === o || t.id.startsWith(o + '/') || opt.pairs.some((p) => p.b === t.id && (p.a === o || p.a.startsWith(o + '/')))));
 }
 
 // ---------- страница с подменённым временем ----------
@@ -150,14 +163,21 @@ const INIT_SCRIPT = () => {
   let s = 12345;
   window.__seed = (n) => { s = n | 0; };
   Math.random = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  // открытка: картинку, которую страница отдаёт на скачивание, запоминаем для сравнения; сам файл не скачивается
+  const oc = URL.createObjectURL;
+  URL.createObjectURL = function (b) { try { if (b instanceof Blob && /^image\//.test(b.type)) window.__lastImageBlob = b; } catch (e) {} return oc.apply(this, arguments); };
+  const ac = HTMLAnchorElement.prototype.click;
+  HTMLAnchorElement.prototype.click = function () { if (this.download && /^blob:/.test(this.href)) { window.__download = { name: this.download }; return; } return ac.apply(this, arguments); };
   const st = document.createElement('style');
   st.textContent = '*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}.p-build,#build-version{visibility:hidden!important}';
-  document.addEventListener('DOMContentLoaded', () => document.head.appendChild(st));
+  if (!window.__keepAnimations) document.addEventListener('DOMContentLoaded', () => document.head.appendChild(st));
+  window.__freezeAnimations = () => { if (!st.isConnected) document.head.appendChild(st); };
 };
 const hashSeed = (s) => { let h = 2166136261; for (const c of s) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
 
-async function newPage(browser, origin, vp, { virtual = true, mobile = false, dsf = 1 } = {}) {
-  const page = await browser.newPage();
+async function newPage(browser, origin, vp, { virtual = true, mobile = false, dsf = 1, keepAnimations = false } = {}) {
+  const ctx = await browser.createBrowserContext();   // своя сессия: язык, свёрнутая панель и т.п. не переходят из снимка в снимок
+  const page = await ctx.newPage();
   const problems = [];
   let external = 0;
   const isLocal = (u) => u.startsWith(origin) || u.startsWith('data:') || u.startsWith('blob:') || u.startsWith('about:');
@@ -167,8 +187,9 @@ async function newPage(browser, origin, vp, { virtual = true, mobile = false, ds
   page.on('requestfailed', (r) => { if (!isLocal(r.url())) { external++; return; }   // внешние адреса (шрифты Google и т.п.) браузер не резолвит (см. --host-resolver-rules): без них снимки не зависят от сети
     if (!/ERR_ABORTED/.test((r.failure() || {}).errorText || '')) problems.push({ type: 'не загрузился', msg: r.url().replace(origin, '') + ' ' + ((r.failure() || {}).errorText || '') }); });
   await page.setViewport({ width: vp.width, height: vp.height, deviceScaleFactor: dsf, isMobile: mobile, hasTouch: mobile });
+  if (keepAnimations) await page.evaluateOnNewDocument(() => { window.__keepAnimations = true; });
   if (virtual) await page.evaluateOnNewDocument(INIT_SCRIPT);
-  return { page, problems, get external() { return external; } };
+  return { page, problems, get external() { return external; }, close: () => ctx.close().catch(() => {}) };
 }
 
 async function waitViewerLoaded(page, tag) {
@@ -191,6 +212,19 @@ const settleImages = (page) => page.evaluate(async () => {
     new Promise((r) => setTimeout(r, 2500))
   ]);
 });
+// Рамки областей, где допускается шум растеризации (только ПК): панель и миниатюры, с запасом REGION_PAD под тень/обводку.
+const noiseRegions = (page, vpName) => vpName !== 'pc' ? Promise.resolve([]) : page.evaluate((pad) => {
+  const out = [], W = innerWidth, H = innerHeight;
+  const add = (sel, label) => {
+    const e = document.querySelector(sel); if (!e) return;
+    const cs = getComputedStyle(e); if (cs.display === 'none' || cs.visibility === 'hidden') return;
+    const r = e.getBoundingClientRect(); if (r.width < 2 || r.height < 2) return;
+    const box = [Math.max(0, Math.floor(r.left) - pad), Math.max(0, Math.floor(r.top) - pad), Math.min(W - 1, Math.ceil(r.right) + pad), Math.min(H - 1, Math.ceil(r.bottom) + pad)];
+    if (box[2] > box[0] && box[3] > box[1]) out.push({ label, box });
+  };
+  add('#panel', 'панель'); add('#thumbs', 'миниатюры');
+  return out;
+}, REGION_PAD);
 const shotSha = (buf) => crypto.createHash('sha256').update(buf).digest('hex').slice(0, 16);
 
 // ---------- снимки просмотрщика ----------
@@ -205,9 +239,10 @@ async function captureViewer(browser, origin, target, vpName, outDir) {
   const gpuDone = () => page.evaluate(() => { const c = document.getElementById('gl'); const g = c && (c.getContext('webgl') || c.getContext('experimental-webgl')); if (g) { g.finish(); const px = new Uint8Array(4); g.readPixels(0, 0, 1, 1, g.RGBA, g.UNSIGNED_BYTE, px); } });
   const snap = async (name) => {
     await gpuDone(); await sleep(60);
+    const regions = await noiseRegions(page, vpName);
     const buf = await page.screenshot({ type: 'png' });
     fs.writeFileSync(path.join(outDir, name + '.png'), buf);
-    shots[name] = { sha: shotSha(buf), bytes: buf.length };
+    shots[name] = { sha: shotSha(buf), bytes: buf.length, regions };
   };
   try {
     await page.goto(origin + target.url, { waitUntil: 'load', timeout: 60000 });
@@ -269,22 +304,114 @@ async function captureViewer(browser, origin, target, vpName, outDir) {
     problems.push({ type: 'сбой проверки', msg: e.message.slice(0, 300) });
   }
   const ext = P.external;
-  await page.close();
+  await P.close();
   return { shots, problems, external: ext };
 }
 
-// ---------- снимки обычных страниц (главная, about, history) ----------
-async function capturePage(browser, origin, target, vpName, outDir) {
-  const vp = VIEWPORTS[vpName];
-  const P = await newPage(browser, origin, vp, { mobile: vpName === 'phone' });
+// ---------- прогулка по кликам ----------
+// Приветствие идёт по реальным таймерам (минимум 3 с + дорисовка буквы): ждём, пока оно само уйдёт, и только потом
+// замораживаем CSS-анимации и снимаем. Дальше всё — клики мышью/пальцем, как у зрителя.
+async function captureWalk(browser, origin, target, vpName, outDir) {
+  const vp = VIEWPORTS[vpName], phone = vpName === 'phone';
+  const P = await newPage(browser, origin, vp, { mobile: phone, keepAnimations: true });
   const { page, problems } = P;
   const shots = {};
   const adv = (ms) => page.evaluate((m) => window.__advance(m), ms);
-  const snap = async (name, full) => {
-    const buf = await page.screenshot({ type: 'png', fullPage: !!full });
+  const seed = (s) => page.evaluate((v) => window.__seed(v), hashSeed(`${target.id}|walk|${vpName}|${s}`));
+  const gpuDone = () => page.evaluate(() => { const c = document.getElementById('gl'); const g = c && (c.getContext('webgl') || c.getContext('experimental-webgl')); if (g) { g.finish(); const px = new Uint8Array(4); g.readPixels(0, 0, 1, 1, g.RGBA, g.UNSIGNED_BYTE, px); } });
+  const snap = async (name) => {
+    await seed('snap-' + name); await adv(700); await gpuDone(); await sleep(60);
+    const regions = await noiseRegions(page, vpName);
+    const buf = await page.screenshot({ type: 'png' });
     fs.writeFileSync(path.join(outDir, name + '.png'), buf);
-    shots[name] = { sha: shotSha(buf), bytes: buf.length };
+    shots[name] = { sha: shotSha(buf), bytes: buf.length, regions };
   };
+  const click = async (sel) => { await page.waitForSelector(sel, { visible: true, timeout: 5000 }); await page.click(sel); await adv(900); if (!(await page.$('#stage'))) throw new Error('после нажатия на ' + sel + ' открылась другая страница: ' + page.url()); };
+  const openSheet = async () => { if (phone && !(await page.evaluate(() => document.body.classList.contains('sheet-open')))) await click('#panelBtn'); };
+  // шторку закрывает нажатие на затемнение ВЫШЕ шторки (в центре экрана лежит сама шторка — нажатие попало бы в её кнопки)
+  const closeSheet = async () => { if (phone && (await page.evaluate(() => document.body.classList.contains('sheet-open')))) { await page.mouse.click(vp.width / 2, 40); await adv(900); } };
+  const goFrame = async (f) => {
+    for (let g = 0; g < 12 && (await page.evaluate(() => window.__viewer.frame())) !== f; g++) {
+      await page.keyboard.press('ArrowRight');
+      for (let k = 0; k < 60; k++) { await adv(100); if (!(await page.evaluate(() => window.__viewer.fading()))) break; }
+    }
+    await adv(900);
+  };
+  try {
+    const t0 = Date.now();
+    await page.goto(origin + target.url, { waitUntil: 'load', timeout: 60000 });
+    let welcomeMs = null;
+    for (let i = 0; i < 120; i++) {   // до 30 с
+      const st = await page.evaluate(() => { const w = document.getElementById('welcome'); return { gone: !w || w.hidden, loaded: document.documentElement.getAttribute('data-loaded') === 'all' && !!window.Details }; });
+      if (st.gone && st.loaded) { welcomeMs = Date.now() - t0; break; }
+      await sleep(250);
+    }
+    if (welcomeMs == null) throw new Error('приветствие не дошло до конца за 30 с');
+    await page.evaluate(() => window.__freezeAnimations());
+    await page.evaluate(() => document.fonts && document.fonts.ready);
+    await sleep(phone ? 600 : 3000);   // демо-наклон после приветствия (таймер 250 мс); на ПК — стена из букв и «перо» панели
+    await settleImages(page);
+    await seed('after-welcome'); await adv(3000);   // демо-наклон (1.5 с) проходит и возвращается
+    await snap('walk-1-after-welcome');
+    // панель: телефон — шторка, ПК — свернуть/развернуть
+    if (phone) { await click('#panelBtn'); await snap('walk-2-sheet-open'); await closeSheet(); await snap('walk-3-sheet-closed'); }
+    else { await click('#panelBtn'); await snap('walk-2-panel-collapsed'); await click('#panelBtn'); await snap('walk-3-panel-open'); }
+    // карточка точки-подсказки
+    const dot = await page.$('.hs-dot.show');
+    if (dot) {
+      await dot.click(); await adv(900); await snap('walk-4-hint-open');
+      await click('#hsBack'); await snap('walk-5-hint-closed');
+    } else problems.push({ type: 'прогулка', msg: 'нет точки-подсказки на первом кадре' });
+    // языки
+    for (const l of WALK_LANGS) {
+      await openSheet();
+      await click(`#langSeg [data-lang=${l}]`);
+      if (phone && l === 'hy') await snap('walk-6-lang-hy-sheet');
+      await closeSheet();
+      await snap(`walk-7-lang-${l}`);
+    }
+    // парад: на кадре 2 кнопка погашена и не срабатывает; на кадре 1 — парад
+    const flag = phone ? '#flagBtnB' : '#flagBtnP';
+    await goFrame(1);
+    await page.evaluate((s) => document.querySelector(s).click(), flag);   // кнопка погашена (pointer-events: none) — нажимаем программно: ничего не должно начаться
+    await adv(2000);
+    if (await page.evaluate(() => window.Details && window.Details.paradeBusy && window.Details.paradeBusy())) problems.push({ type: 'прогулка', msg: 'парад начался на кадре 2' });
+    await snap('walk-8-flag-off-frame2');
+    await goFrame(0);
+    await seed('parade'); await click(flag); await adv(4300); await snap('walk-9-parade');
+    await adv(16000);
+    // открытка
+    await openSheet();
+    await page.evaluate(() => { window.__lastImageBlob = null; window.__download = null; });
+    await click('#cardBtn');
+    let got = null;
+    for (let i = 0; i < 100 && !got; i++) { await sleep(200);   // картинка ~1000×1750 кодируется в PNG в фоне — бывает дольше 6 с
+      got = await page.evaluate(() => window.__lastImageBlob && window.__download ? true : null); }
+    if (!got) problems.push({ type: 'прогулка', msg: 'открытка не сохранилась (нет картинки за 20 с): ' + JSON.stringify(await page.evaluate(() => ({ blob: !!window.__lastImageBlob, dl: window.__download, btn: (() => { const b = document.getElementById('cardBtn'); return b ? { hidden: b.hidden, r: b.getBoundingClientRect().toJSON() } : null; })() }))) });
+    else {
+      const r = await page.evaluate(() => new Promise((res) => { const fr = new FileReader(); fr.onload = () => res({ b64: String(fr.result).split(',')[1], name: window.__download.name }); fr.readAsDataURL(window.__lastImageBlob); }));
+      const buf = Buffer.from(r.b64, 'base64');
+      fs.writeFileSync(path.join(outDir, 'walk-10-postcard.png'), buf);
+      shots['walk-10-postcard'] = { sha: shotSha(PNG.sync.read(buf).data), bytes: buf.length, regions: [], file: r.name };
+    }
+    await closeSheet();
+    shots._welcomeMs = welcomeMs;
+  } catch (e) {
+    problems.push({ type: 'сбой прогулки', msg: e.message.slice(0, 300) });
+  }
+  const ms = shots._welcomeMs; delete shots._welcomeMs;
+  const ext = P.external;
+  await P.close();
+  return { shots, problems, external: ext, welcomeMs: ms };
+}
+
+// ---------- снимки обычных страниц (главная, about, history) ----------
+async function capturePageOnce(browser, origin, target, vpName) {
+  const vp = VIEWPORTS[vpName];
+  const P = await newPage(browser, origin, vp, { mobile: vpName === 'phone' });
+  const { page, problems } = P;
+  const bufs = {};
+  const adv = (ms) => page.evaluate((m) => window.__advance(m), ms);
   try {
     await page.goto(origin + target.url, { waitUntil: 'load', timeout: 60000 });
     await page.evaluate(() => document.fonts && document.fonts.ready);
@@ -293,14 +420,44 @@ async function capturePage(browser, origin, target, vpName, outDir) {
     const h = await page.evaluate(() => document.documentElement.scrollHeight);   // сначала проходим страницу до низа: «проявление при прокрутке» срабатывает у всех элементов,
     for (let y = 0; y < h; y += vp.height * 0.7) { await page.evaluate((yy) => window.scrollTo(0, yy), y); await sleep(120); await adv(300); }   // а не только у тех, что на границе экрана
     await page.evaluate(() => window.scrollTo(0, 0)); await sleep(300); await adv(800); await settleImages(page); await sleep(1200);
-    await snap('top');
-    await snap('full', true);
+    bufs.top = await page.screenshot({ type: 'png' });
+    bufs.full = await page.screenshot({ type: 'png', fullPage: true });
   } catch (e) {
     problems.push({ type: 'сбой проверки', msg: e.message.slice(0, 300) });
   }
   const ext = P.external;
-  await page.close();
-  return { shots, problems, external: ext };
+  await P.close();
+  return { bufs, problems, external: ext };
+}
+
+// Обычная страница: Chrome рисует её при каждой загрузке в одном из нескольких устойчивых вариантов. «Как на сайте» снимаем
+// PAGE_ATTEMPTS_A раз и помним все варианты (файлы name~<sha>.png). Кандидата снимаем, пока каждый его снимок побайтно не совпадёт
+// с одним из вариантов (не больше PAGE_ATTEMPTS_B раз). guide — снимки «как на сайте» (для кандидата), null — снимаем «как на сайте».
+async function capturePage(browser, origin, target, vpName, outDir, guide) {
+  const shots = {}, problems = [];
+  let external = 0;
+  const tries = guide ? PAGE_ATTEMPTS_B : PAGE_ATTEMPTS_A;
+  for (let k = 0; k < tries; k++) {
+    const r = await capturePageOnce(browser, origin, target, vpName);
+    external += r.external;
+    if (k === 0) problems.push(...r.problems);
+    for (const [name, buf] of Object.entries(r.bufs)) {
+      const sha = shotSha(buf);
+      const cur = shots[name];
+      if (!cur) { fs.writeFileSync(path.join(outDir, name + '.png'), buf); shots[name] = { sha, bytes: buf.length, variants: [sha], counts: { [sha]: 1 }, attempts: 1 }; }
+      else {
+        cur.attempts++;
+        if (!guide) {   // «как на сайте»: копим варианты
+          cur.counts[sha] = (cur.counts[sha] || 0) + 1;
+          if (!cur.variants.includes(sha)) { cur.variants.push(sha); fs.writeFileSync(path.join(outDir, `${name}~${sha}.png`), buf); }
+        } else if (!(guide[name] || []).includes(cur.sha) && (guide[name] || []).includes(sha)) {   // кандидат: нашёлся совпадающий вариант
+          fs.writeFileSync(path.join(outDir, name + '.png'), buf); cur.sha = sha; cur.bytes = buf.length;
+        }
+      }
+    }
+    if (guide && Object.keys(shots).every((n) => (guide[n] || []).includes(shots[n].sha))) break;
+  }
+  return { shots, problems, external };
 }
 
 // ---------- fps ----------
@@ -329,30 +486,42 @@ async function measureFps(browser, origin, target) {
   } catch (e) {
     problems.push({ type: 'сбой fps-замера', msg: e.message.slice(0, 300) });
   }
-  await page.close();
+  await P.close();
   return { fps: out, problems };
 }
 
 // ---------- сравнение ----------
 function readPng(f) { return PNG.sync.read(fs.readFileSync(f)); }
-function comparePair(fa, fb, fdiff) {
+// Сравнение: строгое вне областей допуска; внутри (панель и миниатюры на ПК) — шум до NOISE_PX пикселей с разницей до NOISE_DELTA.
+function comparePair(fa, fb, fdiff, regions) {
   const A = readPng(fa), B = readPng(fb);
   if (A.width !== B.width || A.height !== B.height) return { diff: -1, note: `размер ${A.width}×${A.height} → ${B.width}×${B.height}` };
-  let n = 0, x0 = 1e9, y0 = 1e9, x1 = -1, y1 = -1, md = 0;
-  const w = A.width;
+  const w = A.width, R = regions || [];
+  const inR = (x, y) => R.some((r) => x >= r.box[0] && x <= r.box[2] && y >= r.box[1] && y <= r.box[3]);
+  const st = { out: { n: 0, md: 0, box: [1e9, 1e9, -1, -1] }, in: { n: 0, md: 0, box: [1e9, 1e9, -1, -1] } };
   for (let i = 0, p = 0; i < A.data.length; i += 4, p++) {
     if (A.data[i] !== B.data[i] || A.data[i + 1] !== B.data[i + 1] || A.data[i + 2] !== B.data[i + 2] || A.data[i + 3] !== B.data[i + 3]) {
-      n++; const x = p % w, y = (p / w) | 0;
-      md = Math.max(md, Math.abs(A.data[i] - B.data[i]), Math.abs(A.data[i + 1] - B.data[i + 1]), Math.abs(A.data[i + 2] - B.data[i + 2]));
-      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      const x = p % w, y = (p / w) | 0, s = R.length && inR(x, y) ? st.in : st.out;
+      s.n++;
+      s.md = Math.max(s.md, Math.abs(A.data[i] - B.data[i]), Math.abs(A.data[i + 1] - B.data[i + 1]), Math.abs(A.data[i + 2] - B.data[i + 2]));
+      if (x < s.box[0]) s.box[0] = x; if (y < s.box[1]) s.box[1] = y; if (x > s.box[2]) s.box[2] = x; if (y > s.box[3]) s.box[3] = y;
     }
   }
+  const n = st.out.n + st.in.n;
   if (!n) return { diff: 0 };
   const D = new PNG({ width: w, height: A.height });
   pixelmatch(A.data, B.data, D.data, w, A.height, { threshold: 0, alpha: 0.35, diffColor: [255, 0, 60] });
+  for (const r of R) {   // рамки областей допуска — синим
+    const [x0, y0, x1, y1] = r.box;
+    const dot = (x, y) => { if (x < 0 || y < 0 || x >= w || y >= A.height) return; const o = (y * w + x) * 4; D.data[o] = 30; D.data[o + 1] = 90; D.data[o + 2] = 255; D.data[o + 3] = 255; };
+    for (let x = x0; x <= x1; x++) { dot(x, y0); dot(x, y1); }
+    for (let y = y0; y <= y1; y++) { dot(x0, y); dot(x1, y); }
+  }
   fs.mkdirSync(path.dirname(fdiff), { recursive: true });
   fs.writeFileSync(fdiff, PNG.sync.write(D));
-  return { diff: n, pct: n / (w * A.height) * 100, box: [x0, y0, x1, y1], maxDelta: md };
+  const all = st.out.n ? st.out : st.in;
+  return { diff: n, pct: n / (w * A.height) * 100, box: all.box, maxDelta: Math.max(st.out.md, st.in.md), outside: st.out, inside: st.in,
+    noise: st.out.n === 0 && st.in.n > 0 && st.in.n <= NOISE_PX && st.in.md <= NOISE_DELTA };
 }
 
 function loadKnown() {
@@ -374,7 +543,7 @@ async function launchBrowsers() {
   const sw = await puppeteer.launch({ headless: 'new', args: ['--disable-gpu', ...common] });
   return { gl, sw };
 }
-async function runSite(label, root, targets, outBase) {
+async function runSite(label, root, targets, outBase, guideRes, guideDir) {
   const browsers = await launchBrowsers();
   const srv = await serve(root);
   const origin = `http://127.0.0.1:${srv.port}`;
@@ -385,7 +554,50 @@ async function runSite(label, root, targets, outBase) {
       for (const vpName of vpNames) {
         const dir = path.join(outBase, t.id.replace(/\//g, '__'), vpName);
         fs.mkdirSync(dir, { recursive: true });
-        const r = t.kind === 'viewer' ? await captureViewer(browsers.gl, origin, t, vpName, dir) : await capturePage(browsers.sw, origin, t, vpName, dir);
+        let r;
+        if (t.kind === 'viewer') {
+          const pass = async (d) => {
+            const x = await captureViewer(browsers.gl, origin, t, vpName, d);
+            if (opt.walk) {
+              const w = await captureWalk(browsers.gl, origin, t, vpName, d);
+              Object.assign(x.shots, w.shots); x.problems.push(...w.problems); x.external += w.external; x.welcomeMs = w.welcomeMs;
+            }
+            return x;
+          };
+          r = await pass(dir);
+          res[t.id].welcomeMs = Object.assign(res[t.id].welcomeMs || {}, { [vpName]: r.welcomeMs });
+          // кандидат: снимки, не совпавшие с «как на сайте» вне областей допуска, переснимаем (весь проход) до VIEWER_RETRIES_B раз;
+          // засчитывается только совпадение по тем же правилам — настоящая разница повторится и останется
+          const aId = (pairFor(t.id) || { a: t.id }).a, g = guideRes && guideRes[aId];
+          if (g && g.kind === 'viewer') {
+            const matches = (name, file, shot) => {
+              const as = g.shots[`${vpName}/${name}`]; if (!as) return true;
+              if (as.sha === shot.sha) return true;
+              const c = comparePair(path.join(guideDir, aId.replace(/\//g, '__'), vpName, name + '.png'), file, path.join(os.tmpdir(), 'chka-check-retry-diff.png'), [...(as.regions || []), ...(shot.regions || [])]);
+              return c.diff === 0 || c.noise;
+            };
+            let bad = Object.keys(r.shots).filter((n) => !matches(n, path.join(dir, n + '.png'), r.shots[n]));
+            for (let k = 0; k < VIEWER_RETRIES_B && bad.length; k++) {
+              log(`${label} · ${t.id} · ${vpName}: не совпали ${bad.length} (${bad.slice(0, 3).join(', ')}) — пересъёмка ${k + 1}/${VIEWER_RETRIES_B}`);
+              const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'chka-check-retry-'));
+              const x = await pass(tmp);
+              bad = bad.filter((n) => {
+                if (!x.shots[n] || !matches(n, path.join(tmp, n + '.png'), x.shots[n])) return true;
+                fs.copyFileSync(path.join(tmp, n + '.png'), path.join(dir, n + '.png')); r.shots[n] = x.shots[n]; r.retried = (r.retried || 0) + 1; return false;
+              });
+              fs.rmSync(tmp, { recursive: true, force: true });
+            }
+            if (r.retried) res[t.id].retried = (res[t.id].retried || 0) + r.retried;
+          }
+        } else {
+          let guide = null;
+          if (guideRes) {   // варианты «как на сайте» для этой страницы
+            const g = guideRes[(pairFor(t.id) || { a: t.id }).a];
+            guide = {};
+            if (g) for (const [key, v] of Object.entries(g.shots)) { const [vp, name] = key.split('/'); if (vp === vpName) guide[name] = v.variants || [v.sha]; }
+          }
+          r = await capturePage(browsers.sw, origin, t, vpName, dir, guide);
+        }
         for (const [k, v] of Object.entries(r.shots)) res[t.id].shots[`${vpName}/${k}`] = v;
         res[t.id].problems.push(...r.problems.map((p) => ({ ...p, vp: vpName })));
         res[t.id].external += r.external;
@@ -421,28 +633,34 @@ pre{background:#fffaf0;padding:8px;overflow:auto}.sum{font-size:17px}.hint{color
 details>summary{cursor:pointer;margin:.5em 0}
 </style><main><h1>Проверка сайта ${R.ok ? badge('ok').replace('без различий', 'ЗЕЛЁНАЯ') : badge('fail').replace('ПРОВАЛ', 'КРАСНАЯ')}</h1>
 <p class="sum">${esc(R.when)} · «как на сайте»: <b>${esc(R.aLabel)}</b> · кандидат: <b>${esc(R.bLabel)}</b> · снимков ${R.totalShots} · время ${R.seconds} с · ${esc(R.env)}</p>
-<p class="hint">Клик по картинке «стало» на секунду показывает «было» (мигание). Красное на третьей картинке — отличающиеся пиксели.</p>`;
-  h += `<h2>Итог</h2><table><tr><th>Цель</th><th>Снимков</th><th>Отличаются</th><th>Шум (в допуске)</th><th>Ошибки/404</th><th>fps</th><th>Итог</th></tr>`;
+<p class="hint">Клик по картинке «стало» на секунду показывает «было» (мигание). Красное на третьей картинке — отличающиеся пиксели, синие рамки — области допуска.</p>
+<h2>Где действует допуск</h2><p>Сравнение строгое: любой отличающийся пиксель — различие. Исключения:</p><ul>
+<li><b>ПК, панель и миниатюры</b> (рамка элемента + ${REGION_PAD} px на тень): шум растеризации Chrome до ${NOISE_PX} пикселей с разницей до ${NOISE_DELTA} из 255 — в допуске, если ВНЕ этих рамок отличий нет.${R.regions.length ? ' В этом прогоне допуск сработал в областях:<br>' + R.regions.map(esc).join('<br>') : ' В этом прогоне допуск не понадобился.'}</li>
+<li><b>Обычные страницы</b> (главная, about, history): Chrome при каждой загрузке рисует их в одном из нескольких устойчивых вариантов; «как на сайте» снимается ${PAGE_ATTEMPTS_A} раза, снимок кандидата должен побайтно совпасть с одним из вариантов (пересъёмка до ${PAGE_ATTEMPTS_B} раз). Допуска по пикселям нет.</li></ul>`;
+  h += `<h2>Итог</h2><table><tr><th>Цель</th><th>Снимков</th><th>Отличаются</th><th>Шум в панели (в допуске)</th><th>Ошибки/404</th><th>fps</th><th>Итог</th></tr>`;
   for (const [id, t] of Object.entries(R.targets)) h += `<tr><td>${esc(id)}</td><td>${t.total}</td><td>${t.changed}</td><td>${t.noise || 0}</td><td>${t.problems.length}</td><td>${t.fpsNote || '—'}</td><td>${badge(t.status)}</td></tr>`;
   h += '</table>';
   if (R.failures.length) h += `<h2>Что не так</h2><ul>${R.failures.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>`;
   for (const [id, t] of Object.entries(R.targets)) {
     h += `<h2>${esc(id)} ${badge(t.status)}</h2>`;
+    if (t.retried) h += `<p>Пересъёмка кандидата: ${t.retried} снимков совпали побайтно со второго/третьего прохода (разовая дрожь растеризации Chrome).</p>`;
+    if (t.welcome) h += `<p>Приветствие дошло до конца за: ${Object.entries(t.welcome).map(([k, v]) => `${k} ${(v / 1000).toFixed(1)} с`).join(', ')}</p>`;
     if (t.problems.length) h += `<h3>Ошибки и 404 (кандидат)</h3><pre>${esc(t.problems.map((p) => `${p.vp}: ${p.type}: ${p.msg}${p.known ? '   [известная: ' + p.known + ']' : ''}`).join('\n'))}</pre>`;
     if (t.fps) { h += `<h3>fps (телефон, процессор ×4)</h3><table><tr><th>сценарий</th><th>было</th><th>стало</th><th></th></tr>` + Object.entries(t.fps).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${v.a == null ? '—' : v.a}</td><td>${v.b}</td><td>${v.bad ? badge('fail') : ''}</td></tr>`).join('') + '</table>'; }
     const ch = t.list.filter((s) => s.diff !== 0 && !s.noise), noise = t.list.filter((s) => s.noise), same = t.list.filter((s) => s.diff === 0);
     if (ch.length) {
       h += `<h3>Отличаются: ${ch.length}</h3>`;
       for (const s of ch) {
-        h += `<div class="shot ${t.allowed ? '' : 'bad'}"><h4>${esc(s.name)} — ${s.diff < 0 ? esc(s.note) : `${s.diff} пикс. (${s.pct.toFixed(3)}%), где: x ${s.box[0]}–${s.box[2]}, y ${s.box[1]}–${s.box[3]}`}</h4><div class="row">` +
-          `<figure><img src="${rel('A', ...s.file)}" loading="lazy"><figcaption>было</figcaption></figure>` +
-          `<figure><img class="flip" data-a="${rel('A', ...s.file)}" src="${rel('B', ...s.file)}" data-b="${rel('B', ...s.file)}" loading="lazy"><figcaption>стало</figcaption></figure>` +
-          (s.diff > 0 ? `<figure><img src="${rel('diff', ...s.file)}" loading="lazy"><figcaption>разница</figcaption></figure>` : '') + `</div></div>`;
+        const where = s.diff < 0 ? esc(s.note) : `${s.diff} пикс. (${s.pct.toFixed(3)}%)` + (s.outside && s.outside.n ? `, вне областей допуска ${s.outside.n} пикс., где: x ${s.outside.box[0]}–${s.outside.box[2]}, y ${s.outside.box[1]}–${s.outside.box[3]}, разница до ${s.outside.md}` : '') + (s.inside && s.inside.n ? `; в областях допуска ${s.inside.n} пикс., разница до ${s.inside.md}` : '');
+        h += `<div class="shot ${t.allowed ? '' : 'bad'}"><h4>${esc(s.name)} — ${where}</h4><div class="row">` +
+          `<figure><img src="${rel('A', ...s.fileA)}" loading="lazy"><figcaption>было</figcaption></figure>` +
+          `<figure><img class="flip" data-a="${rel('A', ...s.fileA)}" src="${rel('B', ...s.fileB)}" data-b="${rel('B', ...s.fileB)}" loading="lazy"><figcaption>стало</figcaption></figure>` +
+          (s.diff > 0 ? `<figure><img src="${rel('diff', ...s.fileB)}" loading="lazy"><figcaption>разница</figcaption></figure>` : '') + `</div></div>`;
       }
     }
-    if (noise.length) h += `<details><summary>Шум растеризации (в допуске: ≤${NOISE_PX} пикс. и разница ≤${NOISE_DELTA} из 255): ${noise.length}</summary><ul>` + noise.map((s) => `<li>${esc(s.name)} — ${s.diff} пикс., макс. разница ${s.maxDelta}</li>`).join('') + '</ul></details>';
+    if (noise.length) h += `<details open><summary>Шум в панели/миниатюрах на ПК (в допуске, вне рамок — ноль): ${noise.length}</summary>` + noise.map((s) => `<div class="shot"><h4>${esc(s.name)} — ${s.diff} пикс., разница до ${s.maxDelta}; области: ${esc((s.regions || []).map((r) => `${r.label} x ${r.box[0]}–${r.box[2]}, y ${r.box[1]}–${r.box[3]}`).join('; '))}</h4><div class="row"><figure><img src="${rel('diff', ...s.fileB)}" loading="lazy"><figcaption>разница (синее — рамки допуска)</figcaption></figure></div></div>`).join('') + '</details>';
     if (same.length) {
-      h += `<details><summary>Без различий: ${same.length}</summary>` + same.map((s) => `<div class="shot phone"><h4>${esc(s.name)}</h4><img src="${rel('B', ...s.file)}" loading="lazy"></div>`).join('') + '</details>';
+      h += `<details><summary>Без различий: ${same.length}</summary>` + same.map((s) => `<div class="shot phone"><h4>${esc(s.name)}${s.variant ? ` (вариант Chrome №${s.variant})` : ''}</h4><img src="${rel('B', ...s.fileB)}" loading="lazy"></div>`).join('') + '</details>';
     }
   }
   h += `</main><script>document.querySelectorAll('img.flip').forEach(function(i){i.addEventListener('mousedown',function(){i.src=i.dataset.a});['mouseup','mouseleave'].forEach(function(e){i.addEventListener(e,function(){i.src=i.dataset.b})})})</script></html>`;
@@ -506,46 +724,60 @@ async function main() {
       resA = {};
       for (const t of tA) { resA[t.id] = baseManifest.targets[t.id]; }
     } else resA = await runSite('A', aRoot, tA, path.join(out, 'A'));
-    const resB = await runSite('B', bRoot, tB, path.join(out, 'B'));
-    const aDir = (id, vp, name) => baseManifest ? path.join(BASE_ROOT, opt.baseline, id.replace(/\//g, '__'), vp, name + '.png') : path.join(out, 'A', id.replace(/\//g, '__'), vp, name + '.png');
-    if (baseManifest) {   // картинки эталона показываем в отчёте из копии
-      for (const t of tA) for (const key of Object.keys(resA[t.id].shots)) { const [vp, name] = key.split('/'); const dst = path.join(out, 'A', t.id.replace(/\//g, '__'), vp, name + '.png'); fs.mkdirSync(path.dirname(dst), { recursive: true }); fs.copyFileSync(aDir(t.id, vp, name), dst); }
+    if (baseManifest) {   // картинки эталона — в папку отчёта (с ними сравнивается кандидат и они показываются в отчёте)
+      for (const t of tA) {
+        const src = path.join(BASE_ROOT, opt.baseline, t.id.replace(/\//g, '__')), dst = path.join(out, 'A', t.id.replace(/\//g, '__'));
+        if (fs.existsSync(src)) fs.cpSync(src, dst, { recursive: true });
+      }
     }
+    const resB = await runSite('B', bRoot, tB, path.join(out, 'B'), resA, path.join(out, 'A'));
 
     const R = { when: new Date().toLocaleString('ru-RU'), aLabel, bLabel, env, targets: {}, failures: [], totalShots: 0, ok: true, seconds: 0, out };
     const fail = (m) => { R.failures.push(m); R.ok = false; };
-    const ids = [...new Set([...Object.keys(resA), ...Object.keys(resB)])];
-    for (const id of ids) {
-      const a = resA[id], b = resB[id];
-      const allowed = opt.allow.some((x) => id === x || id.startsWith(x + '/'));
-      const T = { list: [], total: 0, changed: 0, problems: [], allowed, status: 'ok', fps: null };
+    // что с чем сравниваем: цель кандидата — с той же целью «как на сайте» или с парой из --compare-as
+    const rows = [];
+    for (const id of [...new Set([...Object.keys(resA), ...Object.keys(resB)])]) {
+      const pr = pairFor(id);
+      if (pr && resB[id]) rows.push({ label: `${id} ⇄ ${pr.a}`, aId: pr.a, bId: id, allowed: opt.allow.includes(id) });
+      else rows.push({ label: id, aId: id, bId: id, allowed: opt.allow.some((x) => id === x || id.startsWith(x + '/')) });
+    }
+    const regionSet = new Set();
+    for (const row of rows) {
+      const a = resA[row.aId], b = resB[row.bId], id = row.label;
+      const allowed = row.allowed;
+      const T = { list: [], total: 0, changed: 0, problems: [], allowed, status: 'ok', fps: null, noise: 0, variantHits: 0 };
       R.targets[id] = T;
       if (!b) { T.status = allowed ? 'changed' : 'fail'; if (!allowed) fail(`${id}: есть на сайте, но пропала у кандидата`); continue; }
       if (!a) { T.status = 'new'; }
+      if (b.welcomeMs) T.welcome = b.welcomeMs;
+      if (b.retried) T.retried = b.retried;
       const keys = [...new Set([...Object.keys(a ? a.shots : {}), ...Object.keys(b.shots)])].sort();
       for (const key of keys) {
         const [vp, name] = key.split('/');
-        const file = [id.replace(/\//g, '__'), vp, name + '.png'];
-        const item = { name: key, file };
+        const fileA = [row.aId.replace(/\//g, '__'), vp, name + '.png'], fileB = [row.bId.replace(/\//g, '__'), vp, name + '.png'];
+        const item = { name: key, fileA, fileB };
+        const as = a && a.shots[key], bs = b.shots[key];
         if (!a) { item.diff = 0; }
-        else if (!a.shots[key]) { item.diff = -1; item.note = 'нового снимка не было раньше'; }
-        else if (!b.shots[key]) { item.diff = -1; item.note = 'снимок пропал у кандидата'; }
-        else if (a.shots[key].sha === b.shots[key].sha) item.diff = 0;
-        else Object.assign(item, comparePair(aDir(id, vp, name), path.join(out, 'B', ...file), path.join(out, 'diff', ...file)));
-        if (isNoise(item.diff, item.maxDelta)) { item.noise = true; T.noise = (T.noise || 0) + 1; }
+        else if (!as) { item.diff = -1; item.note = 'нового снимка не было раньше'; }
+        else if (!bs) { item.diff = -1; item.note = 'снимок пропал у кандидата'; }
+        else if ((as.variants || [as.sha]).includes(bs.sha)) { item.diff = 0; if (as.variants && as.variants.length > 1) { item.variant = as.variants.indexOf(bs.sha) + 1; T.variantHits++; } }
+        else {
+          const regions = [...(as.regions || []), ...(bs.regions || [])];
+          Object.assign(item, comparePair(path.join(out, 'A', ...fileA), path.join(out, 'B', ...fileB), path.join(out, 'diff', ...fileB), regions));
+          item.regions = regions;
+          if (item.noise) { T.noise++; regions.forEach((r) => regionSet.add(`${vp}: ${r.label} x ${r.box[0]}–${r.box[2]}, y ${r.box[1]}–${r.box[3]}`)); }
+        }
         T.list.push(item); T.total++; if (item.diff === 0) R.exact = (R.exact || 0) + 1;
         if (item.diff !== 0 && !item.noise) T.changed++;
       }
       R.totalShots += T.total;
-      if (a && T.changed) { if (allowed) T.status = 'changed'; else { T.status = 'fail'; fail(`${id}: отличаются ${T.changed} из ${T.total} снимков (${T.list.filter((s) => s.diff !== 0).slice(0, 4).map((s) => s.name).join(', ')}${T.changed > 4 ? '…' : ''})`); } }
-      // ошибки и 404
-      for (const p of b.problems) {
-        const k = isKnown(known, id, p);
+      if (a && T.changed) { if (allowed) T.status = 'changed'; else { T.status = 'fail'; fail(`${id}: отличаются ${T.changed} из ${T.total} снимков (${T.list.filter((s) => s.diff !== 0 && !s.noise).slice(0, 4).map((s) => s.name).join(', ')}${T.changed > 4 ? '…' : ''})`); } }
+      for (const p of b.problems) {   // ошибки и 404
+        const k = isKnown(known, row.bId, p);
         T.problems.push({ ...p, known: k ? k.reason || 'да' : null });
         if (!k) { T.status = 'fail'; fail(`${id} (${p.vp}): ${p.type}: ${p.msg}`); }
       }
-      // fps
-      if (b.fps) {
+      if (b.fps) {   // fps
         T.fps = {}; const notes = [];
         for (const [k, v] of Object.entries(b.fps)) {
           const av = a && a.fps && a.fps[k] ? a.fps[k].fps : null;
@@ -557,13 +789,15 @@ async function main() {
         T.fpsNote = notes.join(' / ');
       }
     }
+    R.regions = [...regionSet].sort();
     R.seconds = Math.round((Date.now() - T0) / 1000);
     writeReport(out, R);
-    fs.writeFileSync(path.join(out, 'result.json'), JSON.stringify({ ok: R.ok, failures: R.failures, aLabel, bLabel, env, totalShots: R.totalShots, seconds: R.seconds, targets: Object.fromEntries(Object.entries(R.targets).map(([k, v]) => [k, { status: v.status, total: v.total, changed: v.changed, problems: v.problems.length }])) }, null, 1));
+    fs.writeFileSync(path.join(out, 'result.json'), JSON.stringify({ ok: R.ok, failures: R.failures, aLabel, bLabel, env, totalShots: R.totalShots, exact: R.exact || 0, regions: R.regions, seconds: R.seconds, targets: Object.fromEntries(Object.entries(R.targets).map(([k, v]) => [k, { status: v.status, total: v.total, changed: v.changed, problems: v.problems.length }])) }, null, 1));
     log(R.ok ? 'ЗЕЛЁНАЯ' : 'КРАСНАЯ');
-    for (const [id, t] of Object.entries(R.targets)) log(`  ${id.padEnd(22)} ${t.status.padEnd(8)} снимков ${t.total}, отличаются ${t.changed}${t.noise ? ` (+${t.noise} в допуске шума)` : ''}, проблем ${t.problems.length}${t.fpsNote ? ', fps ' + t.fpsNote : ''}`);
+    for (const [id, t] of Object.entries(R.targets)) log(`  ${id.padEnd(30)} ${t.status.padEnd(8)} снимков ${t.total}, отличаются ${t.changed}${t.noise ? ` (+${t.noise} шум в панели)` : ''}, проблем ${t.problems.length}${t.fpsNote ? ', fps ' + t.fpsNote : ''}${t.retried ? `, переснято и совпало ${t.retried}` : ''}${t.welcome ? ', приветствие ' + Object.entries(t.welcome).map(([k, v]) => `${k} ${(v / 1000).toFixed(1)} с`).join(' / ') : ''}`);
     for (const f of R.failures) log('  ✗ ' + f);
-    log(`снимков ${R.totalShots}, из них побайтно совпали ${R.exact || 0}, в допуске шума ${Object.values(R.targets).reduce((n, t) => n + (t.noise || 0), 0)}, время ${R.seconds} с`);
+    log(`снимков ${R.totalShots}, из них побайтно совпали ${R.exact || 0} (у страниц — с одним из вариантов Chrome: ${Object.values(R.targets).reduce((n, t) => n + (t.variantHits || 0), 0)}), шум в панели ПК (в допуске) ${Object.values(R.targets).reduce((n, t) => n + (t.noise || 0), 0)}, время ${R.seconds} с`);
+    for (const r of R.regions) log('  область допуска: ' + r);
     log('отчёт: file://' + encodeURI(path.join(out, 'report.html')));
     // старые прогоны убираем (только созданные этой проверкой)
     if (!opt.out && fs.existsSync(OUT_ROOT)) {

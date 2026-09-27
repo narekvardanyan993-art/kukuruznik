@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
-"""Публикует закрытую бета-страницу просмотрщика (chka.am/beta/) в ветку main.
+"""Публикует закрытую бету (chka.am/beta/) в ветку main: здания на СЛЕДУЮЩЕЙ версии движка (docs/ENGINE-PLAN.md, этапы 2–5).
 
-  python3 tools/publish_beta.py --dry-run     # показать, что было бы сделано (без коммита и пуша)
-  python3 tools/publish_beta.py               # опубликовать: коммит в main + пуш
-  python3 tools/publish_beta.py -m "beta: …"  # своё сообщение коммита
+  python3 tools/publish_beta.py --dry-run          # собрать во временной копии, проверить и показать изменения (без коммита и пуша)
+  python3 tools/publish_beta.py                    # опубликовать: коммит в main + пуш
+  python3 tools/publish_beta.py --expect-change    # бета НАМЕРЕННО отличается от живого сайта (новая фишка): различия — в отчёт, не провал
+  python3 tools/publish_beta.py -m "beta: …"       # своё сообщение коммита
 
 Рабочая папка одна и остаётся на своей ветке. Скрипт сам:
   1. делает git fetch и создаёт ВРЕМЕННЫЙ worktree от origin/main во временной папке вне репозитория;
-  2. собирает туда beta/ : test-assets/depth.html → beta/index.html с двумя правками (noindex,nofollow
-     и ссылки на страницы сайта ../kukuruznik/…), кадры конвертирует в WebP (цвет и здание — с потерями
-     q90, маски и глубина — без потерь: ~10 МБ вместо ~35 МБ);
-  3. коммитит ТОЛЬКО beta/ и пушит HEAD в origin/main (обычный пуш, без --force);
-  4. в конце ВСЕГДА удаляет временный worktree — и при успехе, и при ошибке, и при Ctrl+C.
-Перед коммитом запускает защитную проверку tools/check_site.mjs (docs/ENGINE-PLAN.md, п.7): снимки всех зданий и страниц «до/после»,
-fps, ошибки и 404. Ноль различий требуется везде, кроме самой беты (--allow-change beta); красная проверка останавливает публикацию.
-Обойти можно только явным флагом --skip-check (об этом печатается предупреждение). Отчёт проверки — ссылка в конце её вывода.
-Больше ничего в main не трогает (ни CNAME, ни корень, ни другие страницы) и не ставит ни одной ссылки
-на /beta/ с сайта. Кухня (~/Documents/chka-kitchen) не затрагивается.
+  2. собирает туда бету: tools/build_pages.py — beta/ очищается целиком, beta/engine/ = движок из engine/,
+     beta/<здание>/index.html = шаблон движка + <здание>/building.json (кадры, значки, страница здания — с живого сайта, не копируются),
+     beta/index.html = перенаправление на первое здание;
+  3. запускает защитную проверку tools/check_site.mjs (docs/ENGINE-PLAN.md, п.7): все здания и страницы «до/после», прогулка по кликам,
+     fps, ошибки и 404. Бета-Кукурузник сравнивается с ЖИВЫМ /kukuruznik/ строго (ноль различий), кроме запуска с --expect-change.
+     Красная проверка останавливает публикацию; обход — только явным --skip-check (печатается предупреждение);
+  4. коммитит ТОЛЬКО beta/ и пушит HEAD в origin/main (обычный пуш, без --force);
+  5. в конце ВСЕГДА удаляет временный worktree — и при успехе, и при ошибке, и при Ctrl+C.
+Больше ничего в main не трогает (ни живые здания, ни /engine/, ни корень) и не ставит ни одной ссылки на /beta/ с сайта.
+Кухня (~/Documents/chka-kitchen) не затрагивается, кроме отчётов проверки (_проверки/).
 """
 import argparse
 import re
@@ -29,7 +30,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / 'test-assets'
-BETA_VERSION = 'v12.1'   # метка сборки в панели: «beta · v12.1 · <дата>»
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import build_pages   # noqa: E402  сборка страниц из движка
 REMOTE = 'origin'
 BRANCH = 'main'
 
@@ -42,60 +44,19 @@ def git(cwd, *args, check=True):
     return r.stdout.strip()
 
 
+BUILDINGS = ('kukuruznik',)   # здания беты; первое — куда ведёт beta/
+
+
 def build_beta(main_dir):
-    """Собирает <main_dir>/beta из test-assets. Возвращает (число кадров, размер в байтах)."""
-    from PIL import Image
-
-    if not (main_dir / 'CNAME').exists():
-        raise SystemExit('%s не похоже на корень сайта (нет CNAME)' % main_dir)
-    beta = main_dir / 'beta'
-    (beta / 'frames').mkdir(parents=True, exist_ok=True)
-
-    html = (SRC / 'depth.html').read_text(encoding='utf-8')
-    stamp = time.strftime('%Y-%m-%d %H:%M')
-    html = html.replace('<meta charset="utf-8">',
-                        '<meta charset="utf-8">\n<meta name="robots" content="noindex, nofollow, noarchive">\n'
-                        '<meta name="googlebot" content="noindex, nofollow">', 1)
-    html = html.replace('<title>3D-фото — тест параллакса глубины</title>', '<title>Кукурузник — beta</title>', 1)
-    html = html.replace('../../kukuruznik/about.html', '../kukuruznik/about.html')   # страница здания (с v12.1 index.html в kukuruznik/ — сам просмотрщик)
-    html = re.sub(r'test/depth-photo · v[\d.]+ · [0-9-]+', 'beta · ' + BETA_VERSION + ' · ' + stamp, html)
-    html = re.sub(r"(frames/v_angle_\d(?:_[a-z0-9]+)*)\.png", r"\1.webp", html)
-    (beta / 'index.html').write_text(html, encoding='utf-8')
-    # фон-стена на ПК (v12): армянские узоры, два варианта (tools/make_wall.py); нарисованные домики (oldtown-bg.svg) больше не нужны
-    for name in ('wall-data.js', 'wall.js'):
-        (beta / name).write_text((SRC / name).read_text(encoding='utf-8'), encoding='utf-8')
-    (beta / 'oldtown-bg.svg').unlink(missing_ok=True)
-    (beta / 'wall-ararat.svg').unlink(missing_ok=True)   # был в v12; Арарат теперь внутри стены
-    (beta / 'wall-b.svg').unlink(missing_ok=True)        # второй вариант стены убран (v12.2)
-    (beta / 'wall-a.svg').unlink(missing_ok=True)        # стена теперь считается в браузере (wall.js), картинки нет
-    # компонент приветствия/загрузки (буквы — tools/build_welcome_letters.py) и шрифт Noto Serif (OFL)
-    for name in ('welcome-loader.js', 'welcome-letters.js', 'prep.js', 'details.js', 'viewer.js'):
-        (beta / name).write_text((SRC / name).read_text(encoding='utf-8'), encoding='utf-8')
-    (beta / 'fonts').mkdir(exist_ok=True)
-    for f in sorted((SRC / 'fonts').iterdir()):
-        (beta / 'fonts' / f.name).write_bytes(f.read_bytes())
-
-    used = sorted(set(re.findall(r"frames/(v_angle_\d(?:_[a-z0-9]+)*)\.webp", html)))
-    total = 0
-    for name in used:
-        if name.endswith('_bg_depth'):
-            continue  # в коде не загружается
-        src = SRC / 'frames' / (name + '.png')
-        dst = beta / 'frames' / (name + '.webp')
-        im = Image.open(src)
-        if name.endswith('_building'):
-            im.convert('RGBA').save(dst, 'WEBP', quality=90, alpha_quality=100, method=6)
-        elif name.endswith(('_depth', '_env', '_win2')):
-            im.save(dst, 'WEBP', lossless=True, method=6)
-        else:
-            im.convert('RGB').save(dst, 'WEBP', quality=90, method=6)
-        total += dst.stat().st_size
-    return len(used), total
+    """Собирает бету в <main_dir>/beta из engine/ и <здание>/building.json. Возвращает список записанных файлов."""
+    return build_pages.build_beta(main_dir, BUILDINGS)
 
 
-def run_check(candidate):
+def run_check(candidate, expect_change=False):
     """Запускает tools/check_site.mjs: origin/main против собранного кандидата. True — зелёная проверка."""
-    r = subprocess.run(['node', str(ROOT / 'tools' / 'check_site.mjs'), '--candidate', str(candidate), '--allow-change', 'beta'], cwd=str(ROOT))
+    pairs = ','.join('beta/%s=%s' % (b, b) for b in BUILDINGS)   # бета-здание — строго против живого здания
+    allow = 'beta' + (''.join(',beta/%s' % b for b in BUILDINGS) if expect_change else '')
+    r = subprocess.run(['node', str(ROOT / 'tools' / 'check_site.mjs'), '--candidate', str(candidate), '--allow-change', allow, '--compare-as', pairs], cwd=str(ROOT))
     if r.returncode == 0:
         return True
     print('\nПРОВЕРКА %s (код %d).' % ('КРАСНАЯ' if r.returncode == 1 else 'НЕ СМОГЛА ОТРАБОТАТЬ', r.returncode))
@@ -112,6 +73,7 @@ def remove_worktree(tmp):
 def main():
     ap = argparse.ArgumentParser(description='Публикация закрытой беты в main через временный worktree.')
     ap.add_argument('--dry-run', action='store_true', help='собрать во временной копии и показать изменения; без коммита и пуша')
+    ap.add_argument('--expect-change', action='store_true', help='бета намеренно отличается от живых зданий: различия картинок не проваливают (ошибки, 404 и fps — проваливают)')
     ap.add_argument('--skip-check', action='store_true', help='ОБХОД защитной проверки (tools/check_site.mjs) — только осознанно')
     ap.add_argument('-m', '--message', help='сообщение коммита (по умолчанию «beta: <версия> — <дата>»)')
     args = ap.parse_args()
@@ -119,7 +81,7 @@ def main():
     tag = '[dry-run] ' if dry else ''
 
     stamp = time.strftime('%Y-%m-%d %H:%M')
-    message = args.message or 'beta: %s — %s' % (BETA_VERSION, stamp)
+    message = args.message or 'beta: движок %s — %s' % (build_pages.engine_version(), stamp)
 
     print('%sfetch %s %s' % (tag, REMOTE, BRANCH))
     git(ROOT, 'fetch', REMOTE, BRANCH)
@@ -129,8 +91,8 @@ def main():
     print('%sвременный worktree: %s (от %s/%s = %s)' % (tag, tmp, REMOTE, BRANCH, base[:7]))
     try:
         git(ROOT, 'worktree', 'add', '--detach', str(tmp), base)
-        n, size = build_beta(tmp)
-        print('%sbeta/index.html + %d кадров, %.1f МБ' % (tag, n, size / 1e6))
+        files = build_beta(tmp)
+        print('%sсобрано в beta/: %d файлов (движок %s)' % (tag, len(files), build_pages.engine_version()))
 
         git(tmp, 'add', '-A', 'beta')
         staged = git(tmp, 'diff', '--cached', '--name-only').splitlines()
@@ -145,7 +107,7 @@ def main():
 
         if args.skip_check:
             print('%s!!! ЗАЩИТНАЯ ПРОВЕРКА ПРОПУЩЕНА (--skip-check) !!!' % tag)
-        elif not run_check(tmp):
+        elif not run_check(tmp, args.expect_change):
             raise SystemExit('%sпубликация остановлена: защитная проверка не зелёная. Открой отчёт (ссылка выше), исправь и повтори; обход — только явным --skip-check.' % tag)
 
         if dry:

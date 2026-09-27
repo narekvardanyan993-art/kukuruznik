@@ -1,0 +1,10 @@
+Noto Serif и Noto Serif Armenian
+Copyright 2022 The Noto Project Authors (https://github.com/notofonts/latin-greek-cyrillic, https://github.com/notofonts/armenian)
+
+Лицензия: SIL Open Font License, Version 1.1 — https://openfontlicense.org
+Шрифты можно свободно использовать, встраивать и распространять, в том числе в коммерческих проектах.
+
+Файлы (переменный вес 400–700, woff2, подмножества Google Fonts):
+  NotoSerif-latin.woff2, NotoSerif-cyrillic.woff2 — Noto Serif (латиница, кириллица)
+  NotoSerifArmenian-armenian.woff2 — Noto Serif Armenian (армянский)
+Источник: fonts.gstatic.com (Google Fonts): notoserif/v33, notoserifarmenian/v30.
