@@ -6,10 +6,15 @@
 Настройки вшиваются в страницу (как раньше CONFIG): страница не скачивает json при открытии — нет лишнего запроса
 до приветствия, а превью в соцсетях видит заголовок и картинку (соцсети JS не выполняют).
 
-  python3 tools/build_pages.py --site DIR            # собрать бету в корне сайта DIR (например, временный worktree main)
-  python3 tools/build_pages.py --site DIR --verify   # и сверить собранный CONFIG с живым (kukuruznik/index.html в DIR)
+  python3 tools/build_pages.py --site DIR               # собрать всё в корне сайта DIR (например, временный worktree main): бету + живые здания
+  python3 tools/build_pages.py --site DIR --beta-only   # только бету (живые здания и engine/ не трогает)
+  python3 tools/build_pages.py --site DIR --live-only   # только живые здания на живом engine/ (движок на сайте не меняется)
 
-Что делает для беты (этап 2 плана, только бета; живой /kukuruznik/ и /engine/ не трогает):
+Живые здания (этап 5): <здание>/index.html = шаблон + building.json на ЖИВОМ движке engine/ (адреса ../engine/…?v=<версия>),
+плюс <здание>/manifest.json. Живой engine/ ставится только из проверенной беты (beta/engine/ → engine/; это делает
+tools/publish_engine.py). Сборка живых зданий без смены движка требует, чтобы engine/ на сайте совпадал с исходником.
+
+Что делает для беты (живой /kukuruznik/ и /engine/ не трогает):
   • beta/ очищается целиком (старая бета v12.1 с копией кадров больше не нужна);
   • beta/engine/            — копия engine/ (движок, шрифты); адреса скриптов с ?v=<версия движка> против старого кэша;
   • beta/kukuruznik/index.html — Кукурузник на бета-движке; кадры, значки, страница здания — с живого /kukuruznik/ (не копируются);
@@ -158,7 +163,7 @@ def frame_files(base, n, night=True, sunset=True):
     return d
 
 
-def make_head(b, bdir, page_dir, beta):
+def make_head(b, bdir, page_dir, beta, version=None):
     m = b['meta']
     e = lambda s: html.escape(s, quote=True)
     title, desc, alt = m['title']['hy'], m['description']['hy'], m['ogAlt']['hy']
@@ -173,7 +178,7 @@ def make_head(b, bdir, page_dir, beta):
         '<link rel="manifest" href="manifest.json">',
         '<meta name="theme-color" content="%s">' % e(m['themeColor']),
         '<meta name="viewer-version" content="%s">' % e(m['viewerVersion']),
-        '<meta name="engine-version" content="%s">' % e(engine_version()),
+        '<meta name="engine-version" content="%s">' % e(version or engine_version()),
         '<meta property="og:type" content="website">',
         '<meta property="og:site_name" content="Չկա">',
         '<meta property="og:url" content="%s">' % e(m['url']),
@@ -223,19 +228,21 @@ def make_manifest(b, bdir, page_dir):
     }, ensure_ascii=False, indent=2) + '\n'
 
 
-def render(b, bdir, page_dir, engine_dir, beta):
-    """HTML страницы здания. page_dir/engine_dir — пути от корня сайта ('beta/kukuruznik/', 'beta/engine/')."""
+def render(b, bdir, page_dir, engine_dir, beta, version=None):
+    """HTML страницы здания. page_dir/engine_dir — пути от корня сайта ('beta/kukuruznik/', 'beta/engine/').
+    version — версия движка для ?v= в адресах (по умолчанию engine/VERSION исходника)."""
+    version = version or engine_version()
     bid = bdir
     t = (ENGINE / 'page.html').read_text(encoding='utf-8')
     cfg = make_config(b, rel(page_dir, site_path(bid, b['framesDir'])))
     js = json.dumps(cfg, ensure_ascii=False, indent=1).replace('</', '<\\/')
     esc = lambda s: html.escape(s, quote=True)
     rep = {
-        '{{HEAD}}': make_head(b, bdir, page_dir, beta),
+        '{{HEAD}}': make_head(b, bdir, page_dir, beta, version),
         '{{TITLE}}': esc(b['meta']['title']['hy']),
         '{{CONFIG}}': js,
         '{{E}}': rel(page_dir, engine_dir),
-        '{{V}}': engine_version(),
+        '{{V}}': version,
         '{{HOME}}': esc(rel(page_dir, site_path(bid, b['links']['home']))),
         '{{HISTORY_SECTION}}': history_section(b, bdir, page_dir),
         '{{TEXT:panelTitle}}': esc(b['text']['panelTitle']['ru']),
@@ -324,6 +331,63 @@ def build_beta(site, bdirs=None, root=None, with_local=False):
     return written
 
 
+ENGINE_SKIP = ('page.html', 'config.json')   # шаблон и числа движка вшиваются в страницы — на сайт отдельно не кладутся
+
+
+def engine_files(d):
+    """Файлы движка в папке d (исходник engine/ или engine/ на сайте): {относительный путь: байты}, без шаблона и config.json."""
+    d = Path(d)
+    return {str(f.relative_to(d)): f.read_bytes() for f in sorted(d.rglob('*'))
+            if f.is_file() and not f.name.startswith('.') and f.name not in ENGINE_SKIP}
+
+
+def live_buildings(root=None):
+    """Живые здания: папки в корне репозитория с building.json (tests/ — только бета)."""
+    root = Path(root or ROOT)
+    return sorted(d.name for d in root.iterdir() if d.is_dir() and not d.name.startswith('.') and d.name != 'tests' and (d / 'building.json').exists())
+
+
+def build_live(site, bdirs=None, engine_from=None, root=None):
+    """Живые здания на живом движке (docs/ENGINE-PLAN.md, п.4, этап 5). Возвращает список записанных файлов.
+    engine_from — папка, из которой ставится <site>/engine/ целиком (publish_engine: проверенный beta/engine/ с сайта).
+    Без engine_from движок на сайте не трогается и ОБЯЗАН совпадать с исходником engine/ побайтно — иначе страница, собранная
+    по новому шаблону, встретит старый движок (стоп с объяснением)."""
+    site = Path(site)
+    if not (site / 'CNAME').exists():
+        raise SystemExit('%s не похоже на корень сайта (нет CNAME)' % site)
+    bdirs = list(bdirs or live_buildings(root))
+    check_buildings(bdirs, site, root)   # ошибки настроек — до любой записи
+    live = site / 'engine'
+    written = []
+    if engine_from:
+        src = engine_files(engine_from)
+        if not src:
+            raise SystemExit('СБОРКА ОСТАНОВЛЕНА: движок %s пуст' % engine_from)
+        if live.exists():   # src уже прочитан в память: engine_from может лежать внутри site
+            shutil.rmtree(live)
+        for rp, data in src.items():
+            dst = live / rp
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            dst.write_bytes(data)
+            written.append(str(dst.relative_to(site)))
+    if not (live / 'VERSION').exists():
+        raise SystemExit('СБОРКА ОСТАНОВЛЕНА: на сайте нет движка engine/ (сначала tools/publish_engine.py)')
+    if engine_files(live) != engine_files(ENGINE):
+        raise SystemExit('СБОРКА ОСТАНОВЛЕНА: движок на сайте (engine/, %s) не совпадает с исходником engine/ (%s). Новый движок идёт на живые '
+                         'здания только через бету: tools/publish_beta.py → проверка на телефоне → tools/publish_engine.py.'
+                         % ((live / 'VERSION').read_text(encoding='utf-8').strip(), engine_version()))
+    version = (live / 'VERSION').read_text(encoding='utf-8').strip()
+    for bd in bdirs:
+        b = load_building(bd, root)
+        page_dir = '%s/' % bd
+        out = site / page_dir / 'index.html'
+        out.write_text(render(b, bd, page_dir, 'engine/', beta=False, version=version), encoding='utf-8')
+        written.append(str(out.relative_to(site)))
+        (out.parent / 'manifest.json').write_text(make_manifest(b, bd, page_dir), encoding='utf-8')
+        written.append(str((out.parent / 'manifest.json').relative_to(site)))
+    return written
+
+
 def verify(site, bid='kukuruznik'):
     """Сверка: CONFIG из building.json + engine/config.json (с адресами кадров как на живой странице) == CONFIG живой страницы.
     Ключ LOOK и STAR_CELLS появились в движке после живой страницы (этап 4) — их в живом CONFIG нет; остальное сравнивается."""
@@ -347,11 +411,14 @@ def verify(site, bid='kukuruznik'):
 
 
 def main():
-    ap = argparse.ArgumentParser(description='Сборка страниц зданий из движка (пока — только бета).')
+    ap = argparse.ArgumentParser(description='Сборка страниц зданий из движка: бета на beta/engine/, живые здания на engine/.')
     ap.add_argument('--site', required=True, help='корень сайта (папка с CNAME), куда собирать')
     ap.add_argument('--verify', action='store_true', help='сверить собранный CONFIG с живой страницей здания')
     ap.add_argument('--with-local', action='store_true', help='добавить здания только для Mac (tests/local/*): в git и в публикацию не идут')
     ap.add_argument('--check-only', action='store_true', help='только проверить настройки зданий, ничего не собирать')
+    g = ap.add_mutually_exclusive_group()
+    g.add_argument('--beta-only', action='store_true', help='только бета (beta/)')
+    g.add_argument('--live-only', action='store_true', help='только живые здания на уже стоящем engine/ (движок не меняется)')
     args = ap.parse_args()
     if args.check_only:
         check_buildings(default_buildings(with_local=args.with_local), args.site)
@@ -359,7 +426,12 @@ def main():
         return
     if args.verify:
         print('CONFIG совпадает с живым: %d ключей' % verify(args.site))
-    for p in build_beta(args.site, with_local=args.with_local):
+    files = []
+    if not args.live_only:
+        files += build_beta(args.site, with_local=args.with_local)
+    if not args.beta_only:   # живой движок = только что собранный beta/engine/ (при --live-only — тот, что уже стоит на сайте)
+        files += build_live(args.site, engine_from=None if args.live_only else Path(args.site) / 'beta' / 'engine')
+    for p in files:
         print('  ', p)
 
 

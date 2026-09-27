@@ -10,6 +10,7 @@
 """
 import copy
 import json
+import re
 import shutil
 import sys
 import tempfile
@@ -113,6 +114,25 @@ def main():
         leak = [f for f in ('beta/index.html', 'beta/kukuruznik/index.html', 'beta/kukuruznik/manifest.json') if 'tests' in (site / f).read_text(encoding='utf-8')]
         print('%s  тестовые здания нигде не упоминаются%s' % ('OK   ' if not leak else 'ОШИБКА', (': ' + ', '.join(leak)) if leak else ''))
         ok_all &= not leak
+        # живые здания (этап 5): только из проверенного движка; живой движок, не совпадающий с исходником, останавливает сборку
+        live = bp.live_buildings()
+        lf = bp.build_live(site, live, engine_from=site / 'beta' / 'engine')
+        page = (site / 'kukuruznik' / 'index.html').read_text(encoding='utf-8')
+        ver = bp.engine_version()
+        refs = re.findall(r'(?:href|src)="(\.\./engine/[^"]*)"|url\((\.\./engine/[^)]*)\)', page)
+        refs = [a or b for a, b in refs]
+        good = (live == ['kukuruznik'] and 'engine/VERSION' in lf and 'kukuruznik/index.html' in lf and refs
+                and all(r.endswith('?v=' + ver) for r in refs) and 'noindex' not in page and 'tests' not in page)
+        print('%s  живые здания (%s) собираются на engine/: %d адресов движка, все с ?v=%s, без noindex' % ('OK   ' if good else 'ОШИБКА', ', '.join(live), len(refs), ver))
+        ok_all &= bool(good)
+        (site / 'engine' / 'viewer.js').write_text('// старый движок\n', encoding='utf-8')
+        try:
+            bp.build_live(site, live)
+            stale = 'сборка НЕ остановилась'
+        except SystemExit as e:
+            stale = None if 'не совпадает с исходником' in str(e) else 'не тот текст: ' + str(e)[:200]
+        print('%s  живой движок не совпадает с исходником — сборка живых зданий останавливается%s' % ('OK   ' if not stale else 'ОШИБКА', (': ' + stale) if stale else ''))
+        ok_all &= not stale
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     # переопределение чисел движка настройками здания (tuning): Тест-1 переопределяет два числа, остальное остаётся как у движка; Тест-2 не переопределяет

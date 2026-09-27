@@ -53,11 +53,23 @@ def build_beta(main_dir):
     return build_pages.build_beta(main_dir)
 
 
-def run_check(candidate, expect_change=False):
-    """Запускает tools/check_site.mjs: origin/main против собранного кандидата. True — зелёная проверка."""
+def run_check(candidate, expect_change=False, strict=False, allow_extra=()):
+    """Запускает tools/check_site.mjs: origin/main против собранного кандидата. True — зелёная проверка.
+    strict — ни одна цель не может отличаться (publish_engine, publish_kukuruznik): даже бета обязана совпасть с сайтом;
+    allow_extra — цели, у которых различия картинок намеренные (например здание с новыми кадрами).
+    Переменная окружения CHKA_CHECK_RENDERER — отрисовка WebGL для проверки там, где нет Metal (облако/Linux: swiftshader).
+    Ослабить проверку через окружение нельзя: другие параметры не передаются."""
+    import os
     pairs = ','.join('beta/%s=%s' % (b, b) for b in LIVE_TWINS)   # бета-здание — строго против живого здания
-    allow = 'beta' + (''.join(',beta/%s' % b for b in LIVE_TWINS) if expect_change else '')
-    r = subprocess.run(['node', str(ROOT / 'tools' / 'check_site.mjs'), '--candidate', str(candidate), '--allow-change', allow, '--compare-as', pairs], cwd=str(ROOT))
+    allow = [] if strict else ['beta'] + (['beta/%s' % b for b in LIVE_TWINS] if expect_change else [])
+    allow += list(allow_extra)
+    cmd = ['node', str(ROOT / 'tools' / 'check_site.mjs'), '--candidate', str(candidate), '--compare-as', pairs]
+    if allow:
+        cmd += ['--allow-change', ','.join(allow)]
+    if os.environ.get('CHKA_CHECK_RENDERER'):
+        cmd += ['--renderer', os.environ['CHKA_CHECK_RENDERER']]
+    print('проверка: ' + ' '.join(cmd[1:]))
+    r = subprocess.run(cmd, cwd=str(ROOT))
     if r.returncode == 0:
         return True
     print('\nПРОВЕРКА %s (код %d).' % ('КРАСНАЯ' if r.returncode == 1 else 'НЕ СМОГЛА ОТРАБОТАТЬ', r.returncode))

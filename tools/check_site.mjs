@@ -16,6 +16,8 @@
 //         (кандидат при несовпадении переснимается до 5 раз). Допуска по пикселям на страницах нет;
 //   • fps (эмуляция телефона, процессор ×4, реальный GPU): день, день+детали, ночь+детали, ночь кадр 2;
 //   • ошибки в консоли и файлы, которые не загрузились (404 и любые ≥400).
+//   • шапка каждой страницы в сыром HTML (так её видят соцсети): заголовок, описание, превью og:/twitter:, canonical, robots, значки —
+//     строго без изменений (прочие теги шапки только показываются в отчёте); картинка превью должна лежать на сайте.
 // Время подменено (requestAnimationFrame/performance.now крутит сам скрипт), случайность зафиксирована — снимки
 // воспроизводимы кадр в кадр. Логика и картинки сайта не меняются: проверка только читает.
 //
@@ -158,6 +160,35 @@ function discover(root) {
     if (d === 'beta') walkBeta(d, 1);
   }
   return targets.filter((t) => !opt.only || opt.only.some((o) => t.id === o || t.id.startsWith(o + '/') || opt.pairs.some((p) => p.b === t.id && (p.a === o || p.a.startsWith(o + '/')))));
+}
+
+// ---------- шапка страницы как её видят соцсети (сырой HTML, без JS): заголовок, описание, превью og:/twitter:, canonical, значки ----------
+// Превью в TikTok/Telegram/Facebook строится из сырого HTML — поэтому сравнивается файл, а не DOM после скриптов.
+// Строго сравниваются ключи из HEAD_STRICT (и все og:*, twitter:*); остальные теги шапки — только показываются в отчёте, если изменились.
+const HEAD_STRICT = ['lang', 'title', 'meta:description', 'meta:robots', 'meta:googlebot', 'meta:theme-color', 'meta:viewport', 'meta:viewer-version', 'link:canonical', 'link:icon', 'link:apple-touch-icon'];
+const headStrict = (k) => HEAD_STRICT.includes(k) || /^meta:(og|twitter):/.test(k);
+function readHead(root, t) {
+  const f = path.join(root, t.url.replace(/\/$/, '/index.html'));
+  if (!fs.existsSync(f)) return null;
+  const html = fs.readFileSync(f, 'utf8'), end = html.search(/<\/head>/i);
+  const head = (end < 0 ? html : html.slice(0, end)).replace(/<!--[\s\S]*?-->/g, '');
+  const attr = (tag, n) => { const m = tag.match(new RegExp(`\\s${n}\\s*=\\s*("([^"]*)"|'([^']*)')`, 'i')); return m ? (m[2] ?? m[3]) : null; };
+  const out = {}, add = (k, v) => { out[k] = k in out ? out[k] + ' | ' + v : v; };
+  const lang = html.match(/<html[^>]*>/i); if (lang) add('lang', attr(lang[0], 'lang') || '');
+  const title = head.match(/<title>([\s\S]*?)<\/title>/i); if (title) add('title', title[1].trim());
+  for (const m of head.matchAll(/<meta\b[^>]*>/gi)) { const k = attr(m[0], 'name') || attr(m[0], 'property'); if (k) add('meta:' + k, attr(m[0], 'content') || ''); }
+  for (const m of head.matchAll(/<link\b[^>]*>/gi)) { const k = attr(m[0], 'rel'); if (k && k !== 'preload' && k !== 'stylesheet') add('link:' + k, attr(m[0], 'href') || ''); }
+  return out;
+}
+// картинка превью (og:image / twitter:image) должна лежать на сайте: https://chka.am/<путь> -> файл в корне копии сайта
+function checkPreviewImages(root, head) {
+  const bad = [];
+  for (const k of ['meta:og:image', 'meta:twitter:image']) {
+    const u = head && head[k]; if (!u) continue;
+    const m = u.match(/^https:\/\/chka\.am\/(.*)$/);
+    if (!m || !fs.existsSync(path.join(root, decodeURIComponent(m[1])))) bad.push({ type: 'превью', msg: `${k} → ${u}: файла нет на сайте` });
+  }
+  return bad;
 }
 
 // ---------- страница с подменённым временем ----------
@@ -654,7 +685,8 @@ async function runSite(label, root, targets, outBase, guideRes, guideDir) {
   const res = {};
   try {
     for (const t of targets) {
-      res[t.id] = { kind: t.kind, shots: {}, problems: [], external: 0, fps: null };
+      res[t.id] = { kind: t.kind, shots: {}, problems: [], external: 0, fps: null, head: readHead(root, t) };
+      res[t.id].problems.push(...checkPreviewImages(root, res[t.id].head).map((p) => ({ ...p, vp: 'шапка' })));
       for (const vpName of vpNames) {
         const dir = path.join(outBase, t.id.replace(/\//g, '__'), vpName);
         fs.mkdirSync(dir, { recursive: true });
@@ -757,6 +789,9 @@ details>summary{cursor:pointer;margin:.5em 0}
     h += `<h2>${esc(id)} ${badge(t.status)}</h2>`;
     if (t.retried) h += `<p>Пересъёмка кандидата: ${t.retried} снимков совпали побайтно со второго/третьего прохода (разовая дрожь растеризации Chrome).</p>`;
     if (t.welcome) h += `<p>Приветствие дошло до конца за: ${Object.entries(t.welcome).map(([k, v]) => `${k} ${(v / 1000).toFixed(1)} с`).join(', ')}</p>`;
+    if (t.head && t.head.length) h += `<h3>Шапка страницы (сырой HTML: превью в соцсетях, значки)</h3><table><tr><th>тег</th><th>было</th><th>стало</th><th></th></tr>` + t.head.map((d) => `<tr><td>${esc(d.k)}</td><td>${esc(d.a ?? '—')}</td><td>${esc(d.b ?? '—')}</td><td>${d.strict ? badge('fail') : badge('info')}</td></tr>`).join('') + '</table>';
+    else if (t.head) h += `<p>Шапка страницы (превью в соцсетях, заголовок, canonical, значки) — без изменений.</p>`;
+    if (t.headNote) h += `<p>${esc(t.headNote)}</p>`;
     if (t.problems.length) h += `<h3>Ошибки и 404 (кандидат)</h3><pre>${esc(t.problems.map((p) => `${p.vp}: ${p.type}: ${p.msg}${p.known ? '   [известная: ' + p.known + ']' : ''}`).join('\n'))}</pre>`;
     if (t.fps) { h += `<h3>fps (телефон, процессор ×4)</h3><table><tr><th>сценарий</th><th>было</th><th>стало</th><th></th></tr>` + Object.entries(t.fps).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${v.a == null ? '—' : v.a}</td><td>${v.b}</td><td>${v.bad ? badge('fail') : ''}</td></tr>`).join('') + '</table>'; }
     const ch = t.list.filter((s) => s.diff !== 0 && !s.noise), noise = t.list.filter((s) => s.noise), same = t.list.filter((s) => s.diff === 0);
@@ -889,6 +924,15 @@ async function main() {
         T.problems.push({ ...p, known: k ? k.reason || 'да' : null });
         if (!k) { T.status = 'fail'; fail(`${id} (${p.vp}): ${p.type}: ${p.msg}`); }
       }
+      if (a && a.head && b.head && row.aId === row.bId && !allowed) {   // шапка (превью в соцсетях): строго; прочие теги шапки — в отчёт
+        T.head = [];
+        for (const k of [...new Set([...Object.keys(a.head), ...Object.keys(b.head)])].sort()) {
+          if (a.head[k] === b.head[k]) continue;
+          const strict = headStrict(k);
+          T.head.push({ k, a: a.head[k], b: b.head[k], strict });
+          if (strict) { T.status = 'fail'; fail(`${id}: шапка/превью изменились — ${k}: «${a.head[k] ?? '—'}» → «${b.head[k] ?? '—'}»`); }
+        }
+      } else if (a && !allowed && row.aId === row.bId && (!a.head || !b.head)) T.headNote = a.head ? 'шапка кандидата не прочитана' : 'в эталоне нет шапки (снят старой версией проверки) — шапка не сравнивалась';
       if (b.fps) {   // fps
         T.fps = {}; const notes = [];
         for (const [k, v] of Object.entries(b.fps)) {
@@ -907,6 +951,8 @@ async function main() {
     fs.writeFileSync(path.join(out, 'result.json'), JSON.stringify({ ok: R.ok, failures: R.failures, aLabel, bLabel, env, totalShots: R.totalShots, exact: R.exact || 0, regions: R.regions, seconds: R.seconds, targets: Object.fromEntries(Object.entries(R.targets).map(([k, v]) => [k, { status: v.status, total: v.total, changed: v.changed, problems: v.problems.length }])) }, null, 1));
     log(R.ok ? 'ЗЕЛЁНАЯ' : 'КРАСНАЯ');
     for (const [id, t] of Object.entries(R.targets)) log(`  ${id.padEnd(30)} ${t.status.padEnd(8)} снимков ${t.total}, отличаются ${t.changed}${t.noise ? ` (+${t.noise} шум в панели)` : ''}, проблем ${t.problems.length}${t.fpsNote ? ', fps ' + t.fpsNote : ''}${t.retried ? `, переснято и совпало ${t.retried}` : ''}${t.welcome ? ', приветствие ' + Object.entries(t.welcome).map(([k, v]) => `${k} ${(v / 1000).toFixed(1)} с`).join(' / ') : ''}`);
+    for (const [id, t] of Object.entries(R.targets)) for (const d of (t.head || []).filter((x) => !x.strict)) log(`  шапка ${id}: ${d.k}: «${d.a ?? '—'}» → «${d.b ?? '—'}» (не превью — только в отчёт)`);
+    for (const [id, t] of Object.entries(R.targets)) if (t.headNote) log(`  шапка ${id}: ${t.headNote}`);
     for (const f of R.failures) log('  ✗ ' + f);
     log(`снимков ${R.totalShots}, из них побайтно совпали ${R.exact || 0} (у страниц — с одним из вариантов Chrome: ${Object.values(R.targets).reduce((n, t) => n + (t.variantHits || 0), 0)}), шум в панели ПК (в допуске) ${Object.values(R.targets).reduce((n, t) => n + (t.noise || 0), 0)}, время ${R.seconds} с`);
     for (const r of R.regions) log('  область допуска: ' + r);
