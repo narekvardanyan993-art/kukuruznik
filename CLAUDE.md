@@ -79,3 +79,4 @@ tools/color_match.py я не меняю сам. Разрешено без спр
 ## End of every session
 - Append to chka-log.md: date, what was done, what broke, next step (3–6 lines).
 - If anything was installed or a subscription changed, update ../мои-инструменты.md.
+- Финальный отчёт для советника ВСЕГДА целиком внутри одного блока кода (```), чтобы копировался одним нажатием.
