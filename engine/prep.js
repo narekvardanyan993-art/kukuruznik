@@ -310,7 +310,7 @@
       if (gd[o * 4 + 1] > 127) skyCount++;
     }
     var skyFrac = skyCount / en;
-    var cells = 32 * 57;
+    var cells = CONFIG.STAR_CELLS[0] * CONFIG.STAR_CELLS[1];   // ячейки звёздной сетки (от размера кадра здания)
     var starQ = clamp(CONFIG.STARS / (cells * Math.max(0.05, skyFrac)), 0, 0.6);
     // окна: главное здание (маска из analyzeBuilding) и другие здания (win2)
     var maskT = halfAvg(bld.win.d, w, h, 1, 0), maskO = halfAvg(w2px, w, h, 4, 0);

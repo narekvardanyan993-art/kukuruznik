@@ -1,60 +1,300 @@
 {
-  "LANGS": ["hy", "ru", "en"],
-  "MAX_SHIFT_X": 0.02,
-  "MAX_SHIFT_Y": 0.012,
-  "BASE_SCALE": 1.05,
-  "ZOOM_NEAR": 0.02,
-  "DEPTH_BLUR_PX": 6,
-  "MAX_TEX_SIZE": 1600,
-  "MAX_TILT_X_DEG": 20,
-  "MAX_TILT_Y_DEG": 20,
-  "SMOOTH": 0.12,
-  "RETURN_MS": 800,
-  "SWIPE_MIN_PX": 50,
-  "SWIPE_MAX_MS": 350,
-  "BREATH_AMPLITUDE": 0.004,
-  "BREATH_PERIOD_S": 6,
-  "SPRING_RESPONSE": 0.65,
-  "SPRING_DAMPING": 0.86,
-  "FRAME_CROSSFADE_MS": 1200,
-  "DAY_SUNSET_S": 2.5,
-  "SUNSET_NIGHT_S": 3,
-  "WINDOW_BRIGHT": [0.6, 1],
-  "WINDOW_TOGGLE_S": [8, 12],
-  "WINDOW_FADE_MS": 1500,
-  "LAMP_BREATH": 0.08,
-  "LAMP_PERIOD_S": [4, 6],
-  "STARS": 120,
-  "SHOOT_EVERY_S": [40, 60],
-  "SHOOT_MS": 900,
-  "WIND": true,
-  "WIND_AMP_PX": 2.5,
-  "PERF_MIN_FPS": 45,
-  "FALLBACK_LAYER_K": 0.6,
-  "UI_I18N": {
-    "home": {"ru": "На главную", "en": "Home", "hy": "Գլխավոր էջ"},
-    "prevFrame": {"ru": "Предыдущий кадр", "en": "Previous frame", "hy": "Նախորդ կադր"},
-    "nextFrame": {"ru": "Следующий кадр", "en": "Next frame", "hy": "Հաջորդ կադր"},
-    "hsBack": {"ru": "‹ назад", "en": "‹ back", "hy": "‹ հետ"},
-    "hsClose": {"ru": "× закрыть", "en": "× close", "hy": "× փակել"},
-    "menu": {"ru": "Меню", "en": "Menu", "hy": "Ընտրացանկ"},
-    "history": {"ru": "История здания ›", "en": "Building history ›", "hy": "Շենքի պատմությունը ›"},
-    "tod": {"ru": "Время суток", "en": "Time of day", "hy": "Օրվա ժամը"},
-    "day": {"ru": "День", "en": "Day", "hy": "Ցերեկ"},
-    "sunset": {"ru": "Закат", "en": "Sunset", "hy": "Մայրամուտ"},
-    "night": {"ru": "Ночь", "en": "Night", "hy": "Գիշեր"},
-    "frames": {"ru": "Кадры", "en": "Views", "hy": "Կադրեր"},
-    "fullscreen": {"ru": "Полный экран", "en": "Full screen", "hy": "լայնէկրան"},
-    "postcard": {"ru": "Сохранить открытку", "en": "Save postcard", "hy": "պահպանել"},
-    "textSize": {"ru": "Размер текста", "en": "Text size", "hy": "Տառերի չափը"},
-    "sizeLarge": {"ru": "Крупный", "en": "Large", "hy": "Մեծ"},
-    "sizeNormal": {"ru": "Обычный", "en": "Normal", "hy": "դասական"},
-    "language": {"ru": "Язык", "en": "Language", "hy": "Լեզու"},
-    "about": {"ru": "О здании", "en": "About the building", "hy": "Շենքի մասին"},
-    "flag": {
-      "ru": "Парад в небе: флаг Армении",
-      "en": "Sky parade: flag of Armenia",
-      "hy": "Երկնային շքերթ՝ Հայաստանի դրոշը"
-    }
+ "LANGS": [
+  "hy",
+  "ru",
+  "en"
+ ],
+ "MAX_SHIFT_X": 0.02,
+ "MAX_SHIFT_Y": 0.012,
+ "BASE_SCALE": 1.05,
+ "ZOOM_NEAR": 0.02,
+ "DEPTH_BLUR_PX": 6,
+ "MAX_TEX_SIZE": 1600,
+ "MAX_TILT_X_DEG": 20,
+ "MAX_TILT_Y_DEG": 20,
+ "SMOOTH": 0.12,
+ "RETURN_MS": 800,
+ "SWIPE_MIN_PX": 50,
+ "SWIPE_MAX_MS": 350,
+ "BREATH_AMPLITUDE": 0.004,
+ "BREATH_PERIOD_S": 6,
+ "SPRING_RESPONSE": 0.65,
+ "SPRING_DAMPING": 0.86,
+ "FRAME_CROSSFADE_MS": 1200,
+ "DAY_SUNSET_S": 2.5,
+ "SUNSET_NIGHT_S": 3,
+ "WINDOW_BRIGHT": [
+  0.6,
+  1
+ ],
+ "WINDOW_TOGGLE_S": [
+  8,
+  12
+ ],
+ "WINDOW_FADE_MS": 1500,
+ "LAMP_BREATH": 0.08,
+ "LAMP_PERIOD_S": [
+  4,
+  6
+ ],
+ "STARS": 120,
+ "SHOOT_EVERY_S": [
+  40,
+  60
+ ],
+ "SHOOT_MS": 900,
+ "WIND": true,
+ "WIND_AMP_PX": 2.5,
+ "PERF_MIN_FPS": 45,
+ "FALLBACK_LAYER_K": 0.6,
+ "UI_I18N": {
+  "home": {
+   "ru": "На главную",
+   "en": "Home",
+   "hy": "Գլխավոր էջ"
+  },
+  "prevFrame": {
+   "ru": "Предыдущий кадр",
+   "en": "Previous frame",
+   "hy": "Նախորդ կադր"
+  },
+  "nextFrame": {
+   "ru": "Следующий кадр",
+   "en": "Next frame",
+   "hy": "Հաջորդ կադր"
+  },
+  "hsBack": {
+   "ru": "‹ назад",
+   "en": "‹ back",
+   "hy": "‹ հետ"
+  },
+  "hsClose": {
+   "ru": "× закрыть",
+   "en": "× close",
+   "hy": "× փակել"
+  },
+  "menu": {
+   "ru": "Меню",
+   "en": "Menu",
+   "hy": "Ընտրացանկ"
+  },
+  "history": {
+   "ru": "История здания ›",
+   "en": "Building history ›",
+   "hy": "Շենքի պատմությունը ›"
+  },
+  "tod": {
+   "ru": "Время суток",
+   "en": "Time of day",
+   "hy": "Օրվա ժամը"
+  },
+  "day": {
+   "ru": "День",
+   "en": "Day",
+   "hy": "Ցերեկ"
+  },
+  "sunset": {
+   "ru": "Закат",
+   "en": "Sunset",
+   "hy": "Մայրամուտ"
+  },
+  "night": {
+   "ru": "Ночь",
+   "en": "Night",
+   "hy": "Գիշեր"
+  },
+  "frames": {
+   "ru": "Кадры",
+   "en": "Views",
+   "hy": "Կադրեր"
+  },
+  "fullscreen": {
+   "ru": "Полный экран",
+   "en": "Full screen",
+   "hy": "լայնէկրան"
+  },
+  "postcard": {
+   "ru": "Сохранить открытку",
+   "en": "Save postcard",
+   "hy": "պահպանել"
+  },
+  "textSize": {
+   "ru": "Размер текста",
+   "en": "Text size",
+   "hy": "Տառերի չափը"
+  },
+  "sizeLarge": {
+   "ru": "Крупный",
+   "en": "Large",
+   "hy": "Մեծ"
+  },
+  "sizeNormal": {
+   "ru": "Обычный",
+   "en": "Normal",
+   "hy": "դասական"
+  },
+  "language": {
+   "ru": "Язык",
+   "en": "Language",
+   "hy": "Լեզու"
+  },
+  "about": {
+   "ru": "О здании",
+   "en": "About the building",
+   "hy": "Շենքի մասին"
+  },
+  "flag": {
+   "ru": "Парад в небе: флаг Армении",
+   "en": "Sky parade: flag of Armenia",
+   "hy": "Երկնային շքերթ՝ Հայաստանի դրոշը"
   }
+ },
+ "LOOK": {
+  "sunsetProc": {
+   "tint": [
+    1.05,
+    0.87,
+    0.68
+   ],
+   "skyLow": [
+    1.0,
+    0.6,
+    0.64
+   ],
+   "skyHigh": [
+    1.0,
+    0.68,
+    0.4
+   ],
+   "glowColor": [
+    1.0,
+    0.52,
+    0.22
+   ],
+   "glowStrength": 0.24,
+   "windowColor": [
+    1.0,
+    0.74,
+    0.44
+   ],
+   "windowStrength": 0.22
+  },
+  "sunsetSmear": {
+   "length": 0.012,
+   "strength": 0.5,
+   "dark": 0.68
+  },
+  "nightProc": {
+   "ground": [
+    0.27,
+    0.34,
+    0.56
+   ],
+   "sky": [
+    0.14,
+    0.2,
+    0.4
+   ]
+  },
+  "stars": {
+   "color": [
+    0.86,
+    0.92,
+    1.0
+   ],
+   "cell": 24
+  },
+  "windowGlow": {
+   "color": [
+    1.0,
+    0.8,
+    0.42
+   ],
+   "strength": 1.05,
+   "color2": [
+    1.0,
+    0.7,
+    0.3
+   ],
+   "strength2": 0.25
+  },
+  "lampHalo": {
+   "color": [
+    1.0,
+    0.74,
+    0.36
+   ],
+   "core": 0.85,
+   "coreSize": 0.00016,
+   "wide": 0.2,
+   "wideSize": 0.002,
+   "groundColor": [
+    1.0,
+    0.82,
+    0.5
+   ],
+   "ground": 0.24,
+   "groundSizeX": 0.001,
+   "groundSizeY": 0.00012
+  },
+  "ink": {
+   "day": [
+    58,
+    51,
+    42
+   ],
+   "sunset": [
+    90,
+    58,
+    44
+   ],
+   "night": [
+    190,
+    200,
+    225
+   ]
+  },
+  "skyBodies": {
+   "sunGlow": [
+    255,
+    236,
+    170
+   ],
+   "sunDisc": [
+    255,
+    238,
+    168
+   ],
+   "sunOutline": [
+    96,
+    74,
+    44
+   ],
+   "sunsetGlow": [
+    255,
+    150,
+    80
+   ],
+   "sunsetDisc": [
+    255,
+    128,
+    64
+   ],
+   "sunsetOutline": [
+    120,
+    52,
+    32
+   ],
+   "moonGlow": [
+    200,
+    214,
+    255
+   ],
+   "moonOutline": [
+    190,
+    200,
+    230
+   ]
+  }
+ }
 }

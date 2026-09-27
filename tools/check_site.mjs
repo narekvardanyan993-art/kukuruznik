@@ -63,7 +63,7 @@ const SKIP_DIRS = new Set(['assets', 'docs', 'tools', 'node_modules', 'src', 'en
 
 // ---------- аргументы ----------
 const argv = process.argv.slice(2);
-const opt = { renderer: 'metal', fps: true, walk: true };
+const opt = { renderer: 'metal', fps: true, walk: true, structure: true };
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   const val = () => argv[++i];
@@ -79,6 +79,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (a === '--frames') opt.frames = val().split(',').map(Number);
   else if (a === '--no-fps') opt.fps = false;
   else if (a === '--no-walk') opt.walk = false;
+  else if (a === '--no-structure') opt.structure = false;
   else if (a === '--compare-as') opt.pairs = (opt.pairs || []).concat(val().split(',').filter(Boolean).map((x) => { const [b, a] = x.split('='); if (!a || !b) { console.error('--compare-as: нужно B=A'); process.exit(2); } return { b, a }; }));
   else if (a === '--out') opt.out = path.resolve(val());
   else if (a === '--renderer') opt.renderer = val();
@@ -146,9 +147,15 @@ function discover(root) {
     if (isViewer(dir)) targets.push({ id: dir, kind: 'viewer', url: '/' + dir + '/' });
     for (const pg of ['about', 'history']) if (has(`${dir}/${pg}.html`)) targets.push({ id: `${dir}/${pg}`, kind: 'page', url: `/${dir}/${pg}.html` });
   };
+  const walkBeta = (dir, depth) => {   // beta/<здание>, beta/_test/<здание>, beta/_test/local/<здание>: любая папка с просмотрщиком
+    for (const x of fs.readdirSync(path.join(root, dir), { withFileTypes: true }).filter((e) => e.isDirectory() && !SKIP_DIRS.has(e.name) && e.name !== 'engine').map((e) => e.name).sort()) {
+      addDir(`${dir}/${x}`);
+      if (depth < 3) walkBeta(`${dir}/${x}`, depth + 1);
+    }
+  };
   for (const d of dirs) {
     addDir(d);
-    if (d === 'beta') for (const s of fs.readdirSync(path.join(root, d), { withFileTypes: true }).filter((x) => x.isDirectory() && SKIP_DIRS.has(x.name) === false).map((x) => x.name).sort()) addDir(`${d}/${s}`);
+    if (d === 'beta') walkBeta(d, 1);
   }
   return targets.filter((t) => !opt.only || opt.only.some((o) => t.id === o || t.id.startsWith(o + '/') || opt.pairs.some((p) => p.b === t.id && (p.a === o || p.a.startsWith(o + '/')))));
 }
@@ -409,6 +416,99 @@ async function captureWalk(browser, origin, target, vpName, outDir) {
   return { shots, problems, external: ext, welcomeMs: ms };
 }
 
+// ---------- проверка структуры здания (настройки == то, что на странице) ----------
+// Для КАЖДОГО просмотрщика: точки-подсказки на каждом кадре = числу в настройках; кнопка парада только на своём кадре (нет парада — нет кнопки);
+// кадр без закатной/ночной картинки закатом и ночью не ломается и не пустой; у тестовых зданий (…/_test/…) нигде — ни в тексте, ни в подписях,
+// ни на одном языке — нет слов «Кукурузник / Կուկուռուզնիկ / Kukuruznik». Ссылки и адреса файлов (kukuruznik/frames/…) не считаются — это не текст.
+const FORBIDDEN = /кукуруз|kukuruz|կուկուռ/i;
+async function checkStructure(browser, origin, target) {
+  const P = await newPage(browser, origin, VIEWPORTS.phone, { mobile: true });
+  const { page, problems } = P;
+  const bad = (msg) => problems.push({ type: 'структура', msg, vp: 'structure' });
+  const adv = (ms) => page.evaluate((m) => window.__advance(m), ms);
+  const info = { frames: 0, dots: [], parade: [], texts: 0 };
+  try {
+    await page.goto(origin + target.url, { waitUntil: 'load', timeout: 60000 });
+    await waitViewerLoaded(page, target.id);
+    await page.evaluate(() => { const w = document.getElementById('welcome'); if (w) w.remove(); });
+    await page.evaluate(() => document.fonts && document.fonts.ready);
+    await adv(3000);
+    const cfg = await page.evaluate(() => ({ hs: CONFIG.HOTSPOTS.map((h) => h.length), pf: CONFIG.PARADE_FRAME, langs: CONFIG.LANGS, night: CONFIG.FRAMES.map((f) => !!f.night), sunset: CONFIG.FRAMES.map((f) => !!f.sunset), n: CONFIG.FRAMES.length }));
+    info.frames = cfg.n;
+    const goFrame = async (f) => {
+      for (let g = 0; g < 12 && (await page.evaluate(() => window.__viewer.frame())) !== f; g++) {
+        await page.keyboard.press('ArrowRight');
+        for (let k = 0; k < 60; k++) { await adv(100); if (!(await page.evaluate(() => window.__viewer.fading()))) break; }
+      }
+      await adv(900);
+    };
+    const nDots = await page.evaluate(() => document.querySelectorAll('#dots span').length);
+    if (nDots !== cfg.n) bad(`точек-индикаторов кадров ${nDots}, а кадров в настройках ${cfg.n}`);
+    // точки-подсказки и кнопка парада по кадрам
+    for (let i = 0; i < cfg.n; i++) {
+      await goFrame(i);
+      const st = await page.evaluate(() => ({
+        shown: document.querySelectorAll('#hotspots .hs-dot.show').length, total: document.querySelectorAll('#hotspots .hs-dot').length,
+        flags: ['flagBtnB', 'flagBtnP'].map((id) => { const b = document.getElementById(id); return b ? { hidden: b.hidden, off: b.classList.contains('off-frame') } : null; }) }));
+      info.dots.push(st.shown);
+      if (st.shown !== cfg.hs[i] || st.total !== cfg.hs[i]) bad(`кадр ${i + 1}: точек-подсказок на странице ${st.shown} (всего в разметке ${st.total}), в настройках ${cfg.hs[i]}`);
+      const onFrame = cfg.pf === i;
+      for (const [k, fl] of st.flags.entries()) {
+        const nm = k === 0 ? '#flagBtnB' : '#flagBtnP';
+        if (!fl) { bad(`нет кнопки парада ${nm} в разметке`); continue; }
+        if (cfg.pf < 0 && !fl.hidden) bad(`кадр ${i + 1}: у здания нет парада, а кнопка ${nm} есть`);
+        if (cfg.pf >= 0 && fl.hidden) bad(`кадр ${i + 1}: у здания есть парад, а кнопка ${nm} скрыта совсем`);
+        if (cfg.pf >= 0 && !fl.hidden && (fl.off === onFrame)) bad(`кадр ${i + 1}: кнопка парада ${nm} ${onFrame ? 'погашена на кадре парада' : 'горит не на кадре парада'}`);
+      }
+      info.parade.push(cfg.pf < 0 ? 'нет' : (onFrame ? 'горит' : 'погашена'));
+    }
+    // запретные слова у тестовых зданий (все языки): текст страницы, подписи, заголовок, мета, тексты из настроек
+    if (/\/_test\//.test(target.url)) {
+      for (const l of cfg.langs) {
+        await page.evaluate((lg) => document.querySelector('#langSeg [data-lang=' + lg + ']').click(), l);
+        await adv(300);
+        const found = await page.evaluate((src) => {
+          const re = new RegExp(src, 'i'), out = [];
+          const chk = (t, where) => { if (t && re.test(t)) out.push(where + ': ' + String(t).trim().slice(0, 80)); };
+          chk(document.title, 'title');
+          const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+          while (w.nextNode()) { const p = w.currentNode.parentElement; if (p && !/^(SCRIPT|STYLE)$/.test(p.tagName)) chk(w.currentNode.nodeValue, 'текст'); }
+          document.querySelectorAll('[aria-label],[title],[alt],[placeholder]').forEach((e) => ['aria-label', 'title', 'alt', 'placeholder'].forEach((a) => chk(e.getAttribute(a), a)));
+          document.querySelectorAll('meta[content]').forEach((m) => chk(m.getAttribute('content'), 'meta ' + (m.getAttribute('name') || m.getAttribute('property'))));
+          const walk = (o, path) => { if (typeof o === 'string') chk(o, path); else if (o && typeof o === 'object') for (const k in o) walk(o[k], path + '.' + k); };
+          walk({ I18N: CONFIG.I18N, UI_I18N: CONFIG.UI_I18N }, 'CONFIG');
+          return out;
+        }, FORBIDDEN.source);
+        info.texts++;
+        for (const f of found) bad(`язык ${l}: найдено слово, привязанное к другому зданию — ${f}`);
+      }
+    }
+    // закат и ночь у кадров без своей картинки: не ломаются и не пустые
+    await page.evaluate((l) => document.querySelector('#langSeg [data-lang=hy]').click(), null);
+    for (const [tod, key, ms] of [['sunset', 'sunset', 3400], ['night', 'night', 4200]]) {
+      const missing = cfg[key].map((has, i) => (has ? -1 : i)).filter((i) => i >= 0);
+      if (!missing.length) continue;
+      await page.evaluate((t) => document.querySelector('#todSeg [data-tod=' + t + ']').click(), tod);
+      await adv(ms);
+      for (const i of missing) {
+        await goFrame(i);
+        await adv(1200);
+        const png = PNG.sync.read(await page.screenshot({ type: 'png' }));
+        let lit = 0, sum = 0, sum2 = 0; const N = png.width * png.height;
+        for (let k = 0; k < png.data.length; k += 4) { const y = 0.299 * png.data[k] + 0.587 * png.data[k + 1] + 0.114 * png.data[k + 2]; sum += y; sum2 += y * y; if (y > 15) lit++; }
+        const mean = sum / N, sd = Math.sqrt(Math.max(0, sum2 / N - mean * mean));
+        info[`${tod}-без-картинки`] = (info[`${tod}-без-картинки`] || []).concat(i + 1);
+        if (lit / N < 0.08 || sd < 8) bad(`кадр ${i + 1} без картинки (${tod}): вид пустой или чёрный (светлых пикселей ${(100 * lit / N).toFixed(1)}%, разброс ${sd.toFixed(1)})`);
+      }
+      await page.evaluate(() => document.querySelector('#todSeg [data-tod=day]').click()); await adv(4500);
+    }
+  } catch (e) {
+    bad('сбой проверки структуры: ' + e.message.slice(0, 200));
+  }
+  await P.close();
+  return { problems, info };
+}
+
 // ---------- снимки обычных страниц (главная, about, history) ----------
 async function capturePageOnce(browser, origin, target, vpName) {
   const vp = VIEWPORTS[vpName];
@@ -606,6 +706,14 @@ async function runSite(label, root, targets, outBase, guideRes, guideDir) {
         res[t.id].problems.push(...r.problems.map((p) => ({ ...p, vp: vpName })));
         res[t.id].external += r.external;
         log(`${label} · ${t.id} · ${vpName}: ${Object.keys(r.shots).length} снимков` + (r.problems.length ? `, проблем: ${r.problems.length}` : ''));
+      }
+    }
+    if (opt.structure) {
+      for (const t of targets.filter((x) => x.kind === 'viewer')) {
+        const r = await checkStructure(browsers.gl, origin, t);
+        res[t.id].problems.push(...r.problems);
+        res[t.id].structure = r.info;
+        log(`${label} · ${t.id} · структура: кадров ${r.info.frames}, точек по кадрам [${r.info.dots.join(',')}], парад [${r.info.parade.join(',')}]` + (r.problems.length ? `, ПРОБЛЕМ: ${r.problems.length}` : ', без проблем'));
       }
     }
     if (opt.fps) {

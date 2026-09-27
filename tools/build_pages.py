@@ -17,24 +17,51 @@
 Все адреса в настройках здания (кадры, значки, ссылки) — относительно папки здания; сборка пересчитывает их для места страницы.
 """
 import argparse
+import copy
 import html
 import json
 import posixpath
 import re
 import shutil
 import sys
+import tempfile
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import building_schema   # noqa: E402  проверка настроек здания
 
 ROOT = Path(__file__).resolve().parent.parent
 ENGINE = ROOT / 'engine'
 LANGS = ('hy', 'ru', 'en')
+LOCAL_DIR = '_test/local'   # здания только для Mac (в git не идут): _test/local/<имя>/building.json + frames/
 
 
-def load_building(bid):
-    b = json.loads((ROOT / bid / 'building.json').read_text(encoding='utf-8'))
-    if b.get('format') != 1:
-        raise SystemExit('%s/building.json: неизвестный формат %r' % (bid, b.get('format')))
+def load_building(bdir, root=None):
+    """building.json здания из папки bdir (например 'kukuruznik' или '_test/test-1'). Ошибка чтения — понятным текстом."""
+    f = Path(root or ROOT) / bdir / 'building.json'
+    try:
+        b = json.loads(f.read_text(encoding='utf-8'))
+    except FileNotFoundError:
+        raise SystemExit('СБОРКА ОСТАНОВЛЕНА: нет файла настроек %s/building.json' % bdir)
+    except json.JSONDecodeError as e:
+        raise SystemExit('СБОРКА ОСТАНОВЛЕНА: %s/building.json не читается как JSON (строка %d, символ %d): %s' % (bdir, e.lineno, e.colno, e.msg))
     return b
+
+
+def default_buildings(root=None, with_local=False):
+    """Здания беты: Кукурузник + тестовые (_test/*/building.json в git) [+ локальные для Mac]. Первое — куда ведёт beta/."""
+    root = Path(root or ROOT)
+    out = ['kukuruznik']
+    t = root / '_test'
+    if t.is_dir():
+        for d in sorted(t.iterdir()):
+            if d.name != 'local' and (d / 'building.json').exists():
+                out.append('_test/' + d.name)
+        if with_local and (t / 'local').is_dir():
+            for d in sorted((t / 'local').iterdir()):
+                if (d / 'building.json').exists():
+                    out.append('_test/local/' + d.name)
+    return out
 
 
 def rel(from_dir, target):
@@ -45,9 +72,9 @@ def rel(from_dir, target):
     return r
 
 
-def site_path(bid, p):
+def site_path(bdir, p):
     """Адрес из building.json (относительно папки здания) -> путь от корня сайта."""
-    return posixpath.normpath(posixpath.join(bid, p)) + ('/' if p.endswith('/') else '')
+    return posixpath.normpath(posixpath.join(bdir, p)) + ('/' if p.endswith('/') else '')
 
 
 def visible_frames(b):
@@ -55,17 +82,28 @@ def visible_frames(b):
     return [f for f in b['frames'] if not f.get('hidden')]
 
 
+def deep_merge(base, over):
+    """Переопределение чисел движка настройками здания (tuning): вложенные объекты сливаются, числа и списки заменяются."""
+    for k, v in over.items():
+        if isinstance(v, dict) and isinstance(base.get(k), dict):
+            deep_merge(base[k], v)
+        else:
+            base[k] = copy.deepcopy(v)
+    return base
+
+
+DAY_KEYS = {'skyTop': 'SKY_TOP', 'skyHor': 'SKY_HOR', 'mix': 'MIX', 'greenHue': 'GREEN_HUE', 'greenPull': 'GREEN_PULL', 'greenSat': 'GREEN_SAT'}
+
+
 def make_config(b, frames_url):
     """CONFIG для просмотрщика: движок (engine/config.json) + здание (building.json). Всё про здание — отсюда, в коде движка его нет."""
     C = json.loads((ENGINE / 'config.json').read_text(encoding='utf-8'))
     fr = visible_frames(b)
     look = b['look']
-    day = dict(look['day'])
+    day = {DAY_KEYS[k]: v for k, v in look['day'].items()}
     day['SKY_REF'] = [f['sky']['ref'] for f in fr]
     day['SKY_END'] = [f['sky']['end'] for f in fr]
     parade = [i for i, f in enumerate(fr) if f.get('parade')]
-    if len(parade) > 1:
-        raise SystemExit('%s: парад может быть только на одном кадре (сейчас: %s)' % (b['id'], parade))
     C.update({
         'NIGHT_MAIN_LIT': look['night']['mainLit'],
         'NIGHT_OTHER_LIT': look['night']['otherLit'],
@@ -76,7 +114,7 @@ def make_config(b, frames_url):
         'DAY': day,
         'CLOUD_SHADOW': [f['cloudShadow'] for f in fr],
         'WIND_K': [f['wind'] for f in fr],
-        'FRAMES': [frame_files(frames_url, f['name']) for f in fr],
+        'FRAMES': [frame_files(frames_url, f['name'], f.get('night', True), f.get('sunset', True)) for f in fr],
         'HOTSPOTS': [f['hotspots'] for f in fr],
         'CROP': [f['crop'] for f in fr],
         'FLAGS': [f['flag'] or [0, 0, 0, 0] for f in fr],
@@ -92,6 +130,8 @@ def make_config(b, frames_url):
     ui = dict(C['UI_I18N'])
     ui.update(b['text'])
     C['UI_I18N'] = ui
+    if b.get('tuning'):
+        deep_merge(C, b['tuning'])   # здание переопределяет любые числа движка (в том числе LOOK — внешний вид)
     return C
 
 
@@ -107,15 +147,19 @@ def scene(f):
     return sc
 
 
-def frame_files(base, n):
+def frame_files(base, n, night=True, sunset=True):
     f = lambda s: base + n + s + '.webp'
-    return {'color': f(''), 'depth': f('_depth'), 'bg': {'color': f('_bg'), 'depth': f('_bg_depth')},
-            'building': {'color': f('_building'), 'depth': f('_depth')}, 'env': f('_env'), 'win2': f('_win2'),
-            'sunset': f('_sunset'), 'night': f('_night')}
+    d = {'color': f(''), 'depth': f('_depth'), 'bg': {'color': f('_bg'), 'depth': f('_bg_depth')},
+         'building': {'color': f('_building'), 'depth': f('_depth')}, 'env': f('_env'), 'win2': f('_win2')}
+    if sunset:
+        d['sunset'] = f('_sunset')   # нет закатной картинки — закат рисуется процедурно
+    if night:
+        d['night'] = f('_night')     # нет ночной — ночь процедурная, без ночных фонарей
+    return d
 
 
-def make_head(b, page_dir, beta):
-    m, bid = b['meta'], b['id']
+def make_head(b, bdir, page_dir, beta):
+    m = b['meta']
     e = lambda s: html.escape(s, quote=True)
     title, desc, alt = m['title']['hy'], m['description']['hy'], m['ogAlt']['hy']
     lines = ['<meta charset="utf-8">']
@@ -124,8 +168,8 @@ def make_head(b, page_dir, beta):
     lines += [
         '<meta name="description" content="%s">' % e(desc),
         '<link rel="canonical" href="%s">' % e(m['url']),
-        '<link rel="icon" type="image/png" sizes="32x32" href="%s">' % e(rel(page_dir, site_path(bid, m['favicon']))),
-        '<link rel="apple-touch-icon" href="%s">' % e(rel(page_dir, site_path(bid, m['appleTouchIcon']))),
+        '<link rel="icon" type="image/png" sizes="32x32" href="%s">' % e(rel(page_dir, site_path(bdir, m['favicon']))),
+        '<link rel="apple-touch-icon" href="%s">' % e(rel(page_dir, site_path(bdir, m['appleTouchIcon']))),
         '<link rel="manifest" href="manifest.json">',
         '<meta name="theme-color" content="%s">' % e(m['themeColor']),
         '<meta name="viewer-version" content="%s">' % e(m['viewerVersion']),
@@ -135,20 +179,22 @@ def make_head(b, page_dir, beta):
         '<meta property="og:url" content="%s">' % e(m['url']),
         '<meta property="og:title" content="%s">' % e(title),
         '<meta property="og:description" content="%s">' % e(desc),
-        '<meta property="og:image" content="%s">' % e(m['url'] + m['ogImage']),
-        '<meta property="og:image:type" content="image/jpeg">',
-        '<meta property="og:image:width" content="1200">',
-        '<meta property="og:image:height" content="630">',
-        '<meta property="og:image:alt" content="%s">' % e(alt),
-        '<meta property="og:locale" content="hy_AM">',
-        '<meta property="og:locale:alternate" content="ru_RU">',
-        '<meta property="og:locale:alternate" content="en_US">',
-        '<meta name="twitter:card" content="summary_large_image">',
-        '<meta name="twitter:title" content="%s">' % e(title),
-        '<meta name="twitter:description" content="%s">' % e(desc),
-        '<meta name="twitter:image" content="%s">' % e(m['url'] + m['ogImage']),
-        '<meta name="twitter:image:alt" content="%s">' % e(alt),
     ]
+    if m['ogImage']:   # картинка превью для соцсетей (у тестовых зданий её нет)
+        lines += ['<meta property="og:image" content="%s">' % e(m['url'] + m['ogImage']),
+                  '<meta property="og:image:type" content="image/jpeg">',
+                  '<meta property="og:image:width" content="1200">',
+                  '<meta property="og:image:height" content="630">',
+                  '<meta property="og:image:alt" content="%s">' % e(alt)]
+    lines += ['<meta property="og:locale" content="hy_AM">',
+              '<meta property="og:locale:alternate" content="ru_RU">',
+              '<meta property="og:locale:alternate" content="en_US">',
+              '<meta name="twitter:card" content="summary_large_image">',
+              '<meta name="twitter:title" content="%s">' % e(title),
+              '<meta name="twitter:description" content="%s">' % e(desc)]
+    if m['ogImage']:
+        lines += ['<meta name="twitter:image" content="%s">' % e(m['url'] + m['ogImage']),
+                  '<meta name="twitter:image:alt" content="%s">' % e(alt)]
     return '\n'.join(lines)
 
 
@@ -156,9 +202,16 @@ def engine_version():
     return (ENGINE / 'VERSION').read_text(encoding='utf-8').strip()
 
 
-def make_manifest(b, page_dir):
+def history_section(b, bdir, page_dir):
+    h = b['links']['history']
+    if not h:   # у здания нет страницы истории — кнопки в панели нет
+        return ''
+    return '    <section class="p-sec"><a class="p-btn p-history" id="historyLink" href="%s" data-i18n="history">История здания ›</a></section>' % html.escape(rel(page_dir, site_path(bdir, h)), quote=True)
+
+
+def make_manifest(b, bdir, page_dir):
     """manifest.json страницы здания («на экран Домой»): цвет фона и темы — цвет бумаги (решение плана), значки — из папки здания."""
-    m, bid, app = b['meta'], b['id'], b['app']
+    m, bid, app = b['meta'], bdir, b['app']
     icon = lambda p: rel(page_dir, site_path(bid, p))
     return json.dumps({
         'name': app['name'], 'short_name': app['shortName'], 'description': m['description']['hy'],
@@ -170,21 +223,21 @@ def make_manifest(b, page_dir):
     }, ensure_ascii=False, indent=2) + '\n'
 
 
-def render(b, page_dir, engine_dir, beta):
+def render(b, bdir, page_dir, engine_dir, beta):
     """HTML страницы здания. page_dir/engine_dir — пути от корня сайта ('beta/kukuruznik/', 'beta/engine/')."""
-    bid = b['id']
+    bid = bdir
     t = (ENGINE / 'page.html').read_text(encoding='utf-8')
     cfg = make_config(b, rel(page_dir, site_path(bid, b['framesDir'])))
     js = json.dumps(cfg, ensure_ascii=False, indent=1).replace('</', '<\\/')
     esc = lambda s: html.escape(s, quote=True)
     rep = {
-        '{{HEAD}}': make_head(b, page_dir, beta),
+        '{{HEAD}}': make_head(b, bdir, page_dir, beta),
         '{{TITLE}}': esc(b['meta']['title']['hy']),
         '{{CONFIG}}': js,
         '{{E}}': rel(page_dir, engine_dir),
         '{{V}}': engine_version(),
         '{{HOME}}': esc(rel(page_dir, site_path(bid, b['links']['home']))),
-        '{{HISTORY}}': esc(rel(page_dir, site_path(bid, b['links']['history']))),
+        '{{HISTORY_SECTION}}': history_section(b, bdir, page_dir),
         '{{TEXT:panelTitle}}': esc(b['text']['panelTitle']['ru']),
         '{{TEXT:title}}': esc(b['text']['title']['ru']),
         '{{FRAME_W}}': str(b['look']['frameSize'][0]),
@@ -220,11 +273,28 @@ BETA_INDEX = '''<!DOCTYPE html>
 '''
 
 
-def build_beta(site, bids=('kukuruznik',)):
-    """Собирает бету в корне сайта site. Возвращает список записанных файлов (пути от корня сайта)."""
+def check_buildings(bdirs, site, root=None):
+    """Проверка настроек ВСЕХ зданий перед сборкой. Любая ошибка — сборка останавливается, все ошибки печатаются по-русски."""
+    errors = []
+    for bd in bdirs:
+        errors += building_schema.validate(bd, load_building(bd, root), site)
+    if errors:
+        raise SystemExit('СБОРКА ОСТАНОВЛЕНА: ошибки в настройках зданий (%d):\n  • %s' % (len(errors), '\n  • '.join(errors)))
+
+
+def build_beta(site, bdirs=None, root=None, with_local=False):
+    """Собирает бету в корне сайта site. Возвращает список записанных файлов (пути от корня сайта).
+    bdirs — папки зданий (по умолчанию Кукурузник + тестовые); root — откуда читать building.json (по умолчанию репозиторий)."""
     site = Path(site)
     if not (site / 'CNAME').exists():
         raise SystemExit('%s не похоже на корень сайта (нет CNAME)' % site)
+    bdirs = list(bdirs or default_buildings(root, with_local))
+    for bd in bdirs:   # здания только для Mac: кадры лежат рядом с настройками — кладём их во временную копию сайта (не в beta/, в git не идут)
+        if bd.startswith(LOCAL_DIR + '/'):
+            src = Path(root or ROOT) / bd / 'frames'
+            if src.is_dir():
+                shutil.copytree(src, site / bd / 'frames', dirs_exist_ok=True)
+    check_buildings(bdirs, site, root)   # ошибки настроек — до любой записи
     beta = site / 'beta'
     if beta.exists():
         shutil.rmtree(beta)
@@ -238,25 +308,25 @@ def build_beta(site, bids=('kukuruznik',)):
         shutil.copyfile(src, dst)
         written.append(str(dst.relative_to(site)))
     # здания
-    for bid in bids:
-        b = load_building(bid)
-        if not (site / bid / b['framesDir']).is_dir():
-            raise SystemExit('на сайте нет %s/%s — кадры берутся оттуда' % (bid, b['framesDir']))
-        page_dir = 'beta/%s/' % bid
+    for bd in bdirs:
+        b = load_building(bd, root)
+        page_dir = 'beta/%s/' % bd
         out = site / page_dir / 'index.html'
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(render(b, page_dir, 'beta/engine/', beta=True), encoding='utf-8')
+        out.write_text(render(b, bd, page_dir, 'beta/engine/', beta=True), encoding='utf-8')
         written.append(str(out.relative_to(site)))
-        (out.parent / 'manifest.json').write_text(make_manifest(b, page_dir), encoding='utf-8')
+        (out.parent / 'manifest.json').write_text(make_manifest(b, bd, page_dir), encoding='utf-8')
         written.append(str((out.parent / 'manifest.json').relative_to(site)))
-    first = load_building(bids[0])
-    (beta / 'index.html').write_text(BETA_INDEX % {'target': bids[0] + '/', 'icon': rel('beta/', site_path(first['id'], first['meta']['favicon']))}, encoding='utf-8')
+    first = load_building(bdirs[0], root)
+    # beta/ перенаправляет на первое здание (Кукурузник); тестовые здания нигде не упоминаются и ни откуда не связаны
+    (beta / 'index.html').write_text(BETA_INDEX % {'target': bdirs[0] + '/', 'icon': rel('beta/', site_path(bdirs[0], first['meta']['favicon']))}, encoding='utf-8')
     written.append('beta/index.html')
     return written
 
 
 def verify(site, bid='kukuruznik'):
-    """Сверка: CONFIG из building.json + engine/config.json (с адресами кадров как на живой странице) == CONFIG живой страницы."""
+    """Сверка: CONFIG из building.json + engine/config.json (с адресами кадров как на живой странице) == CONFIG живой страницы.
+    Ключ LOOK и STAR_CELLS появились в движке после живой страницы (этап 4) — их в живом CONFIG нет; остальное сравнивается."""
     import subprocess
     live = (Path(site) / bid / 'index.html').read_text(encoding='utf-8')
     a = live.index('var CONFIG = {')
@@ -266,7 +336,8 @@ def verify(site, bid='kukuruznik'):
     if r.returncode != 0:
         raise SystemExit('node: ' + r.stderr)
     live_cfg = json.loads(r.stdout)
-    built = make_config(load_building(bid), load_building(bid)['framesDir'])
+    bb = load_building(bid)
+    built = make_config(bb, bb['framesDir'])
     RENAMED = {'NIGHT_TOWER_LIT': 'NIGHT_MAIN_LIT'}   # этап 3: «башня» -> «главное здание»
     live_cfg.pop('hiddenFrames', None)                # этап 3: скрытые кадры убирает сборка, в CONFIG ключа нет
     diff = [k for k in live_cfg if json.dumps(live_cfg[k], sort_keys=True) != json.dumps(built.get(RENAMED.get(k, k)), sort_keys=True)]
@@ -279,10 +350,16 @@ def main():
     ap = argparse.ArgumentParser(description='Сборка страниц зданий из движка (пока — только бета).')
     ap.add_argument('--site', required=True, help='корень сайта (папка с CNAME), куда собирать')
     ap.add_argument('--verify', action='store_true', help='сверить собранный CONFIG с живой страницей здания')
+    ap.add_argument('--with-local', action='store_true', help='добавить здания только для Mac (_test/local/*): в git и в публикацию не идут')
+    ap.add_argument('--check-only', action='store_true', help='только проверить настройки зданий, ничего не собирать')
     args = ap.parse_args()
+    if args.check_only:
+        check_buildings(default_buildings(with_local=args.with_local), args.site)
+        print('настройки зданий в порядке: %s' % ', '.join(default_buildings(with_local=args.with_local)))
+        return
     if args.verify:
         print('CONFIG совпадает с живым: %d ключей' % verify(args.site))
-    for p in build_beta(args.site):
+    for p in build_beta(args.site, with_local=args.with_local):
         print('  ', p)
 
 

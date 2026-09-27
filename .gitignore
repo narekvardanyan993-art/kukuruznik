@@ -10,5 +10,5 @@ node_modules/
 # Личный журнал сессий (репозиторий публичный)
 chka-log.md
 
-# Тестовое здание для движка: кадры других пропорций — только на Mac (docs/ENGINE-PLAN.md, п.6)
-beta/_test/frames-local/
+# Тестовые здания только для Mac: кадры других пропорций (4:5) и их настройки (docs/ENGINE-PLAN.md, п.6). Делает tools/make_prop45.py
+_test/local/

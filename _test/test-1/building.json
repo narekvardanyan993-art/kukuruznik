@@ -1,0 +1,205 @@
+{
+  "format": 1,
+  "id": "test-1",
+  "meta": {
+    "url": "https://chka.am/beta/_test/test-1/",
+    "title": {
+      "hy": "Թեստ-1 — փորձնական շենք | Չկա",
+      "ru": "Тест-1 — испытательное здание | Չկա",
+      "en": "Test-1 — proving building | Չկա"
+    },
+    "description": {"hy": "Փորձնական շենք՝ շարժիչի ստուգման համար։"},
+    "ogImage": null,
+    "ogAlt": {"hy": "Փորձնական շենք՝ շարժիչի ստուգման համար"},
+    "themeColor": "#f5ecda",
+    "favicon": "../../assets/favicon-32.png",
+    "appleTouchIcon": "../../assets/icon-180.png",
+    "viewerVersion": "test"
+  },
+  "app": {"name": "Тест-1", "shortName": "Тест-1"},
+  "links": {"home": "../../", "history": null},
+  "framesDir": "../../kukuruznik/frames/",
+  "text": {
+    "title": {"hy": "Թեստ-1, 2000", "ru": "Тест-1, 2000", "en": "Test-1, 2000"},
+    "pageTitle": {
+      "hy": "Թեստ-1 — փորձնական շենք | Չկա",
+      "ru": "Тест-1 — испытательное здание | Չկա",
+      "en": "Test-1 — proving building | Չկա"
+    },
+    "plaque": {
+      "hy": "Թեստ-1 · շարժիչի ստուգում",
+      "ru": "Тест-1 · проверка движка, не настоящее здание",
+      "en": "Test-1 · engine check, not a real building"
+    },
+    "panelTitle": {"hy": "Թեստ-1", "ru": "Тест-1", "en": "Test-1"},
+    "welcome": {"hy": "Բարի գալուստ Թեստ-1", "ru": "Добро пожаловать в Тест-1", "en": "Welcome to Test-1"}
+  },
+  "facts": {
+    "fact_a": {
+      "hy": "Առաջին փորձնական փաստ։",
+      "ru": "Первый тестовый факт: здание на кадрах другого порядка.",
+      "en": "First test fact: the building on frames in another order."
+    },
+    "fact_b": {
+      "hy": "Երկրորդ փորձնական փաստ։",
+      "ru": "Второй тестовый факт: у этого здания нет рода «башня».",
+      "en": "Second test fact: this building has no tower."
+    },
+    "fact_c": {
+      "hy": "Երրորդ փորձնական փաստ։",
+      "ru": "Третий тестовый факт: подсказки берутся из настроек здания.",
+      "en": "Third test fact: hints come from the building settings."
+    },
+    "fact_d": {"hy": "Չորրորդ փորձնական փաստ։", "ru": "Четвёртый тестовый факт.", "en": "Fourth test fact."}
+  },
+  "aboutFacts": ["fact_a", "fact_c"],
+  "postcardFile": "test-1.png",
+  "look": {
+    "day": {
+      "skyTop": [0.86, 0.7, 0.9],
+      "skyHor": [0.98, 0.9, 0.88],
+      "mix": 0.55,
+      "greenHue": 0.34,
+      "greenPull": 0.6,
+      "greenSat": 1.5
+    },
+    "night": {"dim": 0.5, "mainLit": [0.5, 0.6], "otherLit": [0.1, 0.2], "mainWindowShare": 0.5},
+    "frameSize": [768, 1365],
+    "sunSide": "left"
+  },
+  "tuning": {
+    "LOOK": {
+      "lampHalo": {"core": 1.5},
+      "windowGlow": {"strength": 1.8}
+    }
+  },
+  "frames": [
+    {
+      "name": "v_angle_2",
+      "hidden": false,
+      "crop": [0, 0, 1, 1],
+      "flag": [0.347, 0.711, 0.149, 0.022],
+      "cloudShadow": 0.12,
+      "wind": 1,
+      "sky": {"ref": 0.867, "end": 0.525, "band": [0.05, 0.36], "clouds": 3},
+      "hotspots": [
+        {"key": "fact_a", "layer": "building", "u": 0.47, "v": 0.48},
+        {"key": "fact_b", "layer": "building", "u": 0.47, "v": 0.35},
+        {"key": "fact_c", "layer": "bg", "u": 0.8, "v": 0.62}
+      ],
+      "nightLamps": [
+        [0.133, 0.748, 0.133, 0.766],
+        [0.245, 0.793, 0.245, 0.823],
+        [0.229, 0.886, 0.229, 0.916],
+        [0.223, 0.952, 0.223, 0.982],
+        [0.616, 0.935, 0.616, 0.965],
+        [0.585, 0.829, 0.585, 0.859],
+        [0.737, 0.711, 0.737, 0.729],
+        [0.197, 0.63, 0.197, 0.648]
+      ],
+      "nightHalo": 0.3,
+      "lamps": [
+        [0.7344, 0.7114, 0.7344, 0.7363],
+        [0.681, 0.7143, 0.681, 0.7385],
+        [0.5391, 0.7443, 0.5391, 0.7729],
+        [0.5586, 0.781, 0.5586, 0.8117],
+        [0.5833, 0.8278, 0.5833, 0.8586]
+      ],
+      "sun": {"day": [-0.004, 0.092], "dayDrawn": true, "sunset": [0.76, 0.31], "moon": [0.22, 0.11]},
+      "life": {
+        "day": ["birds", "plane", "eagle", "cranes", "kite"],
+        "sunset": ["plane", "birds", "cranes", "lantern"],
+        "night": ["moths", "winlight", "plane", "lantern"]
+      }
+    },
+    {
+      "name": "v_angle_3",
+      "hidden": true,
+      "crop": [0.0176, 0, 0.9824, 0.9648],
+      "flag": null,
+      "cloudShadow": 0.12,
+      "wind": 1,
+      "sky": {"ref": 0.838, "end": 0.56, "band": [0.05, 0.36], "clouds": 3},
+      "hotspots": [
+        {"key": "fact_a", "layer": "building", "u": 0.5, "v": 0.55},
+        {"key": "fact_b", "layer": "building", "u": 0.5, "v": 0.38},
+        {"key": "fact_c", "layer": "bg", "u": 0.5, "v": 0.635}
+      ],
+      "nightLamps": [
+        [0.684, 0.548, 0.684, 0.593],
+        [0.215, 0.549, 0.215, 0.59],
+        [0.849, 0.555, 0.849, 0.579],
+        [0.022, 0.569, 0.022, 0.61],
+        [0.749, 0.674, 0.749, 0.736],
+        [0.12, 0.795, 0.12, 0.897],
+        [0.59, 0.769, 0.59, 0.853],
+        [0.879, 0.793, 0.879, 0.897]
+      ],
+      "nightHalo": 1,
+      "lamps": [],
+      "sun": {"day": [0.8, 0.11], "sunset": [0.86, 0.3], "moon": [0.8, 0.11]},
+      "lawn": [0.08, 0.66, 0.92, 0.9],
+      "life": {
+        "day": ["butterfly", "birds", "plane", "cranes", "balloon"],
+        "sunset": ["birds", "butterfly", "cranes", "eagle", "lantern"],
+        "night": ["fireflies", "moths", "plane", "lantern"]
+      }
+    },
+    {
+      "name": "v_angle_4",
+      "hidden": false,
+      "parade": true,
+      "night": false,
+      "sunset": false,
+      "crop": [0, 0, 1, 1],
+      "flag": null,
+      "cloudShadow": 0.12,
+      "wind": 1,
+      "sky": {"ref": 0.932, "end": 0.28, "band": [0.03, 0.16], "clouds": 2},
+      "hotspots": [
+        {"key": "fact_a", "layer": "building", "u": 0.62, "v": 0.48},
+        {"key": "fact_b", "layer": "building", "u": 0.62, "v": 0.38},
+        {"key": "fact_c", "layer": "bg", "u": 0.87, "v": 0.25},
+        {"key": "fact_d", "layer": "bg", "u": 0.9, "v": 0.58}
+      ],
+      "nightLamps": [],
+      "nightHalo": 1,
+      "lamps": [],
+      "sun": {"day": [0.2, 0.075], "sunset": [0.2, 0.16], "moon": [0.2, 0.08]},
+      "life": {
+        "day": ["birds", "plane", "cranes"],
+        "sunset": ["plane", "birds", "cranes"],
+        "night": ["plane", "winlight", "lantern"]
+      }
+    },
+    {
+      "name": "v_angle_0",
+      "hidden": false,
+      "crop": [0, 0, 1, 1],
+      "flag": null,
+      "cloudShadow": 0.12,
+      "wind": 1,
+      "sky": {"ref": 0.866, "end": 0.55, "band": [0.04, 0.34], "clouds": 3},
+      "hotspots": [
+        {"key": "fact_a", "layer": "building", "u": 0.5, "v": 0.5},
+        {"key": "fact_b", "layer": "building", "u": 0.5, "v": 0.36},
+        {"key": "fact_d", "layer": "bg", "u": 0.15, "v": 0.6}
+      ],
+      "nightLamps": [
+        [0.854, 0.577, 0.854, 0.608],
+        [0.939, 0.588, 0.939, 0.619],
+        [0.134, 0.773, 0.134, 0.839],
+        [0.951, 0.763, 0.951, 0.828],
+        [0.681, 0.79, 0.681, 0.853]
+      ],
+      "nightHalo": 1,
+      "lamps": [],
+      "sun": {"day": [0.2, 0.11], "sunset": [0.28, 0.29], "moon": [0.2, 0.12]},
+      "life": {
+        "day": ["birds", "plane", "butterfly", "cranes", "kite"],
+        "sunset": ["birds", "plane", "cranes", "kite", "lantern"],
+        "night": ["plane", "moths", "winlight", "lantern", "cranes"]
+      }
+    }
+  ]
+}

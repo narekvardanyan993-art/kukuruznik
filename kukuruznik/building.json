@@ -60,12 +60,12 @@
   },
   "look": {
     "day": {
-      "SKY_TOP": [0.58, 0.78, 0.97],
-      "SKY_HOR": [0.83, 0.92, 0.99],
-      "MIX": 0.55,
-      "GREEN_HUE": 0.3,
-      "GREEN_PULL": 0.78,
-      "GREEN_SAT": 1.9
+      "skyTop": [0.58, 0.78, 0.97],
+      "skyHor": [0.83, 0.92, 0.99],
+      "mix": 0.55,
+      "greenHue": 0.3,
+      "greenPull": 0.78,
+      "greenSat": 1.9
     },
     "night": {"dim": 0.64, "mainLit": [0.3, 0.4], "otherLit": [0.15, 0.25], "mainWindowShare": 0.75},
     "frameSize": [768, 1365],
@@ -275,5 +275,6 @@
   ],
   "aboutFacts": ["tower1", "tower2", "architects"],
   "postcardFile": "kukuruznik-1979.png",
-  "app": {"name": "Кукурузник — Дом молодёжи", "shortName": "Кукурузник"}
+  "app": {"name": "Кукурузник — Дом молодёжи", "shortName": "Кукурузник"},
+  "tuning": {}
 }

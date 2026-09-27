@@ -44,18 +44,19 @@ def git(cwd, *args, check=True):
     return r.stdout.strip()
 
 
-BUILDINGS = ('kukuruznik',)   # здания беты; первое — куда ведёт beta/
+LIVE_TWINS = ('kukuruznik',)   # здания беты, у которых есть живой двойник на сайте: бета-версия строго равна живой
+                               # (тестовые здания _test/* — только в бете, живого двойника у них нет: для них работают проверки структуры)
 
 
 def build_beta(main_dir):
-    """Собирает бету в <main_dir>/beta из engine/ и <здание>/building.json. Возвращает список записанных файлов."""
-    return build_pages.build_beta(main_dir, BUILDINGS)
+    """Собирает бету в <main_dir>/beta из engine/ и <здание>/building.json (Кукурузник + тестовые). Возвращает список записанных файлов."""
+    return build_pages.build_beta(main_dir)
 
 
 def run_check(candidate, expect_change=False):
     """Запускает tools/check_site.mjs: origin/main против собранного кандидата. True — зелёная проверка."""
-    pairs = ','.join('beta/%s=%s' % (b, b) for b in BUILDINGS)   # бета-здание — строго против живого здания
-    allow = 'beta' + (''.join(',beta/%s' % b for b in BUILDINGS) if expect_change else '')
+    pairs = ','.join('beta/%s=%s' % (b, b) for b in LIVE_TWINS)   # бета-здание — строго против живого здания
+    allow = 'beta' + (''.join(',beta/%s' % b for b in LIVE_TWINS) if expect_change else '')
     r = subprocess.run(['node', str(ROOT / 'tools' / 'check_site.mjs'), '--candidate', str(candidate), '--allow-change', allow, '--compare-as', pairs], cwd=str(ROOT))
     if r.returncode == 0:
         return True
@@ -91,6 +92,9 @@ def main():
     print('%sвременный worktree: %s (от %s/%s = %s)' % (tag, tmp, REMOTE, BRANCH, base[:7]))
     try:
         git(ROOT, 'worktree', 'add', '--detach', str(tmp), base)
+        st = subprocess.run([sys.executable, str(ROOT / 'tools' / 'test_build_pages.py')], capture_output=True, text=True)   # самопроверка сборщика: испорченные настройки должны останавливать сборку
+        if st.returncode != 0:
+            raise SystemExit('самопроверка сборщика (tools/test_build_pages.py) красная:\n' + st.stdout[-3000:])
         files = build_beta(tmp)
         print('%sсобрано в beta/: %d файлов (движок %s)' % (tag, len(files), build_pages.engine_version()))
 
