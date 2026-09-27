@@ -2041,3 +2041,10 @@ Custom domain, сохранить, подождать минуту и вписа
 - Подготовлено и закоммичено в ветку (137f0d7): build_pages.py собирает живые здания на engine/ (живой движок ставится только из проверенной беты; если движок на сайте ≠ исходник — стоп), publish_engine.py (бета → engine/ + пересборка всех зданий одним коммитом, строгая проверка, --diff для показа), publish_kukuruznik.py из building.json, ?v= у шрифтов движка, check_site сверяет шапку/превью (og, twitter, title, canonical, robots, значки) в сыром HTML, самопроверка сборщика дополнена.
 - Сборка кандидата (копия main): меняются только beta/*/index.html (?v у шрифтов), kukuruznik/index.html (на engine/), kukuruznik/manifest.json (цвет бумаги, решение плана), новый engine/; шапка/превью Кукурузника — без изменений (добавлены только manifest и engine-version).
 - Следующий шаг: на Mac `python3 tools/publish_engine.py --dry-run --diff ~/Documents/chka-kitchen/engine-diff.txt` → показать diff → «ок» → `python3 tools/publish_engine.py` → тег kukuruznik-v12.1-engine → живая проверка → правила из этапа 5 в CLAUDE.md/AGENTS.md.
+
+## Вынос движка — этап 5: сделан (28.09.2026)
+- Проверка на Mac зелёная (270 снимков, 0 различий, fps 60,4–60,7, превью без изменений) → «ок» владельца → `python3 tools/publish_engine.py` с Mac: main dff7bb8 (17 файлов: engine/, kukuruznik/index.html и manifest.json, ?v у шрифтов трёх бета-страниц). Откат: `git revert dff7bb8`.
+- Живая проверка на iPhone: страница, «домой», «История здания», парад, превью — работает.
+- Правила (CLAUDE.md, AGENTS.md): заморозка старого кода снята, всё только в engine/ и building.json; порядок публикаций. План — раздел «Этап 5».
+- Тег kukuruznik-v12.1-engine из облака не пушится (прокси обрывает) — ставится с Mac.
+- Следующий шаг: этап 6 — список старья на «ок», перенаправления scene3d.html и webgl/, новые 01-PROJECT.md и NOVOE-ZDANIE.md.
