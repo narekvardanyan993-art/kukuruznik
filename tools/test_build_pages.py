@@ -110,14 +110,14 @@ def main():
         print('%s  целые настройки (%s) собираются: %d файлов' % ('OK   ' if good else 'ОШИБКА', ', '.join(bdirs), len(files)))
         ok_all &= good
         # тестовые здания нигде не упоминаются: ни в перенаправлении беты, ни в страницах Кукурузника
-        leak = [f for f in ('beta/index.html', 'beta/kukuruznik/index.html', 'beta/kukuruznik/manifest.json') if '_test' in (site / f).read_text(encoding='utf-8')]
+        leak = [f for f in ('beta/index.html', 'beta/kukuruznik/index.html', 'beta/kukuruznik/manifest.json') if 'tests' in (site / f).read_text(encoding='utf-8')]
         print('%s  тестовые здания нигде не упоминаются%s' % ('OK   ' if not leak else 'ОШИБКА', (': ' + ', '.join(leak)) if leak else ''))
         ok_all &= not leak
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     # переопределение чисел движка настройками здания (tuning): Тест-1 переопределяет два числа, остальное остаётся как у движка; Тест-2 не переопределяет
     e = json.loads((bp.ENGINE / 'config.json').read_text(encoding='utf-8'))
-    c1, c2 = bp.make_config(bp.load_building('_test/test-1'), 'x/'), bp.make_config(bp.load_building('_test/test-2'), 'x/')
+    c1, c2 = bp.make_config(bp.load_building('tests/test-1'), 'x/'), bp.make_config(bp.load_building('tests/test-2'), 'x/')
     ok_t = (c1['LOOK']['lampHalo']['core'] == 1.5 and c1['LOOK']['windowGlow']['strength'] == 1.8
             and c1['LOOK']['lampHalo']['coreSize'] == e['LOOK']['lampHalo']['coreSize'] and c1['LOOK']['stars'] == e['LOOK']['stars']
             and c2['LOOK'] == e['LOOK'])

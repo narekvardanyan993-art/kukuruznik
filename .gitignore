@@ -11,4 +11,4 @@ node_modules/
 chka-log.md
 
 # Тестовые здания только для Mac: кадры других пропорций (4:5) и их настройки (docs/ENGINE-PLAN.md, п.6). Делает tools/make_prop45.py
-_test/local/
+tests/local/

@@ -147,7 +147,7 @@ function discover(root) {
     if (isViewer(dir)) targets.push({ id: dir, kind: 'viewer', url: '/' + dir + '/' });
     for (const pg of ['about', 'history']) if (has(`${dir}/${pg}.html`)) targets.push({ id: `${dir}/${pg}`, kind: 'page', url: `/${dir}/${pg}.html` });
   };
-  const walkBeta = (dir, depth) => {   // beta/<здание>, beta/_test/<здание>, beta/_test/local/<здание>: любая папка с просмотрщиком
+  const walkBeta = (dir, depth) => {   // beta/<здание>, beta/tests/<здание>, beta/tests/local/<здание>: любая папка с просмотрщиком
     for (const x of fs.readdirSync(path.join(root, dir), { withFileTypes: true }).filter((e) => e.isDirectory() && !SKIP_DIRS.has(e.name) && e.name !== 'engine').map((e) => e.name).sort()) {
       addDir(`${dir}/${x}`);
       if (depth < 3) walkBeta(`${dir}/${x}`, depth + 1);
@@ -418,7 +418,7 @@ async function captureWalk(browser, origin, target, vpName, outDir) {
 
 // ---------- проверка структуры здания (настройки == то, что на странице) ----------
 // Для КАЖДОГО просмотрщика: точки-подсказки на каждом кадре = числу в настройках; кнопка парада только на своём кадре (нет парада — нет кнопки);
-// кадр без закатной/ночной картинки закатом и ночью не ломается и не пустой; у тестовых зданий (…/_test/…) нигде — ни в тексте, ни в подписях,
+// кадр без закатной/ночной картинки закатом и ночью не ломается и не пустой; у тестовых зданий (…/tests/…) нигде — ни в тексте, ни в подписях,
 // ни на одном языке — нет слов «Кукурузник / Կուկուռուզնիկ / Kukuruznik». Ссылки и адреса файлов (kukuruznik/frames/…) не считаются — это не текст.
 const FORBIDDEN = /кукуруз|kukuruz|կուկուռ/i;
 async function checkStructure(browser, origin, target) {
@@ -463,7 +463,7 @@ async function checkStructure(browser, origin, target) {
       info.parade.push(cfg.pf < 0 ? 'нет' : (onFrame ? 'горит' : 'погашена'));
     }
     // запретные слова у тестовых зданий (все языки): текст страницы, подписи, заголовок, мета, тексты из настроек
-    if (/\/_test\//.test(target.url)) {
+    if (/\/tests\//.test(target.url)) {
       for (const l of cfg.langs) {
         await page.evaluate((lg) => document.querySelector('#langSeg [data-lang=' + lg + ']').click(), l);
         await adv(300);

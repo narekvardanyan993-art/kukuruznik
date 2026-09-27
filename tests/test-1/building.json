@@ -1,12 +1,12 @@
 {
   "format": 1,
-  "id": "test-2",
+  "id": "test-1",
   "meta": {
-    "url": "https://chka.am/beta/_test/test-2/",
+    "url": "https://chka.am/beta/tests/test-1/",
     "title": {
-      "hy": "Թեստ-2 — փորձնական շենք | Չկա",
-      "ru": "Тест-2 — испытательное здание | Չկա",
-      "en": "Test-2 — proving building | Չկա"
+      "hy": "Թեստ-1 — փորձնական շենք | Չկա",
+      "ru": "Тест-1 — испытательное здание | Չկա",
+      "en": "Test-1 — proving building | Չկա"
     },
     "description": {"hy": "Փորձնական շենք՝ շարժիչի ստուգման համար։"},
     "ogImage": null,
@@ -16,23 +16,23 @@
     "appleTouchIcon": "../../assets/icon-180.png",
     "viewerVersion": "test"
   },
-  "app": {"name": "Тест-2", "shortName": "Тест-2"},
+  "app": {"name": "Тест-1", "shortName": "Тест-1"},
   "links": {"home": "../../", "history": null},
   "framesDir": "../../kukuruznik/frames/",
   "text": {
-    "title": {"hy": "Թեստ-2, 2000", "ru": "Тест-2, 2000", "en": "Test-2, 2000"},
+    "title": {"hy": "Թեստ-1, 2000", "ru": "Тест-1, 2000", "en": "Test-1, 2000"},
     "pageTitle": {
-      "hy": "Թեստ-2 — փորձնական շենք | Չկա",
-      "ru": "Тест-2 — испытательное здание | Չկա",
-      "en": "Test-2 — proving building | Չկա"
+      "hy": "Թեստ-1 — փորձնական շենք | Չկա",
+      "ru": "Тест-1 — испытательное здание | Չկա",
+      "en": "Test-1 — proving building | Չկա"
     },
     "plaque": {
-      "hy": "Թեստ-2 · շարժիչի ստուգում",
-      "ru": "Тест-2 · проверка движка, не настоящее здание",
-      "en": "Test-2 · engine check, not a real building"
+      "hy": "Թեստ-1 · շարժիչի ստուգում",
+      "ru": "Тест-1 · проверка движка, не настоящее здание",
+      "en": "Test-1 · engine check, not a real building"
     },
-    "panelTitle": {"hy": "Թեստ-2", "ru": "Тест-2", "en": "Test-2"},
-    "welcome": {"hy": "Բարի գալուստ Թեստ-2", "ru": "Добро пожаловать в Тест-2", "en": "Welcome to Test-2"}
+    "panelTitle": {"hy": "Թեստ-1", "ru": "Тест-1", "en": "Test-1"},
+    "welcome": {"hy": "Բարի գալուստ Թեստ-1", "ru": "Добро пожаловать в Тест-1", "en": "Welcome to Test-1"}
   },
   "facts": {
     "fact_a": {
@@ -53,7 +53,7 @@
     "fact_d": {"hy": "Չորրորդ փորձնական փաստ։", "ru": "Четвёртый тестовый факт.", "en": "Fourth test fact."}
   },
   "aboutFacts": ["fact_a", "fact_c"],
-  "postcardFile": "test-2.png",
+  "postcardFile": "test-1.png",
   "look": {
     "day": {
       "skyTop": [0.86, 0.7, 0.9],
@@ -67,7 +67,12 @@
     "frameSize": [768, 1365],
     "sunSide": "left"
   },
-  "tuning": {},
+  "tuning": {
+    "LOOK": {
+      "lampHalo": {"core": 1.5},
+      "windowGlow": {"strength": 1.8}
+    }
+  },
   "frames": [
     {
       "name": "v_angle_2",
@@ -143,6 +148,7 @@
     {
       "name": "v_angle_4",
       "hidden": false,
+      "parade": true,
       "night": false,
       "sunset": false,
       "crop": [0, 0, 1, 1],
@@ -167,27 +173,32 @@
       }
     },
     {
-      "name": "v_angle_5",
+      "name": "v_angle_0",
       "hidden": false,
-      "crop": [0.056, 0.0667, 0.9505, 0.9612],
+      "crop": [0, 0, 1, 1],
       "flag": null,
-      "cloudShadow": 0.26,
-      "wind": 1.9,
-      "sky": {"ref": 0.893, "end": 0.7, "band": [0.02, 0.06], "clouds": 1, "cloudScale": 0.42},
+      "cloudShadow": 0.12,
+      "wind": 1,
+      "sky": {"ref": 0.866, "end": 0.55, "band": [0.04, 0.34], "clouds": 3},
       "hotspots": [
-        {"key": "fact_a", "layer": "building", "u": 0.45, "v": 0.45},
-        {"key": "fact_b", "layer": "building", "u": 0.55, "v": 0.12},
-        {"key": "fact_c", "layer": "bg", "u": 0.5, "v": 0.88}
+        {"key": "fact_a", "layer": "building", "u": 0.5, "v": 0.5},
+        {"key": "fact_b", "layer": "building", "u": 0.5, "v": 0.36},
+        {"key": "fact_d", "layer": "bg", "u": 0.15, "v": 0.6}
       ],
-      "nightLamps": [[0.589, 0.929, 0.589, 0.963], [0.794, 0.925, 0.794, 0.96], [0.742, 0.916, 0.742, 0.94]],
-      "nightHalo": 0.3,
-      "lamps": [[0.7396, 0.9172, 0.7396, 0.9648]],
-      "sun": {"day": [0.08, 0.065], "sunset": [0.08, 0.1], "moon": [0.08, 0.07]},
-      "life": {"day": ["birds", "plane", "cranes"], "sunset": ["birds", "plane"], "night": ["moths", "plane", "winlight"]},
-      "closeUp": {
-        "glints": true,
-        "perch": [[0.34, 0.108], [0.4, 0.098], [0.46, 0.092], [0.52, 0.089], [0.58, 0.09], [0.64, 0.095], [0.69, 0.104]],
-        "mast": [0.735, 0.136, 0.735, 0.097]
+      "nightLamps": [
+        [0.854, 0.577, 0.854, 0.608],
+        [0.939, 0.588, 0.939, 0.619],
+        [0.134, 0.773, 0.134, 0.839],
+        [0.951, 0.763, 0.951, 0.828],
+        [0.681, 0.79, 0.681, 0.853]
+      ],
+      "nightHalo": 1,
+      "lamps": [],
+      "sun": {"day": [0.2, 0.11], "sunset": [0.28, 0.29], "moon": [0.2, 0.12]},
+      "life": {
+        "day": ["birds", "plane", "butterfly", "cranes", "kite"],
+        "sunset": ["birds", "plane", "cranes", "kite", "lantern"],
+        "night": ["plane", "moths", "winlight", "lantern", "cranes"]
       }
     }
   ]

@@ -4,8 +4,8 @@
   python3 tools/make_prop45.py
 
 Берёт кадры Кукурузника с живого сайта (origin/main), режет из каждого слоя окно 768×960 (пропорция 4:5, y 150…1110) и пишет
-  _test/local/prop45/frames/*.webp   — обрезанные кадры (8 слоёв на кадр)
-  _test/local/prop45/building.json   — настройки здания: те же точки, фонари, небо, солнце, флаги, газон, но пересчитанные под окно.
+  tests/local/prop45/frames/*.webp   — обрезанные кадры (8 слоёв на кадр)
+  tests/local/prop45/building.json   — настройки здания: те же точки, фонари, небо, солнце, флаги, газон, но пересчитанные под окно.
 Дальше: python3 tools/check_local.py — соберёт бету с этим зданием во временной копии и прогонит проверку (в публикацию не попадает).
 Пересчёт координат — честный: v' = (v·1365 − 150) / 960 (u не меняется); то, что после обрезки вышло за кадр, из настроек убирается.
 Никаких подгонок под 4:5 в движке нет: всё, что «поехало», чинится в движке через размер кадра (look.frameSize) и настройки.
@@ -23,7 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import build_pages as bp   # noqa: E402
 
 ROOT = bp.ROOT
-OUT = ROOT / '_test' / 'local' / 'prop45'
+OUT = ROOT / 'tests' / 'local' / 'prop45'
 SRC_FRAMES = ['v_angle_0', 'v_angle_1', 'v_angle_2']
 NEW = {'v_angle_0': 'p45_a', 'v_angle_1': 'p45_b', 'v_angle_2': 'p45_c'}
 LAYERS = ['', '_depth', '_bg', '_building', '_env', '_win2', '_sunset', '_night']
@@ -59,7 +59,7 @@ def main():
             else:
                 c.convert('RGB').save(dst, 'WEBP', quality=90, method=6)
     K = bp.load_building('kukuruznik')
-    T1 = bp.load_building('_test/test-1')
+    T1 = bp.load_building('tests/test-1')
     facts = T1['facts']
     keymap = {'tower1': 'fact_a', 'tower2': 'fact_b', 'architects': 'fact_c', 'mother_armenia': 'fact_d', 'construction': 'fact_d'}
     frames = []
@@ -96,7 +96,7 @@ def main():
         frames.append(g)
     B = copy.deepcopy(T1)
     B['id'] = 'prop45'
-    B['meta'].update({'url': 'https://chka.am/beta/_test/local/prop45/', 'favicon': '../../../assets/favicon-32.png', 'appleTouchIcon': '../../../assets/icon-180.png'})
+    B['meta'].update({'url': 'https://chka.am/beta/tests/local/prop45/', 'favicon': '../../../assets/favicon-32.png', 'appleTouchIcon': '../../../assets/icon-180.png'})
     B['links'] = {'home': '../../../', 'history': None}
     B['framesDir'] = 'frames/'
     B['facts'] = facts

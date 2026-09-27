@@ -33,11 +33,11 @@ import building_schema   # noqa: E402  проверка настроек зда�
 ROOT = Path(__file__).resolve().parent.parent
 ENGINE = ROOT / 'engine'
 LANGS = ('hy', 'ru', 'en')
-LOCAL_DIR = '_test/local'   # здания только для Mac (в git не идут): _test/local/<имя>/building.json + frames/
+LOCAL_DIR = 'tests/local'   # здания только для Mac (в git не идут): tests/local/<имя>/building.json + frames/
 
 
 def load_building(bdir, root=None):
-    """building.json здания из папки bdir (например 'kukuruznik' или '_test/test-1'). Ошибка чтения — понятным текстом."""
+    """building.json здания из папки bdir (например 'kukuruznik' или 'tests/test-1'). Ошибка чтения — понятным текстом."""
     f = Path(root or ROOT) / bdir / 'building.json'
     try:
         b = json.loads(f.read_text(encoding='utf-8'))
@@ -49,18 +49,18 @@ def load_building(bdir, root=None):
 
 
 def default_buildings(root=None, with_local=False):
-    """Здания беты: Кукурузник + тестовые (_test/*/building.json в git) [+ локальные для Mac]. Первое — куда ведёт beta/."""
+    """Здания беты: Кукурузник + тестовые (tests/*/building.json в git) [+ локальные для Mac]. Первое — куда ведёт beta/."""
     root = Path(root or ROOT)
     out = ['kukuruznik']
-    t = root / '_test'
+    t = root / 'tests'
     if t.is_dir():
         for d in sorted(t.iterdir()):
             if d.name != 'local' and (d / 'building.json').exists():
-                out.append('_test/' + d.name)
+                out.append('tests/' + d.name)
         if with_local and (t / 'local').is_dir():
             for d in sorted((t / 'local').iterdir()):
                 if (d / 'building.json').exists():
-                    out.append('_test/local/' + d.name)
+                    out.append('tests/local/' + d.name)
     return out
 
 
@@ -350,7 +350,7 @@ def main():
     ap = argparse.ArgumentParser(description='Сборка страниц зданий из движка (пока — только бета).')
     ap.add_argument('--site', required=True, help='корень сайта (папка с CNAME), куда собирать')
     ap.add_argument('--verify', action='store_true', help='сверить собранный CONFIG с живой страницей здания')
-    ap.add_argument('--with-local', action='store_true', help='добавить здания только для Mac (_test/local/*): в git и в публикацию не идут')
+    ap.add_argument('--with-local', action='store_true', help='добавить здания только для Mac (tests/local/*): в git и в публикацию не идут')
     ap.add_argument('--check-only', action='store_true', help='только проверить настройки зданий, ничего не собирать')
     args = ap.parse_args()
     if args.check_only:
