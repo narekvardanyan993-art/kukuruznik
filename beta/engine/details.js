@@ -41,7 +41,9 @@
   function seeded(seed) {   // mulberry32: раскладка неба на кадре одна и та же при каждом заходе
     return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; var t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
   }
-  function sf() { return UNIT / 470; }   // масштаб размеров в пикселях: 1 — на телефоне
+  function sf() { return UNIT / 470; }
+  function C(a) { return a[0] + ',' + a[1] + ',' + a[2]; }   // цвет [r, g, b] -> «r,g,b» для rgba(…)
+  function SB() { return root.CONFIG.LOOK.skyBodies; }   // цвета солнца, заката и луны (LOOK.skyBodies в настройках движка; здание переопределяет через tuning)   // масштаб размеров в пикселях: 1 — на телефоне
 
   // время суток: day / sunset / night, между ними (идёт переход) — null, новых событий нет
   function todKey() {
@@ -58,7 +60,7 @@
   }
   function mix3(a, b, c, w) { return [a[0] * w.d + b[0] * w.s + c[0] * w.n, a[1] * w.d + b[1] * w.s + c[1] * w.n, a[2] * w.d + b[2] * w.s + c[2] * w.n]; }
   function rgb(a) { return Math.round(a[0]) + ',' + Math.round(a[1]) + ',' + Math.round(a[2]); }
-  function ink() { return rgb(mix3([58, 51, 42], [90, 58, 44], [190, 200, 225], wts())); }
+  function ink() { var k = root.CONFIG.LOOK.ink; return rgb(mix3(k.day, k.sunset, k.night, wts())); }   // цвет карандаша по времени суток (LOOK.ink)
 
   function ensureCanvas() {
     if (cv) return;
@@ -187,11 +189,11 @@
     var i, ang, p, r;
     if (w.d > 0.01) {   // день: диск карандашом, лучи, ореол
       var S = SC(fr), sd = S.sunDay, drawnSun = !!S.sunDayDrawn; p = P(sd[0], sd[1], 0); r = 0.026 * UNIT;
-      glow(p[0], p[1], r * 4.6, '255,236,170', (drawnSun ? 0.30 : 0.26) * w.d * (0.88 + 0.12 * sh));
+      glow(p[0], p[1], r * 4.6, C(SB().sunGlow), (drawnSun ? 0.30 : 0.26) * w.d * (0.88 + 0.12 * sh));
       if (!drawnSun) {
-        ctx.fillStyle = 'rgba(255,238,168,' + 0.92 * w.d + ')'; ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, 6.283); ctx.fill();
-        ctx.strokeStyle = 'rgba(96,74,44,' + 0.6 * w.d + ')'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, 6.283); ctx.stroke();
-        ctx.lineWidth = 0.7; ctx.strokeStyle = 'rgba(96,74,44,' + 0.32 * w.d + ')'; ctx.beginPath(); ctx.arc(p[0] + 0.6, p[1] + 0.4, r * 1.08, 0.3, 5.6); ctx.stroke();
+        ctx.fillStyle = 'rgba(' + C(SB().sunDisc) + ',' + 0.92 * w.d + ')'; ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, 6.283); ctx.fill();
+        ctx.strokeStyle = 'rgba(' + C(SB().sunOutline) + ',' + 0.6 * w.d + ')'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, 6.283); ctx.stroke();
+        ctx.lineWidth = 0.7; ctx.strokeStyle = 'rgba(' + C(SB().sunOutline) + ',' + 0.32 * w.d + ')'; ctx.beginPath(); ctx.arc(p[0] + 0.6, p[1] + 0.4, r * 1.08, 0.3, 5.6); ctx.stroke();
         for (i = 0; i < 12; i++) {   // лучи: длина и яркость чуть мерцают, у каждого свой ритм
           ang = i * 0.5236 + 0.15; var lo = r * 1.35, len = r * (0.5 + 0.22 * (i % 2)) * (0.82 + 0.28 * Math.sin(t * 1.9 + i * 1.7));
           ctx.strokeStyle = 'rgba(120,88,40,' + (0.32 + 0.22 * Math.sin(t * 1.5 + i * 2.1)) * w.d + ')'; ctx.lineWidth = 0.9;
@@ -201,18 +203,18 @@
     }
     if (w.s > 0.01) {   // закат: низкое красное солнце, широкий тёплый ореол
       var ss = SC(fr).sunSet; p = P(ss[0], ss[1], 0); r = 0.033 * UNIT;
-      glow(p[0], p[1], r * 5.4, '255,150,80', 0.36 * w.s * (0.9 + 0.1 * sh));
-      ctx.fillStyle = 'rgba(255,128,64,' + 0.88 * w.s + ')'; ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, 6.283); ctx.fill();
-      ctx.strokeStyle = 'rgba(120,52,32,' + 0.5 * w.s + ')'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, 6.283); ctx.stroke();
+      glow(p[0], p[1], r * 5.4, C(SB().sunsetGlow), 0.36 * w.s * (0.9 + 0.1 * sh));
+      ctx.fillStyle = 'rgba(' + C(SB().sunsetDisc) + ',' + 0.88 * w.s + ')'; ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, 6.283); ctx.fill();
+      ctx.strokeStyle = 'rgba(' + C(SB().sunsetOutline) + ',' + 0.5 * w.s + ')'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, 6.283); ctx.stroke();
     }
     if (w.n > 0.01) {   // ночь: луна-серп с ореолом, лёгкое мерцание
       var mo = SC(fr).moon; p = P(mo[0], mo[1], 0); r = 0.022 * UNIT;
-      glow(p[0], p[1], r * 5, '200,214,255', 0.28 * w.n * (0.9 + 0.1 * sh));
+      glow(p[0], p[1], r * 5, C(SB().moonGlow), 0.28 * w.n * (0.9 + 0.1 * sh));
       ctx.save(); ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, 6.283); ctx.clip();   // серп: диск минус сдвинутый круг (внутри диска)
       ctx.globalAlpha = 0.95 * w.n; ctx.fillStyle = '#f3efdc';
       ctx.beginPath(); ctx.rect(p[0] - r * 2, p[1] - r * 2, r * 4, r * 4); ctx.arc(p[0] + r * 0.52, p[1] - r * 0.14, r * 0.86, 0, 6.283); ctx.fill('evenodd');
       ctx.restore();
-      ctx.strokeStyle = 'rgba(190,200,230,' + 0.45 * w.n + ')'; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.arc(p[0], p[1], r, 0.8, 5.5); ctx.stroke();
+      ctx.strokeStyle = 'rgba(' + C(SB().moonOutline) + ',' + 0.45 * w.n + ')'; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.arc(p[0], p[1], r, 0.8, 5.5); ctx.stroke();
     }
   }
 

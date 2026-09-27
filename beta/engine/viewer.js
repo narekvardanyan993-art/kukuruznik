@@ -162,6 +162,11 @@
   var FW = CONFIG.FRAME_SIZE[0], FH = CONFIG.FRAME_SIZE[1];   // размер исходного кадра здания, пиксели
   var SUN_RIGHT = CONFIG.SUN_SIDE !== 'left';                 // с какой стороны солнце у заката без картинки
   function vec3lit(a) { return 'vec3(' + a.map(function (x) { return x.toFixed(4); }).join(',') + ')'; }
+  // Числа внешнего вида (CONFIG.LOOK: закат, ночь, звёзды, свет окон, фонари) — из настроек; здание может переопределить любое (tuning).
+  var LK = CONFIG.LOOK;
+  function glf(x) { return Number.isInteger(x) ? x.toFixed(1) : String(x); }                    // число -> литерал GLSL
+  function v3(a) { return 'vec3(' + a.map(glf).join(', ') + ')'; }
+  var STAR_CELLS = [Math.max(1, Math.round(FW / LK.stars.cell)), Math.max(1, Math.round(FH / LK.stars.cell))];   // сетка звёзд: ячейка ~LK.stars.cell пикселей кадра, любой размер кадра
   var SCENE_FRAG = [
     'precision highp float;',
     'varying vec2 vUv;',
@@ -310,12 +315,12 @@
     NI ? '  float hasSv = has.x, hasNv = has.y;' : '  float hasSv = 0.0, hasNv = 0.0;',
     // ---- закат: тёплый оранжево-розовый тон, свечение с одной стороны, окна отражают закат ----
     '  if (uSunset > 0.001 && hasSv < 0.5) {',
-    '    vec3 warm = c * vec3(1.05, 0.87, 0.68);',
-    '    vec3 skyTint = mix(vec3(1.0, 0.60, 0.64), vec3(1.0, 0.68, 0.40), smoothstep(0.10, 0.62, sc.y));',
+    '    vec3 warm = c * ' + v3(LK.sunsetProc.tint) + ';',
+    '    vec3 skyTint = mix(' + v3(LK.sunsetProc.skyLow) + ', ' + v3(LK.sunsetProc.skyHigh) + ', smoothstep(0.10, 0.62, sc.y));',
     '    warm = mix(warm, c * skyTint * 1.02 + skyTint * 0.05, sky * 0.85);',
     '    vec2 gd = (sc - vec2(' + (SUN_RIGHT ? '1.08' : '-0.08') + ', 0.52)) * vec2(uAspect * 0.9, 1.0);',   // свечение со стороны солнца (SUN_SIDE здания)
-    '    warm += vec3(1.0, 0.52, 0.22) * exp(-dot(gd, gd) * 5.0) * 0.24;',
-    '    warm += vec3(1.0, 0.74, 0.44) * winBase * 0.22;',
+    '    warm += ' + v3(LK.sunsetProc.glowColor) + ' * exp(-dot(gd, gd) * 5.0) * ' + glf(LK.sunsetProc.glowStrength) + ';',
+    '    warm += ' + v3(LK.sunsetProc.windowColor) + ' * winBase * ' + glf(LK.sunsetProc.windowStrength) + ';',
     '    c = mix(c, warm, uSunset);',
     '  }',
     // ---- ночной кадр-картинка: дневной кадр плавно растворяется в ночной (земля — в координатах фона, главное здание — в своих) ----
@@ -329,10 +334,10 @@
     NI ? '  }' : '',
     // ---- ночь: без картинки вся сцена тёмно-синяя (30–35%), небо темнее земли, огни; звёзды — поверх всегда ----
     '  if (uNightSky > 0.001 || uNightGnd > 0.001 || uStars > 0.001) {',
-    '    vec3 nc = hasNv > 0.5 ? c : mix(mix(c, c * vec3(0.27, 0.34, 0.56), uNightGnd), mix(c, c * vec3(0.14, 0.20, 0.40), uNightSky), sky);',
+    '    vec3 nc = hasNv > 0.5 ? c : mix(mix(c, c * ' + v3(LK.nightProc.ground) + ', uNightGnd), mix(c, c * ' + v3(LK.nightProc.sky) + ', uNightSky), sky);',
     '    float star = 0.0;',
     '    if (sky > 0.02 && starQ > 0.0) {',
-    '      vec2 g = pc * vec2(32.0, 57.0);',
+    '      vec2 g = pc * vec2(' + glf(STAR_CELLS[0]) + ', ' + glf(STAR_CELLS[1]) + ');',   // звёздная сетка: ячеек по ширине и высоте кадра (от размера кадра здания)
     '      vec2 cell = floor(g);',
     '      if (h21(cell) < starQ) {',
     '        vec2 sp = vec2(0.15 + 0.7 * h21(cell + 7.3), 0.15 + 0.7 * h21(cell + 19.1));',
@@ -351,8 +356,8 @@
     '      float hh = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);',
     '      star += smoothstep(0.004, 0.0, length(pa - ba * hh)) * hh * sin(3.1416 * uShootP.x) * 1.5;',
     '    }',
-    '    nc += vec3(0.86, 0.92, 1.0) * star * sky * uStars;',
-    '    nc += vec3(1.0, 0.80, 0.42) * winNight * 1.05 + vec3(1.0, 0.70, 0.30) * winNight * winNight * 0.25;',
+    '    nc += ' + v3(LK.stars.color) + ' * star * sky * uStars;',
+    '    nc += ' + v3(LK.windowGlow.color) + ' * winNight * ' + glf(LK.windowGlow.strength) + ' + ' + v3(LK.windowGlow.color2) + ' * winNight * winNight * ' + glf(LK.windowGlow.strength2) + ';',
     '    c = nc;',
     '  }',
     '  return vec4(c, sky);',   // a — доля неба в точке (тень облака на небо не кладём)
@@ -389,7 +394,7 @@
     '  vec3 c = texture2D(uScene, vTc).rgb;',
     '  if (uSunset > 0.001) {',
     // тени длиннее: тёмное «стекает» вдоль направления от низкого солнца
-    '    vec2 dir = vec2(' + (SUN_RIGHT ? '1.0' : '-1.0') + ', -0.28) * 0.012;',   // тени «стекают» от солнца (SUN_SIDE здания)
+    '    vec2 dir = vec2(' + (SUN_RIGHT ? '1.0' : '-1.0') + ', -0.28) * ' + glf(LK.sunsetSmear.length) + ';',   // тени «стекают» от солнца (SUN_SIDE здания)
     '    float smear = 0.0;',
     '    for (int i = 1; i <= 10; i++) {',
     '      vec3 tap = texture2D(uScene, vTc - dir * float(i)).rgb;',
@@ -397,7 +402,7 @@
     '    }',
     '    smear = clamp(smear / 4.0, 0.0, 1.0);',
     '    float l = lum(c);',
-    '    vec3 dk = c * (1.0 - 0.5 * smear) * mix(1.0, 0.68, smoothstep(0.50, 0.22, l));',   // длинные и темнее
+    '    vec3 dk = c * (1.0 - ' + glf(LK.sunsetSmear.strength) + ' * smear) * mix(1.0, ' + glf(LK.sunsetSmear.dark) + ', smoothstep(0.50, 0.22, l));',   // длинные и темнее
     '    c = mix(c, dk, uSunset);',
     '  }',
     '  if (uNight > 0.001) {',
@@ -406,13 +411,13 @@
     '      if (lh.z > 0.001) {',
     '        vec2 d = (vTc - lh.xy) * vec2(uAspect, 1.0);',
     '        float r2 = dot(d, d);',
-    '        c += vec3(1.0, 0.74, 0.36) * (exp(-r2 / 0.00016) * 0.85 + exp(-r2 / 0.0020) * 0.20) * lh.z;',
+    '        c += ' + v3(LK.lampHalo.color) + ' * (exp(-r2 / ' + glf(LK.lampHalo.coreSize) + ') * ' + glf(LK.lampHalo.core) + ' + exp(-r2 / ' + glf(LK.lampHalo.wideSize) + ') * ' + glf(LK.lampHalo.wide) + ') * lh.z;',
     '      }',
     '      vec3 lb = uLampB[i];',
     '      if (lb.z > 0.001) {',
     '        vec2 d = vTc - lb.xy;',
     '        d.x *= uAspect;',
-    '        c += vec3(1.0, 0.82, 0.5) * exp(-(d.x * d.x / 0.0010 + d.y * d.y / 0.00012)) * lb.z * 0.24;',
+    '        c += ' + v3(LK.lampHalo.groundColor) + ' * exp(-(d.x * d.x / ' + glf(LK.lampHalo.groundSizeX) + ' + d.y * d.y / ' + glf(LK.lampHalo.groundSizeY) + ')) * lb.z * ' + glf(LK.lampHalo.ground) + ';',
     '      }',
     '    }',
     '  }',
@@ -598,7 +603,7 @@
     gl.uniform1f(US.uAspect, aspect);
     gl.uniform1f(US.uWindAmp, fx.windAmp);
     gl.uniform1f(US.uWindOn, fx.windOn ? 1 : 0);
-    gl.uniform2f(US.uCellPx, canvas.width / (32 * visW), canvas.height / (57 * visH));
+    gl.uniform2f(US.uCellPx, canvas.width / (STAR_CELLS[0] * visW), canvas.height / (STAR_CELLS[1] * visH));
     gl.uniform4f(US.uShoot, fx.shoot[0], fx.shoot[1], fx.shoot[2], fx.shoot[3]);
     gl.uniform2f(US.uShootP, fx.shootP, fx.shootLen);
     gl.uniform2f(US.uCoverScale, coverUvW, coverUvH);
@@ -683,7 +688,7 @@
     var worker = null, pend = {}, seq = 0, mainReadyP = null;
     var cfg = {
       MAX_TEX_SIZE: CONFIG.MAX_TEX_SIZE, DEPTH_BLUR_PX: CONFIG.DEPTH_BLUR_PX, STARS: CONFIG.STARS,
-      NIGHT_MAIN_LIT: CONFIG.NIGHT_MAIN_LIT, NIGHT_OTHER_LIT: CONFIG.NIGHT_OTHER_LIT, WINDOW_BRIGHT: CONFIG.WINDOW_BRIGHT, DAY: CONFIG.DAY
+      NIGHT_MAIN_LIT: CONFIG.NIGHT_MAIN_LIT, FRAME_SIZE: CONFIG.FRAME_SIZE, STAR_CELLS: STAR_CELLS, NIGHT_OTHER_LIT: CONFIG.NIGHT_OTHER_LIT, WINDOW_BRIGHT: CONFIG.WINDOW_BRIGHT, DAY: CONFIG.DAY
     };
     function viaMain(method, args) {
       if (!mainReadyP) {
