@@ -147,7 +147,7 @@
     var mean = cnt ? (sum / cnt) | 0 : 128;
     for (i = 0; i < n; i++) if (!keep[i]) L[i] = mean;
     var big = L.slice(), small = L.slice();
-    // размеры окон зависят от масштаба кадра (крупный план — окна втрое больше): радиусы по ширине башни
+    // размеры окон зависят от масштаба кадра (крупный план — окна втрое больше): радиусы по ширине главного здания
     var bx0 = w, bx1 = 0;
     for (i = 0; i < n; i++) if (keep[i]) { var xq = i % w; if (xq < bx0) bx0 = xq; if (xq > bx1) bx1 = xq; }
     var kS = clamp((bx1 - bx0 + 1) / 170, 1, 3.4);
@@ -312,13 +312,13 @@
     var skyFrac = skyCount / en;
     var cells = 32 * 57;
     var starQ = clamp(CONFIG.STARS / (cells * Math.max(0.05, skyFrac)), 0, 0.6);
-    // окна: башня (маска из analyzeBuilding) и другие здания (win2)
+    // окна: главное здание (маска из analyzeBuilding) и другие здания (win2)
     var maskT = halfAvg(bld.win.d, w, h, 1, 0), maskO = halfAvg(w2px, w, h, 4, 0);
     var emis = new Uint8Array(en * 4);
     for (i = 0; i < en; i++) { emis[i * 4 + 2] = maskT[i]; emis[i * 4 + 3] = maskO[i]; } // B, A — сами маски (закат)
     var seed = 1000003 * (frameIdx + 1) + 91733;          // свой узор на каждом кадре, но фиксированный
     var winsT = labelWindows(maskT, ew, eh, 55, { amin: 0.9, amax: 3.6, fill: 0.5 });
-    // окна у краёв башни, видные меньше чем наполовину (узкие из-за изгиба), не зажигаем
+    // окна у краёв главного здания, видные меньше чем наполовину (узкие из-за изгиба), не зажигаем
     var widths = winsT.map(function (q) { return q.bw; }).sort(function (a, b) { return a - b; });
     var med = widths.length ? widths[widths.length >> 1] : 0;
     var areas = winsT.map(function (q) { return q.bw * q.bh; }).sort(function (a, b) { return a - b; });
@@ -326,7 +326,7 @@
     winsT = winsT.filter(function (q) { var a = q.bw * q.bh; return q.bw >= 0.55 * med && a >= 0.4 * a85 && a <= 1.9 * a85; });
     var winsO = labelWindows(maskO, ew, eh, 100, { amin: 0.6, amax: 2.6, fill: 0.7 });
     var wins = [];
-    [[winsT, 0, CONFIG.NIGHT_TOWER_LIT], [winsO, 1, CONFIG.NIGHT_OTHER_LIT]].forEach(function (g) {
+    [[winsT, 0, CONFIG.NIGHT_MAIN_LIT], [winsO, 1, CONFIG.NIGHT_OTHER_LIT]].forEach(function (g) {
       var frac = g[2][0] + (g[2][1] - g[2][0]) * hsh(seed, 1000 + g[1]);
       g[0].forEach(function (it) {
         var key = it.idx[0], lit = hsh(seed, key) < frac;
@@ -347,7 +347,7 @@
       var depth = prepareDepth(imgs[1]);
       var bld = analyzeBuilding(imgs[3], depth, imgs[0], imgs[2]);
       var env = prepareEnv(imgs[4], imgs[5], depth, bld, i);
-      // список окон башни (центр и размер, доли кадра) — для «живых» деталей ночью
+      // список окон главного здания (центр и размер, доли кадра) — для «живых» деталей ночью
       var winList = (env.winsT || []).map(function (q) { return { u: q.cx / env.ew, v: q.cy / env.eh, w: q.bw / env.ew, h: q.bh / env.eh }; });
       STATE[i] = { w: bld.w, h: bld.h, alpha: bld.alpha, dayPx: bld.dayPx, plate: bld.plate, ew: env.ew, eh: env.eh, winList: winList };
       var thumb = makeThumbBlob(imgs[0], env, i);
@@ -409,8 +409,8 @@
   }
 
   // ---------- закат / ночь: картинка от Nano Banana, уже приведена к размеру кадра (tools/gemini_intake.py) ----------
-  // Земля — картинка состояния, где на месте башни лежит дневная подложка, подогнанная по яркости под это состояние
-  // (по кольцу вокруг башни); башня — сама картинка (альфа берётся из дневной вырезки в шейдере). Оба — RGB.
+  // Земля — картинка состояния, где на месте главного здания лежит дневная подложка, подогнанная по яркости под это состояние
+  // (по кольцу вокруг главного здания); главное здание — сама картинка (альфа берётся из дневной вырезки в шейдере). Оба — RGB.
   function prepState(i, kind, url) {
     var S = STATE[i];
     if (!S) return Promise.reject(new Error('нет дневного кадра ' + i));
@@ -422,7 +422,7 @@
       var np = x2.getImageData(0, 0, w, h).data, D = S.dayPx, P = S.plate, alpha = S.alpha;
       var full = new Uint8Array(n * 3);
       for (q = 0; q < n; q++) { full[q * 3] = np[q * 4]; full[q * 3 + 1] = np[q * 4 + 1]; full[q * 3 + 2] = np[q * 4 + 2]; }
-      // во сколько раз состояние темнее/ярче дня по кольцу вокруг башни (яркие горящие окна не считаем)
+      // во сколько раз состояние темнее/ярче дня по кольцу вокруг главного здания (яркие горящие окна не считаем)
       var near = alpha.slice(), far = alpha.slice();
       boxBlur(near, w, h, 8); boxBlur(far, w, h, 26);
       var sn = [0, 0, 0], sd = [0, 0, 0];
@@ -433,7 +433,7 @@
         for (k = 0; k < 3; k++) { sn[k] += np[q * 4 + k]; sd[k] += D[q * 4 + k]; }
       }
       var ratio = [0, 1, 2].map(function (z) { return sd[z] > 0 ? clamp(sn[z] / sd[z], 0.05, 1.6) : 0.3; });
-      // окна башни: горит ли (яркий тёплый центр) — для «живых» деталей
+      // окна главного здания: горит ли (яркий тёплый центр) — для «живых» деталей
       var lit = null;
       if (kind === 'night') {
         lit = S.winList.map(function (wn) {

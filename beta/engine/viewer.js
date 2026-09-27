@@ -27,13 +27,10 @@
   var fbEl = document.getElementById('fallback');
   var panelBtn = document.getElementById('panelBtn');
 
-  // hiddenFrames — кадры-брак, которые не показываем; список точек режем так же
-  var HS = [], LAMPS = [];
-  var FRAMES = CONFIG.FRAMES.filter(function (_, i) {
-    var keep = CONFIG.hiddenFrames.indexOf(i) < 0;
-    if (keep) { HS.push(CONFIG.HOTSPOTS[i] || []); LAMPS.push(CONFIG.LAMPS[i] || []); }
-    return keep;
-  });
+  // Все списки «по кадрам» в CONFIG (кадры, точки, фонари, обрезка, флаги, небо, SCENE…) — одной длины и только из видимых кадров:
+  // скрытые кадры (hidden в building.json) убирает сборка (tools/build_pages.py), поэтому номер кадра везде один и тот же.
+  var FRAMES = CONFIG.FRAMES, HS = CONFIG.HOTSPOTS, LAMPS = CONFIG.LAMPS;
+  var PARADE_FRAME = CONFIG.PARADE_FRAME == null ? -1 : CONFIG.PARADE_FRAME;   // кадр, на котором живёт кнопка парада; -1 — у здания парада нет
 
   // ---------- общие функции ----------
   function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
@@ -88,10 +85,10 @@
     document.title = t.pageTitle[currentLang];
     ['prevSide', 'prevBtn'].forEach(function (id) { document.getElementById(id).setAttribute('aria-label', t.prevFrame[currentLang]); });
     ['nextSide', 'nextBtn'].forEach(function (id) { document.getElementById(id).setAttribute('aria-label', t.nextFrame[currentLang]); });
-    // справка о здании: 3 строки из уже утверждённых фактов
+    // справка о здании: строки из уже утверждённых фактов (какие — ABOUT_FACTS в настройках здания)
     var about = document.getElementById('aboutText');
     about.innerHTML = '';
-    ['tower1', 'tower2', 'architects'].forEach(function (k) {
+    CONFIG.ABOUT_FACTS.forEach(function (k) {
       var pe = document.createElement('p');
       pe.textContent = CONFIG.I18N[k][currentLang];
       about.appendChild(pe);
@@ -143,7 +140,7 @@
   //  • фон и земля (bg — кадр без здания) сдвигаются попиксельно по карте
   //    глубины (X и Y), карта заранее размыта (prepareDepth);
   //  • здание (вырезка по маске SAM) двигается ЦЕЛИКОМ — один общий сдвиг
-  //    по его средней глубине, поэтому башня никогда не гнётся.
+  //    по его средней глубине, поэтому главное здание никогда не гнётся.
   // Первый проход рисует сцену в текстуру (цвет + маска окон в альфе),
   // второй — время суток (закат/ночь) поверх готовой картинки.
   var VERT = [
@@ -157,11 +154,13 @@
     '}'
   ].join('\n');
 
-  // Закат и ночь (v10–v11) — картинки, а не процедурные: на кадр по две текстуры на состояние («земля» с подложкой и башня),
+  // Закат и ночь (v10–v11) — картинки, а не процедурные: на кадр по две текстуры на состояние («земля» с подложкой и главное здание),
   // с днём 8 юнитов на кадр, 16 на два кадра при переходе. Если видеокарта даёт меньше — картинки не используются
   // (откат на закат и ночь v8).
   var NI = useGL && gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS) >= 16;
   var UB0 = NI ? 8 : 4;   // первый юнит кадра B
+  var FW = CONFIG.FRAME_SIZE[0], FH = CONFIG.FRAME_SIZE[1];   // размер исходного кадра здания, пиксели
+  var SUN_RIGHT = CONFIG.SUN_SIDE !== 'left';                 // с какой стороны солнце у заката без картинки
   function vec3lit(a) { return 'vec3(' + a.map(function (x) { return x.toFixed(4); }).join(',') + ')'; }
   var SCENE_FRAG = [
     'precision highp float;',
@@ -178,7 +177,7 @@
     // на кадр: земля (0), карта глубины+окружения (1), здание (2), окна (3)
     'uniform sampler2D uBgA; uniform sampler2D uDepthA; uniform sampler2D uBldA; uniform sampler2D uEmA;',
     'uniform sampler2D uBgB; uniform sampler2D uDepthB; uniform sampler2D uBldB; uniform sampler2D uEmB;',
-    NI ? 'uniform sampler2D uSGA; uniform sampler2D uSBA; uniform sampler2D uNGA; uniform sampler2D uNBA;' : '',   // кадр A: закат (земля, башня), ночь (земля, башня)
+    NI ? 'uniform sampler2D uSGA; uniform sampler2D uSBA; uniform sampler2D uNGA; uniform sampler2D uNBA;' : '',   // кадр A: закат (земля, главное здание), ночь (земля, главное здание)
     NI ? 'uniform sampler2D uSGB; uniform sampler2D uSBB; uniform sampler2D uNGB; uniform sampler2D uNBB;' : '',   // кадр B
     NI ? 'uniform vec2 uHasA; uniform vec2 uHasB;' : '',         // x — есть картинка заката, y — есть картинка ночи
     NI ? 'uniform float uSunMix; uniform float uNightMix;' : '', // день→закат (2.5 с), закат→ночь (3 с): плавное растворение
@@ -267,7 +266,7 @@
     // здание: один общий сдвиг и масштаб на весь предмет — жёсткое тело
     '  vec2 pb = 0.5 + (uv - 0.5) / (1.0 + uZoom * kd.y) - kd.x * uShift;',
     '  vec4 b = texture2D(bld, pb);',                         // цвет уже умножен на альфу
-    '  vec4 eb = texture2D(em, pb);',                         // окна башни: r = свет ночью, b = сама маска
+    '  vec4 eb = texture2D(em, pb);',                         // окна главного здания: r = свет ночью, b = сама маска
     '  c = b.rgb + c * (1.0 - b.a);',
     '  float inv = 1.0 - b.a;',
     '  sky *= inv;',
@@ -284,20 +283,20 @@
     // краевые пиксели вырезки, светлые как небо, красим в цвет неба
     '    float haloW = 0.0;',
     '    if (b.a > 0.05 && b.a < 0.999 || (b.a >= 0.999 && rel > 0.90)) {',
-    '      vec2 hd = vec2(4.5 / 768.0, 4.5 / 1365.0);',
+    '      vec2 hd = vec2(4.5 / ' + FW.toFixed(1) + ', 4.5 / ' + FH.toFixed(1) + ');',   // 4.5 пикселя кадра (размер кадра — FRAME_SIZE здания)
     '      float mn = min(min(texture2D(bld, pb + vec2(hd.x, 0.0)).a, texture2D(bld, pb - vec2(hd.x, 0.0)).a), min(texture2D(bld, pb + vec2(0.0, hd.y)).a, texture2D(bld, pb - vec2(0.0, hd.y)).a));',
     '      haloW = (1.0 - smoothstep(0.3, 0.95, mn)) * smoothstep(0.90, 1.02, rel);',
     '    }',
     // такая же светлая кромка вокруг деревьев и предметов у неба: пиксели рядом с маской неба (в пределах ~4–8 пикселей кадра), светлые как небо
     '    float ringW = 0.0;',
     '    if (sky < 0.5 && rel > 0.92) {',
-    '      vec2 e1 = vec2(2.0 / 384.0, 2.0 / 683.0), e2 = e1 * 2.0;',
+    '      vec2 e1 = vec2(2.0 / ' + Math.ceil(FW / 2).toFixed(1) + ', 2.0 / ' + Math.ceil(FH / 2).toFixed(1) + '), e2 = e1 * 2.0;',   // 2 пикселя карты окружения (она вдвое мельче кадра)
     '      float sn = max(max(texture2D(depth, p + vec2(e1.x, 0.0)).g, texture2D(depth, p - vec2(e1.x, 0.0)).g), max(texture2D(depth, p + vec2(0.0, e1.y)).g, texture2D(depth, p - vec2(0.0, e1.y)).g));',
     '      sn = max(sn, max(max(texture2D(depth, p + vec2(e2.x, 0.0)).g, texture2D(depth, p - vec2(e2.x, 0.0)).g), max(texture2D(depth, p + vec2(0.0, e2.y)).g, texture2D(depth, p - vec2(0.0, e2.y)).g)));',
     '      ringW = smoothstep(0.3, 0.8, sn) * (1.0 - inv * 0.0) * smoothstep(0.92, 1.0, rel);',
     '    }',
     '    float skyW = max(max(smoothstep(0.35, 0.85, sky), haloW), ringW);',
-    '    skyW *= (1.0 - smoothstep(0.10, 0.19, c.r - c.b)) * (1.0 - smoothstep(skyRef.y - 0.03, skyRef.y + 0.01, uv.y)) * (1.0 - smoothstep(0.12, 0.28, env.r));',   // и не ближе неба по глубине (маска местами заходит на башню)                                // тёплые дальние холмы остаются тёплыми
+    '    skyW *= (1.0 - smoothstep(0.10, 0.19, c.r - c.b)) * (1.0 - smoothstep(skyRef.y - 0.03, skyRef.y + 0.01, uv.y)) * (1.0 - smoothstep(0.12, 0.28, env.r));',   // и не ближе неба по глубине (маска местами заходит на главное здание)                                // тёплые дальние холмы остаются тёплыми
     '    c = mix(c, mix(c, tinted, smoothstep(0.55, 0.85, rel)), skyW);',                // тёмный карандашный штрих — как был
     '    vec3 hv = rgb2hsv(c);',
     '    float gw = smoothstep(0.10, 0.16, hv.x) * (1.0 - smoothstep(0.36, 0.45, hv.x)) * smoothstep(0.06, 0.16, hv.y) * smoothstep(0.18, 0.40, hv.z) * (1.0 - skyW);',
@@ -314,13 +313,13 @@
     '    vec3 warm = c * vec3(1.05, 0.87, 0.68);',
     '    vec3 skyTint = mix(vec3(1.0, 0.60, 0.64), vec3(1.0, 0.68, 0.40), smoothstep(0.10, 0.62, sc.y));',
     '    warm = mix(warm, c * skyTint * 1.02 + skyTint * 0.05, sky * 0.85);',
-    '    vec2 gd = (sc - vec2(1.08, 0.52)) * vec2(uAspect * 0.9, 1.0);',
+    '    vec2 gd = (sc - vec2(' + (SUN_RIGHT ? '1.08' : '-0.08') + ', 0.52)) * vec2(uAspect * 0.9, 1.0);',   // свечение со стороны солнца (SUN_SIDE здания)
     '    warm += vec3(1.0, 0.52, 0.22) * exp(-dot(gd, gd) * 5.0) * 0.24;',
     '    warm += vec3(1.0, 0.74, 0.44) * winBase * 0.22;',
     '    c = mix(c, warm, uSunset);',
     '  }',
-    // ---- ночной кадр-картинка: дневной кадр плавно растворяется в ночной (земля — в координатах фона, башня — в своих) ----
-    // закат-картинка: день растворяется в закат (земля — в координатах фона, башня — в своих)
+    // ---- ночной кадр-картинка: дневной кадр плавно растворяется в ночной (земля — в координатах фона, главное здание — в своих) ----
+    // закат-картинка: день растворяется в закат (земля — в координатах фона, главное здание — в своих)
     NI ? '  if (hasSv > 0.5 && uSunMix > 0.001) c = mix(c, texture2D(sb, pb).rgb * b.a + texture2D(sg, pc).rgb * inv, uSunMix);' : '',
     // ночь-картинка: закат (или день) растворяется в ночь; тёмное темнее (CONFIG.NIGHT_DIM), свет окон и фонарей — как нарисован
     NI ? '  if (hasNv > 0.5 && uNightMix > 0.001) {' : '',
@@ -390,7 +389,7 @@
     '  vec3 c = texture2D(uScene, vTc).rgb;',
     '  if (uSunset > 0.001) {',
     // тени длиннее: тёмное «стекает» вдоль направления от низкого солнца
-    '    vec2 dir = vec2(1.0, -0.28) * 0.012;',
+    '    vec2 dir = vec2(' + (SUN_RIGHT ? '1.0' : '-1.0') + ', -0.28) * 0.012;',   // тени «стекают» от солнца (SUN_SIDE здания)
     '    float smear = 0.0;',
     '    for (int i = 1; i <= 10; i++) {',
     '      vec3 tap = texture2D(uScene, vTc - dir * float(i)).rgb;',
@@ -471,7 +470,7 @@
     var hs = startProgram(SCENE_FRAG), hp = startProgram(POST_FRAG);
     return whenCompiled([hs, hp]).then(function () {
       scenePrg = finishProgram(hs, SCENE_NAMES, US);
-      // юниты: кадр A = 0..7 (земля, глубина+окружение, здание, окна, закат: земля/башня, ночь: земля/башня),
+      // юниты: кадр A = 0..7 (земля, глубина+окружение, здание, окна, закат: земля/главное здание, ночь: земля/главное здание),
       // кадр B = 8..15. Сами текстуры подставляются при отрисовке — подгрузки во время показа нет.
       var uA = ['uBgA', 'uDepthA', 'uBldA', 'uEmA', 'uSGA', 'uSBA', 'uNGA', 'uNBA'], uB = ['uBgB', 'uDepthB', 'uBldB', 'uEmB', 'uSGB', 'uSBB', 'uNGB', 'uNBB'];
       uA.forEach(function (n, i) { if (US[n]) gl.uniform1i(US[n], i); });
@@ -519,11 +518,11 @@
       function () { f.bgTex = texRGB(r.w, r.h, r.ground); },                 // земля: кадр с подложкой на месте здания
       function () { f.depthTex = texRGBA(r.ew, r.eh, r.gpuDepth); },         // R глубина, G небо, B высота дерева, A фаза (вдвое мельче)
       function () { f.bldTex = texRGBA(r.w, r.h, r.bldPm); },                // здание, цвет уже умножен на альфу
-      function () { f.emTex = texRGBA(r.ew, r.eh, r.emis); }                 // окна: R/G свет ночью (башня/другие здания), B/A сами маски
+      function () { f.emTex = texRGBA(r.ew, r.eh, r.emis); }                 // окна: R/G свет ночью (главное здание/другие здания), B/A сами маски
     ];
     return steps.reduce(function (p, st) { return p.then(function () { st(); return tick(); }); }, Promise.resolve());
   }
-  function uploadState(f, kind, r) {   // kind: 's' закат | 'n' ночь; ground — земля, full — вся картинка (башня берётся по альфе дня)
+  function uploadState(f, kind, r) {   // kind: 's' закат | 'n' ночь; ground — земля, full — вся картинка (главное здание берётся по альфе дня)
     f[kind + 'G'] = texRGB(r.w, r.h, r.ground);
     return tick().then(function () { f[kind + 'B'] = texRGB(r.w, r.h, r.full); return tick(); });
   }
@@ -684,7 +683,7 @@
     var worker = null, pend = {}, seq = 0, mainReadyP = null;
     var cfg = {
       MAX_TEX_SIZE: CONFIG.MAX_TEX_SIZE, DEPTH_BLUR_PX: CONFIG.DEPTH_BLUR_PX, STARS: CONFIG.STARS,
-      NIGHT_TOWER_LIT: CONFIG.NIGHT_TOWER_LIT, NIGHT_OTHER_LIT: CONFIG.NIGHT_OTHER_LIT, WINDOW_BRIGHT: CONFIG.WINDOW_BRIGHT, DAY: CONFIG.DAY
+      NIGHT_MAIN_LIT: CONFIG.NIGHT_MAIN_LIT, NIGHT_OTHER_LIT: CONFIG.NIGHT_OTHER_LIT, WINDOW_BRIGHT: CONFIG.WINDOW_BRIGHT, DAY: CONFIG.DAY
     };
     function viaMain(method, args) {
       if (!mainReadyP) {
@@ -1156,8 +1155,8 @@
       if (nextToggleAt === 0) nextToggleAt = now + rand(fxRng, CONFIG.WINDOW_TOGGLE_S[0], CONFIG.WINDOW_TOGGLE_S[1]) * 1000;
       else if (now >= nextToggleAt) {
         if (!fb && fa.wins.length) {
-          var towerOnly = fa.wins.filter(function (w) { return w.ch === 0; });
-          var pool = (towerOnly.length && fxRng() < 0.75) ? towerOnly : fa.wins;
+          var mainOnly = fa.wins.filter(function (w) { return w.ch === 0; });   // окна главного здания
+          var pool = (mainOnly.length && fxRng() < CONFIG.MAIN_WINDOW_SHARE) ? mainOnly : fa.wins;
           var w = pool[(fxRng() * pool.length) | 0];
           w.on = !w.on; w.animFrom = w.cur; w.animT0 = now;
         }
@@ -1225,20 +1224,20 @@
   window.__demoTilt = function () { setTimeout(demoStart, 250); };   // после начала растворения приветствия
 
   // ---------- кнопка «Парад» (флаг Армении): три истребителя и дымные следы, рисует details.js ----------
-  // Нажатие: если открыт не кадр 1 — плавный переход на кадр 1, потом показ. Повторные нажатия во время показа игнорируются.
+  // Нажатие: если открыт не кадр парада (PARADE_FRAME) — плавный переход на него, потом показ. Повторные нажатия во время показа игнорируются.
   // При fps < 45 (детали отключены) и при «уменьшении движения» кнопка скрыта.
   var flagBtns = document.querySelectorAll('.flag-btn');
   var paradeBusy = false, paradeWant = null;
   var flagOnFrame = true;
-  function flagFrameStep() {   // кнопка живёт только на кадре 1; при переходе на другой кадр гаснет сразу
-    var on = frameIndex === 0 && !fade;
+  function flagFrameStep() {   // кнопка живёт только на кадре парада; при переходе на другой кадр гаснет сразу
+    var on = frameIndex === PARADE_FRAME && !fade;
     if (on === flagOnFrame) return;
     flagOnFrame = on;
     flagBtns.forEach(function (b) { b.classList.toggle('off-frame', !on); });
   }
-  // Кнопка не исчезает никогда (только гаснет на кадрах 2–6). На слабом устройстве (fps < 45), при «уменьшении движения» и без WebGL
+  // Кнопка не исчезает никогда (только гаснет на остальных кадрах; у здания без парада её нет). На слабом устройстве (fps < 45), при «уменьшении движения» и без WebGL
   // показывается упрощённый парад: флаг Армении просто проявляется в небе, чуть колышется и растворяется (simpleParade).
-  function flagUpdate() { flagBtns.forEach(function (b) { b.hidden = false; }); }
+  function flagUpdate() { flagBtns.forEach(function (b) { b.hidden = PARADE_FRAME < 0; }); }   // у здания без парада кнопки нет
   function simpleParade(done) {
     var el = document.createElement('div');
     el.className = 'flag-lite'; el.setAttribute('aria-hidden', 'true');
@@ -1260,18 +1259,18 @@
   }
   flagBtns.forEach(function (b) {
     b.addEventListener('click', function () {
-      if (paradeBusy || frameIndex !== 0 || fade) return;
+      if (paradeBusy || frameIndex !== PARADE_FRAME || fade) return;
       closePopup(); closeSheet();
       setParadeBusy(true);
       paradeWant = { since: performance.now(), shown: null };
     });
   });
   (reduceMQ.addEventListener ? reduceMQ.addEventListener('change', flagUpdate) : reduceMQ.addListener(flagUpdate));
-  function paradeStep(now) {   // из рендер-цикла: довести до кадра 1, дать ему осесть, запустить показ
+  function paradeStep(now) {   // из рендер-цикла: довести до кадра парада, дать ему осесть, запустить показ
     if (!paradeWant) return;
     if (now - paradeWant.since > 9000) { paradeWant = null; setParadeBusy(false); return; }   // что-то не так — не зависаем
     if (fade) return;
-    if (frameIndex !== 0) { goTo(0); return; }
+    if (frameIndex !== PARADE_FRAME) { goTo(PARADE_FRAME); return; }
     if (paradeWant.shown === null) paradeWant.shown = now;
     if (now - paradeWant.shown < 450) return;
     paradeWant = null;
@@ -1526,8 +1525,8 @@
     x.drawImage(canvas, 0, 0);
     canvas.width = W0; canvas.height = H0; // следующий кадр цикла перерисует холст
     var caption = CONFIG.UI_I18N.title[currentLang] + ' · chka.am';
-    var FONT = '"Kukuruznik Serif", "Noto Serif", serif';
-    var ready = (document.fonts && document.fonts.load) ? document.fonts.load('700 40px "Kukuruznik Serif"', caption).catch(function () {}) : Promise.resolve();
+    var FONT = '"Chka Serif", "Noto Serif", serif';
+    var ready = (document.fonts && document.fonts.load) ? document.fonts.load('700 40px "Chka Serif"', caption).catch(function () {}) : Promise.resolve();
     ready.then(function () {
       var capH = Math.round(H * 0.085), lw = Math.max(2, Math.round(W / 300));
       x.fillStyle = '#f5ecda';
@@ -1544,7 +1543,7 @@
         if (!blob) return;
         var a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = 'kukuruznik-1979.png';
+        a.download = CONFIG.POSTCARD_FILE;   // имя файла открытки — из настроек здания
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
       }, 'image/png');

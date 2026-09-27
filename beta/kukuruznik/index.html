@@ -10,9 +10,10 @@
 <link rel="canonical" href="https://chka.am/kukuruznik/">
 <link rel="icon" type="image/png" sizes="32x32" href="../../kukuruznik/icons/favicon.png">
 <link rel="apple-touch-icon" href="../../kukuruznik/icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#f5ecda">
 <meta name="viewer-version" content="v12.1">
-<meta name="engine-version" content="e1.0">
+<meta name="engine-version" content="e1.1">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Չկա">
 <meta property="og:url" content="https://chka.am/kukuruznik/">
@@ -35,22 +36,22 @@
 <title>Կուկուռուզնիկ — Երիտասարդական պալատ | Չկա</title>
 <script>/* ?motion=1 — показать всё движение, даже если в системе включено «Уменьшить движение» (для проверки) */
 (function () { if (/[?&]motion=1/.test(location.search)) document.documentElement.setAttribute('data-motion', 'on'); })();</script>
-<link rel="preload" href="../engine/welcome-loader.js?v=e1.0" as="script">
-<link rel="preload" href="../engine/welcome-letters.js?v=e1.0" as="script">
+<link rel="preload" href="../engine/welcome-loader.js?v=e1.1" as="script">
+<link rel="preload" href="../engine/welcome-letters.js?v=e1.1" as="script">
 <link rel="preload" href="../engine/fonts/NotoSerif-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="../engine/fonts/NotoSerif-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="../engine/fonts/NotoSerifArmenian-armenian.woff2" as="font" type="font/woff2" crossorigin>
 <style>
   /* Один шрифт для hy/ru/en — Noto Serif: латиница и кириллица (Noto Serif) и армянский (Noto Serif Armenian)
      из одной системы дизайна, лицензия OFL (fonts/LICENSE.txt). Подключён локально, один вес 400–700. */
-  @font-face { font-family: "Kukuruznik Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
+  @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
     src: url(../engine/fonts/NotoSerif-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
-  @font-face { font-family: "Kukuruznik Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
+  @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
     src: url(../engine/fonts/NotoSerif-cyrillic.woff2) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
-  @font-face { font-family: "Kukuruznik Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
+  @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
     src: url(../engine/fonts/NotoSerifArmenian-armenian.woff2) format("woff2"); unicode-range: U+0308, U+0530-058F, U+2010, U+2024, U+25CC, U+FB13-FB17; }
   :root {
-    --font: "Kukuruznik Serif", "Noto Serif", serif;
+    --font: "Chka Serif", "Noto Serif", serif;
     --paper: #f5ecda; --paper-2: #ede0c2; --ink: #2f2a25;
     /* Пружина как в iOS: response 0.65 с, damping ratio 0.86 (мягкий разгон, плавное торможение,
        оседание ~0.5% без заметного отскока). Кривая — ступенчатый отклик пружины, оседает за ~0.86 с. */
@@ -189,7 +190,7 @@
   }
 
   /* Кнопка «Парад»: маленькая, флаг Армении карандашом. ПК — в панели рядом с «домиком»; телефон — в нижней полосе над «домой».
-     Живёт только на кадре 1 (на других гаснет). Пока идёт показ, флаг колышется, а ореол переливается красным-синим-абрикосовым.
+     Живёт только на кадре парада (PARADE_FRAME в настройках здания; на других гаснет). Пока идёт показ, флаг колышется, а ореол переливается красным-синим-абрикосовым.
      При fps < 45 или «уменьшении движения» кнопка скрыта. */
   .flag-btn, .p-home { width: 44px; height: 44px; }
   .flag-btn svg { display: block; width: 30px; height: 30px; overflow: visible; }
@@ -591,13 +592,18 @@
 <body>
 <script>try { if (localStorage.getItem('chka-panel') === 'collapsed') document.body.classList.add('panel-collapsed'); } catch (e) {}   /* панель, свёрнутая в прошлый раз, — сразу свёрнутой, без анимации закрытия */</script>
 
-<script src="../engine/welcome-letters.js?v=e1.0"></script>
-<script src="../engine/welcome-loader.js?v=e1.0"></script>
+<script src="../engine/welcome-letters.js?v=e1.1"></script>
+<script src="../engine/welcome-loader.js?v=e1.1"></script>
 <script>
 /* ===================== CONFIG =====================
    Все параметры эффекта «3D-фото» собраны здесь, ничего похожего
    больше в коде не настраивается. */
 var CONFIG = {
+ "LANGS": [
+  "hy",
+  "ru",
+  "en"
+ ],
  "MAX_SHIFT_X": 0.02,
  "MAX_SHIFT_Y": 0.012,
  "BASE_SCALE": 1.05,
@@ -768,8 +774,7 @@ var CONFIG = {
    "hy": "Բարի գալուստ ինտերակտիվ «Կուկուռուզնիկ»"
   }
  },
- "hiddenFrames": [],
- "NIGHT_TOWER_LIT": [
+ "NIGHT_MAIN_LIT": [
   0.3,
   0.4
  ],
@@ -778,6 +783,12 @@ var CONFIG = {
   0.25
  ],
  "NIGHT_DIM": 0.64,
+ "MAIN_WINDOW_SHARE": 0.75,
+ "FRAME_SIZE": [
+  768,
+  1365
+ ],
+ "SUN_SIDE": "right",
  "DAY": {
   "SKY_TOP": [
    0.58,
@@ -1499,6 +1510,317 @@ var CONFIG = {
    ]
   ]
  ],
+ "SCENE": [
+  {
+   "life": {
+    "day": [
+     "birds",
+     "plane",
+     "butterfly",
+     "cranes",
+     "kite"
+    ],
+    "sunset": [
+     "birds",
+     "plane",
+     "cranes",
+     "kite",
+     "lantern"
+    ],
+    "night": [
+     "plane",
+     "moths",
+     "winlight",
+     "lantern",
+     "cranes"
+    ]
+   },
+   "skyBand": [
+    0.04,
+    0.34
+   ],
+   "clouds": 3,
+   "sunDay": [
+    0.8,
+    0.11
+   ],
+   "sunSet": [
+    0.72,
+    0.29
+   ],
+   "moon": [
+    0.8,
+    0.12
+   ],
+   "lawn": [
+    0.06,
+    0.7,
+    0.94,
+    0.86
+   ],
+   "closeUp": null
+  },
+  {
+   "life": {
+    "day": [
+     "balloon",
+     "birds",
+     "cranes",
+     "eagle",
+     "kite"
+    ],
+    "sunset": [
+     "balloon",
+     "birds",
+     "cranes",
+     "eagle",
+     "lantern"
+    ],
+    "night": [
+     "plane",
+     "moths",
+     "fireflies",
+     "lantern"
+    ]
+   },
+   "skyBand": [
+    0.05,
+    0.36
+   ],
+   "clouds": 3,
+   "sunDay": [
+    0.78,
+    0.1
+   ],
+   "sunSet": [
+    0.82,
+    0.31
+   ],
+   "moon": [
+    0.8,
+    0.11
+   ],
+   "lawn": [
+    0.12,
+    0.72,
+    0.86,
+    0.82
+   ],
+   "closeUp": null
+  },
+  {
+   "life": {
+    "day": [
+     "birds",
+     "plane",
+     "eagle",
+     "cranes",
+     "kite"
+    ],
+    "sunset": [
+     "plane",
+     "birds",
+     "cranes",
+     "lantern"
+    ],
+    "night": [
+     "moths",
+     "winlight",
+     "plane",
+     "lantern"
+    ]
+   },
+   "skyBand": [
+    0.05,
+    0.36
+   ],
+   "clouds": 3,
+   "sunDay": [
+    -0.004,
+    0.092
+   ],
+   "sunSet": [
+    0.24,
+    0.31
+   ],
+   "moon": [
+    0.78,
+    0.11
+   ],
+   "lawn": null,
+   "closeUp": null,
+   "sunDayDrawn": true
+  },
+  {
+   "life": {
+    "day": [
+     "butterfly",
+     "birds",
+     "plane",
+     "cranes",
+     "balloon"
+    ],
+    "sunset": [
+     "birds",
+     "butterfly",
+     "cranes",
+     "eagle",
+     "lantern"
+    ],
+    "night": [
+     "fireflies",
+     "moths",
+     "plane",
+     "lantern"
+    ]
+   },
+   "skyBand": [
+    0.05,
+    0.36
+   ],
+   "clouds": 3,
+   "sunDay": [
+    0.8,
+    0.11
+   ],
+   "sunSet": [
+    0.86,
+    0.3
+   ],
+   "moon": [
+    0.8,
+    0.11
+   ],
+   "lawn": [
+    0.08,
+    0.66,
+    0.92,
+    0.9
+   ],
+   "closeUp": null
+  },
+  {
+   "life": {
+    "day": [
+     "birds",
+     "plane",
+     "cranes"
+    ],
+    "sunset": [
+     "plane",
+     "birds",
+     "cranes"
+    ],
+    "night": [
+     "plane",
+     "winlight",
+     "lantern"
+    ]
+   },
+   "skyBand": [
+    0.03,
+    0.16
+   ],
+   "clouds": 2,
+   "sunDay": [
+    0.8,
+    0.075
+   ],
+   "sunSet": [
+    0.8,
+    0.16
+   ],
+   "moon": [
+    0.8,
+    0.08
+   ],
+   "lawn": null,
+   "closeUp": null
+  },
+  {
+   "life": {
+    "day": [
+     "birds",
+     "plane",
+     "cranes"
+    ],
+    "sunset": [
+     "birds",
+     "plane"
+    ],
+    "night": [
+     "moths",
+     "plane",
+     "winlight"
+    ]
+   },
+   "skyBand": [
+    0.02,
+    0.06
+   ],
+   "clouds": 1,
+   "sunDay": [
+    0.92,
+    0.065
+   ],
+   "sunSet": [
+    0.92,
+    0.1
+   ],
+   "moon": [
+    0.92,
+    0.07
+   ],
+   "lawn": null,
+   "closeUp": {
+    "glints": true,
+    "perch": [
+     [
+      0.34,
+      0.108
+     ],
+     [
+      0.4,
+      0.098
+     ],
+     [
+      0.46,
+      0.092
+     ],
+     [
+      0.52,
+      0.089
+     ],
+     [
+      0.58,
+      0.09
+     ],
+     [
+      0.64,
+      0.095
+     ],
+     [
+      0.69,
+      0.104
+     ]
+    ],
+    "mast": [
+     0.735,
+     0.136,
+     0.735,
+     0.097
+    ]
+   },
+   "cloudScale": 0.42
+  }
+ ],
+ "PARADE_FRAME": 0,
+ "ABOUT_FACTS": [
+  "tower1",
+  "tower2",
+  "architects"
+ ],
+ "POSTCARD_FILE": "kukuruznik-1979.png",
  "I18N": {
   "tower1": {
    "ru": "Дом молодёжи, открыт в 1979. В народе — Кукурузник",
@@ -1536,7 +1858,7 @@ function chkaLang() {
     l = localStorage.getItem('chka-lang') ||
       ((navigator.languages && navigator.languages[0]) || navigator.language || '').slice(0, 2).toLowerCase();
   } catch (e) {}
-  if (!CONFIG.I18N.tower1[l]) l = 'hy';
+  if (CONFIG.LANGS.indexOf(l) < 0) l = CONFIG.LANGS[0];   // язык, которого у сайта нет, — первый из списка (армянский)
   return l;
 }
 </script>
@@ -1646,9 +1968,9 @@ window.__wl = WelcomeLoader.create({
 </main>
 </div>
 
-<script src="../engine/wall-data.js?v=e1.0" defer></script>
-<script src="../engine/wall.js?v=e1.0" defer></script>
-<script src="../engine/viewer.js?v=e1.0" defer>
+<script src="../engine/wall-data.js?v=e1.1" defer></script>
+<script src="../engine/wall.js?v=e1.1" defer></script>
+<script src="../engine/viewer.js?v=e1.1" defer>
 </script>
 </body>
 </html>
