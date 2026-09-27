@@ -1,4 +1,6 @@
 <!DOCTYPE html>
+<!-- ШАБЛОН СТРАНИЦЫ ЗДАНИЯ (движок chka.am). Руками страницы зданий не править: их собирает tools/build_pages.py
+     из этого шаблона + engine/config.json + <здание>/building.json. Метки {{…}} подставляет сборка. -->
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -6,8 +8,10 @@
 <link rel="canonical" href="https://chka.am/kukuruznik/">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#f5ecda">
 <meta name="viewer-version" content="v12.1">
+<meta name="engine-version" content="e1.2">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Չկա">
 <meta property="og:url" content="https://chka.am/kukuruznik/">
@@ -30,22 +34,22 @@
 <title>Կուկուռուզնիկ — Երիտասարդական պալատ | Չկա</title>
 <script>/* ?motion=1 — показать всё движение, даже если в системе включено «Уменьшить движение» (для проверки) */
 (function () { if (/[?&]motion=1/.test(location.search)) document.documentElement.setAttribute('data-motion', 'on'); })();</script>
-<link rel="preload" href="welcome-loader.js" as="script">
-<link rel="preload" href="welcome-letters.js" as="script">
-<link rel="preload" href="fonts/NotoSerif-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="fonts/NotoSerif-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="fonts/NotoSerifArmenian-armenian.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../engine/welcome-loader.js?v=e1.2" as="script">
+<link rel="preload" href="../engine/welcome-letters.js?v=e1.2" as="script">
+<link rel="preload" href="../engine/fonts/NotoSerif-latin.woff2?v=e1.2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.2" as="font" type="font/woff2" crossorigin>
 <style>
   /* Один шрифт для hy/ru/en — Noto Serif: латиница и кириллица (Noto Serif) и армянский (Noto Serif Armenian)
      из одной системы дизайна, лицензия OFL (fonts/LICENSE.txt). Подключён локально, один вес 400–700. */
-  @font-face { font-family: "Kukuruznik Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(fonts/NotoSerif-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
-  @font-face { font-family: "Kukuruznik Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(fonts/NotoSerif-cyrillic.woff2) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
-  @font-face { font-family: "Kukuruznik Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(fonts/NotoSerifArmenian-armenian.woff2) format("woff2"); unicode-range: U+0308, U+0530-058F, U+2010, U+2024, U+25CC, U+FB13-FB17; }
+  @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
+    src: url(../engine/fonts/NotoSerif-latin.woff2?v=e1.2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
+    src: url(../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.2) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+  @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
+    src: url(../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.2) format("woff2"); unicode-range: U+0308, U+0530-058F, U+2010, U+2024, U+25CC, U+FB13-FB17; }
   :root {
-    --font: "Kukuruznik Serif", "Noto Serif", serif;
+    --font: "Chka Serif", "Noto Serif", serif;
     --paper: #f5ecda; --paper-2: #ede0c2; --ink: #2f2a25;
     /* Пружина как в iOS: response 0.65 с, damping ratio 0.86 (мягкий разгон, плавное торможение,
        оседание ~0.5% без заметного отскока). Кривая — ступенчатый отклик пружины, оседает за ~0.86 с. */
@@ -184,7 +188,7 @@
   }
 
   /* Кнопка «Парад»: маленькая, флаг Армении карандашом. ПК — в панели рядом с «домиком»; телефон — в нижней полосе над «домой».
-     Живёт только на кадре 1 (на других гаснет). Пока идёт показ, флаг колышется, а ореол переливается красным-синим-абрикосовым.
+     Живёт только на кадре парада (PARADE_FRAME в настройках здания; на других гаснет). Пока идёт показ, флаг колышется, а ореол переливается красным-синим-абрикосовым.
      При fps < 45 или «уменьшении движения» кнопка скрыта. */
   .flag-btn, .p-home { width: 44px; height: 44px; }
   .flag-btn svg { display: block; width: 30px; height: 30px; overflow: visible; }
@@ -586,235 +590,1410 @@
 <body>
 <script>try { if (localStorage.getItem('chka-panel') === 'collapsed') document.body.classList.add('panel-collapsed'); } catch (e) {}   /* панель, свёрнутая в прошлый раз, — сразу свёрнутой, без анимации закрытия */</script>
 
-<script src="welcome-letters.js"></script>
-<script src="welcome-loader.js"></script>
+<script src="../engine/welcome-letters.js?v=e1.2"></script>
+<script src="../engine/welcome-loader.js?v=e1.2"></script>
 <script>
 /* ===================== CONFIG =====================
    Все параметры эффекта «3D-фото» собраны здесь, ничего похожего
    больше в коде не настраивается. */
 var CONFIG = {
-  // Смещение по карте глубины: максимум у самых близких/дальних пикселей
-  // фона и земли (плоскость фокуса — середина карты), доли ширины/высоты
-  // кадра. Здание двигается целиком по своей средней глубине, тем же максимумом.
-  MAX_SHIFT_X: 0.02,
-  MAX_SHIFT_Y: 0.012,
-  BASE_SCALE: 1.05,          // общий масштаб, чтобы не были видны края
-  ZOOM_NEAR: 0.02,           // при наклоне к себе ближние части +до 2%
-  DEPTH_BLUR_PX: 6,          // размытие карты глубины фона (6 px) против «резины» на краях
-
-  // Кадры и карты глубины ужимаются до этой длинной стороны — иначе iPhone
-  // выгружает большие текстуры из памяти.
-  MAX_TEX_SIZE: 1600,
-
-  // Наклон гироскопа, дающий полное смещение (мышь/палец — свои правила).
-  MAX_TILT_X_DEG: 20,
-  MAX_TILT_Y_DEG: 20,
-
-  SMOOTH: 0.12,              // сглаживание гироскопа/мыши (доля пути за кадр при 60 fps)
-  RETURN_MS: 800,            // возврат в центр после отпускания пальца
-
-  // Быстрый росчерк пальцем = смена кадра; медленное перетаскивание двигает объём.
-  SWIPE_MIN_PX: 50,
-  SWIPE_MAX_MS: 350,
-
-  // Автопокачивание, если 4 секунды нет ни касаний, ни наклона.
-
-  // "Дыхание" в состоянии покоя.
-  BREATH_AMPLITUDE: 0.004,   // доля ширины кадра
-  BREATH_PERIOD_S: 6,
-
-  // Кроссфейд между кадрами, мс.
-  SPRING_RESPONSE: 0.65,     // пружина: response, с
-  SPRING_DAMPING: 0.86,      // пружина: damping ratio
-  FRAME_CROSSFADE_MS: 1200,
-  DAY_SUNSET_S: 2.5,         // день → закат, с
-  SUNSET_NIGHT_S: 3,         // закат → ночь, с (окна и фонари — со второй половины, за 2 с)
-
-  // Номера кадров (с 0), которые не показываем: брак, который не удалось заменить.
-  hiddenFrames: [],
-
-  // Ночь (v6): сколько окон горит, яркость, переключения, фонари, звёзды, ветер.
-  NIGHT_TOWER_LIT: [0.30, 0.40],   // доля горящих окон башни
-  NIGHT_OTHER_LIT: [0.15, 0.25],   // доля горящих окон других зданий
-  WINDOW_BRIGHT: [0.6, 1.0],       // яркость горящего окна
-  WINDOW_TOGGLE_S: [8, 12],        // раз в столько секунд одно окно зажигается/гаснет
-  WINDOW_FADE_MS: 1500,
-  LAMP_BREATH: 0.08,               // «дыхание» фонарей ±8%
-  LAMP_PERIOD_S: [4, 6],
-  STARS: 120,                      // звёзд на небе (80–150)
-  SHOOT_EVERY_S: [40, 60],         // падающие звёзды
-  SHOOT_MS: 900,
-  WIND: true,                      // ветер в деревьях
-  WIND_AMP_PX: 2.5,                // качание макушки дерева, px экрана
-  PERF_MIN_FPS: 45,                // ниже — сначала выключаем ветер, потом падающие звёзды
-
-  // День (v12): небо светло-голубое (умножение на голубой: бумага, мазки и облака сохраняются, штрих и тёмные линии — как были),
-  // зелень (деревья, трава — по оттенку, без масок) зеленее и насыщеннее. Закат и ночь — свои картинки, их это не трогает.
-  DAY: {
-    SKY_TOP: [0.58, 0.78, 0.97],     // цвет небесной «вымывки» вверху (умножается на детали рисунка)
-    SKY_HOR: [0.83, 0.92, 0.99],     // и у горизонта — светлее
-    SKY_REF: [0.866, 0.85, 0.867, 0.838, 0.932, 0.893],   // яркость исходной вымывки неба по кадрам (медиана): от неё считаем «облако светлее неба»
-    SKY_END: [0.55, 0.55, 0.525, 0.56, 0.28, 0.70],       // ниже этой доли высоты кадра неба нет (маска местами затекает на газон)
-    MIX: 0.55,                       // v12.1: середина между v11 (0) и v12 (1) — без «мультяшности»
-    GREEN_HUE: 0.30,                 // куда тянем оттенок зелени (0.30 = 108°)
-    GREEN_PULL: 0.78,                // насколько сильно (0..1)
-    GREEN_SAT: 1.9                   // во сколько раз насыщеннее
+ "LANGS": [
+  "hy",
+  "ru",
+  "en"
+ ],
+ "MAX_SHIFT_X": 0.02,
+ "MAX_SHIFT_Y": 0.012,
+ "BASE_SCALE": 1.05,
+ "ZOOM_NEAR": 0.02,
+ "DEPTH_BLUR_PX": 6,
+ "MAX_TEX_SIZE": 1600,
+ "MAX_TILT_X_DEG": 20,
+ "MAX_TILT_Y_DEG": 20,
+ "SMOOTH": 0.12,
+ "RETURN_MS": 800,
+ "SWIPE_MIN_PX": 50,
+ "SWIPE_MAX_MS": 350,
+ "BREATH_AMPLITUDE": 0.004,
+ "BREATH_PERIOD_S": 6,
+ "SPRING_RESPONSE": 0.65,
+ "SPRING_DAMPING": 0.86,
+ "FRAME_CROSSFADE_MS": 1200,
+ "DAY_SUNSET_S": 2.5,
+ "SUNSET_NIGHT_S": 3,
+ "WINDOW_BRIGHT": [
+  0.6,
+  1
+ ],
+ "WINDOW_TOGGLE_S": [
+  8,
+  12
+ ],
+ "WINDOW_FADE_MS": 1500,
+ "LAMP_BREATH": 0.08,
+ "LAMP_PERIOD_S": [
+  4,
+  6
+ ],
+ "STARS": 120,
+ "SHOOT_EVERY_S": [
+  40,
+  60
+ ],
+ "SHOOT_MS": 900,
+ "WIND": true,
+ "WIND_AMP_PX": 2.5,
+ "PERF_MIN_FPS": 45,
+ "FALLBACK_LAYER_K": 0.6,
+ "UI_I18N": {
+  "home": {
+   "ru": "На главную",
+   "en": "Home",
+   "hy": "Գլխավոր էջ"
   },
-
-  // Тени облаков по кадрам (сила; на крупном плане кадра 6 они заметно ползут по фасаду) и ветер (множитель, у крупного плана сильнее).
-  CLOUD_SHADOW: [0.12, 0.12, 0.12, 0.12, 0.12, 0.26],
-  WIND_K: [1, 1, 1, 1, 1, 1.9],
-
-  // Откат без WebGL: множитель сдвига слоя здания (+) и фона (−).
-  FALLBACK_LAYER_K: 0.6,
-
-  // Список ниже между метками генерируется автоматически командой
-  // .venv-depth/bin/python tools/build_frames.py — руками не редактировать,
-  // править картинки в test-assets/frames/ и перезапускать скрипт.
-  // color/depth — цельный кадр и его карта глубины (для WebGL).
-  // bg/building — два слоя (фон без здания и вырезка здания) — только
-  // для отката, если у браузера нет WebGL.
-  FRAMES: [
-    /* FRAMES:START */
-    { color: 'frames/v_angle_0.webp', depth: 'frames/v_angle_0_depth.webp', bg: { color: 'frames/v_angle_0_bg.webp', depth: 'frames/v_angle_0_bg_depth.webp' }, building: { color: 'frames/v_angle_0_building.webp', depth: 'frames/v_angle_0_depth.webp' }, env: 'frames/v_angle_0_env.webp', win2: 'frames/v_angle_0_win2.webp', sunset: 'frames/v_angle_0_sunset.webp', night: 'frames/v_angle_0_night.webp' },
-    { color: 'frames/v_angle_1.webp', depth: 'frames/v_angle_1_depth.webp', bg: { color: 'frames/v_angle_1_bg.webp', depth: 'frames/v_angle_1_bg_depth.webp' }, building: { color: 'frames/v_angle_1_building.webp', depth: 'frames/v_angle_1_depth.webp' }, env: 'frames/v_angle_1_env.webp', win2: 'frames/v_angle_1_win2.webp', sunset: 'frames/v_angle_1_sunset.webp', night: 'frames/v_angle_1_night.webp' },
-    { color: 'frames/v_angle_2.webp', depth: 'frames/v_angle_2_depth.webp', bg: { color: 'frames/v_angle_2_bg.webp', depth: 'frames/v_angle_2_bg_depth.webp' }, building: { color: 'frames/v_angle_2_building.webp', depth: 'frames/v_angle_2_depth.webp' }, env: 'frames/v_angle_2_env.webp', win2: 'frames/v_angle_2_win2.webp', sunset: 'frames/v_angle_2_sunset.webp', night: 'frames/v_angle_2_night.webp' },
-    { color: 'frames/v_angle_3.webp', depth: 'frames/v_angle_3_depth.webp', bg: { color: 'frames/v_angle_3_bg.webp', depth: 'frames/v_angle_3_bg_depth.webp' }, building: { color: 'frames/v_angle_3_building.webp', depth: 'frames/v_angle_3_depth.webp' }, env: 'frames/v_angle_3_env.webp', win2: 'frames/v_angle_3_win2.webp', sunset: 'frames/v_angle_3_sunset.webp', night: 'frames/v_angle_3_night.webp' },
-    { color: 'frames/v_angle_4.webp', depth: 'frames/v_angle_4_depth.webp', bg: { color: 'frames/v_angle_4_bg.webp', depth: 'frames/v_angle_4_bg_depth.webp' }, building: { color: 'frames/v_angle_4_building.webp', depth: 'frames/v_angle_4_depth.webp' }, env: 'frames/v_angle_4_env.webp', win2: 'frames/v_angle_4_win2.webp', sunset: 'frames/v_angle_4_sunset.webp', night: 'frames/v_angle_4_night.webp' },
-    { color: 'frames/v_angle_5.webp', depth: 'frames/v_angle_5_depth.webp', bg: { color: 'frames/v_angle_5_bg.webp', depth: 'frames/v_angle_5_bg_depth.webp' }, building: { color: 'frames/v_angle_5_building.webp', depth: 'frames/v_angle_5_depth.webp' }, env: 'frames/v_angle_5_env.webp', win2: 'frames/v_angle_5_win2.webp', sunset: 'frames/v_angle_5_sunset.webp', night: 'frames/v_angle_5_night.webp' },
-    /* FRAMES:END */
-  ],
-
-  // Точки-подсказки: 2-4 на кадр. u/v — позиция на исходной картинке
-  // (0..1, как у текстур). В режиме WebGL глубина точки читается из той же
-  // (размытой) карты, что и в шейдере, — точка двигается ровно как то место,
-  // к которому привязана. layer (building/bg) нужен только для отката без
-  // WebGL; поле depth — справочное. key — ключ текста в I18N ниже.
-  HOTSPOTS: [
-    [ // v_angle_0
-      { key: 'tower1', layer: 'building', u: 0.50, v: 0.50, depth: 0.247 },
-      { key: 'tower2', layer: 'building', u: 0.50, v: 0.36, depth: 0.251 },
-      { key: 'architects', layer: 'bg', u: 0.15, v: 0.60, depth: 0.220 }
-    ],
-    [ // v_angle_1
-      { key: 'tower1', layer: 'building', u: 0.48, v: 0.50, depth: 0.463 },
-      { key: 'tower2', layer: 'building', u: 0.48, v: 0.37, depth: 0.486 },
-      { key: 'architects', layer: 'bg', u: 0.60, v: 0.68, depth: 0.306 },
-      { key: 'mother_armenia', layer: 'bg', u: 0.17, v: 0.43, depth: 0.071 }
-    ],
-    [ // v_angle_2
-      { key: 'tower1', layer: 'building', u: 0.47, v: 0.48, depth: 0.384 },
-      { key: 'tower2', layer: 'building', u: 0.47, v: 0.35, depth: 0.369 },
-      { key: 'architects', layer: 'bg', u: 0.80, v: 0.62, depth: 0.361 }
-    ],
-    [ // v_angle_3
-      { key: 'tower1', layer: 'building', u: 0.50, v: 0.55, depth: 0.275 },
-      { key: 'tower2', layer: 'building', u: 0.50, v: 0.38, depth: 0.290 },
-      { key: 'architects', layer: 'bg', u: 0.50, v: 0.635, depth: 0.176 }
-    ],
-    [ // v_angle_4
-      { key: 'tower1', layer: 'building', u: 0.62, v: 0.48, depth: 0.498 },
-      { key: 'tower2', layer: 'building', u: 0.62, v: 0.38, depth: 0.486 },
-      { key: 'mother_armenia', layer: 'bg', u: 0.87, v: 0.25, depth: 0.031 },
-      { key: 'construction', layer: 'bg', u: 0.90, v: 0.58, depth: 0.455 }
-    ],
-    [ // v_angle_5
-      { key: 'tower1', layer: 'building', u: 0.45, v: 0.45, depth: 0.514 },
-      { key: 'tower2', layer: 'building', u: 0.55, v: 0.12, depth: 0.486 },
-      { key: 'architects', layer: 'bg', u: 0.50, v: 0.88, depth: 0.800 }
-    ]
-  ],
-
-  // Фонари ночных кадров-картинок (v10): ореолы ставим на фонари, нарисованные на ночном кадре. Формат тот же.
-  // Найдены по ночным картинкам (головы фонарей и основания столбов). Пусто — на ночной картинке нет фонарей (тогда LAMPS v8).
-  // Обрезка кадров от белого края бумаги (tools/find_edges.py): [x0, y0, x1, y1] в долях кадра, те же пропорции, что и у кадра.
-  CROP: [[0, 0, 1, 1], [0.026, 0, 0.974, 0.948], [0, 0, 1, 1], [0.0176, 0, 0.9824, 0.9648], [0, 0, 1, 1], [0.056, 0.0667, 0.9505, 0.9612]],
-  // Флаги, которые колышутся (шейдер, только по своему прямоугольнику): [x, y, ширина, высота] в долях кадра; нет флагов — [0, 0, 0, 0].
-  FLAGS: [[0, 0, 0, 0], [0.066, 0.5975, 0.044, 0.0255], [0.347, 0.711, 0.149, 0.022], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
-  NIGHT_DIM: 0.64,                 // тёмное на ночных картинках темнее на 36% (свет окон и фонарей — как нарисован)
-  NIGHT_HALO: [1, 1, 0.3, 1, 1, 0.3],   // сила ореолов фонарей по кадрам: на кадрах 3 и 6 — до уровня нарисованного света
-  NIGHT_LAMPS: [
-    [[0.854, 0.577, 0.854, 0.608], [0.939, 0.588, 0.939, 0.619], [0.134, 0.773, 0.134, 0.839], [0.951, 0.763, 0.951, 0.828], [0.681, 0.79, 0.681, 0.853]],  // v_angle_0
-    [[0.681, 0.558, 0.681, 0.582], [0.814, 0.577, 0.814, 0.602], [0.189, 0.576, 0.189, 0.597], [0.076, 0.822, 0.076, 0.89], [0.417, 0.845, 0.417, 0.916], [0.635, 0.841, 0.635, 0.908], [0.935, 0.817, 0.935, 0.886]],  // v_angle_1
-    [[0.133, 0.748, 0.133, 0.766], [0.245, 0.793, 0.245, 0.823], [0.229, 0.886, 0.229, 0.916], [0.223, 0.952, 0.223, 0.982], [0.616, 0.935, 0.616, 0.965], [0.585, 0.829, 0.585, 0.859], [0.737, 0.711, 0.737, 0.729], [0.197, 0.63, 0.197, 0.648]],  // v_angle_2
-    [[0.684, 0.548, 0.684, 0.593], [0.215, 0.549, 0.215, 0.59], [0.849, 0.555, 0.849, 0.579], [0.022, 0.569, 0.022, 0.61], [0.749, 0.674, 0.749, 0.736], [0.12, 0.795, 0.12, 0.897], [0.59, 0.769, 0.59, 0.853], [0.879, 0.793, 0.879, 0.897]],  // v_angle_3
-    [[0.302, 0.495, 0.302, 0.531], [0.44, 0.775, 0.44, 0.786], [0.474, 0.811, 0.474, 0.822], [0.609, 0.812, 0.609, 0.823], [0.335, 0.815, 0.335, 0.826], [0.785, 0.797, 0.785, 0.808], [0.921, 0.812, 0.921, 0.823], [0.066, 0.876, 0.066, 0.905]],  // v_angle_4
-    [[0.589, 0.929, 0.589, 0.963], [0.794, 0.925, 0.794, 0.96], [0.742, 0.916, 0.742, 0.94]],  // v_angle_5
-  ],
-
-  // Фонари v8 (ночь без картинки, откат): по кадрам, [u, v лампы, u, v основания столба] в долях кадра (768×1365).
-  // Найдены по рисунку глазами; на кадрах 0, 1, 3 фонарей в рисунке нет.
-  LAMPS: [
-    [],  // v_angle_0
-    [],  // v_angle_1
-    [[0.7344, 0.7114, 0.7344, 0.7363], [0.6810, 0.7143, 0.6810, 0.7385], [0.5391, 0.7443, 0.5391, 0.7729], [0.5586, 0.7810, 0.5586, 0.8117], [0.5833, 0.8278, 0.5833, 0.8586]],  // v_angle_2
-    [],  // v_angle_3
-    [[0.3359, 0.8139, 0.3359, 0.8278], [0.4740, 0.8088, 0.4740, 0.8249], [0.6094, 0.8110, 0.6094, 0.8264], [0.7995, 0.8176, 0.7995, 0.8308], [0.2253, 0.8498, 0.2253, 0.8791], [0.3034, 0.8799, 0.3034, 0.9194], [0.4570, 0.8791, 0.4570, 0.9136]],  // v_angle_4
-    [[0.7396, 0.9172, 0.7396, 0.9648]]  // v_angle_5
-  ],
-
-  // Тексты подсказок. ТОЛЬКО эти пять, свои факты не добавлять.
-  // hy (армянский) — утверждён владельцем.
-  I18N: {
-    tower1: {
-      ru: 'Дом молодёжи, открыт в 1979. В народе — Кукурузник',
-      en: 'Youth Palace, opened in 1979. Nicknamed "the Corncob"',
-      hy: 'Երիտասարդական պալատ, բացվել է 1979-ին։ Ժողովրդի մեջ՝ «Կուկուռուզնիկ»'
-    },
-    tower2: {
-      ru: 'Снесён в 2006, официально — из-за сейсмической безопасности',
-      en: 'Demolished in 2006, officially for seismic safety reasons',
-      hy: 'Քանդվել է 2006-ին, պաշտոնապես՝ սեյսմիկ անվտանգության պատճառով'
-    },
-    architects: {
-      ru: 'Архитекторы: А. Тарханян, Г. Погосян, С. Хачикян',
-      en: 'Architects: A. Tarkhanyan, H. Poghosyan, S. Khachikyan',
-      hy: 'Ճարտարապետներ՝ Ա. Թարխանյան, Հ. Պողոսյան, Ս. Խաչիկյան'
-    },
-    mother_armenia: {
-      ru: 'Мать Армения, 1967',
-      en: 'Mother Armenia, 1967',
-      hy: 'Մայր Հայաստան, 1967'
-    },
-    construction: {
-      ru: 'Строительство, 1970-е',
-      en: 'Construction, 1970s',
-      hy: 'Շինարարություն, 1970-ականներ'
-    }
+  "prevFrame": {
+   "ru": "Предыдущий кадр",
+   "en": "Previous frame",
+   "hy": "Նախորդ կադր"
   },
-
-  // Тексты интерфейса меню (не факты про здание — просто UI).
-  UI_I18N: {
-    title: { ru: 'Кукурузник, 1979', en: 'Kukuruznik, 1979', hy: 'Կուկուռուզնիկ, 1979' },
-    pageTitle: { ru: 'Кукурузник — Дом молодёжи | Չկա', en: 'Kukuruznik — Youth Palace | Չկա', hy: 'Կուկուռուզնիկ — Երիտասարդական պալատ | Չկա' },
-    home: { ru: 'На главную', en: 'Home', hy: 'Գլխավոր էջ' },   // «домой» — главная сайта (chka.am)
-    plaque: {
-      ru: 'Кукурузник · 1979–2006 · художественная реконструкция',
-      en: 'Kukuruznik · 1979–2006 · artistic reconstruction',
-      hy: 'Կուկուռուզնիկ · 1979–2006 · գեղարվեստական վերակառուցում'
-    },
-    prevFrame: { ru: 'Предыдущий кадр', en: 'Previous frame', hy: 'Նախորդ կադր' },
-    nextFrame: { ru: 'Следующий кадр', en: 'Next frame', hy: 'Հաջորդ կադր' },
-    hsBack: { ru: '‹ назад', en: '‹ back', hy: '‹ հետ' },
-    hsClose: { ru: '× закрыть', en: '× close', hy: '× փակել' },
-    panelTitle: { ru: 'Кукурузник', en: 'Kukuruznik', hy: 'Կուկուռուզնիկ' },
-    menu: { ru: 'Меню', en: 'Menu', hy: 'Ընտրացանկ' },
-    history: { ru: 'История здания ›', en: 'Building history ›', hy: 'Շենքի պատմությունը ›' },
-    tod: { ru: 'Время суток', en: 'Time of day', hy: 'Օրվա ժամը' },
-    day: { ru: 'День', en: 'Day', hy: 'Ցերեկ' },
-    sunset: { ru: 'Закат', en: 'Sunset', hy: 'Մայրամուտ' },
-    night: { ru: 'Ночь', en: 'Night', hy: 'Գիշեր' },
-    frames: { ru: 'Кадры', en: 'Views', hy: 'Կադրեր' },
-    fullscreen: { ru: 'Полный экран', en: 'Full screen', hy: 'լայնէկրան' },
-    postcard: { ru: 'Сохранить открытку', en: 'Save postcard', hy: 'պահպանել' },
-    textSize: { ru: 'Размер текста', en: 'Text size', hy: 'Տառերի չափը' },
-    sizeLarge: { ru: 'Крупный', en: 'Large', hy: 'Մեծ' },
-    sizeNormal: { ru: 'Обычный', en: 'Normal', hy: 'դասական' },
-    language: { ru: 'Язык', en: 'Language', hy: 'Լեզու' },
-    about: { ru: 'О здании', en: 'About the building', hy: 'Շենքի մասին' },
-    welcome: { ru: 'Добро пожаловать в интерактивный Кукурузник', en: 'Welcome to the interactive Kukuruznik', hy: 'Բարի գալուստ ինտերակտիվ «Կուկուռուզնիկ»' },
-    flag: { ru: 'Парад в небе: флаг Армении', en: 'Sky parade: flag of Armenia', hy: 'Երկնային շքերթ՝ Հայաստանի դրոշը' }
+  "nextFrame": {
+   "ru": "Следующий кадр",
+   "en": "Next frame",
+   "hy": "Հաջորդ կադր"
+  },
+  "hsBack": {
+   "ru": "‹ назад",
+   "en": "‹ back",
+   "hy": "‹ հետ"
+  },
+  "hsClose": {
+   "ru": "× закрыть",
+   "en": "× close",
+   "hy": "× փակել"
+  },
+  "menu": {
+   "ru": "Меню",
+   "en": "Menu",
+   "hy": "Ընտրացանկ"
+  },
+  "history": {
+   "ru": "История здания ›",
+   "en": "Building history ›",
+   "hy": "Շենքի պատմությունը ›"
+  },
+  "tod": {
+   "ru": "Время суток",
+   "en": "Time of day",
+   "hy": "Օրվա ժամը"
+  },
+  "day": {
+   "ru": "День",
+   "en": "Day",
+   "hy": "Ցերեկ"
+  },
+  "sunset": {
+   "ru": "Закат",
+   "en": "Sunset",
+   "hy": "Մայրամուտ"
+  },
+  "night": {
+   "ru": "Ночь",
+   "en": "Night",
+   "hy": "Գիշեր"
+  },
+  "frames": {
+   "ru": "Кадры",
+   "en": "Views",
+   "hy": "Կադրեր"
+  },
+  "fullscreen": {
+   "ru": "Полный экран",
+   "en": "Full screen",
+   "hy": "լայնէկրան"
+  },
+  "postcard": {
+   "ru": "Сохранить открытку",
+   "en": "Save postcard",
+   "hy": "պահպանել"
+  },
+  "textSize": {
+   "ru": "Размер текста",
+   "en": "Text size",
+   "hy": "Տառերի չափը"
+  },
+  "sizeLarge": {
+   "ru": "Крупный",
+   "en": "Large",
+   "hy": "Մեծ"
+  },
+  "sizeNormal": {
+   "ru": "Обычный",
+   "en": "Normal",
+   "hy": "դասական"
+  },
+  "language": {
+   "ru": "Язык",
+   "en": "Language",
+   "hy": "Լեզու"
+  },
+  "about": {
+   "ru": "О здании",
+   "en": "About the building",
+   "hy": "Շենքի մասին"
+  },
+  "flag": {
+   "ru": "Парад в небе: флаг Армении",
+   "en": "Sky parade: flag of Armenia",
+   "hy": "Երկնային շքերթ՝ Հայաստանի դրոշը"
+  },
+  "title": {
+   "ru": "Кукурузник, 1979",
+   "en": "Kukuruznik, 1979",
+   "hy": "Կուկուռուզնիկ, 1979"
+  },
+  "pageTitle": {
+   "ru": "Кукурузник — Дом молодёжи | Չկա",
+   "en": "Kukuruznik — Youth Palace | Չկա",
+   "hy": "Կուկուռուզնիկ — Երիտասարդական պալատ | Չկա"
+  },
+  "plaque": {
+   "ru": "Кукурузник · 1979–2006 · художественная реконструкция",
+   "en": "Kukuruznik · 1979–2006 · artistic reconstruction",
+   "hy": "Կուկուռուզնիկ · 1979–2006 · գեղարվեստական վերակառուցում"
+  },
+  "panelTitle": {
+   "ru": "Кукурузник",
+   "en": "Kukuruznik",
+   "hy": "Կուկուռուզնիկ"
+  },
+  "welcome": {
+   "ru": "Добро пожаловать в интерактивный Кукурузник",
+   "en": "Welcome to the interactive Kukuruznik",
+   "hy": "Բարի գալուստ ինտերակտիվ «Կուկուռուզնիկ»"
   }
+ },
+ "LOOK": {
+  "sunsetProc": {
+   "tint": [
+    1.05,
+    0.87,
+    0.68
+   ],
+   "skyLow": [
+    1.0,
+    0.6,
+    0.64
+   ],
+   "skyHigh": [
+    1.0,
+    0.68,
+    0.4
+   ],
+   "glowColor": [
+    1.0,
+    0.52,
+    0.22
+   ],
+   "glowStrength": 0.24,
+   "windowColor": [
+    1.0,
+    0.74,
+    0.44
+   ],
+   "windowStrength": 0.22
+  },
+  "sunsetSmear": {
+   "length": 0.012,
+   "strength": 0.5,
+   "dark": 0.68
+  },
+  "nightProc": {
+   "ground": [
+    0.27,
+    0.34,
+    0.56
+   ],
+   "sky": [
+    0.14,
+    0.2,
+    0.4
+   ]
+  },
+  "stars": {
+   "color": [
+    0.86,
+    0.92,
+    1.0
+   ],
+   "cell": 24
+  },
+  "windowGlow": {
+   "color": [
+    1.0,
+    0.8,
+    0.42
+   ],
+   "strength": 1.05,
+   "color2": [
+    1.0,
+    0.7,
+    0.3
+   ],
+   "strength2": 0.25
+  },
+  "lampHalo": {
+   "color": [
+    1.0,
+    0.74,
+    0.36
+   ],
+   "core": 0.85,
+   "coreSize": 0.00016,
+   "wide": 0.2,
+   "wideSize": 0.002,
+   "groundColor": [
+    1.0,
+    0.82,
+    0.5
+   ],
+   "ground": 0.24,
+   "groundSizeX": 0.001,
+   "groundSizeY": 0.00012
+  },
+  "ink": {
+   "day": [
+    58,
+    51,
+    42
+   ],
+   "sunset": [
+    90,
+    58,
+    44
+   ],
+   "night": [
+    190,
+    200,
+    225
+   ]
+  },
+  "skyBodies": {
+   "sunGlow": [
+    255,
+    236,
+    170
+   ],
+   "sunDisc": [
+    255,
+    238,
+    168
+   ],
+   "sunOutline": [
+    96,
+    74,
+    44
+   ],
+   "sunsetGlow": [
+    255,
+    150,
+    80
+   ],
+   "sunsetDisc": [
+    255,
+    128,
+    64
+   ],
+   "sunsetOutline": [
+    120,
+    52,
+    32
+   ],
+   "moonGlow": [
+    200,
+    214,
+    255
+   ],
+   "moonOutline": [
+    190,
+    200,
+    230
+   ]
+  }
+ },
+ "NIGHT_MAIN_LIT": [
+  0.3,
+  0.4
+ ],
+ "NIGHT_OTHER_LIT": [
+  0.15,
+  0.25
+ ],
+ "NIGHT_DIM": 0.64,
+ "MAIN_WINDOW_SHARE": 0.75,
+ "FRAME_SIZE": [
+  768,
+  1365
+ ],
+ "SUN_SIDE": "right",
+ "DAY": {
+  "SKY_TOP": [
+   0.58,
+   0.78,
+   0.97
+  ],
+  "SKY_HOR": [
+   0.83,
+   0.92,
+   0.99
+  ],
+  "MIX": 0.55,
+  "GREEN_HUE": 0.3,
+  "GREEN_PULL": 0.78,
+  "GREEN_SAT": 1.9,
+  "SKY_REF": [
+   0.866,
+   0.85,
+   0.867,
+   0.838,
+   0.932,
+   0.893
+  ],
+  "SKY_END": [
+   0.55,
+   0.55,
+   0.525,
+   0.56,
+   0.28,
+   0.7
+  ]
+ },
+ "CLOUD_SHADOW": [
+  0.12,
+  0.12,
+  0.12,
+  0.12,
+  0.12,
+  0.26
+ ],
+ "WIND_K": [
+  1,
+  1,
+  1,
+  1,
+  1,
+  1.9
+ ],
+ "FRAMES": [
+  {
+   "color": "frames/v_angle_0.webp",
+   "depth": "frames/v_angle_0_depth.webp",
+   "bg": {
+    "color": "frames/v_angle_0_bg.webp",
+    "depth": "frames/v_angle_0_bg_depth.webp"
+   },
+   "building": {
+    "color": "frames/v_angle_0_building.webp",
+    "depth": "frames/v_angle_0_depth.webp"
+   },
+   "env": "frames/v_angle_0_env.webp",
+   "win2": "frames/v_angle_0_win2.webp",
+   "sunset": "frames/v_angle_0_sunset.webp",
+   "night": "frames/v_angle_0_night.webp"
+  },
+  {
+   "color": "frames/v_angle_1.webp",
+   "depth": "frames/v_angle_1_depth.webp",
+   "bg": {
+    "color": "frames/v_angle_1_bg.webp",
+    "depth": "frames/v_angle_1_bg_depth.webp"
+   },
+   "building": {
+    "color": "frames/v_angle_1_building.webp",
+    "depth": "frames/v_angle_1_depth.webp"
+   },
+   "env": "frames/v_angle_1_env.webp",
+   "win2": "frames/v_angle_1_win2.webp",
+   "sunset": "frames/v_angle_1_sunset.webp",
+   "night": "frames/v_angle_1_night.webp"
+  },
+  {
+   "color": "frames/v_angle_2.webp",
+   "depth": "frames/v_angle_2_depth.webp",
+   "bg": {
+    "color": "frames/v_angle_2_bg.webp",
+    "depth": "frames/v_angle_2_bg_depth.webp"
+   },
+   "building": {
+    "color": "frames/v_angle_2_building.webp",
+    "depth": "frames/v_angle_2_depth.webp"
+   },
+   "env": "frames/v_angle_2_env.webp",
+   "win2": "frames/v_angle_2_win2.webp",
+   "sunset": "frames/v_angle_2_sunset.webp",
+   "night": "frames/v_angle_2_night.webp"
+  },
+  {
+   "color": "frames/v_angle_3.webp",
+   "depth": "frames/v_angle_3_depth.webp",
+   "bg": {
+    "color": "frames/v_angle_3_bg.webp",
+    "depth": "frames/v_angle_3_bg_depth.webp"
+   },
+   "building": {
+    "color": "frames/v_angle_3_building.webp",
+    "depth": "frames/v_angle_3_depth.webp"
+   },
+   "env": "frames/v_angle_3_env.webp",
+   "win2": "frames/v_angle_3_win2.webp",
+   "sunset": "frames/v_angle_3_sunset.webp",
+   "night": "frames/v_angle_3_night.webp"
+  },
+  {
+   "color": "frames/v_angle_4.webp",
+   "depth": "frames/v_angle_4_depth.webp",
+   "bg": {
+    "color": "frames/v_angle_4_bg.webp",
+    "depth": "frames/v_angle_4_bg_depth.webp"
+   },
+   "building": {
+    "color": "frames/v_angle_4_building.webp",
+    "depth": "frames/v_angle_4_depth.webp"
+   },
+   "env": "frames/v_angle_4_env.webp",
+   "win2": "frames/v_angle_4_win2.webp",
+   "sunset": "frames/v_angle_4_sunset.webp",
+   "night": "frames/v_angle_4_night.webp"
+  },
+  {
+   "color": "frames/v_angle_5.webp",
+   "depth": "frames/v_angle_5_depth.webp",
+   "bg": {
+    "color": "frames/v_angle_5_bg.webp",
+    "depth": "frames/v_angle_5_bg_depth.webp"
+   },
+   "building": {
+    "color": "frames/v_angle_5_building.webp",
+    "depth": "frames/v_angle_5_depth.webp"
+   },
+   "env": "frames/v_angle_5_env.webp",
+   "win2": "frames/v_angle_5_win2.webp",
+   "sunset": "frames/v_angle_5_sunset.webp",
+   "night": "frames/v_angle_5_night.webp"
+  }
+ ],
+ "HOTSPOTS": [
+  [
+   {
+    "key": "tower1",
+    "layer": "building",
+    "u": 0.5,
+    "v": 0.5,
+    "depth": 0.247
+   },
+   {
+    "key": "tower2",
+    "layer": "building",
+    "u": 0.5,
+    "v": 0.36,
+    "depth": 0.251
+   },
+   {
+    "key": "architects",
+    "layer": "bg",
+    "u": 0.15,
+    "v": 0.6,
+    "depth": 0.22
+   }
+  ],
+  [
+   {
+    "key": "tower1",
+    "layer": "building",
+    "u": 0.48,
+    "v": 0.5,
+    "depth": 0.463
+   },
+   {
+    "key": "tower2",
+    "layer": "building",
+    "u": 0.48,
+    "v": 0.37,
+    "depth": 0.486
+   },
+   {
+    "key": "architects",
+    "layer": "bg",
+    "u": 0.6,
+    "v": 0.68,
+    "depth": 0.306
+   },
+   {
+    "key": "mother_armenia",
+    "layer": "bg",
+    "u": 0.17,
+    "v": 0.43,
+    "depth": 0.071
+   }
+  ],
+  [
+   {
+    "key": "tower1",
+    "layer": "building",
+    "u": 0.47,
+    "v": 0.48,
+    "depth": 0.384
+   },
+   {
+    "key": "tower2",
+    "layer": "building",
+    "u": 0.47,
+    "v": 0.35,
+    "depth": 0.369
+   },
+   {
+    "key": "architects",
+    "layer": "bg",
+    "u": 0.8,
+    "v": 0.62,
+    "depth": 0.361
+   }
+  ],
+  [
+   {
+    "key": "tower1",
+    "layer": "building",
+    "u": 0.5,
+    "v": 0.55,
+    "depth": 0.275
+   },
+   {
+    "key": "tower2",
+    "layer": "building",
+    "u": 0.5,
+    "v": 0.38,
+    "depth": 0.29
+   },
+   {
+    "key": "architects",
+    "layer": "bg",
+    "u": 0.5,
+    "v": 0.635,
+    "depth": 0.176
+   }
+  ],
+  [
+   {
+    "key": "tower1",
+    "layer": "building",
+    "u": 0.62,
+    "v": 0.48,
+    "depth": 0.498
+   },
+   {
+    "key": "tower2",
+    "layer": "building",
+    "u": 0.62,
+    "v": 0.38,
+    "depth": 0.486
+   },
+   {
+    "key": "mother_armenia",
+    "layer": "bg",
+    "u": 0.87,
+    "v": 0.25,
+    "depth": 0.031
+   },
+   {
+    "key": "construction",
+    "layer": "bg",
+    "u": 0.9,
+    "v": 0.58,
+    "depth": 0.455
+   }
+  ],
+  [
+   {
+    "key": "tower1",
+    "layer": "building",
+    "u": 0.45,
+    "v": 0.45,
+    "depth": 0.514
+   },
+   {
+    "key": "tower2",
+    "layer": "building",
+    "u": 0.55,
+    "v": 0.12,
+    "depth": 0.486
+   },
+   {
+    "key": "architects",
+    "layer": "bg",
+    "u": 0.5,
+    "v": 0.88,
+    "depth": 0.8
+   }
+  ]
+ ],
+ "CROP": [
+  [
+   0,
+   0,
+   1,
+   1
+  ],
+  [
+   0.026,
+   0,
+   0.974,
+   0.948
+  ],
+  [
+   0,
+   0,
+   1,
+   1
+  ],
+  [
+   0.0176,
+   0,
+   0.9824,
+   0.9648
+  ],
+  [
+   0,
+   0,
+   1,
+   1
+  ],
+  [
+   0.056,
+   0.0667,
+   0.9505,
+   0.9612
+  ]
+ ],
+ "FLAGS": [
+  [
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   0.066,
+   0.5975,
+   0.044,
+   0.0255
+  ],
+  [
+   0.347,
+   0.711,
+   0.149,
+   0.022
+  ],
+  [
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   0,
+   0,
+   0,
+   0
+  ]
+ ],
+ "NIGHT_HALO": [
+  1,
+  1,
+  0.3,
+  1,
+  1,
+  0.3
+ ],
+ "NIGHT_LAMPS": [
+  [
+   [
+    0.854,
+    0.577,
+    0.854,
+    0.608
+   ],
+   [
+    0.939,
+    0.588,
+    0.939,
+    0.619
+   ],
+   [
+    0.134,
+    0.773,
+    0.134,
+    0.839
+   ],
+   [
+    0.951,
+    0.763,
+    0.951,
+    0.828
+   ],
+   [
+    0.681,
+    0.79,
+    0.681,
+    0.853
+   ]
+  ],
+  [
+   [
+    0.681,
+    0.558,
+    0.681,
+    0.582
+   ],
+   [
+    0.814,
+    0.577,
+    0.814,
+    0.602
+   ],
+   [
+    0.189,
+    0.576,
+    0.189,
+    0.597
+   ],
+   [
+    0.076,
+    0.822,
+    0.076,
+    0.89
+   ],
+   [
+    0.417,
+    0.845,
+    0.417,
+    0.916
+   ],
+   [
+    0.635,
+    0.841,
+    0.635,
+    0.908
+   ],
+   [
+    0.935,
+    0.817,
+    0.935,
+    0.886
+   ]
+  ],
+  [
+   [
+    0.133,
+    0.748,
+    0.133,
+    0.766
+   ],
+   [
+    0.245,
+    0.793,
+    0.245,
+    0.823
+   ],
+   [
+    0.229,
+    0.886,
+    0.229,
+    0.916
+   ],
+   [
+    0.223,
+    0.952,
+    0.223,
+    0.982
+   ],
+   [
+    0.616,
+    0.935,
+    0.616,
+    0.965
+   ],
+   [
+    0.585,
+    0.829,
+    0.585,
+    0.859
+   ],
+   [
+    0.737,
+    0.711,
+    0.737,
+    0.729
+   ],
+   [
+    0.197,
+    0.63,
+    0.197,
+    0.648
+   ]
+  ],
+  [
+   [
+    0.684,
+    0.548,
+    0.684,
+    0.593
+   ],
+   [
+    0.215,
+    0.549,
+    0.215,
+    0.59
+   ],
+   [
+    0.849,
+    0.555,
+    0.849,
+    0.579
+   ],
+   [
+    0.022,
+    0.569,
+    0.022,
+    0.61
+   ],
+   [
+    0.749,
+    0.674,
+    0.749,
+    0.736
+   ],
+   [
+    0.12,
+    0.795,
+    0.12,
+    0.897
+   ],
+   [
+    0.59,
+    0.769,
+    0.59,
+    0.853
+   ],
+   [
+    0.879,
+    0.793,
+    0.879,
+    0.897
+   ]
+  ],
+  [
+   [
+    0.302,
+    0.495,
+    0.302,
+    0.531
+   ],
+   [
+    0.44,
+    0.775,
+    0.44,
+    0.786
+   ],
+   [
+    0.474,
+    0.811,
+    0.474,
+    0.822
+   ],
+   [
+    0.609,
+    0.812,
+    0.609,
+    0.823
+   ],
+   [
+    0.335,
+    0.815,
+    0.335,
+    0.826
+   ],
+   [
+    0.785,
+    0.797,
+    0.785,
+    0.808
+   ],
+   [
+    0.921,
+    0.812,
+    0.921,
+    0.823
+   ],
+   [
+    0.066,
+    0.876,
+    0.066,
+    0.905
+   ]
+  ],
+  [
+   [
+    0.589,
+    0.929,
+    0.589,
+    0.963
+   ],
+   [
+    0.794,
+    0.925,
+    0.794,
+    0.96
+   ],
+   [
+    0.742,
+    0.916,
+    0.742,
+    0.94
+   ]
+  ]
+ ],
+ "LAMPS": [
+  [],
+  [],
+  [
+   [
+    0.7344,
+    0.7114,
+    0.7344,
+    0.7363
+   ],
+   [
+    0.681,
+    0.7143,
+    0.681,
+    0.7385
+   ],
+   [
+    0.5391,
+    0.7443,
+    0.5391,
+    0.7729
+   ],
+   [
+    0.5586,
+    0.781,
+    0.5586,
+    0.8117
+   ],
+   [
+    0.5833,
+    0.8278,
+    0.5833,
+    0.8586
+   ]
+  ],
+  [],
+  [
+   [
+    0.3359,
+    0.8139,
+    0.3359,
+    0.8278
+   ],
+   [
+    0.474,
+    0.8088,
+    0.474,
+    0.8249
+   ],
+   [
+    0.6094,
+    0.811,
+    0.6094,
+    0.8264
+   ],
+   [
+    0.7995,
+    0.8176,
+    0.7995,
+    0.8308
+   ],
+   [
+    0.2253,
+    0.8498,
+    0.2253,
+    0.8791
+   ],
+   [
+    0.3034,
+    0.8799,
+    0.3034,
+    0.9194
+   ],
+   [
+    0.457,
+    0.8791,
+    0.457,
+    0.9136
+   ]
+  ],
+  [
+   [
+    0.7396,
+    0.9172,
+    0.7396,
+    0.9648
+   ]
+  ]
+ ],
+ "SCENE": [
+  {
+   "life": {
+    "day": [
+     "birds",
+     "plane",
+     "butterfly",
+     "cranes",
+     "kite"
+    ],
+    "sunset": [
+     "birds",
+     "plane",
+     "cranes",
+     "kite",
+     "lantern"
+    ],
+    "night": [
+     "plane",
+     "moths",
+     "winlight",
+     "lantern",
+     "cranes"
+    ]
+   },
+   "skyBand": [
+    0.04,
+    0.34
+   ],
+   "clouds": 3,
+   "sunDay": [
+    0.8,
+    0.11
+   ],
+   "sunSet": [
+    0.72,
+    0.29
+   ],
+   "moon": [
+    0.8,
+    0.12
+   ],
+   "lawn": [
+    0.06,
+    0.7,
+    0.94,
+    0.86
+   ],
+   "closeUp": null
+  },
+  {
+   "life": {
+    "day": [
+     "balloon",
+     "birds",
+     "cranes",
+     "eagle",
+     "kite"
+    ],
+    "sunset": [
+     "balloon",
+     "birds",
+     "cranes",
+     "eagle",
+     "lantern"
+    ],
+    "night": [
+     "plane",
+     "moths",
+     "fireflies",
+     "lantern"
+    ]
+   },
+   "skyBand": [
+    0.05,
+    0.36
+   ],
+   "clouds": 3,
+   "sunDay": [
+    0.78,
+    0.1
+   ],
+   "sunSet": [
+    0.82,
+    0.31
+   ],
+   "moon": [
+    0.8,
+    0.11
+   ],
+   "lawn": [
+    0.12,
+    0.72,
+    0.86,
+    0.82
+   ],
+   "closeUp": null
+  },
+  {
+   "life": {
+    "day": [
+     "birds",
+     "plane",
+     "eagle",
+     "cranes",
+     "kite"
+    ],
+    "sunset": [
+     "plane",
+     "birds",
+     "cranes",
+     "lantern"
+    ],
+    "night": [
+     "moths",
+     "winlight",
+     "plane",
+     "lantern"
+    ]
+   },
+   "skyBand": [
+    0.05,
+    0.36
+   ],
+   "clouds": 3,
+   "sunDay": [
+    -0.004,
+    0.092
+   ],
+   "sunSet": [
+    0.24,
+    0.31
+   ],
+   "moon": [
+    0.78,
+    0.11
+   ],
+   "lawn": null,
+   "closeUp": null,
+   "sunDayDrawn": true
+  },
+  {
+   "life": {
+    "day": [
+     "butterfly",
+     "birds",
+     "plane",
+     "cranes",
+     "balloon"
+    ],
+    "sunset": [
+     "birds",
+     "butterfly",
+     "cranes",
+     "eagle",
+     "lantern"
+    ],
+    "night": [
+     "fireflies",
+     "moths",
+     "plane",
+     "lantern"
+    ]
+   },
+   "skyBand": [
+    0.05,
+    0.36
+   ],
+   "clouds": 3,
+   "sunDay": [
+    0.8,
+    0.11
+   ],
+   "sunSet": [
+    0.86,
+    0.3
+   ],
+   "moon": [
+    0.8,
+    0.11
+   ],
+   "lawn": [
+    0.08,
+    0.66,
+    0.92,
+    0.9
+   ],
+   "closeUp": null
+  },
+  {
+   "life": {
+    "day": [
+     "birds",
+     "plane",
+     "cranes"
+    ],
+    "sunset": [
+     "plane",
+     "birds",
+     "cranes"
+    ],
+    "night": [
+     "plane",
+     "winlight",
+     "lantern"
+    ]
+   },
+   "skyBand": [
+    0.03,
+    0.16
+   ],
+   "clouds": 2,
+   "sunDay": [
+    0.8,
+    0.075
+   ],
+   "sunSet": [
+    0.8,
+    0.16
+   ],
+   "moon": [
+    0.8,
+    0.08
+   ],
+   "lawn": null,
+   "closeUp": null
+  },
+  {
+   "life": {
+    "day": [
+     "birds",
+     "plane",
+     "cranes"
+    ],
+    "sunset": [
+     "birds",
+     "plane"
+    ],
+    "night": [
+     "moths",
+     "plane",
+     "winlight"
+    ]
+   },
+   "skyBand": [
+    0.02,
+    0.06
+   ],
+   "clouds": 1,
+   "sunDay": [
+    0.92,
+    0.065
+   ],
+   "sunSet": [
+    0.92,
+    0.1
+   ],
+   "moon": [
+    0.92,
+    0.07
+   ],
+   "lawn": null,
+   "closeUp": {
+    "glints": true,
+    "perch": [
+     [
+      0.34,
+      0.108
+     ],
+     [
+      0.4,
+      0.098
+     ],
+     [
+      0.46,
+      0.092
+     ],
+     [
+      0.52,
+      0.089
+     ],
+     [
+      0.58,
+      0.09
+     ],
+     [
+      0.64,
+      0.095
+     ],
+     [
+      0.69,
+      0.104
+     ]
+    ],
+    "mast": [
+     0.735,
+     0.136,
+     0.735,
+     0.097
+    ]
+   },
+   "cloudScale": 0.42
+  }
+ ],
+ "PARADE_FRAME": 0,
+ "ABOUT_FACTS": [
+  "tower1",
+  "tower2",
+  "architects"
+ ],
+ "POSTCARD_FILE": "kukuruznik-1979.png",
+ "I18N": {
+  "tower1": {
+   "ru": "Дом молодёжи, открыт в 1979. В народе — Кукурузник",
+   "en": "Youth Palace, opened in 1979. Nicknamed \"the Corncob\"",
+   "hy": "Երիտասարդական պալատ, բացվել է 1979-ին։ Ժողովրդի մեջ՝ «Կուկուռուզնիկ»"
+  },
+  "tower2": {
+   "ru": "Снесён в 2006, официально — из-за сейсмической безопасности",
+   "en": "Demolished in 2006, officially for seismic safety reasons",
+   "hy": "Քանդվել է 2006-ին, պաշտոնապես՝ սեյսմիկ անվտանգության պատճառով"
+  },
+  "architects": {
+   "ru": "Архитекторы: А. Тарханян, Г. Погосян, С. Хачикян",
+   "en": "Architects: A. Tarkhanyan, H. Poghosyan, S. Khachikyan",
+   "hy": "Ճարտարապետներ՝ Ա. Թարխանյան, Հ. Պողոսյան, Ս. Խաչիկյան"
+  },
+  "mother_armenia": {
+   "ru": "Мать Армения, 1967",
+   "en": "Mother Armenia, 1967",
+   "hy": "Մայր Հայաստան, 1967"
+  },
+  "construction": {
+   "ru": "Строительство, 1970-е",
+   "en": "Construction, 1970s",
+   "hy": "Շինարարություն, 1970-ականներ"
+  }
+ }
 };
 /* ==================================================== */
 
@@ -825,7 +2004,7 @@ function chkaLang() {
     l = localStorage.getItem('chka-lang') ||
       ((navigator.languages && navigator.languages[0]) || navigator.language || '').slice(0, 2).toLowerCase();
   } catch (e) {}
-  if (!CONFIG.I18N.tower1[l]) l = 'hy';
+  if (CONFIG.LANGS.indexOf(l) < 0) l = CONFIG.LANGS[0];   // язык, которого у сайта нет, — первый из списка (армянский)
   return l;
 }
 </script>
@@ -935,9 +2114,9 @@ window.__wl = WelcomeLoader.create({
 </main>
 </div>
 
-<script src="wall-data.js" defer></script>
-<script src="wall.js" defer></script>
-<script src="viewer.js" defer>
+<script src="../engine/wall-data.js?v=e1.2" defer></script>
+<script src="../engine/wall.js?v=e1.2" defer></script>
+<script src="../engine/viewer.js?v=e1.2" defer>
 </script>
 </body>
 </html>
