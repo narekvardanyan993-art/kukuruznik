@@ -370,16 +370,20 @@ async function captureWalk(browser, origin, target, vpName, outDir) {
       await closeSheet();
       await snap(`walk-7-lang-${l}`);
     }
-    // парад: на кадре 2 кнопка погашена и не срабатывает; на кадре 1 — парад
+    // парад: на другом кадре кнопка погашена и не срабатывает; на кадре парада (PARADE_FRAME из настроек здания; у старых страниц — первый) — парад
     const flag = phone ? '#flagBtnB' : '#flagBtnP';
-    await goFrame(1);
+    const pf = await page.evaluate(() => (window.CONFIG && CONFIG.PARADE_FRAME != null) ? CONFIG.PARADE_FRAME : 0);
+    const nFr = await page.evaluate(() => document.querySelectorAll('#dots span').length);
+    if (pf >= 0) {
+    await goFrame((pf + 1) % nFr);
     await page.evaluate((s) => document.querySelector(s).click(), flag);   // кнопка погашена (pointer-events: none) — нажимаем программно: ничего не должно начаться
     await adv(2000);
-    if (await page.evaluate(() => window.Details && window.Details.paradeBusy && window.Details.paradeBusy())) problems.push({ type: 'прогулка', msg: 'парад начался на кадре 2' });
+    if (await page.evaluate(() => window.Details && window.Details.paradeBusy && window.Details.paradeBusy())) problems.push({ type: 'прогулка', msg: 'парад начался не на своём кадре' });
     await snap('walk-8-flag-off-frame2');
-    await goFrame(0);
+    await goFrame(pf);
     await seed('parade'); await click(flag); await adv(4300); await snap('walk-9-parade');
     await adv(16000);
+    } else if (await page.evaluate((s) => { const b = document.querySelector(s); return b && !b.hidden; }, flag)) problems.push({ type: 'прогулка', msg: 'у здания нет парада, а кнопка видна' });
     // открытка
     await openSheet();
     await page.evaluate(() => { window.__lastImageBlob = null; window.__download = null; });

@@ -50,18 +50,29 @@ def site_path(bid, p):
     return posixpath.normpath(posixpath.join(bid, p)) + ('/' if p.endswith('/') else '')
 
 
+def visible_frames(b):
+    """Кадры здания без скрытых (hidden: true): все списки «по кадрам» в CONFIG строятся только из них — номер кадра везде один."""
+    return [f for f in b['frames'] if not f.get('hidden')]
+
+
 def make_config(b, frames_url):
-    """CONFIG для просмотрщика: движок + здание. Тот же объект, что раньше был вписан в страницу руками."""
+    """CONFIG для просмотрщика: движок (engine/config.json) + здание (building.json). Всё про здание — отсюда, в коде движка его нет."""
     C = json.loads((ENGINE / 'config.json').read_text(encoding='utf-8'))
-    fr = b['frames']
-    day = dict(b['look']['day'])
+    fr = visible_frames(b)
+    look = b['look']
+    day = dict(look['day'])
     day['SKY_REF'] = [f['sky']['ref'] for f in fr]
     day['SKY_END'] = [f['sky']['end'] for f in fr]
+    parade = [i for i, f in enumerate(fr) if f.get('parade')]
+    if len(parade) > 1:
+        raise SystemExit('%s: парад может быть только на одном кадре (сейчас: %s)' % (b['id'], parade))
     C.update({
-        'hiddenFrames': b.get('hiddenFrames', []),
-        'NIGHT_TOWER_LIT': b['look']['night']['mainLit'],
-        'NIGHT_OTHER_LIT': b['look']['night']['otherLit'],
-        'NIGHT_DIM': b['look']['night']['dim'],
+        'NIGHT_MAIN_LIT': look['night']['mainLit'],
+        'NIGHT_OTHER_LIT': look['night']['otherLit'],
+        'NIGHT_DIM': look['night']['dim'],
+        'MAIN_WINDOW_SHARE': look['night']['mainWindowShare'],
+        'FRAME_SIZE': look['frameSize'],
+        'SUN_SIDE': look['sunSide'],
         'DAY': day,
         'CLOUD_SHADOW': [f['cloudShadow'] for f in fr],
         'WIND_K': [f['wind'] for f in fr],
@@ -72,12 +83,28 @@ def make_config(b, frames_url):
         'NIGHT_HALO': [f['nightHalo'] for f in fr],
         'NIGHT_LAMPS': [f['nightLamps'] for f in fr],
         'LAMPS': [f['lamps'] for f in fr],
+        'SCENE': [scene(f) for f in fr],
+        'PARADE_FRAME': parade[0] if parade else -1,
+        'ABOUT_FACTS': b['aboutFacts'],
+        'POSTCARD_FILE': b['postcardFile'],
         'I18N': b['facts'],
     })
     ui = dict(C['UI_I18N'])
     ui.update(b['text'])
     C['UI_I18N'] = ui
     return C
+
+
+def scene(f):
+    """Живые детали кадра (details.js): что летает, небо, облака, солнце/луна, газон, крупный план."""
+    sky, sun = f['sky'], f['sun']
+    sc = {'life': f['life'], 'skyBand': sky['band'], 'clouds': sky['clouds'], 'sunDay': sun['day'], 'sunSet': sun['sunset'],
+          'moon': sun['moon'], 'lawn': f.get('lawn'), 'closeUp': f.get('closeUp')}
+    if 'cloudScale' in sky:
+        sc['cloudScale'] = sky['cloudScale']
+    if sun.get('dayDrawn'):
+        sc['sunDayDrawn'] = True
+    return sc
 
 
 def frame_files(base, n):
@@ -99,6 +126,7 @@ def make_head(b, page_dir, beta):
         '<link rel="canonical" href="%s">' % e(m['url']),
         '<link rel="icon" type="image/png" sizes="32x32" href="%s">' % e(rel(page_dir, site_path(bid, m['favicon']))),
         '<link rel="apple-touch-icon" href="%s">' % e(rel(page_dir, site_path(bid, m['appleTouchIcon']))),
+        '<link rel="manifest" href="manifest.json">',
         '<meta name="theme-color" content="%s">' % e(m['themeColor']),
         '<meta name="viewer-version" content="%s">' % e(m['viewerVersion']),
         '<meta name="engine-version" content="%s">' % e(engine_version()),
@@ -128,6 +156,20 @@ def engine_version():
     return (ENGINE / 'VERSION').read_text(encoding='utf-8').strip()
 
 
+def make_manifest(b, page_dir):
+    """manifest.json страницы здания («на экран Домой»): цвет фона и темы — цвет бумаги (решение плана), значки — из папки здания."""
+    m, bid, app = b['meta'], b['id'], b['app']
+    icon = lambda p: rel(page_dir, site_path(bid, p))
+    return json.dumps({
+        'name': app['name'], 'short_name': app['shortName'], 'description': m['description']['hy'],
+        'start_url': './', 'scope': './', 'display': 'standalone', 'orientation': 'portrait',
+        'background_color': m['themeColor'], 'theme_color': m['themeColor'],
+        'icons': [{'src': icon(m['appleTouchIcon']), 'sizes': '180x180', 'type': 'image/png', 'purpose': 'any'},
+                  {'src': icon(m['appleTouchIcon']), 'sizes': '180x180', 'type': 'image/png', 'purpose': 'maskable'},
+                  {'src': icon(m['favicon']), 'sizes': '32x32', 'type': 'image/png'}],
+    }, ensure_ascii=False, indent=2) + '\n'
+
+
 def render(b, page_dir, engine_dir, beta):
     """HTML страницы здания. page_dir/engine_dir — пути от корня сайта ('beta/kukuruznik/', 'beta/engine/')."""
     bid = b['id']
@@ -145,12 +187,14 @@ def render(b, page_dir, engine_dir, beta):
         '{{HISTORY}}': esc(rel(page_dir, site_path(bid, b['links']['history']))),
         '{{TEXT:panelTitle}}': esc(b['text']['panelTitle']['ru']),
         '{{TEXT:title}}': esc(b['text']['title']['ru']),
+        '{{FRAME_W}}': str(b['look']['frameSize'][0]),
+        '{{FRAME_H}}': str(b['look']['frameSize'][1]),
     }
     for k, v in rep.items():
         if k not in t:
             raise SystemExit('в шаблоне нет метки %s' % k)
         t = t.replace(k, v)
-    left = re.findall(r'\{\{[A-Z:a-z]+\}\}', t)
+    left = re.findall(r'\{\{[A-Z_:a-z]+\}\}', t)
     if left:
         raise SystemExit('в странице остались метки: %s' % sorted(set(left)))
     return t
@@ -203,6 +247,8 @@ def build_beta(site, bids=('kukuruznik',)):
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(render(b, page_dir, 'beta/engine/', beta=True), encoding='utf-8')
         written.append(str(out.relative_to(site)))
+        (out.parent / 'manifest.json').write_text(make_manifest(b, page_dir), encoding='utf-8')
+        written.append(str((out.parent / 'manifest.json').relative_to(site)))
     first = load_building(bids[0])
     (beta / 'index.html').write_text(BETA_INDEX % {'target': bids[0] + '/', 'icon': rel('beta/', site_path(first['id'], first['meta']['favicon']))}, encoding='utf-8')
     written.append('beta/index.html')
@@ -221,8 +267,10 @@ def verify(site, bid='kukuruznik'):
         raise SystemExit('node: ' + r.stderr)
     live_cfg = json.loads(r.stdout)
     built = make_config(load_building(bid), load_building(bid)['framesDir'])
-    if json.dumps(live_cfg, sort_keys=True) != json.dumps(built, sort_keys=True):
-        diff = [k for k in set(live_cfg) | set(built) if json.dumps(live_cfg.get(k), sort_keys=True) != json.dumps(built.get(k), sort_keys=True)]
+    RENAMED = {'NIGHT_TOWER_LIT': 'NIGHT_MAIN_LIT'}   # этап 3: «башня» -> «главное здание»
+    live_cfg.pop('hiddenFrames', None)                # этап 3: скрытые кадры убирает сборка, в CONFIG ключа нет
+    diff = [k for k in live_cfg if json.dumps(live_cfg[k], sort_keys=True) != json.dumps(built.get(RENAMED.get(k, k)), sort_keys=True)]
+    if diff:
         raise SystemExit('CONFIG НЕ совпадает с живым, ключи: %s' % sorted(diff))
     return len(live_cfg)
 

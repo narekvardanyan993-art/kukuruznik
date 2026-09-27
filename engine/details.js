@@ -10,34 +10,23 @@
       с машущими крыльями. Ночью ещё звёзды и падающие звёзды — они в шейдере.
    2. СОБЫТИЯ — случайные, не чаще одного раза в 8–15 с и не больше двух одновременно: самолёт, стайка птиц, воздушный шар,
       клин журавлей (армянский символ), бумажный змей, парящий орёл, небесный фонарик, бабочки, светлячки, мотыльки у фонаря,
-      свет в окне башни.
-   3. КРУПНЫЙ ПЛАН (кадр 6): блики скользят по окнам, птицы садятся на кромку крыши и улетают, на крыше колышется флаг.
+      свет в окне главного здания.
+   3. КРУПНЫЙ ПЛАН (кадр с closeUp в настройках здания): блики скользят по окнам, птицы садятся на кромку крыши и улетают,
+      на крыше колышется флаг.
    4. ПАРАД (кнопка с флагом): три истребителя оставляют дымные следы красный / синий / абрикосовый — флаг Армении.
 
+   Всё, что зависит от здания и кадра (что где летает, полоса неба, облака, солнце и луна, газон, крупный план), — в настройках
+   здания: CONFIG.SCENE[номер кадра] (собирает tools/build_pages.py из <здание>/building.json, по кадрам). Здесь — только механизм.
    Флаги колышутся в шейдере (CONFIG.FLAGS), ветер в деревьях — там же.
    ============================================================================ */
 (function (root) {
   'use strict';
 
-  // что происходит на каком кадре в какое время суток (первый кадр — 0)
-  var DEFS = [
-    { day: ['birds', 'plane', 'butterfly', 'cranes', 'kite'], sunset: ['birds', 'plane', 'cranes', 'kite', 'lantern'], night: ['plane', 'moths', 'winlight', 'lantern', 'cranes'] },
-    { day: ['balloon', 'birds', 'cranes', 'eagle', 'kite'], sunset: ['balloon', 'birds', 'cranes', 'eagle', 'lantern'], night: ['plane', 'moths', 'fireflies', 'lantern'] },
-    { day: ['birds', 'plane', 'eagle', 'cranes', 'kite'], sunset: ['plane', 'birds', 'cranes', 'lantern'], night: ['moths', 'winlight', 'plane', 'lantern'] },
-    { day: ['butterfly', 'birds', 'plane', 'cranes', 'balloon'], sunset: ['birds', 'butterfly', 'cranes', 'eagle', 'lantern'], night: ['fireflies', 'moths', 'plane', 'lantern'] },
-    { day: ['birds', 'plane', 'cranes'], sunset: ['plane', 'birds', 'cranes'], night: ['plane', 'winlight', 'lantern'] },
-    { day: ['birds', 'plane', 'cranes'], sunset: ['birds', 'plane'], night: ['moths', 'plane', 'winlight'] }
-  ];
-  // где на кадре чистое небо (доли кадра по вертикали: птицы, самолёты и облака идут в этой полосе)
-  var SKY = [[0.04, 0.34], [0.05, 0.36], [0.05, 0.36], [0.05, 0.36], [0.03, 0.16], [0.02, 0.06]];
-  // облака в спокойном небе: сколько на кадре и их размер
-  var CLOUD_N = [3, 3, 3, 3, 2, 1];
-  // солнце днём, солнце на закате, луна ночью: [u, v] на кадре. Кадр 3 (index 2): на рисунке дневное солнце уже нарисовано у левого края — там только ореол.
-  var SUN_DAY = [[0.80, 0.11], [0.78, 0.10], [-0.004, 0.092, 1], [0.80, 0.11], [0.80, 0.075], [0.92, 0.065]];
-  var SUN_SET = [[0.72, 0.29], [0.82, 0.31], [0.24, 0.31], [0.86, 0.30], [0.80, 0.16], [0.92, 0.10]];
-  var MOON = [[0.80, 0.12], [0.80, 0.11], [0.78, 0.11], [0.80, 0.11], [0.80, 0.08], [0.92, 0.07]];
-  // газон: [u0, v0, u1, v1] — тут порхают бабочки и парят светлячки
-  var LAWN = { 0: [0.06, 0.70, 0.94, 0.86], 1: [0.12, 0.72, 0.86, 0.82], 3: [0.08, 0.66, 0.92, 0.90] };
+  // настройки кадра из building.json: life (что летает днём/на закате/ночью), skyBand (полоса чистого неба, доли высоты),
+  // clouds (сколько облаков), cloudScale (размер облаков, если задан — одинаковый), sunDay / sunSet / moon ([u, v] на кадре),
+  // sunDayDrawn (солнце уже нарисовано на картинке — только ореол), lawn ([u0, v0, u1, v1] — бабочки и светлячки; нет — их нет),
+  // closeUp (крупный план: glints — блики в окнах, perch — кромка, куда садятся птицы, mast — мачта флага [u низ, v низ, u верх, v верх])
+  function SC(fr) { return (root.CONFIG && root.CONFIG.SCENE && root.CONFIG.SCENE[fr]) || {}; }
 
   var V = null, cv = null, ctx = null, dpr = 1, W = 0, H = 0;
   var active = [], nextAt = 0, lastKey = null, lastFrame = -1, lastKind = '';
@@ -160,9 +149,9 @@
 
   // ---------- спокойное небо: раскладка на кадре (облака, одиночные птицы) ----------
   function buildAmbient(fr) {
-    var R = seeded(4100 + fr * 37), band = SKY[fr], n = CLOUD_N[fr], cl = [], i;
+    var S = SC(fr), R = seeded(4100 + fr * 37), band = S.skyBand, n = S.clouds || 0, cl = [], i;
     for (i = 0; i < n; i++) {
-      var sc = fr === 5 ? 0.42 : rnd0(R, 0.65, 1.05), hV = 0.066 * sc, lo = band[0] + hV * 0.55, hi = Math.max(lo, band[1] - hV * 0.55 - 0.03);
+      var sc = S.cloudScale != null ? S.cloudScale : rnd0(R, 0.65, 1.05), hV = 0.066 * sc, lo = band[0] + hV * 0.55, hi = Math.max(lo, band[1] - hV * 0.55 - 0.03);
       cl.push({ v: lo + (hi - lo) * (n > 1 ? (i + R() * 0.6) / n : 0.3), sc: sc, sp: rnd0(R, 0.0045, 0.0095) * (R() < 0.15 ? -1 : 1), ph: R(), shape: (R() * 3) | 0, w: rnd0(R, 0.75, 1) });
     }
     var bd = [];
@@ -197,9 +186,9 @@
     var s = sf(), t = now * 0.001, sh = 0.5 + 0.5 * Math.sin(t * 1.1) * 0.6 + 0.2 * Math.sin(t * 2.7 + 1.3);
     var i, ang, p, r;
     if (w.d > 0.01) {   // день: диск карандашом, лучи, ореол
-      var sd = SUN_DAY[fr]; p = P(sd[0], sd[1], 0); r = 0.026 * UNIT;
-      glow(p[0], p[1], r * 4.6, '255,236,170', (sd[2] ? 0.30 : 0.26) * w.d * (0.88 + 0.12 * sh));
-      if (!sd[2]) {
+      var S = SC(fr), sd = S.sunDay, drawnSun = !!S.sunDayDrawn; p = P(sd[0], sd[1], 0); r = 0.026 * UNIT;
+      glow(p[0], p[1], r * 4.6, '255,236,170', (drawnSun ? 0.30 : 0.26) * w.d * (0.88 + 0.12 * sh));
+      if (!drawnSun) {
         ctx.fillStyle = 'rgba(255,238,168,' + 0.92 * w.d + ')'; ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, 6.283); ctx.fill();
         ctx.strokeStyle = 'rgba(96,74,44,' + 0.6 * w.d + ')'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, 6.283); ctx.stroke();
         ctx.lineWidth = 0.7; ctx.strokeStyle = 'rgba(96,74,44,' + 0.32 * w.d + ')'; ctx.beginPath(); ctx.arc(p[0] + 0.6, p[1] + 0.4, r * 1.08, 0.3, 5.6); ctx.stroke();
@@ -211,13 +200,13 @@
       }
     }
     if (w.s > 0.01) {   // закат: низкое красное солнце, широкий тёплый ореол
-      var ss = SUN_SET[fr]; p = P(ss[0], ss[1], 0); r = 0.033 * UNIT;
+      var ss = SC(fr).sunSet; p = P(ss[0], ss[1], 0); r = 0.033 * UNIT;
       glow(p[0], p[1], r * 5.4, '255,150,80', 0.36 * w.s * (0.9 + 0.1 * sh));
       ctx.fillStyle = 'rgba(255,128,64,' + 0.88 * w.s + ')'; ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, 6.283); ctx.fill();
       ctx.strokeStyle = 'rgba(120,52,32,' + 0.5 * w.s + ')'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, 6.283); ctx.stroke();
     }
     if (w.n > 0.01) {   // ночь: луна-серп с ореолом, лёгкое мерцание
-      var mo = MOON[fr]; p = P(mo[0], mo[1], 0); r = 0.022 * UNIT;
+      var mo = SC(fr).moon; p = P(mo[0], mo[1], 0); r = 0.022 * UNIT;
       glow(p[0], p[1], r * 5, '200,214,255', 0.28 * w.n * (0.9 + 0.1 * sh));
       ctx.save(); ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, 6.283); ctx.clip();   // серп: диск минус сдвинутый круг (внутри диска)
       ctx.globalAlpha = 0.95 * w.n; ctx.fillStyle = '#f3efdc';
@@ -241,7 +230,7 @@
   // ---------- события ----------
   var KINDS = {
     birds: function (fr) {   // стайка пересекает небо; на закате — так же, но темнее и теплее
-      var band = SKY[fr], v0 = rnd(band[0], band[1]), dir = Math.random() < 0.5 ? 1 : -1;
+      var band = SC(fr).skyBand, v0 = rnd(band[0], band[1]), dir = Math.random() < 0.5 ? 1 : -1;
       var n = 5 + ((Math.random() * 3) | 0), fl = [];
       for (var i = 0; i < n; i++) fl.push({ du: -dir * (i * rnd(0.014, 0.03)), dv: (i % 2 ? 1 : -1) * i * rnd(0.004, 0.011), ph: rnd(0, 6.28), sp: rnd(0.9, 1.15) });
       return { dur: rnd(15, 22) * 1000, u0: dir > 0 ? -0.08 : 1.08, u1: dir > 0 ? 1.08 : -0.08, v0: v0, v1: v0 + rnd(-0.04, 0.03), fl: fl,
@@ -254,7 +243,7 @@
         } };
     },
     cranes: function (fr) {   // клин журавлей — армянский символ: летят углом, крылья машут медленно и волной по клину
-      var band = SKY[fr], v0 = rnd(band[0] + 0.01, band[0] + (band[1] - band[0]) * 0.45), dir = Math.random() < 0.5 ? 1 : -1;
+      var band = SC(fr).skyBand, v0 = rnd(band[0] + 0.01, band[0] + (band[1] - band[0]) * 0.45), dir = Math.random() < 0.5 ? 1 : -1;
       var n = 7 + ((Math.random() * 3) | 0), fl = [];
       for (var i = 0; i < n; i++) { var row = Math.ceil(i / 2), side = i === 0 ? 0 : (i % 2 ? 1 : -1); fl.push({ du: -dir * row * 0.024, dv: side * row * 0.0085, ph: row * 0.55 + rnd(0, 0.3) }); }
       return { dur: rnd(26, 34) * 1000, u0: dir > 0 ? -0.10 : 1.10, u1: dir > 0 ? 1.10 : -0.10, v0: v0, v1: v0 + rnd(-0.03, 0.02), fl: fl,
@@ -267,7 +256,7 @@
         } };
     },
     plane: function (fr) {   // самолёт высоко в небе: днём и на закате — со следом, ночью — мигающий огонёк
-      var band = SKY[fr], v0 = rnd(band[0], band[0] + (band[1] - band[0]) * 0.55), dir = Math.random() < 0.5 ? 1 : -1;
+      var band = SC(fr).skyBand, v0 = rnd(band[0], band[0] + (band[1] - band[0]) * 0.55), dir = Math.random() < 0.5 ? 1 : -1;
       return { dur: rnd(38, 54) * 1000, u0: dir > 0 ? -0.06 : 1.06, u1: dir > 0 ? 1.06 : -0.06, v0: v0, v1: v0 + rnd(0.03, 0.08), dir: dir,
         draw: function (e, t, now) {
           var k = todKey(), a = env(t, 0.06, 0.06), pos = function (tt) { return P(lerp(e.u0, e.u1, tt), lerp(e.v0, e.v1, tt), 0); };
@@ -296,7 +285,7 @@
         } };
     },
     balloon: function (fr) {   // воздушный шар медленно проплывает вдали
-      var band = SKY[fr], dir = Math.random() < 0.5 ? 1 : -1, v0 = rnd(band[0] + 0.05, Math.max(band[0] + 0.06, band[1] - 0.13));
+      var band = SC(fr).skyBand, dir = Math.random() < 0.5 ? 1 : -1, v0 = rnd(band[0] + 0.05, Math.max(band[0] + 0.06, band[1] - 0.13));
       return { dur: rnd(70, 90) * 1000, u0: dir > 0 ? 0.04 : 0.98, u1: dir > 0 ? 0.98 : 0.04, v0: v0, v1: v0 - rnd(0.02, 0.04),
         draw: function (e, t, now) {
           var a = env(t, 0.08, 0.08), p = P(lerp(e.u0, e.u1, t), lerp(e.v0, e.v1, t) + 0.004 * Math.sin(now * 0.0007), 0), r = 8.5 * sf();
@@ -312,7 +301,7 @@
         } };
     },
     kite: function (fr) {   // бумажный змей: ромб с хвостом из бантиков, качается и плывёт по ветру; нитка тает, не доходя до земли
-      var band = SKY[fr], dir = Math.random() < 0.5 ? 1 : -1, v0 = rnd(band[0] + 0.035, Math.max(band[0] + 0.04, band[1] - 0.13)), ph = rnd(0, 6.28);
+      var band = SC(fr).skyBand, dir = Math.random() < 0.5 ? 1 : -1, v0 = rnd(band[0] + 0.035, Math.max(band[0] + 0.04, band[1] - 0.13)), ph = rnd(0, 6.28);
       var cols = [['214,88,72', '244,208,92'], ['84,128,196', '236,236,226'], ['92,160,110', '244,228,150']], cs = pick(cols);
       return { dur: rnd(30, 40) * 1000, u0: dir > 0 ? -0.05 : 1.05, u1: dir > 0 ? 1.05 : -0.05, v0: v0, v1: v0 + rnd(-0.025, 0.03),
         draw: function (e, t, now) {
@@ -337,7 +326,7 @@
         } };
     },
     eagle: function (fr) {   // парящий орёл: кружит на расправленных крыльях, почти не машет
-      var band = SKY[fr], cu = rnd(0.3, 0.7), cv2 = rnd(band[0] + 0.05, Math.max(band[0] + 0.06, band[1] - 0.14)), ph = rnd(0, 6.28), dir = Math.random() < 0.5 ? 1 : -1;
+      var band = SC(fr).skyBand, cu = rnd(0.3, 0.7), cv2 = rnd(band[0] + 0.05, Math.max(band[0] + 0.06, band[1] - 0.14)), ph = rnd(0, 6.28), dir = Math.random() < 0.5 ? 1 : -1;
       return { dur: rnd(24, 32) * 1000,
         draw: function (e, t, now) {
           var a = env(t, 0.1, 0.12), th = dir * (t * 2 * Math.PI * 1.15) + ph, s = sf();
@@ -353,7 +342,7 @@
         } };
     },
     lantern: function (fr) {   // небесный фонарик: тёплый огонёк медленно поднимается и уплывает (закат, ночь)
-      var band = SKY[fr], u0 = rnd(0.18, 0.82), dir = Math.random() < 0.5 ? 1 : -1, v0 = band[1] - 0.02, v1 = band[0] + 0.02, ph = rnd(0, 6.28);
+      var band = SC(fr).skyBand, u0 = rnd(0.18, 0.82), dir = Math.random() < 0.5 ? 1 : -1, v0 = band[1] - 0.02, v1 = band[0] + 0.02, ph = rnd(0, 6.28);
       return { dur: rnd(30, 40) * 1000,
         draw: function (e, t, now) {
           var a = env(t, 0.12, 0.2), k = wts(), night = 0.6 + 0.4 * k.n, s = sf();
@@ -365,7 +354,8 @@
         } };
     },
     butterfly: function (fr) {   // бабочка порхает над газоном
-      var L = LAWN[fr] || LAWN[3], u0 = rnd(L[0], L[2]), v0 = rnd(L[1], L[3]), du = rnd(-0.32, 0.32), dv = rnd(-0.08, 0.05), ph = rnd(0, 6.28);
+      var L = SC(fr).lawn; if (!L) return null;   // у кадра нет газона — нет и бабочек
+      var u0 = rnd(L[0], L[2]), v0 = rnd(L[1], L[3]), du = rnd(-0.32, 0.32), dv = rnd(-0.08, 0.05), ph = rnd(0, 6.28);
       return { dur: rnd(11, 16) * 1000,
         draw: function (e, t, now) {
           var a = env(t, 0.12, 0.15), u = u0 + du * t + 0.02 * Math.sin(t * 14 + ph), v = v0 + dv * t + 0.012 * Math.sin(t * 19 + ph);
@@ -390,7 +380,7 @@
         } };
     },
     fireflies: function (fr) {   // светлячки над газоном: медленно плывут и мягко мигают
-      var L = LAWN[fr] || LAWN[3], fs = [];
+      var L = SC(fr).lawn, fs = []; if (!L) return null;   // у кадра нет газона — нет и светлячков
       for (var i = 0; i < 6; i++) fs.push({ u: rnd(L[0], L[2]), v: rnd(L[1], L[3]), du: rnd(-0.06, 0.06), dv: rnd(-0.03, 0.03), ph: rnd(0, 6.28), sp: rnd(0.9, 1.7) });
       return { dur: rnd(12, 17) * 1000,
         draw: function (e, t, now) {
@@ -403,7 +393,7 @@
           }
         } };
     },
-    winlight: function (fr) {   // в окне башни зажигается и гаснет свет
+    winlight: function (fr) {   // в окне главного здания зажигается и гаснет свет
       var f = V.entry(V.frame()), lit = f.nightLit, wl = f.winList;
       if (!wl || !wl.length) return null;
       var c = []; for (var i = 0; i < wl.length; i++) if (!lit || !lit[i]) c.push(wl[i]);
@@ -421,7 +411,7 @@
   function dirOf(e) { return e.u1 > e.u0 ? 1 : -1; }
 
   function spawn(fr, key) {
-    var list = DEFS[fr] && DEFS[fr][key]; if (!list) return;
+    var life = SC(fr).life, list = life && life[key]; if (!list || !list.length) return;
     var choices = list.filter(function (k) { return k !== lastKind; });
     var kind = pick(choices.length ? choices : list), e = KINDS[kind](fr);
     if (!e) { return; }
@@ -429,12 +419,10 @@
     active.push(e);
   }
 
-  // ---------- КРУПНЫЙ ПЛАН (кадр 6): блики в окнах, птицы на крыше, флаг ----------
-  // Вращать башню не стали: рисунок плоский, поворот выглядит как перекос. Жизнь — поверх картинки, тем же карандашом.
+  // ---------- КРУПНЫЙ ПЛАН (кадр с closeUp): блики в окнах, птицы на крыше, флаг ----------
+  // Вращать здание не стали: рисунок плоский, поворот выглядит как перекос. Жизнь — поверх картинки, тем же карандашом.
   var glints = [], nextGlint = 0, perch = null;
-  // кромка верхнего кольца-крыши на кадре: куда садятся птицы (доли кадра u, v) и основание мачты с флагом
-  var PERCH = [[0.34, 0.108], [0.40, 0.098], [0.46, 0.092], [0.52, 0.089], [0.58, 0.090], [0.64, 0.095], [0.69, 0.104]];
-  var MAST = [0.735, 0.136, 0.735, 0.097];   // низ (u, v) и верх (u, v)
+  var cu = null;   // крупный план текущего кадра (closeUp из настроек здания): perch — кромка, куда садятся птицы; mast — мачта флага
 
   function sitBird(x, y, s, face, head, col, a) {   // сидящая птичка: тело, голова, клюв, хвост, лапки — карандашом
     ctx.save(); ctx.translate(x, y); ctx.scale(face, 1);
@@ -464,7 +452,7 @@
     }
   }
   function newPerch(now) {   // цикл птицы: прилёт (~2.4 с) → сидит (5–10 с, поворачивает голову) → взлёт (~2.2 с) → пауза
-    var spot = PERCH[(Math.random() * PERCH.length) | 0], fromLeft = Math.random() < 0.5;
+    var spot = cu.perch[(Math.random() * cu.perch.length) | 0], fromLeft = Math.random() < 0.5;
     return { spot: spot, t0: now + rnd(1500, 6000), fly: rnd(2200, 2800), sit: rnd(5000, 10000), out: rnd(2000, 2500), left: fromLeft, ph: rnd(0, 6.28), face: fromLeft ? 1 : -1 };
   }
   function drawPerch(now, f, w) {
@@ -487,7 +475,7 @@
     } else perch = newPerch(now + rnd(2000, 6000) - 1500);
   }
   function drawRoofFlag(now, w) {   // мачта на кромке крыши и колышущийся триколор
-    var a = 1 - 0.55 * w.n, s = sf(), f = V.entry(V.frame()), b = V.project(f, MAST[0], MAST[1], f.dB), t = V.project(f, MAST[2], MAST[3], f.dB);
+    var a = 1 - 0.55 * w.n, s = sf(), f = V.entry(V.frame()), b = V.project(f, cu.mast[0], cu.mast[1], f.dB), t = V.project(f, cu.mast[2], cu.mast[3], f.dB);
     var col = ink(), fw = 15 * s, fh = 9 * s, top = t[1] + 1;
     ctx.save(); ctx.globalAlpha = a; ctx.strokeStyle = 'rgba(' + col + ',0.85)'; ctx.lineWidth = 1.1; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(b[0], b[1]); ctx.lineTo(t[0], t[1] - 1); ctx.stroke();
@@ -505,7 +493,7 @@
     ctx.lineTo(t[0] + fw, top + fh + Math.sin(tt + 5.4) * fh * 0.13); for (i = 6; i >= 0; i--) ctx.lineTo(t[0] + fw * i / 6, top + fh + Math.sin(tt + i * 0.9) * fh * 0.13 * (i / 6)); ctx.closePath(); ctx.stroke();
     ctx.restore();
   }
-  function drawCloseUp(now, w, f) { drawGlints(now, f, w); drawPerch(now, f, w); drawRoofFlag(now, w); }
+  function drawCloseUp(now, w, f, c) { cu = c; if (c.glints) drawGlints(now, f, w); if (c.perch) drawPerch(now, f, w); if (c.mast) drawRoofFlag(now, w); }
 
   // ---------- ПАРАД: три истребителя плотным строем слева направо, дымные следы 15–20 с: красный, синий, абрикосовый — флаг Армении ----------
   var PC = [{ day: '214,20,36', night: '255,84,96' }, { day: '32,72,196', night: '104,150,255' }, { day: '242,168,0', night: '255,196,64' }];   // сверху вниз
@@ -522,7 +510,7 @@
   }
   function startParade(onEnd) {
     var fr = V.frame(); if (par || V.fading() || !V.entry(fr)) return false;
-    var band = SKY[fr], vc = band[0] + (band[1] - band[0]) * 0.30, now = performance.now();
+    var band = SC(fr).skyBand, vc = band[0] + (band[1] - band[0]) * 0.30, now = performance.now();
     par = { t0: now, dur: 11000, vc: vc, fr: fr, onEnd: onEnd, puffs: [], last: [-0.12, -0.12, -0.12], flying: true, abort: 0, dv: 0.0135 };
     active = [];   // небо освобождаем: события на время парада не начинаем
     return true;
@@ -587,7 +575,7 @@
     drawSun(now, w, fr);
     drawClouds(now, w);
     drawAmbientBirds(now, w);
-    if (fr === 5) drawCloseUp(now, w, f);
+    if (SC(fr).closeUp) drawCloseUp(now, w, f, SC(fr).closeUp);
     for (var i = active.length - 1; i >= 0; i--) {
       var e = active[i], t = (now - e.t0) / e.dur;
       if (t >= 1) { active.splice(i, 1); continue; }

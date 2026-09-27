@@ -67,17 +67,20 @@
       "GREEN_PULL": 0.78,
       "GREEN_SAT": 1.9
     },
-    "night": {"dim": 0.64, "mainLit": [0.3, 0.4], "otherLit": [0.15, 0.25]}
+    "night": {"dim": 0.64, "mainLit": [0.3, 0.4], "otherLit": [0.15, 0.25], "mainWindowShare": 0.75},
+    "frameSize": [768, 1365],
+    "sunSide": "right"
   },
-  "hiddenFrames": [],
   "frames": [
     {
       "name": "v_angle_0",
+      "hidden": false,
+      "parade": true,
       "crop": [0, 0, 1, 1],
       "flag": null,
       "cloudShadow": 0.12,
       "wind": 1,
-      "sky": {"ref": 0.866, "end": 0.55},
+      "sky": {"ref": 0.866, "end": 0.55, "band": [0.04, 0.34], "clouds": 3},
       "hotspots": [
         {"key": "tower1", "layer": "building", "u": 0.5, "v": 0.5, "depth": 0.247},
         {"key": "tower2", "layer": "building", "u": 0.5, "v": 0.36, "depth": 0.251},
@@ -91,15 +94,23 @@
         [0.681, 0.79, 0.681, 0.853]
       ],
       "nightHalo": 1,
-      "lamps": []
+      "lamps": [],
+      "sun": {"day": [0.8, 0.11], "sunset": [0.72, 0.29], "moon": [0.8, 0.12]},
+      "lawn": [0.06, 0.7, 0.94, 0.86],
+      "life": {
+        "day": ["birds", "plane", "butterfly", "cranes", "kite"],
+        "sunset": ["birds", "plane", "cranes", "kite", "lantern"],
+        "night": ["plane", "moths", "winlight", "lantern", "cranes"]
+      }
     },
     {
       "name": "v_angle_1",
+      "hidden": false,
       "crop": [0.026, 0, 0.974, 0.948],
       "flag": [0.066, 0.5975, 0.044, 0.0255],
       "cloudShadow": 0.12,
       "wind": 1,
-      "sky": {"ref": 0.85, "end": 0.55},
+      "sky": {"ref": 0.85, "end": 0.55, "band": [0.05, 0.36], "clouds": 3},
       "hotspots": [
         {"key": "tower1", "layer": "building", "u": 0.48, "v": 0.5, "depth": 0.463},
         {"key": "tower2", "layer": "building", "u": 0.48, "v": 0.37, "depth": 0.486},
@@ -116,15 +127,23 @@
         [0.935, 0.817, 0.935, 0.886]
       ],
       "nightHalo": 1,
-      "lamps": []
+      "lamps": [],
+      "sun": {"day": [0.78, 0.1], "sunset": [0.82, 0.31], "moon": [0.8, 0.11]},
+      "lawn": [0.12, 0.72, 0.86, 0.82],
+      "life": {
+        "day": ["balloon", "birds", "cranes", "eagle", "kite"],
+        "sunset": ["balloon", "birds", "cranes", "eagle", "lantern"],
+        "night": ["plane", "moths", "fireflies", "lantern"]
+      }
     },
     {
       "name": "v_angle_2",
+      "hidden": false,
       "crop": [0, 0, 1, 1],
       "flag": [0.347, 0.711, 0.149, 0.022],
       "cloudShadow": 0.12,
       "wind": 1,
-      "sky": {"ref": 0.867, "end": 0.525},
+      "sky": {"ref": 0.867, "end": 0.525, "band": [0.05, 0.36], "clouds": 3},
       "hotspots": [
         {"key": "tower1", "layer": "building", "u": 0.47, "v": 0.48, "depth": 0.384},
         {"key": "tower2", "layer": "building", "u": 0.47, "v": 0.35, "depth": 0.369},
@@ -147,15 +166,22 @@
         [0.5391, 0.7443, 0.5391, 0.7729],
         [0.5586, 0.781, 0.5586, 0.8117],
         [0.5833, 0.8278, 0.5833, 0.8586]
-      ]
+      ],
+      "sun": {"day": [-0.004, 0.092], "dayDrawn": true, "sunset": [0.24, 0.31], "moon": [0.78, 0.11]},
+      "life": {
+        "day": ["birds", "plane", "eagle", "cranes", "kite"],
+        "sunset": ["plane", "birds", "cranes", "lantern"],
+        "night": ["moths", "winlight", "plane", "lantern"]
+      }
     },
     {
       "name": "v_angle_3",
+      "hidden": false,
       "crop": [0.0176, 0, 0.9824, 0.9648],
       "flag": null,
       "cloudShadow": 0.12,
       "wind": 1,
-      "sky": {"ref": 0.838, "end": 0.56},
+      "sky": {"ref": 0.838, "end": 0.56, "band": [0.05, 0.36], "clouds": 3},
       "hotspots": [
         {"key": "tower1", "layer": "building", "u": 0.5, "v": 0.55, "depth": 0.275},
         {"key": "tower2", "layer": "building", "u": 0.5, "v": 0.38, "depth": 0.29},
@@ -172,15 +198,23 @@
         [0.879, 0.793, 0.879, 0.897]
       ],
       "nightHalo": 1,
-      "lamps": []
+      "lamps": [],
+      "sun": {"day": [0.8, 0.11], "sunset": [0.86, 0.3], "moon": [0.8, 0.11]},
+      "lawn": [0.08, 0.66, 0.92, 0.9],
+      "life": {
+        "day": ["butterfly", "birds", "plane", "cranes", "balloon"],
+        "sunset": ["birds", "butterfly", "cranes", "eagle", "lantern"],
+        "night": ["fireflies", "moths", "plane", "lantern"]
+      }
     },
     {
       "name": "v_angle_4",
+      "hidden": false,
       "crop": [0, 0, 1, 1],
       "flag": null,
       "cloudShadow": 0.12,
       "wind": 1,
-      "sky": {"ref": 0.932, "end": 0.28},
+      "sky": {"ref": 0.932, "end": 0.28, "band": [0.03, 0.16], "clouds": 2},
       "hotspots": [
         {"key": "tower1", "layer": "building", "u": 0.62, "v": 0.48, "depth": 0.498},
         {"key": "tower2", "layer": "building", "u": 0.62, "v": 0.38, "depth": 0.486},
@@ -206,15 +240,22 @@
         [0.2253, 0.8498, 0.2253, 0.8791],
         [0.3034, 0.8799, 0.3034, 0.9194],
         [0.457, 0.8791, 0.457, 0.9136]
-      ]
+      ],
+      "sun": {"day": [0.8, 0.075], "sunset": [0.8, 0.16], "moon": [0.8, 0.08]},
+      "life": {
+        "day": ["birds", "plane", "cranes"],
+        "sunset": ["plane", "birds", "cranes"],
+        "night": ["plane", "winlight", "lantern"]
+      }
     },
     {
       "name": "v_angle_5",
+      "hidden": false,
       "crop": [0.056, 0.0667, 0.9505, 0.9612],
       "flag": null,
       "cloudShadow": 0.26,
       "wind": 1.9,
-      "sky": {"ref": 0.893, "end": 0.7},
+      "sky": {"ref": 0.893, "end": 0.7, "band": [0.02, 0.06], "clouds": 1, "cloudScale": 0.42},
       "hotspots": [
         {"key": "tower1", "layer": "building", "u": 0.45, "v": 0.45, "depth": 0.514},
         {"key": "tower2", "layer": "building", "u": 0.55, "v": 0.12, "depth": 0.486},
@@ -222,7 +263,17 @@
       ],
       "nightLamps": [[0.589, 0.929, 0.589, 0.963], [0.794, 0.925, 0.794, 0.96], [0.742, 0.916, 0.742, 0.94]],
       "nightHalo": 0.3,
-      "lamps": [[0.7396, 0.9172, 0.7396, 0.9648]]
+      "lamps": [[0.7396, 0.9172, 0.7396, 0.9648]],
+      "sun": {"day": [0.92, 0.065], "sunset": [0.92, 0.1], "moon": [0.92, 0.07]},
+      "life": {"day": ["birds", "plane", "cranes"], "sunset": ["birds", "plane"], "night": ["moths", "plane", "winlight"]},
+      "closeUp": {
+        "glints": true,
+        "perch": [[0.34, 0.108], [0.4, 0.098], [0.46, 0.092], [0.52, 0.089], [0.58, 0.09], [0.64, 0.095], [0.69, 0.104]],
+        "mast": [0.735, 0.136, 0.735, 0.097]
+      }
     }
-  ]
+  ],
+  "aboutFacts": ["tower1", "tower2", "architects"],
+  "postcardFile": "kukuruznik-1979.png",
+  "app": {"name": "Кукурузник — Дом молодёжи", "shortName": "Кукурузник"}
 }

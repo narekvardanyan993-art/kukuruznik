@@ -16,14 +16,14 @@
 <style>
   /* Один шрифт для hy/ru/en — Noto Serif: латиница и кириллица (Noto Serif) и армянский (Noto Serif Armenian)
      из одной системы дизайна, лицензия OFL (fonts/LICENSE.txt). Подключён локально, один вес 400–700. */
-  @font-face { font-family: "Kukuruznik Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
+  @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
     src: url({{E}}fonts/NotoSerif-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
-  @font-face { font-family: "Kukuruznik Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
+  @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
     src: url({{E}}fonts/NotoSerif-cyrillic.woff2) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
-  @font-face { font-family: "Kukuruznik Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
+  @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
     src: url({{E}}fonts/NotoSerifArmenian-armenian.woff2) format("woff2"); unicode-range: U+0308, U+0530-058F, U+2010, U+2024, U+25CC, U+FB13-FB17; }
   :root {
-    --font: "Kukuruznik Serif", "Noto Serif", serif;
+    --font: "Chka Serif", "Noto Serif", serif;
     --paper: #f5ecda; --paper-2: #ede0c2; --ink: #2f2a25;
     /* Пружина как в iOS: response 0.65 с, damping ratio 0.86 (мягкий разгон, плавное торможение,
        оседание ~0.5% без заметного отскока). Кривая — ступенчатый отклик пружины, оседает за ~0.86 с. */
@@ -87,9 +87,9 @@
     }
     #stage {
       /* доступная ширина: стена − паспарту − место для стрелок; высота: окно − отступы − паспарту − табличка */
-      width: min(calc(100cqw - 56px - 128px), calc((100dvh - 48px - 56px - 6px - 64px - var(--s3)) * var(--natW, 768) / var(--natH, 1365)));
+      width: min(calc(100cqw - 56px - 128px), calc((100dvh - 48px - 56px - 6px - 64px - var(--s3)) * var(--natW, {{FRAME_W}}) / var(--natH, {{FRAME_H}})));
       height: auto;
-      aspect-ratio: var(--natW, 768) / var(--natH, 1365);
+      aspect-ratio: var(--natW, {{FRAME_W}}) / var(--natH, {{FRAME_H}});
       border-radius: 1px;
       box-shadow: 0 0 0 1px rgba(47,42,37,0.45), inset 0 0 0 1px rgba(47,42,37,0.2);   /* тонкая линия окна паспарту */
     }
@@ -162,7 +162,7 @@
   }
 
   /* Кнопка «Парад»: маленькая, флаг Армении карандашом. ПК — в панели рядом с «домиком»; телефон — в нижней полосе над «домой».
-     Живёт только на кадре 1 (на других гаснет). Пока идёт показ, флаг колышется, а ореол переливается красным-синим-абрикосовым.
+     Живёт только на кадре парада (PARADE_FRAME в настройках здания; на других гаснет). Пока идёт показ, флаг колышется, а ореол переливается красным-синим-абрикосовым.
      При fps < 45 или «уменьшении движения» кнопка скрыта. */
   .flag-btn, .p-home { width: 44px; height: 44px; }
   .flag-btn svg { display: block; width: 30px; height: 30px; overflow: visible; }
@@ -580,7 +580,7 @@ function chkaLang() {
     l = localStorage.getItem('chka-lang') ||
       ((navigator.languages && navigator.languages[0]) || navigator.language || '').slice(0, 2).toLowerCase();
   } catch (e) {}
-  if (!CONFIG.I18N.tower1[l]) l = 'hy';
+  if (CONFIG.LANGS.indexOf(l) < 0) l = CONFIG.LANGS[0];   // язык, которого у сайта нет, — первый из списка (армянский)
   return l;
 }
 </script>

@@ -1,4 +1,5 @@
 {
+  "LANGS": ["hy", "ru", "en"],
   "MAX_SHIFT_X": 0.02,
   "MAX_SHIFT_Y": 0.012,
   "BASE_SCALE": 1.05,
