@@ -6,6 +6,19 @@
 (function () {
   'use strict';
 
+  // Движок (engine/) лежит отдельно от страницы здания: свои файлы (prep.js, details.js) берём рядом с этим скриптом
+  // (с той же версией в адресе), а адреса кадров делаем полными — воркер считает относительный адрес от своего файла, а не от страницы.
+  var ENGINE_SRC = (document.currentScript && document.currentScript.src) || '';
+  var ENGINE_BASE = ENGINE_SRC.replace(/[?#].*$/, '').replace(/[^\/]*$/, '');
+  var ENGINE_Q = (ENGINE_SRC.match(/\?[^#]*/) || [''])[0];
+  function engineUrl(name) { return ENGINE_BASE + name + ENGINE_Q; }
+  function absUrls(v) {
+    if (typeof v === 'string') { try { return new URL(v, document.baseURI).href; } catch (e) { return v; } }
+    if (v && typeof v === 'object') { var o = {}; for (var k in v) if (Object.prototype.hasOwnProperty.call(v, k)) o[k] = absUrls(v[k]); return o; }
+    return v;
+  }
+  CONFIG.FRAMES = CONFIG.FRAMES.map(absUrls);
+
   var stage = document.getElementById('stage');
   var canvas = document.getElementById('gl');
   var prevBtn = document.getElementById('prevBtn');
@@ -677,7 +690,7 @@
       if (!mainReadyP) {
         mainReadyP = new Promise(function (res, rej) {
           var sc = document.createElement('script');
-          sc.src = 'prep.js'; sc.onload = function () { window.Prep.init(cfg).then(res); }; sc.onerror = function () { rej(new Error('prep.js не загрузился')); };
+          sc.src = engineUrl('prep.js'); sc.onload = function () { window.Prep.init(cfg).then(res); }; sc.onerror = function () { rej(new Error('prep.js не загрузился')); };
           document.head.appendChild(sc);
         });
       }
@@ -685,7 +698,7 @@
     }
     if (window.Worker && window.OffscreenCanvas && window.createImageBitmap && !/[?&]noworker=1/.test(location.search)) {
       try {
-        worker = new Worker('prep.js');
+        worker = new Worker(engineUrl('prep.js'));
         worker.onmessage = function (e) {
           var m = e.data, q = pend[m.id]; delete pend[m.id];
           if (q) { if (m.ok) q.res(m.res); else q.rej(new Error(m.err)); }
@@ -778,7 +791,7 @@
   function idle(fn) { if (window.requestIdleCallback) requestIdleCallback(fn, { timeout: 2500 }); else setTimeout(fn, 250); }
   function loadDetails() {   // живые детали — отдельный файл, подгружается после первого кадра
     var sc = document.createElement('script');
-    sc.src = 'details.js'; sc.onload = function () { window.Details.init(window.__viewer); };
+    sc.src = engineUrl('details.js'); sc.onload = function () { window.Details.init(window.__viewer); };
     document.head.appendChild(sc);
   }
   function startBackground() {   // по одному, в простое, не при скрытой вкладке
