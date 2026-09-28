@@ -246,7 +246,8 @@
     '  float cycle2 = 53.0;',
     '  float p2 = fract((t + cycle1 * 0.5) / cycle2);',
     '  float b2 = blob(uv, vec2(mix(-0.35, 1.35, p2), 0.32), vec2(0.22, 0.13));',
-    '  return clamp(b1 + b2, 0.0, 1.0);',
+    '  float bb = clamp(b1 + b2, 0.0, 1.0);',
+    '  return bb;',
     '}',
     '',
     'float wxHash(vec2 q) { return fract(sin(dot(q, vec2(127.1, 311.7))) * 43758.5453); }',
@@ -408,6 +409,7 @@
     '  }',
     '  vec3 c = sa.rgb;',
     '  float shadow = cloudShadow(uv, uCloudT);',
+    '  if (uWeather.x > 0.0) shadow = clamp(mix(shadow, max(shadow, cloudShadow(uv * 0.7 + 0.15, uCloudT * 1.3 + 17.0)), uWeather.x) * (0.55 + 0.7 * wxNoise(uv * 3.5 + vec2(uCloudT * 0.02, 0.0))), 0.0, 1.0);',   // тучи: теней больше, края рваные
     '  c *= (1.0 - (mix(uCloudK.x, uCloudK.y, uMix) + uWeather.x * ' + glf(LK.weather.overcastShadow) + ') * shadow * (1.0 - sa.a) * (1.0 - uNightGnd));',   // в тучи тени облаков по земле гуще
     '  gl_FragColor = vec4(c, 1.0);',
     '}'
@@ -423,6 +425,7 @@
     'uniform float uAspect;',
     'uniform vec3 uLampH[16];', // ореол у лампы: x,y (текстурные координаты), z = яркость
     'uniform vec3 uLampB[16];', // пятно света на земле под лампой
+    'uniform float uFog;',      // туман: ореолы фонарей шире — свет рассеивается в дымке
     'float lum(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }',
     'void main() {',
     '  vec3 c = texture2D(uScene, vTc).rgb;',
@@ -445,7 +448,7 @@
     '      if (lh.z > 0.001) {',
     '        vec2 d = (vTc - lh.xy) * vec2(uAspect, 1.0);',
     '        float r2 = dot(d, d);',
-    '        c += ' + v3(LK.lampHalo.color) + ' * (exp(-r2 / ' + glf(LK.lampHalo.coreSize) + ') * ' + glf(LK.lampHalo.core) + ' + exp(-r2 / ' + glf(LK.lampHalo.wideSize) + ') * ' + glf(LK.lampHalo.wide) + ') * lh.z;',
+    '        c += ' + v3(LK.lampHalo.color) + ' * (exp(-r2 / ' + glf(LK.lampHalo.coreSize) + ') * ' + glf(LK.lampHalo.core) + ' + exp(-r2 / (' + glf(LK.lampHalo.wideSize) + ' * (1.0 + 5.0 * uFog))) * ' + glf(LK.lampHalo.wide) + ' * (1.0 + 1.6 * uFog)) * lh.z;',
     '      }',
     '      vec3 lb = uLampB[i];',
     '      if (lb.z > 0.001) {',
@@ -515,7 +518,7 @@
       uA.forEach(function (n, i) { if (US[n]) gl.uniform1i(US[n], i); });
       uB.forEach(function (n, i) { if (US[n]) gl.uniform1i(US[n], i + UB0); });
       gl.uniform1f(US.uScale, CONFIG.BASE_SCALE);
-      postPrg = finishProgram(hp, ['uScene', 'uSunset', 'uNight', 'uAspect', 'uLampH', 'uLampB'], UP);
+      postPrg = finishProgram(hp, ['uScene', 'uSunset', 'uNight', 'uAspect', 'uLampH', 'uLampB', 'uFog'], UP);
       gl.uniform1i(UP.uScene, 0);
       gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
       fbo = null; sceneTex = null; fboW = 0; fboH = 0;
@@ -653,6 +656,7 @@
     gl.uniform1f(UP.uSunset, (NI && fa.sG && (!fb || fb.sG)) ? 0 : tod.s);   // длинные тени процедурного заката; у закатной картинки они нарисованы
     gl.uniform1f(UP.uNight, tod.lights);
     gl.uniform1f(UP.uAspect, aspect);
+    gl.uniform1f(UP.uFog, wx.cur[1]);
     gl.uniform3fv(UP.uLampH, fx.lampH);
     gl.uniform3fv(UP.uLampB, fx.lampB);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -849,6 +853,7 @@
   // Что нужно живым деталям (details.js): текущий кадр, время суток, проекция точки кадра на сцену.
   window.__viewer = {
     stage: stage, tod: tod, weather: function () { return wx; },
+    testBolt: function () { nextFlash = performance.now(); },   // для проверки: следующая молния — сейчас
     frame: function () { return frameIndex; }, fading: function () { return !!fade; }, entry: function (i) { return store[i]; },
     projectB: function (f, u, v) {   // точка слоя «здание» -> пиксели сцены (для пролёта «за зданием»)
       var ld = lastDraw || { shiftX: 0, shiftY: 0, zoom: 0 };
@@ -1601,6 +1606,54 @@
     stage.insertBefore(pc, document.getElementById('hotspots'));
     pctx = pc.getContext('2d');
   }
+  // Молния: ломаная из середины вниз (смещение средней точки) + ветви; рисуется на своём слое и оставляется только в небе —
+  // за зданиями, деревьями и землёй её не видно, поэтому она «вдали».
+  function makeBolt(x0, y0, y1, seg) {
+    var main = [[x0, y0]], x = x0, y = y0, branches = [];
+    while (y < y1) { x += (pRng() - 0.5) * seg * 1.3; y += seg * (0.35 + 0.5 * pRng()); main.push([x, Math.min(y, y1)]); }
+    for (var k = 0; k < 3 + Math.floor(pRng() * 3); k++) {
+      var i0 = 1 + Math.floor(pRng() * (main.length * 0.7)), bx = main[i0][0], by = main[i0][1], dir = pRng() < 0.5 ? -1 : 1, br = [[bx, by]];
+      for (var j = 0; j < 3 + Math.floor(pRng() * 5); j++) { bx += dir * seg * (0.3 + 0.6 * pRng()); by += seg * (0.25 + 0.45 * pRng()); br.push([bx, by]); }
+      branches.push(br);
+    }
+    return { main: main, branches: branches };
+  }
+  var boltCv = null, skyMaskCv = {};
+  function skyMaskFor(i) {   // маска неба кадра из карты окружения (R — небо)
+    if (skyMaskCv[i]) return skyMaskCv[i] === 'loading' ? null : skyMaskCv[i];
+    skyMaskCv[i] = 'loading';
+    var im = new Image(); im.crossOrigin = 'anonymous';
+    im.onload = function () {
+      try {
+        var mw = 192, mh = Math.round(mw * FH / FW), c = document.createElement('canvas'); c.width = mw; c.height = mh;
+        var x = c.getContext('2d'); x.drawImage(im, 0, 0, mw, mh); var id = x.getImageData(0, 0, mw, mh), D = id.data;
+        for (var k = 0; k < D.length; k += 4) { D[k + 3] = D[k]; D[k] = D[k + 1] = D[k + 2] = 255; }
+        x.putImageData(id, 0, 0); skyMaskCv[i] = c;
+      } catch (e) { skyMaskCv[i] = null; }
+    };
+    im.onerror = function () { skyMaskCv[i] = null; };
+    im.src = FRAMES[i].env;
+    return null;
+  }
+  function drawBolt(fl, W, H, d) {
+    if (!boltCv) boltCv = document.createElement('canvas');
+    if (boltCv.width !== W || boltCv.height !== H) { boltCv.width = W; boltCv.height = H; }
+    var bc = boltCv.getContext('2d'); bc.clearRect(0, 0, W, H); bc.lineJoin = 'round'; bc.lineCap = 'round';
+    function path(pts) { bc.beginPath(); pts.forEach(function (pt, k) { if (k) bc.lineTo(pt[0], pt[1]); else bc.moveTo(pt[0], pt[1]); }); bc.stroke(); }
+    bc.shadowColor = 'rgba(190,210,255,' + fl + ')'; bc.shadowBlur = 22 * d;
+    bc.strokeStyle = 'rgba(170,195,255,' + (0.45 * fl).toFixed(3) + ')'; bc.lineWidth = 6 * d; path(wx.bolt.main);   // свечение вокруг
+    bc.shadowBlur = 8 * d;
+    wx.bolt.branches.forEach(function (br) { bc.strokeStyle = 'rgba(235,242,255,' + (0.7 * fl).toFixed(3) + ')'; bc.lineWidth = 1.1 * d; path(br); });
+    bc.strokeStyle = 'rgba(255,255,255,' + (0.95 * fl).toFixed(3) + ')'; bc.lineWidth = 2 * d; path(wx.bolt.main);
+    var m = skyMaskFor(frameIndex), ent = store[frameIndex];
+    if (m && ent) {   // только в небе
+      var p0 = window.__viewer.project(ent, 0, 0, 0), p1 = window.__viewer.project(ent, 1, 1, 0);
+      bc.globalCompositeOperation = 'destination-in'; bc.shadowBlur = 0;
+      bc.drawImage(m, p0[0] * d, p0[1] * d, (p1[0] - p0[0]) * d, (p1[1] - p0[1]) * d);
+      bc.globalCompositeOperation = 'source-over';
+    }
+    pctx.drawImage(boltCv, 0, 0);
+  }
   var groundPts = {};
   function groundFor(i) {
     if (groundPts[i]) return groundPts[i] === 'loading' ? null : groundPts[i];
@@ -1655,12 +1708,7 @@
       if (now >= wx.nextSheet && flash === null) { wx.sheetT0 = now; wx.sheetK = 0.25 + 0.35 * pRng(); wx.nextSheet = now + 1400 + pRng() * 2600; }   // зарница: облака вспыхивают изнутри
       if (now >= nextFlash) {
         flash = now; nextFlash = now + 4000 + pRng() * 5000;
-        var bx = W * (0.15 + 0.7 * pRng()), by = 0, pts = [[bx, by]], seg = H * 0.035;   // зигзаг до горизонта, с ветками
-        while (by < skyEnd * (0.8 + 0.3 * pRng())) { bx += (pRng() - 0.5) * seg * 1.6; by += seg * (0.6 + 0.8 * pRng()); pts.push([bx, by]); }
-        var br = [], bi = 1 + Math.floor(pRng() * (pts.length - 2));
-        var cx0 = pts[bi][0], cy0 = pts[bi][1]; br.push([cx0, cy0]);
-        for (var bk = 0; bk < 4; bk++) { cx0 += (pRng() - 0.2) * seg * 1.8; cy0 += seg * 0.8; br.push([cx0, cy0]); }
-        wx.bolt = [pts, br];
+        wx.bolt = makeBolt(W * (0.12 + 0.76 * pRng()), skyEnd * (0.08 + 0.12 * pRng()), skyEnd * (1.02 + 0.06 * pRng()), H * 0.028);
       }
     } else { nextFlash = 0; wx.sheetT0 = 0; }
     if (wx.sheetT0) {
@@ -1672,15 +1720,7 @@
       var fa = now - flash, fl = fa < 160 ? 1 - 0.4 * fa / 160 : (fa < 230 ? 0.25 : (fa < 560 ? 0.85 * (1 - (fa - 230) / 330) : 0));   // двойная вспышка ~0.5 с
       if (fa > 560) { flash = null; wx.bolt = null; }
       wx.flash = Math.max(wx.flash, fl * rainK);
-      if (fl > 0 && wx.bolt) {
-        pctx.save(); pctx.lineJoin = 'round'; pctx.lineCap = 'round';
-        pctx.shadowColor = 'rgba(210,225,255,' + (0.9 * fl) + ')'; pctx.shadowBlur = 14 * d;
-        [[wx.bolt[0], 2.4], [wx.bolt[1], 1.3]].forEach(function (q) {
-          pctx.strokeStyle = 'rgba(250,252,255,' + (0.95 * fl).toFixed(3) + ')'; pctx.lineWidth = q[1] * d;
-          pctx.beginPath(); q[0].forEach(function (pt, k2) { if (k2) pctx.lineTo(pt[0], pt[1]); else pctx.moveTo(pt[0], pt[1]); }); pctx.stroke();
-        });
-        pctx.restore();
-      }
+      if (fl > 0 && wx.bolt) drawBolt(fl, W, H, d);
     }
     if (rbA > 0.01) {   // радуга: мягкие переходы цветов, концы и низ тают, рядом бледная вторая дуга; напротив солнца
       var key = W + 'x' + H + 'x' + Math.round(skyEnd);
