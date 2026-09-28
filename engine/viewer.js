@@ -1136,6 +1136,7 @@
   var perfLevel = 0;                 // 0 — всё; 1 — выключены живые детали и падающие звёзды; 2 — ещё и ветер
   var perfOn = !/[?&]perf=0/.test(location.search);
   var fpsFrames = 0, fpsT0 = 0, perfSince = 0, perfLow = 0, perfGood = 0, perfRecov = 0;
+  var fpsBest = 0;   // лучший замеренный fps: у iPhone в энергосбережении и во встроенных страницах потолок 30 — ровные 30 там норма, а не перегрузка
   var nextToggleAt = 0, nextShootAt = 0, shootT0 = -1, secondPending = false;
   var fxRng = rng(99);
 
@@ -1206,7 +1207,21 @@
   }
 
   // Цель — 60 fps. Если средний fps ниже PERF_MIN_FPS (45): сначала выключаем ветер, потом падающие звёзды.
+  // диагностика: адрес с #debug — строчка вверху экрана (fps, уровень экономии, «уменьшение движения», погода). Для проверки на телефоне.
+  var dbgEl = null, dbgT = 0, dbgFrames = 0, dbgFps = 0;
+  function debugLine(now) {
+    if (location.hash !== '#debug') { if (dbgEl) { dbgEl.remove(); dbgEl = null; } return; }
+    dbgFrames++;
+    if (!dbgEl) { dbgEl = document.createElement('div'); dbgEl.style.cssText = 'position:fixed;left:6px;top:calc(env(safe-area-inset-top,0px) + 6px);z-index:99;font:11px/1.3 monospace;background:rgba(255,255,255,.85);color:#000;padding:3px 6px;border-radius:4px;pointer-events:none;white-space:pre'; document.body.appendChild(dbgEl); dbgT = now; }
+    if (now - dbgT < 1000) return;
+    dbgFps = dbgFrames * 1000 / (now - dbgT); dbgFrames = 0; dbgT = now;
+    var c = document.getElementById('wxCanvas');
+    dbgEl.textContent = 'fps ' + dbgFps.toFixed(0) + ' · экономия ' + perfLevel + ' · меньше движения ' + (reduced() ? 'ДА' : 'нет') + ' · dpr ' + (window.devicePixelRatio || 1) +
+      '\nпогода ' + wx.cur.map(function (x) { return x.toFixed(2); }).join('/') + ' · ветер ' + wx.wind.toFixed(1) + ' · холст ' + (c ? c.width + '×' + c.height + ' ' + (c.style.display || 'виден') : 'нет') +
+      ' · детали ' + (window.Details ? 'да' : 'нет');
+  }
   function perfCheck(now, busy) {
+    debugLine(now);
     if (!perfOn) return;
     if (!perfSince) perfSince = now;
     if (busy || !fpsT0 || now - perfSince < 4000) { fpsT0 = now; fpsFrames = 0; return; } // разогрев 4 с, переходы, чтение — не считаем
@@ -1214,7 +1229,8 @@
     var dt = now - fpsT0;
     if (dt >= 2500) {
       var fps = fpsFrames * 1000 / dt;
-      if (fps < CONFIG.PERF_MIN_FPS && document.visibilityState === 'visible') {
+      fpsBest = Math.max(fpsBest, fps);
+      if (fps < CONFIG.PERF_MIN_FPS && fps < fpsBest * 0.8 && document.visibilityState === 'visible') {   // медленно И заметно хуже, чем этот экран умеет
         perfGood = 0;
         if (perfLevel < 2 && ++perfLow >= 2) {   // два медленных окна подряд (5 с): одиночная заминка (окно на заднем плане, вкладка) не считается
           perfLow = 0; perfLevel++;              // сначала отключаем детали (и падающие звёзды), потом ветер
@@ -1222,10 +1238,10 @@
         }
       } else {
         perfLow = 0;
-        if (perfLevel >= 1 && fps >= 56 && ++perfGood >= Math.min(24, 4 + 2 * perfRecov)) {   // 10 с ровных 56+ fps без деталей — возвращаем; после каждого срыва ждём дольше (до 60 с), чтобы детали не «мигали»
+        if (perfLevel >= 1 && fps >= Math.min(56, fpsBest * 0.93) && ++perfGood >= Math.min(24, 4 + 2 * perfRecov)) {   // 10 с ровных 56+ fps без деталей — возвращаем; после каждого срыва ждём дольше (до 60 с), чтобы детали не «мигали»
           perfGood = 0; perfRecov++; perfLevel--;
           console.info('fps ровный -> возвращаю ' + (perfLevel === 0 ? 'живые детали' : 'ветер'));
-        } else if (fps < 56) perfGood = 0;
+        } else if (fps < Math.min(56, fpsBest * 0.93)) perfGood = 0;
       }
       fpsT0 = now; fpsFrames = 0;
     }
@@ -1551,13 +1567,14 @@
     }
     if (rainK >= 0.01) {
       pctx.lineCap = 'round';
-      for (var i = 0; i < nR; i++) {
+      var nRon = Math.round(nR * Math.min(1, rainK * 1.15));   // дождь начинается с редких капель
+      for (var i = 0; i < nRon; i++) {
         var p = drops[i], v = (14 + 10 * p.z) * d * s, len = (10 + 16 * p.z) * d;
         p.y += v; p.x += v * slant;
         if (p.y > H) { p.y = -len - pRng() * 40 * d; p.x = pRng() * W * 1.2 - W * 0.1; }
         if (p.x > W) p.x -= W;
         pctx.strokeStyle = 'rgba(' + rc.join(',') + ',' + (ra * rainK * (0.45 + 0.55 * p.z)).toFixed(3) + ')';
-        pctx.lineWidth = (0.6 + 0.8 * p.z) * d;
+        pctx.lineWidth = (0.8 + 1.0 * p.z) * d;
         pctx.beginPath(); pctx.moveTo(p.x, p.y); pctx.lineTo(p.x - len * slant, p.y - len); pctx.stroke();
       }
       // брызги на земле: маленькие «галочки» карандашом ниже линии горизонта
@@ -1575,7 +1592,8 @@
     if (snowK >= 0.01) {
       var sc = L.snowColor, t = now / 1000;
       if (flakes.length > nS) flakes.length = nS;
-      for (var j = 0; j < nS; j++) {
+      var nSon = Math.round(nS * Math.min(1, snowK * 1.15));   // снег тоже начинается с редких снежинок
+      for (var j = 0; j < nSon; j++) {
         var f = flakes[j], fv = (0.6 + 1.2 * f.z) * d * s;
         f.y += fv; f.x += (Math.sin(t * 0.9 + f.ph) * 0.5 + (wx.wind - 1) * 0.9) * d * s;
         if (f.y > H) { f.y = -4 * d; f.x = pRng() * W; }
