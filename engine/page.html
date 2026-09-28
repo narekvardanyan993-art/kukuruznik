@@ -338,11 +338,15 @@
     font: 600 var(--fs-small)/1.15 var(--font);
   }
   .seg button:last-child { border-right: none; }
-  .seg-wx { grid-auto-flow: row; grid-template-columns: repeat(6, 1fr); }   /* погода — 5 кнопок в две строки: 3 сверху, 2 снизу во всю ширину */
-  .seg-wx button { grid-column: span 2; }
-  .seg-wx button:nth-child(n+4) { grid-column: span 3; }
-  .seg-wx button:nth-child(3) { border-right: none; }
-  .seg-wx button:nth-child(-n+3) { border-bottom: 1px solid rgba(47,42,37,0.5); }
+  /* погода (e1.3): ряд кнопок-значков, каждая вкл/выкл; ветер — по кругу тихо/ветрено/буря (1–3 черты); под рядом — название получившейся погоды */
+  .wx-chips { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .wx-chips button { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 56px; padding: 6px 2px 5px;
+    border: 2px solid var(--ink); border-radius: 12px 6px 12px 6px / 6px 12px 6px 12px; background: transparent; color: var(--ink); font: 600 11px/1.1 var(--font); cursor: pointer; }
+  .wx-chips svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .wx-chips button.on { background: var(--ink); color: var(--paper); }
+  #windBtn .w2, #windBtn .w3 { opacity: 0.22; }
+  #windBtn[data-wind="1"] .w2, #windBtn[data-wind="2"] .w2, #windBtn[data-wind="2"] .w3 { opacity: 1; }
+  .wx-name { margin-top: 6px; text-align: center; font: italic 600 var(--fs-small)/1.2 var(--font); min-height: 1.2em; }
   .seg button.on { background: var(--ink); color: var(--paper); }
   #thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s1); }
   #thumbs button {
@@ -626,21 +630,14 @@ window.__wl = WelcomeLoader.create({
     </section>
     <section class="p-sec">
       <h3 data-i18n="weather">Погода</h3>
-      <div class="seg seg-wx" id="wxSeg" role="group">
-        <button type="button" data-wx="clear" class="on" data-i18n="wxClear">Ясно</button>
-        <button type="button" data-wx="cloudy" data-i18n="wxCloudy">Пасмурно</button>
-        <button type="button" data-wx="rain" data-i18n="wxRain">Дождь</button>
-        <button type="button" data-wx="snow" data-i18n="wxSnow">Снег</button>
-        <button type="button" data-wx="fog" data-i18n="wxFog">Туман</button>
+      <div class="wx-chips" id="wxChips" role="group">
+        <button type="button" data-wx="cloudy" aria-pressed="false"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M9 23h14.5a5 5 0 0 0 .6-10 7 7 0 0 0-13.3 1.6A4.3 4.3 0 0 0 9 23z"/></svg><span data-i18n="wxCloudy">Тучи</span></button>
+        <button type="button" data-wx="rain" aria-pressed="false"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M9 18h14.5a4.5 4.5 0 0 0 .5-9 6.5 6.5 0 0 0-12.3 1.4A3.9 3.9 0 0 0 9 18z"/><path d="M11 22l-1.5 4M16 22l-1.5 4M21 22l-1.5 4"/></svg><span data-i18n="wxRain">Дождь</span></button>
+        <button type="button" data-wx="snow" aria-pressed="false"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 6v20M7.3 11l17.4 10M7.3 21l17.4-10M13 7.5l3 2.5 3-2.5M13 24.5l3-2.5 3 2.5"/></svg><span data-i18n="wxSnow">Снег</span></button>
+        <button type="button" data-wx="fog" aria-pressed="false"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 11c3-2 5 2 8 0s5-2 8 0 4 1 4 1M6 17c3-2 5 2 8 0s5-2 8 0 4 1 4 1M6 23c3-2 5 2 8 0s5-2 8 0 4 1 4 1"/></svg><span data-i18n="wxFog">Туман</span></button>
+        <button type="button" data-wind="0" id="windBtn" aria-pressed="false"><svg viewBox="0 0 32 32" aria-hidden="true"><path class="w1" d="M5 12h15a3.5 3.5 0 1 0-3.5-3.5"/><path class="w2" d="M5 17h20a3.5 3.5 0 1 1-3.5 3.5"/><path class="w3" d="M5 22h9"/></svg><span data-i18n="wind">Ветер</span></button>
       </div>
-    </section>
-    <section class="p-sec">
-      <h3 data-i18n="wind">Ветер</h3>
-      <div class="seg" id="windSeg" role="group">
-        <button type="button" data-wind="0" class="on" data-i18n="windCalm">Тихо</button>
-        <button type="button" data-wind="1" data-i18n="windBreeze">Ветрено</button>
-        <button type="button" data-wind="2" data-i18n="windStorm">Буря</button>
-      </div>
+      <div class="wx-name" id="wxName" aria-live="polite">Ясно</div>
     </section>
     <section class="p-sec">
       <h3 data-i18n="frames">Кадры</h3>

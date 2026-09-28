@@ -193,15 +193,10 @@
    "en": "Weather",
    "hy": "Եղանակ"
   },
-  "wxClear": {
-   "ru": "Ясно",
-   "en": "Clear",
-   "hy": "Պարզ"
-  },
   "wxCloudy": {
-   "ru": "Пасмурно",
-   "en": "Cloudy",
-   "hy": "Ամպամած"
+   "ru": "Тучи",
+   "en": "Clouds",
+   "hy": "Ամպեր"
   },
   "wxRain": {
    "ru": "Дождь",
@@ -223,20 +218,80 @@
    "en": "Wind",
    "hy": "Քամի"
   },
-  "windCalm": {
-   "ru": "Тихо",
-   "en": "Calm",
-   "hy": "Հանդարտ"
+  "wxN_clear": {
+   "ru": "Ясно",
+   "en": "Clear",
+   "hy": "Պարզ"
   },
-  "windBreeze": {
+  "wxN_breezy": {
    "ru": "Ветрено",
    "en": "Breezy",
    "hy": "Քամոտ"
   },
-  "windStorm": {
+  "wxN_gale": {
    "ru": "Буря",
-   "en": "Storm",
+   "en": "Gale",
    "hy": "Փոթորիկ"
+  },
+  "wxN_overcast": {
+   "ru": "Пасмурно",
+   "en": "Overcast",
+   "hy": "Ամպամած"
+  },
+  "wxN_rain": {
+   "ru": "Дождь",
+   "en": "Rain",
+   "hy": "Անձրև"
+  },
+  "wxN_slant": {
+   "ru": "Косой дождь",
+   "en": "Slanting rain",
+   "hy": "Թեք անձրև"
+  },
+  "wxN_thunder": {
+   "ru": "Гроза",
+   "en": "Thunderstorm",
+   "hy": "Ամպրոպ"
+  },
+  "wxN_snow": {
+   "ru": "Снегопад",
+   "en": "Snowfall",
+   "hy": "Ձյուն է գալիս"
+  },
+  "wxN_blizzard": {
+   "ru": "Метель",
+   "en": "Blizzard",
+   "hy": "Բուք"
+  },
+  "wxN_sleet": {
+   "ru": "Мокрый снег",
+   "en": "Sleet",
+   "hy": "Թաց ձյուն"
+  },
+  "wxN_fog": {
+   "ru": "Туман",
+   "en": "Fog",
+   "hy": "Մառախուղ"
+  },
+  "wxN_drizzle": {
+   "ru": "Морось",
+   "en": "Drizzle",
+   "hy": "Մաղող անձրև"
+  },
+  "wxN_haze": {
+   "ru": "Морозная дымка",
+   "en": "Frosty haze",
+   "hy": "Ցրտաշունչ մշուշ"
+  },
+  "wxN_gloom": {
+   "ru": "Хмурый туман",
+   "en": "Gloomy fog",
+   "hy": "Մռայլ մառախուղ"
+  },
+  "wxN_rainbow": {
+   "ru": "Радуга",
+   "en": "Rainbow",
+   "hy": "Ծիածան"
   }
  },
  "LOOK": {
@@ -430,6 +485,11 @@
     255,
     255,
     0.9
+   ],
+   "flash": [
+    0.92,
+    0.94,
+    1.0
    ]
   }
  }
