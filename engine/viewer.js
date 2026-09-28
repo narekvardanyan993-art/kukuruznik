@@ -244,6 +244,9 @@
     '  return clamp(b1 + b2, 0.0, 1.0);',
     '}',
     '',
+    'float wxHash(vec2 q) { return fract(sin(dot(q, vec2(127.1, 311.7))) * 43758.5453); }',
+    'float wxNoise(vec2 q) { vec2 i = floor(q), f = fract(q); f = f * f * (3.0 - 2.0 * f);',
+    '  return mix(mix(wxHash(i), wxHash(i + vec2(1.0, 0.0)), f.x), mix(wxHash(i + vec2(0.0, 1.0)), wxHash(i + vec2(1.0, 1.0)), f.x), f.y); }',
     // Готовый цвет пикселя одного кадра: параллакс, ветер, закат, ночь.
     'vec4 shadeFrame(sampler2D bg, sampler2D depth, sampler2D bld, sampler2D em, vec2 kd, float starQ, vec2 skyRef, vec4 crop, vec4 flag,' + (NI ? ' sampler2D sg, sampler2D sb, sampler2D ng, sampler2D nb, vec2 has,' : '') + ' vec2 uv, vec2 sc) {',
     '  uv = crop.xy + uv * crop.zw;',   // обрезка белого края бумаги: показываем только внутренний прямоугольник кадра
@@ -369,8 +372,9 @@
     '    oc = mix(oc, ' + v3(LK.weather.overcastSky) + ' * mix(1.0, 0.22, uNightSky) * clamp(lw / skyRef.x * 1.05, 0.7, 1.05), sky * 0.85);',   // небо — серое, звёзды тонут
     '    c = mix(c, oc, uWeather.x);',
     '    c *= 1.0 - ' + glf(LK.weather.wetDim) + ' * uWeather.z * (1.0 - sky);',           // мокрая земля и стены темнее
-    '    c = mix(c, ' + v3(LK.weather.snowTint) + ' * mix(1.0, 0.35, uNightGnd), uWeather.w * ' + glf(LK.weather.snowK) + ' * (1.0 - sky) * smoothstep(0.35, 0.8, lw));',   // снег ложится на светлое
-    '    float fg = uWeather.y * clamp(pow(1.0 - dd, 1.3) * ' + glf(LK.weather.fogNear) + ' + sky * ' + glf(LK.weather.fogSky) + ', 0.0, 0.95);',   // туман по глубине: дальнее тонет сильнее
+    '    c = mix(c, ' + v3(LK.weather.snowTint) + ' * mix(1.0, 0.35, uNightGnd), uWeather.w * ' + glf(LK.weather.snowK) + ' * (1.0 - sky) * smoothstep(0.22, 0.7, lw));',   // снег ложится на светлое
+    '    float wisp = 0.6 * wxNoise(vec2(sc.x * 2.6 - uCloudT * 0.045, sc.y * 7.0)) + 0.4 * wxNoise(vec2(sc.x * 6.0 - uCloudT * 0.08, sc.y * 15.0 + 3.0));',   // полосы тумана плывут
+    '    float fg = uWeather.y * clamp((pow(1.0 - dd, 1.3) * ' + glf(LK.weather.fogNear) + ' + sky * ' + glf(LK.weather.fogSky) + ') * (0.55 + 0.9 * wisp) + 0.18 * smoothstep(0.45, 0.95, sc.y) * wisp, 0.0, 0.95);',   // туман по глубине: дальнее тонет сильнее, у земли гуще
     '    c = mix(c, mix(' + v3(LK.weather.fogDay) + ', ' + v3(LK.weather.fogNight) + ', uNightGnd), fg);',
     '  }',
     '  return vec4(c, sky);',   // a — доля неба в точке (тень облака на небо не кладём)
@@ -616,7 +620,7 @@
     gl.uniform1f(US.uAspect, aspect);
     gl.uniform1f(US.uWindAmp, fx.windAmp);
     gl.uniform1f(US.uWindOn, fx.windOn ? 1 : 0);
-    gl.uniform4f(US.uWeather, wx.cur[0], wx.cur[1], wx.cur[2], wx.cur[3]);
+    gl.uniform4f(US.uWeather, wx.cur[0], wx.cur[1], wx.cur[2], wx.cover);
     gl.uniform2f(US.uCellPx, canvas.width / (STAR_CELLS[0] * visW), canvas.height / (STAR_CELLS[1] * visH));
     gl.uniform4f(US.uShoot, fx.shoot[0], fx.shoot[1], fx.shoot[2], fx.shoot[3]);
     gl.uniform2f(US.uShootP, fx.shootP, fx.shootLen);
@@ -826,7 +830,7 @@
 
   // Что нужно живым деталям (details.js): текущий кадр, время суток, проекция точки кадра на сцену.
   window.__viewer = {
-    stage: stage, tod: tod,
+    stage: stage, tod: tod, weather: function () { return wx; },
     frame: function () { return frameIndex; }, fading: function () { return !!fade; }, entry: function (i) { return store[i]; },
     project: function (f, u, v, d) {
       var ld = lastDraw || { shiftX: 0, shiftY: 0, zoom: 0 };
@@ -1482,7 +1486,7 @@
 
   // ---------- погода и ветер (e1.3) ----------
   // wx.cur — доли эффектов [пасмурно, туман, мокро, снег], плавно идут к wx.to за WEATHER_FADE_MS; wx.wind — множитель качания деревьев.
-  var wx = { cur: [0, 0, 0, 0], from: [0, 0, 0, 0], to: [0, 0, 0, 0], t0: null, name: 'clear', wind: 1, windTo: 1, windFrom: 1, rain: 0, snow: 0 };
+  var wx = { cur: [0, 0, 0, 0], from: [0, 0, 0, 0], to: [0, 0, 0, 0], t0: null, name: 'clear', wind: 1, windTo: 1, windFrom: 1, cover: 0, lastNow: 0 };
   function setWeather(name) {
     var v = CONFIG.WEATHER && CONFIG.WEATHER[name];
     if (!v) return;
@@ -1501,12 +1505,16 @@
     var k = sstep(0, 1, (now - wx.t0) / (CONFIG.WEATHER_FADE_MS || 1));
     for (var i = 0; i < 4; i++) wx.cur[i] = wx.from[i] + (wx.to[i] - wx.from[i]) * k;
     wx.wind = wx.windFrom + (wx.windTo - wx.windFrom) * k;
+    // снежный покров: копится ~15 с, пока идёт снег, тает ~5 с
+    var dts = wx.lastNow ? Math.min(0.1, (now - wx.lastNow) / 1000) : 0; wx.lastNow = now;
+    var tgt = wx.to[3];
+    wx.cover = tgt > wx.cover ? Math.min(tgt, wx.cover + dts / 15) : Math.max(tgt, wx.cover - dts / 5);
   }
   document.querySelectorAll('#wxSeg button').forEach(function (b) { b.addEventListener('click', function () { setWeather(b.getAttribute('data-wx')); }); });
   document.querySelectorAll('#windSeg button').forEach(function (b) { b.addEventListener('click', function () { setWind(+b.getAttribute('data-wind')); }); });
 
   // Капли и снежинки — отдельный прозрачный холст над картинкой (под точками-подсказками); создаётся, только когда нужен.
-  var pc = null, pctx = null, drops = [], flakes = [], pRng = rng(7);
+  var pc = null, pctx = null, drops = [], flakes = [], leaves = [], splashes = [], pRng = rng(7), flash = null, nextFlash = 0;
   function precipCanvas() {
     if (pc) return;
     pc = document.createElement('canvas');
@@ -1516,8 +1524,8 @@
     pctx = pc.getContext('2d');
   }
   function drawPrecip(now, dt, rm) {
-    var rainK = wx.cur[2], snowK = wx.cur[3];
-    if ((rainK < 0.01 && snowK < 0.01) || rm) { if (pc && pc.style.display !== 'none') { pctx.clearRect(0, 0, pc.width, pc.height); pc.style.display = 'none'; } return; }
+    var rainK = wx.cur[2], snowK = wx.cur[3], leafK = clamp((wx.wind - 1.4) / 1.6, 0, 1) * (1 - snowK);
+    if ((rainK < 0.01 && snowK < 0.01 && leafK < 0.01) || rm) { if (pc && pc.style.display !== 'none') { pctx.clearRect(0, 0, pc.width, pc.height); pc.style.display = 'none'; } return; }
     precipCanvas();
     pc.style.display = '';
     var d = Math.min(window.devicePixelRatio || 1, 1.5), w = stage.clientWidth, h = stage.clientHeight;
@@ -1530,6 +1538,17 @@
     var rc = [0, 1, 2].map(function (i) { return Math.round(L.rainDay[i] + (L.rainNight[i] - L.rainDay[i]) * night); });
     var ra = L.rainDay[3] + (L.rainNight[3] - L.rainDay[3]) * night;
     pctx.clearRect(0, 0, W, H);
+    var skyEnd = (CONFIG.DAY.SKY_END[frameIndex] || 0.55) * H;
+    // молния: только буря + дождь; короткая двойная вспышка раз в 7–15 с
+    if (rainK > 0.5 && wx.wind > 3) {
+      if (!nextFlash) nextFlash = now + 3000 + pRng() * 6000;
+      if (now >= nextFlash) { flash = now; nextFlash = now + 7000 + pRng() * 8000; }
+    } else nextFlash = 0;
+    if (flash !== null) {
+      var fa = now - flash, fl = fa < 90 ? 1 - fa / 90 : (fa > 160 && fa < 300 ? 0.6 * (1 - (fa - 160) / 140) : 0);
+      if (fa > 300) flash = null;
+      if (fl > 0) { pctx.fillStyle = 'rgba(245,247,255,' + (0.45 * fl * rainK).toFixed(3) + ')'; pctx.fillRect(0, 0, W, H); }
+    }
     if (rainK >= 0.01) {
       pctx.lineCap = 'round';
       for (var i = 0; i < nR; i++) {
@@ -1541,17 +1560,48 @@
         pctx.lineWidth = (0.6 + 0.8 * p.z) * d;
         pctx.beginPath(); pctx.moveTo(p.x, p.y); pctx.lineTo(p.x - len * slant, p.y - len); pctx.stroke();
       }
-    }
+      // брызги на земле: маленькие «галочки» карандашом ниже линии горизонта
+      var nsp = rainK * 5 * area * s;
+      while (pRng() < nsp) { splashes.push({ x: pRng() * W, y: skyEnd + pRng() * (H * 0.97 - skyEnd), t0: now, r: (2 + 3 * pRng()) * d }); nsp -= 1; }
+      pctx.lineWidth = 0.9 * d;
+      for (var si = splashes.length - 1; si >= 0; si--) {
+        var sp = splashes[si], sa = (now - sp.t0) / 320;
+        if (sa >= 1) { splashes.splice(si, 1); continue; }
+        var rr = sp.r * (0.6 + sa);
+        pctx.strokeStyle = 'rgba(' + rc.join(',') + ',' + (0.55 * ra * 2 * (1 - sa) * rainK).toFixed(3) + ')';
+        pctx.beginPath(); pctx.moveTo(sp.x - rr, sp.y - rr * 0.9); pctx.lineTo(sp.x - rr * 0.3, sp.y); pctx.moveTo(sp.x + rr, sp.y - rr * 0.9); pctx.lineTo(sp.x + rr * 0.3, sp.y); pctx.stroke();
+      }
+    } else splashes.length = 0;
     if (snowK >= 0.01) {
       var sc = L.snowColor, t = now / 1000;
+      if (flakes.length > nS) flakes.length = nS;
       for (var j = 0; j < nS; j++) {
         var f = flakes[j], fv = (0.6 + 1.2 * f.z) * d * s;
         f.y += fv; f.x += (Math.sin(t * 0.9 + f.ph) * 0.5 + (wx.wind - 1) * 0.9) * d * s;
         if (f.y > H) { f.y = -4 * d; f.x = pRng() * W; }
         if (f.x > W) f.x -= W; if (f.x < 0) f.x += W;
         pctx.fillStyle = 'rgba(' + sc[0] + ',' + sc[1] + ',' + sc[2] + ',' + (sc[3] * snowK * (0.5 + 0.5 * f.z)).toFixed(3) + ')';
-        pctx.beginPath(); pctx.arc(f.x, f.y, (0.9 + 1.9 * f.z) * d, 0, 6.2832); pctx.fill();
+        pctx.strokeStyle = 'rgba(70,78,96,' + (0.5 * snowK * (0.4 + 0.6 * f.z)).toFixed(3) + ')';   // тонкий карандашный контур — снежинка видна и на светлом небе
+        pctx.lineWidth = 0.8 * d;
+        pctx.beginPath(); pctx.arc(f.x, f.y, (1.3 + 2.2 * f.z) * d, 0, 6.2832); pctx.fill(); pctx.stroke();
       }
+    }
+    // ветер: листья летят слева направо, кувыркаясь (карандашный контур + зелёно-охристая заливка)
+    var nL = Math.round(leafK * 26 * area * lite);
+    while (leaves.length < nL) leaves.push({ x: -pRng() * W * 0.5, y: pRng() * H * 0.9, z: 0.4 + 0.6 * pRng(), ph: pRng() * 6.28, sp: pRng() * 6.28, hue: pRng() });
+    if (leaves.length > nL && leaves.length) leaves.length = nL;
+    var tl = now / 1000, nightL = 1 - 0.55 * tod.night;
+    for (var li = 0; li < leaves.length; li++) {
+      var lf = leaves[li], lv = (2.2 + 3.2 * lf.z) * (wx.wind / 2.4) * d * s;
+      lf.x += lv; lf.y += (Math.sin(tl * 2.1 + lf.ph) * 1.1 + 0.35) * d * s; lf.sp += 0.09 * s * (0.6 + lf.z);
+      if (lf.x > W + 20 * d || lf.y > H) { lf.x = -20 * d - pRng() * W * 0.3; lf.y = pRng() * H * 0.8; }
+      var ls = (3 + 4 * lf.z) * d, gC = lf.hue < 0.5 ? [120, 138, 70] : [176, 132, 58];
+      pctx.save(); pctx.translate(lf.x, lf.y); pctx.rotate(lf.sp); pctx.scale(1, 0.35 + 0.65 * Math.abs(Math.sin(lf.sp * 1.3)));
+      pctx.fillStyle = 'rgba(' + gC.map(function (c) { return Math.round(c * nightL); }).join(',') + ',' + (0.85 * leafK).toFixed(3) + ')';
+      pctx.strokeStyle = 'rgba(47,42,37,' + (0.7 * leafK).toFixed(3) + ')'; pctx.lineWidth = 0.8 * d;
+      pctx.beginPath(); pctx.ellipse(0, 0, ls, ls * 0.45, 0, 0, 6.2832); pctx.fill(); pctx.stroke();
+      pctx.beginPath(); pctx.moveTo(-ls, 0); pctx.lineTo(ls, 0); pctx.stroke();
+      pctx.restore();
     }
   }
 

@@ -31,6 +31,8 @@
   var V = null, cv = null, ctx = null, dpr = 1, W = 0, H = 0;
   var active = [], nextAt = 0, lastKey = null, lastFrame = -1, lastKind = '';
   var amb = null, par = null, UNIT = 470, drawn = false;   // UNIT: пикселей на всю ширину кадра
+  var showT0 = null, showK = -1, cloudT = 0, lastT = 0, nextKite = 0;   // плавное появление слоя; «время облаков» (быстрее при ветре); змей при ветре (e1.3)
+  function wxNow() { var x = V.weather && V.weather(); return x ? { oc: x.cur[0], fog: x.cur[1], wind: x.wind } : { oc: 0, fog: 0, wind: 1 }; }
 
   function rnd(a, b) { return a + (b - a) * Math.random(); }
   function pick(a) { return a[(Math.random() * a.length) | 0]; }
@@ -158,12 +160,23 @@
     }
     var bd = [];
     for (i = 0; i < 3; i++) bd.push({ v: band[0] + (band[1] - band[0]) * (0.1 + 0.55 * R()), sp: rnd0(R, 0.016, 0.024), ph: R(), fp: R() * 6.28, s: rnd0(R, 3.6, 4.6), dir: i === 1 ? -1 : 1 });
-    amb = { fr: fr, clouds: cl, birds: bd };
+    var ex = [];   // пасмурно: ещё 5 облаков, крупнее; при ясной погоде они за левым краем, с тучами «наползают» на небо
+    for (i = 0; i < 5; i++) ex.push({ u: 0.08 + i * 0.21 + R() * 0.06, v: band[0] + (band[1] - band[0]) * (0.15 + 0.7 * R()), sc: rnd0(R, 1.0, 1.4), shape: (R() * 3) | 0, lag: R() * 0.35 });
+    amb = { fr: fr, clouds: cl, birds: bd, extra: ex };
   }
   function rnd0(R, a, b) { return a + (b - a) * R(); }
 
-  function drawClouds(now, w) {
-    var spr = clouds(), t = now / 1000;
+  function drawClouds(now, w, wx) {
+    var spr = clouds(), t = now / 1000 + cloudT;   // при тихой погоде cloudT = 0 — облака там же, где были до погоды
+    if (wx.oc > 0.005) {   // тучи пасмурной погоды: выезжают слева по мере того, как небо затягивает
+      for (var j = 0; j < amb.extra.length; j++) {
+        var x = amb.extra[j], a = Math.max(0, Math.min(1, (wx.oc - x.lag) / (1 - x.lag)));
+        if (a <= 0) continue;
+        var ue = x.u - (1 - a) * 1.3 + 0.01 * Math.sin(t * 0.05 + j), pe = P(ue, x.v, 0), we = 0.36 * x.sc * UNIT, he = we * 70 / 160;
+        var wsE = [w.d, w.s, w.n];
+        for (var q = 0; q < 3; q++) { if (wsE[q] < 0.01) continue; ctx.globalAlpha = 0.85 * wsE[q] * a * (1 - 0.8 * wx.fog); ctx.drawImage(spr[q][x.shape], pe[0] - we / 2, pe[1] - he / 2, we, he); }
+      }
+    }
     for (var i = 0; i < amb.clouds.length; i++) {
       var c = amb.clouds[i], k = ((c.ph + c.sp * t) % 1.4 + 1.4) % 1.4, u = k - 0.2;   // от -0.2 до 1.2 кадра, потом снова слева
       var e = Math.min(1, (u + 0.2) / 0.14, (1.2 - u) / 0.14), p = P(u, c.v, 0), wd = 0.31 * c.sc * UNIT, ht = wd * 70 / 160;
@@ -171,7 +184,7 @@
       var ws = [w.d, w.s, w.n], al = [0.95, 0.9, 0.8];
       for (var k2 = 0; k2 < 3; k2++) {
         if (ws[k2] < 0.01) continue;
-        ctx.globalAlpha = al[k2] * ws[k2] * e * c.w;
+        ctx.globalAlpha = al[k2] * ws[k2] * e * c.w * (1 - 0.8 * wx.fog);   // в тумане облака тонут
         ctx.drawImage(spr[k2][c.shape], p[0] - wd / 2, p[1] - ht / 2, wd, ht);
       }
     }
@@ -184,7 +197,8 @@
     g.addColorStop(0, 'rgba(' + col + ',' + a + ')'); g.addColorStop(0.45, 'rgba(' + col + ',' + a * 0.35 + ')'); g.addColorStop(1, 'rgba(' + col + ',0)');
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.fill();
   }
-  function drawSun(now, w, fr) {
+  function drawSun(now, w0, fr) {
+    var wq = wxNow(), dim = (1 - 0.9 * wq.oc) * (1 - 0.8 * wq.fog), w = { d: w0.d * dim, s: w0.s * dim, n: w0.n * dim };   // тучи закрывают солнце и луну
     var s = sf(), t = now * 0.001, sh = 0.5 + 0.5 * Math.sin(t * 1.1) * 0.6 + 0.2 * Math.sin(t * 2.7 + 1.3);
     var i, ang, p, r;
     if (w.d > 0.01) {   // день: диск карандашом, лучи, ореол
@@ -558,6 +572,7 @@
     if (kill >= 1) endParade();
   }
 
+  function setShow(k) { if (cv && Math.abs(k - showK) > 0.004) { showK = k; cv.style.opacity = k >= 0.999 ? '' : k.toFixed(3); } }
   function clear() { if (ctx && drawn) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); drawn = false; } }
 
   function frame(now) {
@@ -568,14 +583,23 @@
     // смена кадра: события растворяются, небо и машины раскладываются заново; парад прерывается
     if (fr !== lastFrame) { active = []; glints = []; perch = null; abortParade(); buildAmbient(fr); lastFrame = fr; lastKey = key; nextAt = now + rnd(2200, 4200); lastKind = ''; }
     else if (key !== lastKey) { active = []; lastKey = key; nextAt = now + rnd(2200, 4200); lastKind = ''; }
-    if (V.fading()) { clear(); return; }
+    if (V.fading()) { clear(); showT0 = null; setShow(0); return; }
+    // слой (облака, солнце, птицы) проявляется плавно — и при первом показе, и после смены кадра, а не выскакивает поверх картинки
+    if (showT0 === null) showT0 = now;
+    var sk = Math.min(1, (now - showT0) / 1400); setShow(sk * sk * (3 - 2 * sk));
+    var wx = wxNow(), dtc = lastT ? Math.min(0.1, (now - lastT) / 1000) : 0; lastT = now;
+    cloudT += dtc * (wx.wind - 1);   // при ветре облака бегут быстрее
+    if (wx.wind > 1.6 && key !== 'night' && !par && now >= nextKite && !active.some(function (a) { return a.kind === 'kite'; }) && KINDS.kite) {   // ветрено — в небе змей
+      var ek = KINDS.kite(fr); if (ek) { ek.kind = 'kite'; ek.t0 = now; active.push(ek); }
+      nextKite = now + rnd(14000, 22000);
+    }
     UNIT = unit();
     if (key && !par && now >= nextAt && active.length < 2) { spawn(fr, key); nextAt = now + rnd(8000, 15000); }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H); drawn = true;
     var w = wts();
     drawSun(now, w, fr);
-    drawClouds(now, w);
+    drawClouds(now, w, wx);
     drawAmbientBirds(now, w);
     if (SC(fr).closeUp) drawCloseUp(now, w, f, SC(fr).closeUp);
     for (var i = active.length - 1; i >= 0; i--) {
@@ -598,6 +622,6 @@
     paradeAbort: abortParade,
     paradeBusy: function () { return !!par; },
     // выключить всё (fps ниже порога или «уменьшение движения»): очистить холст, парад прервать
-    off: function () { active = []; glints = []; perch = null; if (par) endParade(); clear(); }
+    off: function () { active = []; glints = []; perch = null; if (par) endParade(); clear(); showT0 = null; }
   };
 })(window);
