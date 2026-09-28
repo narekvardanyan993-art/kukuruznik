@@ -372,7 +372,16 @@
     '    oc = mix(oc, ' + v3(LK.weather.overcastSky) + ' * mix(1.0, 0.22, uNightSky) * clamp(lw / skyRef.x * 1.05, 0.7, 1.05), sky * 0.85);',   // небо — серое, звёзды тонут
     '    c = mix(c, oc, uWeather.x);',
     '    c *= 1.0 - ' + glf(LK.weather.wetDim) + ' * uWeather.z * (1.0 - sky);',           // мокрая земля и стены темнее
-    '    c = mix(c, ' + v3(LK.weather.snowTint) + ' * mix(1.0, 0.35, uNightGnd), uWeather.w * ' + glf(LK.weather.snowK) + ' * (1.0 - sky) * smoothstep(0.22, 0.7, lw));',   // снег ложится на светлое
+    '    if (uWeather.w > 0.0) {',
+    '      vec2 ey = vec2(0.0, 5.0 / ' + FH.toFixed(1) + ');',
+    '      float dUp = texture2D(depth, p - ey).r, dDn = texture2D(depth, p + ey).r;',
+    '      float cap = clamp((env.r - dUp) * 26.0, 0.0, 1.0);',                                     // верх предмета: над ним — дальше (крыша, крона, карниз)
+    '      float gnd = smoothstep(0.003, 0.015, dDn - dUp) * (1.0 - smoothstep(0.04, 0.09, dDn - dUp));',   // земля: глубина плавно растёт к зрителю
+    '      float capB = b.a * clamp(1.0 - texture2D(bld, pb - ey * 1.6).a, 0.0, 1.0);',              // верхний край главного здания
+    '      float sm = max(max(cap, capB), gnd) * (1.0 - sky) * (0.7 + 0.6 * wxNoise(sc * vec2(90.0, 160.0))) * (0.55 + 0.45 * dd);',   // рыхло, дальнее — слабее
+    '      c = mix(c, ' + v3(LK.weather.snowTint) + ' * mix(1.0, 0.35, uNightGnd), clamp(uWeather.w * ' + glf(LK.weather.snowK) + ' * sm, 0.0, 0.92));',
+    '      c = mix(c, c * vec3(0.96, 0.98, 1.03), uWeather.w * 0.6);',                             // холодный свет
+    '    }',
     '    float wisp = 0.6 * wxNoise(vec2(sc.x * 2.6 - uCloudT * 0.045, sc.y * 7.0)) + 0.4 * wxNoise(vec2(sc.x * 6.0 - uCloudT * 0.08, sc.y * 15.0 + 3.0));',   // полосы тумана плывут
     '    float fg = uWeather.y * clamp((pow(1.0 - dd, 1.3) * ' + glf(LK.weather.fogNear) + ' + sky * ' + glf(LK.weather.fogSky) + ') * (0.55 + 0.9 * wisp) + 0.18 * smoothstep(0.45, 0.95, sc.y) * wisp, 0.0, 0.95);',   // туман по глубине: дальнее тонет сильнее, у земли гуще
     '    c = mix(c, mix(' + v3(LK.weather.fogDay) + ', ' + v3(LK.weather.fogNight) + ', uNightGnd), fg);',
@@ -1503,12 +1512,21 @@
   // ---------- погода и ветер (e1.3) ----------
   // wx.cur — доли эффектов [пасмурно, туман, мокро, снег], плавно идут к wx.to за WEATHER_FADE_MS; wx.wind — множитель качания деревьев.
   var wx = { cur: [0, 0, 0, 0], from: [0, 0, 0, 0], to: [0, 0, 0, 0], t0: null, name: 'clear', wind: 1, windTo: 1, windFrom: 1, cover: 0, lastNow: 0 };
+  // Погоду можно смешивать: тучи, дождь, снег, туман включаются независимо (каждая кнопка — вкл/выкл), «Ясно» выключает всё.
+  // Цель — по каждому эффекту наибольшее из включённых.
+  var wxOn = {};
   function setWeather(name) {
-    var v = CONFIG.WEATHER && CONFIG.WEATHER[name];
-    if (!v) return;
-    wx.from = wx.cur.slice(); wx.to = v.slice(); wx.t0 = null; wx.name = name;
+    if (!CONFIG.WEATHER || !CONFIG.WEATHER[name]) return;
+    if (name === 'clear') wxOn = {}; else wxOn[name] = !wxOn[name];
+    var to = [0, 0, 0, 0];
+    Object.keys(wxOn).forEach(function (k) { if (wxOn[k]) CONFIG.WEATHER[k].forEach(function (v, i) { to[i] = Math.max(to[i], v); }); });
+    wx.from = wx.cur.slice(); wx.to = to; wx.t0 = null;
     wx.windFrom = wx.wind;
-    segMark('wxSeg', 'data-wx', name);
+    var any = Object.keys(wxOn).some(function (k) { return wxOn[k]; });
+    document.querySelectorAll('#wxSeg button').forEach(function (b) {
+      var k = b.getAttribute('data-wx'), on = k === 'clear' ? !any : !!wxOn[k];
+      b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
   }
   function setWind(i) {
     var k = CONFIG.WIND_LEVELS && CONFIG.WIND_LEVELS[i];
@@ -1539,9 +1557,33 @@
     stage.insertBefore(pc, document.getElementById('hotspots'));
     pctx = pc.getContext('2d');
   }
+  var groundPts = {};
+  function groundFor(i) {
+    if (groundPts[i]) return groundPts[i] === 'loading' ? null : groundPts[i];
+    groundPts[i] = 'loading';
+    var F = FRAMES[i], gw = 72, gh = Math.round(gw * FH / FW), n = 0, imgs = {};
+    function done() {
+      if (++n < 3) return;
+      try {
+        var cv = document.createElement('canvas'); cv.width = gw; cv.height = gh; var x = cv.getContext('2d');
+        function px(im) { x.clearRect(0, 0, gw, gh); x.drawImage(im, 0, 0, gw, gh); return x.getImageData(0, 0, gw, gh).data; }
+        var D = px(imgs.d), E = px(imgs.e), B = px(imgs.b), pts = [];
+        for (var y = 2; y < gh - 2; y++) for (var xx = 0; xx < gw; xx++) {
+          var o = (y * gw + xx) * 4, g = (D[o + 8 * gw] - D[o - 8 * gw]) / 255;   // глубина ниже минус выше
+          if (E[o] > 90 || E[o + 1] > 8 || B[o + 3] > 90) continue;               // небо, дерево, главное здание — не земля
+          if (g > 0.012 && g < 0.2) pts.push([(xx + 0.5) / gw, (y + 0.5) / gh, D[o] / 255]);
+        }
+        groundPts[i] = pts;
+      } catch (e) { groundPts[i] = []; }
+    }
+    [['d', F.depth], ['e', F.env], ['b', F.building.color]].forEach(function (q) {
+      var im = new Image(); im.crossOrigin = 'anonymous'; im.onload = done; im.onerror = function () { groundPts[i] = []; }; im.src = q[1]; imgs[q[0]] = im;
+    });
+    return null;
+  }
   function drawPrecip(now, dt, rm) {
     var rainK = wx.cur[2], snowK = wx.cur[3], leafK = clamp((wx.wind - 1.4) / 1.6, 0, 1) * (1 - snowK);
-    if ((rainK < 0.01 && snowK < 0.01 && leafK < 0.01) || rm) { if (pc && pc.style.display !== 'none') { pctx.clearRect(0, 0, pc.width, pc.height); pc.style.display = 'none'; } return; }
+    if (rainK < 0.01 && snowK < 0.01 && leafK < 0.01) { if (pc && pc.style.display !== 'none') { pctx.clearRect(0, 0, pc.width, pc.height); pc.style.display = 'none'; } return; }
     precipCanvas();
     pc.style.display = '';
     var d = Math.min(window.devicePixelRatio || 1, 1.5), w = stage.clientWidth, h = stage.clientHeight;
@@ -1550,13 +1592,13 @@
     var nR = Math.round(CONFIG.RAIN_DROPS * area * lite), nS = Math.round(CONFIG.SNOW_FLAKES * area * lite);
     while (drops.length < nR) drops.push({ x: pRng() * W, y: pRng() * H, z: 0.35 + 0.65 * pRng() });   // z: 1 — близко (длиннее, ярче)
     while (flakes.length < nS) flakes.push({ x: pRng() * W, y: pRng() * H, z: 0.3 + 0.7 * pRng(), ph: pRng() * 6.28 });
-    var s = dt / 16.667, slant = 0.08 + 0.1 * (wx.wind - 1), night = tod.night, L = CONFIG.LOOK.weather;
+    var s = rm ? 0 : dt / 16.667, slant = 0.08 + 0.1 * (wx.wind - 1), night = tod.night, L = CONFIG.LOOK.weather;
     var rc = [0, 1, 2].map(function (i) { return Math.round(L.rainDay[i] + (L.rainNight[i] - L.rainDay[i]) * night); });
     var ra = L.rainDay[3] + (L.rainNight[3] - L.rainDay[3]) * night;
     pctx.clearRect(0, 0, W, H);
     var skyEnd = (CONFIG.DAY.SKY_END[frameIndex] || 0.55) * H;
     // молния: только буря + дождь; короткая двойная вспышка раз в 7–15 с
-    if (rainK > 0.5 && wx.wind > 3) {
+    if (rainK > 0.5 && wx.wind > 3 && !rm) {
       if (!nextFlash) nextFlash = now + 3000 + pRng() * 6000;
       if (now >= nextFlash) { flash = now; nextFlash = now + 7000 + pRng() * 8000; }
     } else nextFlash = 0;
@@ -1578,8 +1620,11 @@
         pctx.beginPath(); pctx.moveTo(p.x, p.y); pctx.lineTo(p.x - len * slant, p.y - len); pctx.stroke();
       }
       // брызги на земле: маленькие «галочки» карандашом ниже линии горизонта
-      var nsp = rainK * 5 * area * s;
-      while (pRng() < nsp) { splashes.push({ x: pRng() * W, y: skyEnd + pRng() * (H * 0.97 - skyEnd), t0: now, r: (2 + 3 * pRng()) * d }); nsp -= 1; }
+      var nsp = rainK * 5 * area * s, gp = groundFor(frameIndex), ent = store[frameIndex];
+      while (gp && gp.length && ent && pRng() < nsp) {
+        var g0 = gp[Math.floor(pRng() * gp.length)], q = window.__viewer.project(ent, g0[0] + (pRng() - 0.5) / 72, g0[1], g0[2]);
+        splashes.push({ x: q[0] * d, y: q[1] * d, t0: now, r: (1.5 + 3 * pRng()) * d * (0.5 + g0[2]) }); nsp -= 1;
+      }
       pctx.lineWidth = 0.9 * d;
       for (var si = splashes.length - 1; si >= 0; si--) {
         var sp = splashes[si], sa = (now - sp.t0) / 320;
@@ -1687,6 +1732,7 @@
     c.width = W; c.height = H;
     var x = c.getContext('2d');
     x.drawImage(canvas, 0, 0);
+    ['fxCanvas', 'wxCanvas'].forEach(function (id) { var o = document.getElementById(id); if (o && o.style.display !== 'none' && o.width) x.drawImage(o, 0, 0, W, H); });   // облака, солнце, дождь и снег — тоже в открытку
     canvas.width = W0; canvas.height = H0; // следующий кадр цикла перерисует холст
     var caption = CONFIG.UI_I18N.title[currentLang] + ' · chka.am';
     var FONT = '"Chka Serif", "Noto Serif", serif';

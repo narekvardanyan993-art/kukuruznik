@@ -31,7 +31,7 @@
   var V = null, cv = null, ctx = null, dpr = 1, W = 0, H = 0;
   var active = [], nextAt = 0, lastKey = null, lastFrame = -1, lastKind = '';
   var amb = null, par = null, UNIT = 470, drawn = false;   // UNIT: пикселей на всю ширину кадра
-  var showT0 = null, showK = -1, cloudT = 0, lastT = 0, nextKite = 0;   // плавное появление слоя; «время облаков» (быстрее при ветре); змей при ветре (e1.3)
+  var showT0 = null, showK = -1, cloudT = 0, lastT = 0, nextKite = 0, ocSlow = 0;   // ocSlow — тучи догоняют погоду медленно (~8 с), чтобы наползали, а не появлялись   // плавное появление слоя; «время облаков» (быстрее при ветре); змей при ветре (e1.3)
   function wxNow() { var x = V.weather && V.weather(); return x ? { oc: x.cur[0], fog: x.cur[1], wind: x.wind } : { oc: 0, fog: 0, wind: 1 }; }
 
   function rnd(a, b) { return a + (b - a) * Math.random(); }
@@ -161,7 +161,7 @@
     var bd = [];
     for (i = 0; i < 3; i++) bd.push({ v: band[0] + (band[1] - band[0]) * (0.1 + 0.55 * R()), sp: rnd0(R, 0.016, 0.024), ph: R(), fp: R() * 6.28, s: rnd0(R, 3.6, 4.6), dir: i === 1 ? -1 : 1 });
     var ex = [];   // пасмурно: ещё 5 облаков, крупнее; при ясной погоде они за левым краем, с тучами «наползают» на небо
-    for (i = 0; i < 5; i++) ex.push({ u: 0.08 + i * 0.21 + R() * 0.06, v: band[0] + (band[1] - band[0]) * (0.15 + 0.7 * R()), sc: rnd0(R, 1.0, 1.4), shape: (R() * 3) | 0, lag: R() * 0.35 });
+    for (i = 0; i < 5; i++) ex.push({ u: 0.08 + i * 0.21 + R() * 0.06, v: band[0] + (band[1] - band[0]) * (0.15 + 0.7 * R()), sc: rnd0(R, 0.6, 0.95), shape: (R() * 3) | 0, lag: R() * 0.4 });
     amb = { fr: fr, clouds: cl, birds: bd, extra: ex };
   }
   function rnd0(R, a, b) { return a + (b - a) * R(); }
@@ -172,9 +172,9 @@
       for (var j = 0; j < amb.extra.length; j++) {
         var x = amb.extra[j], a = Math.max(0, Math.min(1, (wx.oc - x.lag) / (1 - x.lag)));
         if (a <= 0) continue;
-        var ue = x.u - (1 - a) * 1.3 + 0.01 * Math.sin(t * 0.05 + j), pe = P(ue, x.v, 0), we = 0.36 * x.sc * UNIT, he = we * 70 / 160;
+        var ae = a * a * (3 - 2 * a), ue = x.u - (1 - ae) * 1.3 + 0.01 * Math.sin(t * 0.05 + j), pe = P(ue, x.v, 0), we = 0.31 * x.sc * UNIT, he = we * 70 / 160;
         var wsE = [w.d, w.s, w.n];
-        for (var q = 0; q < 3; q++) { if (wsE[q] < 0.01) continue; ctx.globalAlpha = 0.85 * wsE[q] * a * (1 - 0.8 * wx.fog); ctx.drawImage(spr[q][x.shape], pe[0] - we / 2, pe[1] - he / 2, we, he); }
+        for (var q = 0; q < 3; q++) { if (wsE[q] < 0.01) continue; ctx.globalAlpha = 0.85 * wsE[q] * ae * (1 - 0.8 * wx.fog); ctx.drawImage(spr[q][x.shape], pe[0] - we / 2, pe[1] - he / 2, we, he); }
       }
     }
     for (var i = 0; i < amb.clouds.length; i++) {
@@ -198,7 +198,7 @@
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.fill();
   }
   function drawSun(now, w0, fr) {
-    var wq = wxNow(), dim = (1 - 0.9 * wq.oc) * (1 - 0.8 * wq.fog), w = { d: w0.d * dim, s: w0.s * dim, n: w0.n * dim };   // тучи закрывают солнце и луну
+    var wq = wxNow(), dim = (1 - 0.9 * ocSlow) * (1 - 0.8 * wq.fog), w = { d: w0.d * dim, s: w0.s * dim, n: w0.n * dim };   // тучи закрывают солнце и луну
     var s = sf(), t = now * 0.001, sh = 0.5 + 0.5 * Math.sin(t * 1.1) * 0.6 + 0.2 * Math.sin(t * 2.7 + 1.3);
     var i, ang, p, r;
     if (w.d > 0.01) {   // день: диск карандашом, лучи, ореол
@@ -589,6 +589,8 @@
     var sk = Math.min(1, (now - showT0) / 1400); setShow(sk * sk * (3 - 2 * sk));
     var wx = wxNow(), dtc = lastT ? Math.min(0.1, (now - lastT) / 1000) : 0; lastT = now;
     cloudT += dtc * (wx.wind - 1);   // при ветре облака бегут быстрее
+    ocSlow += Math.max(-dtc / 4, Math.min(dtc / 8, wx.oc - ocSlow));
+    wx.oc = ocSlow;
     if (wx.wind > 1.6 && key !== 'night' && !par && now >= nextKite && !active.some(function (a) { return a.kind === 'kite'; }) && KINDS.kite) {   // ветрено — в небе змей
       var ek = KINDS.kite(fr); if (ek) { ek.kind = 'kite'; ek.t0 = now; active.push(ek); }
       nextKite = now + rnd(14000, 22000);
