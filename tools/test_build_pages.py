@@ -82,7 +82,7 @@ def main():
     cases = [
         # --- пять обязательных дефектов ---
         ('1. нет ночной картинки кадра', K, lambda b: b, 'кадр 3 (v_angle_2): нет ночной картинки kukuruznik/frames/v_angle_2_night.webp', 'kukuruznik/frames/v_angle_2_night.webp'),
-        ('2. парад на двух кадрах', K, set_(lambda b: b['frames'][3].__setitem__('parade', True)), 'парад может быть только на одном кадре, а отмечен на кадрах 1, 4', None),
+        ('2. неизвестный вид парада', K, set_(lambda b: b['frames'][3].__setitem__('parade', 'rockets')), 'вид парада', None),
         ('3. координата вне 0–1', K, set_(lambda b: b['frames'][1]['hotspots'][0].__setitem__('v', 1.4)), 'кадр 2 (v_angle_1): точка-подсказка 1: v: число 1.4 вне допустимых пределов 0…1', None),
         ('4. нет перевода на en', K, set_(lambda b: b['facts']['tower1'].pop('en')), 'facts.tower1: нет текста на языке «en»', None),
         ('5. неверный тип (обрезка строкой)', K, set_(lambda b: b['frames'][3].__setitem__('crop', '0,0,1,1')), 'кадр 4 (v_angle_3): crop: должен быть список из 4 чисел', None),

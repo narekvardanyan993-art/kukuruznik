@@ -10,9 +10,12 @@
 описание и подпись превью (meta.description, meta.ogAlt) обязательны только на армянском — превью использует только его.
 """
 import json
+
 import posixpath
 import re
 from pathlib import Path
+
+PARADE_KINDS = ('planes', 'drones', 'heli')   # виды парада (details.js): самолёты с дымом, дроны складываются во флаг, вертолёт несёт флаг
 
 LANGS = ('hy', 'ru', 'en')
 ENGINE = Path(__file__).resolve().parent.parent / 'engine'
@@ -208,13 +211,16 @@ def validate(bdir, b, site):
             c.err(w, 'имя кадра %s уже есть в списке' % nm)
         names.add(nm)
         hidden = fr.get('hidden', False)
-        for k in ('hidden', 'parade', 'night', 'sunset'):
+        for k in ('hidden', 'night', 'sunset'):
             if k in fr:
                 c.boolean(fr[k], '%s: %s' % (w, k))
         has_night, has_sunset = fr.get('night', True) is not False, fr.get('sunset', True) is not False
         if not hidden:
             visible += 1
-        if fr.get('parade') is True:
+        pv = fr.get('parade')
+        if 'parade' in fr and not (pv is True or pv is False or (isinstance(pv, str) and pv.split(':')[0] in PARADE_KINDS and pv.split(':')[1:] in ([], ['behind']))):
+            c.err('%s: parade' % w, 'true/false или вид парада: %s (можно с «:behind» — пролёт за зданием)' % ', '.join(PARADE_KINDS))
+        if pv:
             if hidden:
                 c.err(w, 'парад на скрытом кадре')
             else:
@@ -312,8 +318,6 @@ def validate(bdir, b, site):
                     c.err(w, 'нет %s %s' % (what, p) + ('' if suf not in ('_sunset', '_night') else ' (если её нет намеренно — "%s": false у кадра)' % suf[1:]))
     if visible == 0:
         c.err('frames', 'все кадры скрыты — нечего показывать')
-    if len(parade) > 1:
-        c.err('frames', 'парад может быть только на одном кадре, а отмечен на кадрах %s' % ', '.join(map(str, parade)))
 
     # --- tuning: переопределение чисел движка ---
     if 'tuning' in b:

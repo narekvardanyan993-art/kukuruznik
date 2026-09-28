@@ -31,6 +31,9 @@
   // скрытые кадры (hidden в building.json) убирает сборка (tools/build_pages.py), поэтому номер кадра везде один и тот же.
   var FRAMES = CONFIG.FRAMES, HS = CONFIG.HOTSPOTS, LAMPS = CONFIG.LAMPS;
   var PARADE_FRAME = CONFIG.PARADE_FRAME == null ? -1 : CONFIG.PARADE_FRAME;   // кадр, на котором живёт кнопка парада; -1 — у здания парада нет
+  // e1.3: парад может быть на нескольких кадрах, у каждого свой (самолёты / дроны / вертолёт); у старых настроек — только PARADE_FRAME, самолёты
+  var PARADE_STYLES = CONFIG.PARADE_STYLES || CONFIG.FRAMES.map(function (_, i) { return i === PARADE_FRAME ? 'planes' : null; });
+  function hasParade(i) { return !!PARADE_STYLES[i]; }
 
   // ---------- общие функции ----------
   function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
@@ -847,6 +850,11 @@
   window.__viewer = {
     stage: stage, tod: tod, weather: function () { return wx; },
     frame: function () { return frameIndex; }, fading: function () { return !!fade; }, entry: function (i) { return store[i]; },
+    projectB: function (f, u, v) {   // точка слоя «здание» -> пиксели сцены (для пролёта «за зданием»)
+      var ld = lastDraw || { shiftX: 0, shiftY: 0, zoom: 0 };
+      var q = projectImg(u, v, f.dB, f.kB, ld.shiftX, ld.shiftY, ld.zoom, f.crop);
+      return [q[0] * stage.clientWidth, q[1] * stage.clientHeight];
+    },
     project: function (f, u, v, d) {
       var ld = lastDraw || { shiftX: 0, shiftY: 0, zoom: 0 };
       var q = projectImg(u, v, d, d * 2 - 1, ld.shiftX, ld.shiftY, ld.zoom, f.crop);
@@ -1284,7 +1292,7 @@
   var paradeBusy = false, paradeWant = null;
   var flagOnFrame = true;
   function flagFrameStep() {   // кнопка живёт только на кадре парада; при переходе на другой кадр гаснет сразу
-    var on = frameIndex === PARADE_FRAME && !fade;
+    var on = hasParade(frameIndex) && !fade;
     if (on === flagOnFrame) return;
     flagOnFrame = on;
     flagBtns.forEach(function (b) { b.classList.toggle('off-frame', !on); });
@@ -1313,7 +1321,7 @@
   }
   flagBtns.forEach(function (b) {
     b.addEventListener('click', function () {
-      if (paradeBusy || frameIndex !== PARADE_FRAME || fade) return;
+      if (paradeBusy || !hasParade(frameIndex) || fade) return;
       closePopup(); closeSheet();
       setParadeBusy(true);
       paradeWant = { since: performance.now(), shown: null };
@@ -1324,13 +1332,13 @@
     if (!paradeWant) return;
     if (now - paradeWant.since > 9000) { paradeWant = null; setParadeBusy(false); return; }   // что-то не так — не зависаем
     if (fade) return;
-    if (frameIndex !== PARADE_FRAME) { goTo(PARADE_FRAME); return; }
+    if (!hasParade(frameIndex)) { goTo(PARADE_FRAME); return; }
     if (paradeWant.shown === null) paradeWant.shown = now;
     if (now - paradeWant.shown < 450) return;
     paradeWant = null;
     var done = function () { setParadeBusy(false); };
     var full = useGL && perfLevel < 1 && !reduced() && window.Details && window.Details.parade;
-    if (!(full && window.Details.parade(done))) simpleParade(done);   // слабое устройство, «уменьшить движение», нет WebGL или занято — упрощённый парад
+    if (!(full && window.Details.parade(done, PARADE_STYLES[frameIndex]))) simpleParade(done);   // слабое устройство, «уменьшить движение», нет WebGL или занято — упрощённый парад
   }
 
   // ---------- рендер-цикл ----------

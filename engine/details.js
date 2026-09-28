@@ -524,17 +524,99 @@
     });
     return smokeSpr[i];
   }
-  function startParade(onEnd) {
+  function startParade(onEnd, style) {
     var fr = V.frame(); if (par || V.fading() || !V.entry(fr)) return false;
     var band = SC(fr).skyBand, vc = band[0] + (band[1] - band[0]) * 0.30, now = performance.now();
-    par = { t0: now, dur: 11000, vc: vc, fr: fr, onEnd: onEnd, puffs: [], last: [-0.12, -0.12, -0.12], flying: true, abort: 0, dv: 0.0135 };
+    style = style || 'planes';
+    var behind = /:behind$/.test(style) || !!SC(fr).closeUp; style = style.replace(/:behind$/, '');
+    par = { t0: now, dur: style === 'drones' ? 15000 : (style === 'heli' ? 14000 : 11000), vc: vc, fr: fr, onEnd: onEnd, puffs: [], last: [-0.12, -0.12, -0.12], flying: true, abort: 0, dv: 0.0135, style: style, behind: behind };
+    if (behind) bldSprite(fr);
     active = [];   // небо освобождаем: события на время парада не начинаем
     return true;
   }
   function endParade() { var f = par && par.onEnd; par = null; if (f) f(); }
   function abortParade() { if (par && !par.abort) par.abort = performance.now(); }
+  // ---- варианты парада (e1.3): дроны складываются во флаг; вертолёт несёт флаг. На кадре с крупным планом — пролёт за зданием ----
+  var FLAGC = ['217,0,18', '28,76,192', '242,168,0'];
+  function bldSprite(fr) {
+    var F = root.CONFIG.FRAMES[fr]; if (!F || !F.building) return null;
+    var key = F.building.color; if (bldImg && bldImg.key === key) return bldImg.ok ? bldImg.im : null;
+    var im = new Image(); bldImg = { key: key, im: im, ok: false }; im.onload = function () { bldImg.ok = true; }; im.src = key; return null;
+  }
+  var bldImg = null, lay = null;
+  // пролёт «за зданием»: парад рисуется на отдельном слое, там стирается силуэт здания, потом слой ложится на холст (облака и солнце не трогаются)
+  function paradeLayer(now, w) {
+    if (!par.behind) { stepParade(now, w); return; }
+    if (!lay) lay = document.createElement('canvas');
+    if (lay.width !== cv.width || lay.height !== cv.height) { lay.width = cv.width; lay.height = cv.height; }
+    var lc = lay.getContext('2d'), main = ctx, fr = par.fr;
+    lc.setTransform(1, 0, 0, 1, 0, 0); lc.clearRect(0, 0, lay.width, lay.height); lc.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx = lc;
+    try { stepParade(now, w); occlude(fr); } finally { ctx = main; }
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(lay, 0, 0); ctx.restore();
+  }
+  function occlude(fr) {   // стираем нарисованное там, где стоит здание (оно ближе), — самолёт/вертолёт/дроны уходят «за» него
+    var im = bldSprite(fr), f = V.entry(fr); if (!im || !f || !V.projectB) return;
+    var a = V.projectB(f, 0, 0), b = V.projectB(f, 1, 1);
+    ctx.save(); ctx.globalCompositeOperation = 'destination-out'; ctx.drawImage(im, a[0], a[1], b[0] - a[0], b[1] - a[1]); ctx.restore();
+  }
+  function stepDrones(now, w) {
+    var t = (now - par.t0) / 1000, nn = wts().n, s0 = sf(), kill = par.abort ? clamp((now - par.abort) / 700, 0, 1) : 0;
+    if (!par.dr) {   // 14×6 огоньков: 2 ряда на цвет
+      par.dr = [];
+      for (var r = 0; r < 6; r++) for (var c = 0; c < 14; c++) par.dr.push({ r: r, c: c, su: -0.1 - Math.random() * 0.35, sv: par.vc + (Math.random() - 0.5) * 0.12, eu: 1.1 + Math.random() * 0.35, ev: par.vc + (Math.random() - 0.5) * 0.14, dl: Math.random() * 0.8 });
+    }
+    var fw = 0.46, fh = 0.075, u0 = 0.5 - fw / 2, v0 = par.vc - fh / 2 + 0.02;
+    ctx.save(); if (nn > 0.5) ctx.globalCompositeOperation = 'lighter';
+    for (var i = 0; i < par.dr.length; i++) {
+      var q = par.dr[i], tu = u0 + fw * q.c / 13, tv = v0 + fh * q.r / 5 + 0.006 * Math.sin(t * 2 + q.c * 0.5), u, v, lit;
+      var kin = clamp((t - q.dl) / 3.2, 0, 1), kout = clamp((t - 10.5 - q.dl * 0.5) / 3, 0, 1);
+      kin = kin * kin * (3 - 2 * kin); kout = kout * kout;
+      u = q.su + (tu - q.su) * kin; v = q.sv + (tv - q.sv) * kin;
+      u += (q.eu - tu) * kout; v += (q.ev - tv) * kout;
+      lit = clamp((t - 3.6 - q.c * 0.05) / 0.5, 0, 1) * (1 - clamp((t - 10.2) / 0.6, 0, 1));   // огни загораются волной слева направо
+      var pp = P(u, v, 0), col = FLAGC[Math.floor(q.r / 2)], a = (1 - kill) * clamp(t / 0.6, 0, 1) * (1 - clamp((t - 13.8) / 1.2, 0, 1));
+      var rr = (1.1 + 0.9 * lit) * s0;
+      if (lit > 0.01) { ctx.globalAlpha = a * lit * (nn > 0.5 ? 0.55 : 0.35); ctx.fillStyle = 'rgba(' + col + ',1)'; ctx.beginPath(); ctx.arc(pp[0], pp[1], rr * 2.2, 0, 6.283); ctx.fill(); }
+      ctx.globalAlpha = a; ctx.fillStyle = lit > 0.5 ? 'rgba(' + col + ',1)' : (nn > 0.5 ? 'rgba(220,226,240,0.9)' : 'rgba(' + ink() + ',0.9)');
+      ctx.beginPath(); ctx.arc(pp[0], pp[1], rr, 0, 6.283); ctx.fill();
+    }
+    ctx.restore();
+    if (t * 1000 > par.dur || kill >= 1) endParade();
+  }
+  function stepHeli(now, w) {
+    var t = (now - par.t0) / par.dur, nn = wts().n, s0 = sf(), kill = par.abort ? clamp((now - par.abort) / 700, 0, 1) : 0, tt = (now - par.t0) / 1000;
+    var u = lerp(-0.25, 1.25, clamp(t, 0, 1)), v = par.vc - 0.02 + 0.006 * Math.sin(tt * 1.3);
+    var p = P(u, v, 0), S = 12.5 * s0, col = nn > 0.5 ? '200,208,225' : ink(), a = (1 - kill);
+    ctx.save(); ctx.globalAlpha = a; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    // трос и флаг: флаг висит ниже и чуть позади, колышется
+    var fx0 = p[0] - S * 0.6, fy0 = p[1] + S * 1.1, fl = S * 5.2, fhh = S * 3.1;
+    ctx.strokeStyle = 'rgba(' + col + ',0.8)'; ctx.lineWidth = 0.9;
+    ctx.beginPath(); ctx.moveTo(p[0], p[1] + S * 0.4); ctx.lineTo(fx0, fy0); ctx.stroke();
+    for (var k = 0; k < 3; k++) {
+      ctx.fillStyle = 'rgba(' + FLAGC[k] + ',' + (nn > 0.5 ? 0.8 : 0.92) + ')';
+      ctx.beginPath();
+      for (var j = 0; j <= 12; j++) { var xx = fx0 - fl * j / 12, wv = Math.sin(tt * 5 - j * 0.7) * S * 0.28 * (j / 12); ctx.lineTo(xx, fy0 + fhh * k / 3 + wv); }
+      for (j = 12; j >= 0; j--) { xx = fx0 - fl * j / 12; wv = Math.sin(tt * 5 - j * 0.7) * S * 0.28 * (j / 12); ctx.lineTo(xx, fy0 + fhh * (k + 1) / 3 + wv); }
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.strokeStyle = 'rgba(' + col + ',0.7)'; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(fx0, fy0); ctx.lineTo(fx0, fy0 + fhh); ctx.stroke();
+    // вертолёт: корпус, хвост, лыжи, винт (мелькает)
+    ctx.fillStyle = 'rgba(' + col + ',0.95)'; ctx.strokeStyle = 'rgba(' + col + ',0.95)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.ellipse(p[0], p[1], S * 1.05, S * 0.55, 0, 0, 6.283); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(p[0] - S * 0.8, p[1] - S * 0.1); ctx.lineTo(p[0] - S * 2.3, p[1] - S * 0.35); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(p[0] - S * 2.3, p[1] - S * 0.7); ctx.lineTo(p[0] - S * 2.3, p[1]); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(p[0] - S * 0.7, p[1] + S * 0.85); ctx.lineTo(p[0] + S * 0.8, p[1] + S * 0.85); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(p[0], p[1] - S * 0.55); ctx.lineTo(p[0], p[1] - S * 0.8); ctx.stroke();
+    var rw = S * 1.9 * Math.abs(Math.cos(tt * 21)); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(p[0] - rw, p[1] - S * 0.82); ctx.lineTo(p[0] + rw, p[1] - S * 0.82); ctx.stroke();
+    if (nn > 0.5 && Math.sin(tt * 6) > 0.3) { ctx.fillStyle = 'rgba(255,70,60,0.95)'; ctx.beginPath(); ctx.arc(p[0] - S * 2.3, p[1] - S * 0.7, 1.6, 0, 6.283); ctx.fill(); }   // мигалка на хвосте ночью
+    ctx.restore();
+    if (t >= 1 || kill >= 1) endParade();
+  }
   function stepParade(now, w) {
     if (now - par.t0 > 50000) { endParade(); return; }   // страховка: показ не может длиться дольше 50 с (кнопка не зависнет)
+    if (par.style === 'drones') { stepDrones(now, w); return; }
+    if (par.style === 'heli') { stepHeli(now, w); return; }
     var t = (now - par.t0) / par.dur, i;
     if (par.flying) {
       var u = lerp(-0.12, 1.12, clamp(t, 0, 1));   // все три идут строем, слева направо
@@ -611,7 +693,7 @@
       if (t >= 1) { active.splice(i, 1); continue; }
       ctx.save(); e.draw(e, t, now); ctx.restore();
     }
-    if (par) stepParade(now, w);
+    if (par) paradeLayer(now, w);
   }
 
   root.Details = {

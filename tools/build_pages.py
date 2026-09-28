@@ -128,6 +128,7 @@ def make_config(b, frames_url):
         'LAMPS': [f['lamps'] for f in fr],
         'SCENE': [scene(f) for f in fr],
         'PARADE_FRAME': parade[0] if parade else -1,
+        'PARADE_STYLES': [('planes' if f.get('parade') is True else f['parade']) if f.get('parade') else None for f in fr],   # e1.3: свой парад на каждом кадре
         'ABOUT_FACTS': b['aboutFacts'],
         'POSTCARD_FILE': b['postcardFile'],
         'I18N': b['facts'],

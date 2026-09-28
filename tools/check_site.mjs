@@ -412,12 +412,17 @@ async function captureWalk(browser, origin, target, vpName, outDir) {
     const flag = phone ? '#flagBtnB' : '#flagBtnP';
     const pf = await page.evaluate(() => (window.CONFIG && CONFIG.PARADE_FRAME != null) ? CONFIG.PARADE_FRAME : 0);
     const nFr = await page.evaluate(() => document.querySelectorAll('#dots span').length);
+    // e1.3: парад может быть на нескольких кадрах (PARADE_STYLES); «погашенную» кнопку проверяем на кадре без парада, если такой есть
+    const ps = await page.evaluate((n) => (window.CONFIG && CONFIG.PARADE_STYLES) || null, nFr);
+    const offFr = ps ? ps.findIndex((x) => !x) : (pf + 1) % nFr;
     if (pf >= 0) {
-    await goFrame((pf + 1) % nFr);
+    if (offFr >= 0) {
+    await goFrame(offFr);
     await page.evaluate((s) => document.querySelector(s).click(), flag);   // кнопка погашена (pointer-events: none) — нажимаем программно: ничего не должно начаться
     await adv(2000);
     if (await page.evaluate(() => window.Details && window.Details.paradeBusy && window.Details.paradeBusy())) problems.push({ type: 'прогулка', msg: 'парад начался не на своём кадре' });
     await snap('walk-8-flag-off-frame2');
+    }
     await goFrame(pf);
     await seed('parade'); await click(flag); await adv(4300); await snap('walk-9-parade');
     await adv(16000);
@@ -464,7 +469,7 @@ async function checkStructure(browser, origin, target) {
     await page.evaluate(() => { const w = document.getElementById('welcome'); if (w) w.remove(); });
     await page.evaluate(() => document.fonts && document.fonts.ready);
     await adv(3000);
-    const cfg = await page.evaluate(() => ({ hs: CONFIG.HOTSPOTS.map((h) => h.length), pf: CONFIG.PARADE_FRAME, langs: CONFIG.LANGS, night: CONFIG.FRAMES.map((f) => !!f.night), sunset: CONFIG.FRAMES.map((f) => !!f.sunset), n: CONFIG.FRAMES.length }));
+    const cfg = await page.evaluate(() => ({ hs: CONFIG.HOTSPOTS.map((h) => h.length), pf: CONFIG.PARADE_FRAME, ps: CONFIG.PARADE_STYLES || null, langs: CONFIG.LANGS, night: CONFIG.FRAMES.map((f) => !!f.night), sunset: CONFIG.FRAMES.map((f) => !!f.sunset), n: CONFIG.FRAMES.length }));
     info.frames = cfg.n;
     const goFrame = async (f) => {
       for (let g = 0; g < 12 && (await page.evaluate(() => window.__viewer.frame())) !== f; g++) {
@@ -483,7 +488,7 @@ async function checkStructure(browser, origin, target) {
         flags: ['flagBtnB', 'flagBtnP'].map((id) => { const b = document.getElementById(id); return b ? { hidden: b.hidden, off: b.classList.contains('off-frame') } : null; }) }));
       info.dots.push(st.shown);
       if (st.shown !== cfg.hs[i] || st.total !== cfg.hs[i]) bad(`кадр ${i + 1}: точек-подсказок на странице ${st.shown} (всего в разметке ${st.total}), в настройках ${cfg.hs[i]}`);
-      const onFrame = cfg.pf === i;
+      const onFrame = cfg.ps ? !!cfg.ps[i] : cfg.pf === i;
       for (const [k, fl] of st.flags.entries()) {
         const nm = k === 0 ? '#flagBtnB' : '#flagBtnP';
         if (!fl) { bad(`нет кнопки парада ${nm} в разметке`); continue; }
