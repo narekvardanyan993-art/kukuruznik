@@ -31,7 +31,7 @@
   var V = null, cv = null, ctx = null, dpr = 1, W = 0, H = 0;
   var active = [], nextAt = 0, lastKey = null, lastFrame = -1, lastKind = '';
   var amb = null, par = null, UNIT = 470, drawn = false;   // UNIT: пикселей на всю ширину кадра
-  var showT0 = null, showK = -1, cloudT = 0, lastT = 0, nextKite = 0, ocSlow = 0;   // ocSlow — тучи догоняют погоду медленно (~8 с), чтобы наползали, а не появлялись   // плавное появление слоя; «время облаков» (быстрее при ветре); змей при ветре (e1.3)
+  var cloudMul = 1, showT0 = null, showK = -1, cloudT = 0, lastT = 0, nextKite = 0, ocSlow = 0;   // ocSlow — тучи догоняют погоду медленно (~8 с), чтобы наползали, а не появлялись   // плавное появление слоя; «время облаков» (быстрее при ветре); змей при ветре (e1.3)
   function wxNow() { var x = V.weather && V.weather(); return x ? { oc: x.cur[0], fog: x.cur[1], wind: x.wind } : { oc: 0, fog: 0, wind: 1 }; }
 
   function rnd(a, b) { return a + (b - a) * Math.random(); }
@@ -172,9 +172,9 @@
       for (var j = 0; j < amb.extra.length; j++) {
         var x = amb.extra[j], a = Math.max(0, Math.min(1, (wx.oc - x.lag) / (1 - x.lag)));
         if (a <= 0) continue;
-        var ae = a * a * (3 - 2 * a), ue = x.u - (1 - ae) * 1.3 + 0.01 * Math.sin(t * 0.05 + j), pe = P(ue, x.v, 0), we = 0.31 * x.sc * UNIT, he = we * 70 / 160;
+        var ae = a * a * (3 - 2 * a), ue = ((x.u + 0.004 * t * (1 + j * 0.3)) % 1.3 + 1.3) % 1.3 - 0.15, pe = P(ue, x.v, 0), we = 0.31 * x.sc * UNIT * (0.65 + 0.35 * ae), he = we * 70 / 160;   // сгущаются на месте: растут и проявляются
         var wsE = [w.d, w.s, w.n];
-        for (var q = 0; q < 3; q++) { if (wsE[q] < 0.01) continue; ctx.globalAlpha = 0.85 * wsE[q] * ae * (1 - 0.8 * wx.fog); ctx.drawImage(spr[q][x.shape], pe[0] - we / 2, pe[1] - he / 2, we, he); }
+        for (var q = 0; q < 3; q++) { if (wsE[q] < 0.01) continue; ctx.globalAlpha = cloudMul * 0.85 * wsE[q] * ae * (1 - 0.8 * wx.fog); ctx.drawImage(spr[q][x.shape], pe[0] - we / 2, pe[1] - he / 2, we, he); }
       }
     }
     for (var i = 0; i < amb.clouds.length; i++) {
@@ -184,7 +184,7 @@
       var ws = [w.d, w.s, w.n], al = [0.95, 0.9, 0.8];
       for (var k2 = 0; k2 < 3; k2++) {
         if (ws[k2] < 0.01) continue;
-        ctx.globalAlpha = al[k2] * ws[k2] * e * c.w * (1 - 0.8 * wx.fog);   // в тумане облака тонут
+        ctx.globalAlpha = cloudMul * al[k2] * ws[k2] * e * c.w * (1 - 0.8 * wx.fog);   // в тумане облака тонут
         ctx.drawImage(spr[k2][c.shape], p[0] - wd / 2, p[1] - ht / 2, wd, ht);
       }
     }
@@ -602,6 +602,8 @@
     var w = wts();
     drawSun(now, w, fr);
     drawClouds(now, w, wx);
+    var fz = V.weather && V.weather().flash;
+    if (fz > 0.02) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; cloudMul = Math.min(1, fz * 1.4); drawClouds(now, w, wx); cloudMul = 1; ctx.restore(); }   // гроза: облака светятся изнутри
     drawAmbientBirds(now, w);
     if (SC(fr).closeUp) drawCloseUp(now, w, f, SC(fr).closeUp);
     for (var i = active.length - 1; i >= 0; i--) {

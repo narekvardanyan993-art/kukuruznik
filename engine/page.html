@@ -269,32 +269,21 @@
 
     /* ---- Появление (~1.5 с): перо ведёт основной контур листа (0.15–1.05 с; виден кончик пера), следом внутренний карандашный,
        потом бумага наливается цветом, потом текст проявляется по пунктам. Запускается при загрузке и при раскрытии панели. ---- */
-    body:not(.panel-collapsed) .pen .pen-1 { animation: penDraw 900ms cubic-bezier(0.4, 0.05, 0.3, 1) 150ms both, penFade 250ms linear 1050ms both; }
-    body:not(.panel-collapsed) .pen .pen-2 { animation: penDraw 800ms cubic-bezier(0.4, 0.05, 0.3, 1) 450ms both, penFade 250ms linear 1250ms both; }
-    body:not(.panel-collapsed) .pen .nib { animation: nibGo 900ms cubic-bezier(0.4, 0.05, 0.3, 1) 150ms both; }
-    body:not(.panel-collapsed) .panel-card { animation: sheetIn 1000ms linear 500ms both; }
-    body:not(.panel-collapsed) .panel-scroll > * { animation: itemIn 380ms var(--ease) both; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(1) { animation-delay: 1000ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(2) { animation-delay: 1030ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(3) { animation-delay: 1060ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(4) { animation-delay: 1090ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(5) { animation-delay: 1120ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(6) { animation-delay: 1150ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(7) { animation-delay: 1180ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(8) { animation-delay: 1210ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(9) { animation-delay: 1240ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(10) { animation-delay: 1270ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(11) { animation-delay: 1300ms; }
+    body:not(.panel-collapsed) .pen .pen-1 { animation: penDraw 1400ms cubic-bezier(0.4, 0.05, 0.3, 1) 200ms both, penFade 400ms linear 1650ms both; }
+    body:not(.panel-collapsed) .pen .pen-2 { animation: penDraw 1250ms cubic-bezier(0.4, 0.05, 0.3, 1) 650ms both, penFade 400ms linear 1950ms both; }
+    body:not(.panel-collapsed) .pen .nib { animation: nibGo 1400ms cubic-bezier(0.4, 0.05, 0.3, 1) 200ms both; }
+    body:not(.panel-collapsed) .panel-card { animation: sheetIn 1500ms linear 750ms both; }
+    body:not(.panel-collapsed) .panel-scroll > * { animation: itemIn 620ms var(--ease) both; animation-delay: calc(1500ms + var(--n, 0) * 90ms); }
+    body:not(.panel-collapsed) .chips > .chip { animation: chipIn 520ms var(--spring) both; animation-delay: calc(1650ms + var(--n, 0) * 90ms + var(--c, 0) * 70ms); }
 
-    /* ---- Закрытие (~0.9 с) — то же наоборот: текст гаснет, бумага бледнеет, контур «собирается» — перо втягивает линию обратно
-       по пути, кончик пера уходит к началу; потом колонка сжимается. Только после первого нажатия кнопки (html.panel-anim). ---- */
-    html.panel-anim body.panel-collapsed .pen .pen-1 { animation: penUndraw 650ms cubic-bezier(0.5, 0, 0.3, 1) 150ms both; }
-    html.panel-anim body.panel-collapsed .pen .pen-2 { animation: penUndraw 550ms cubic-bezier(0.5, 0, 0.3, 1) 100ms both; }
-    html.panel-anim body.panel-collapsed .pen .nib { animation: nibBack 650ms cubic-bezier(0.5, 0, 0.3, 1) 150ms both; }
-    html.panel-anim body.panel-collapsed .panel-card { animation: sheetOut 850ms linear both; }
-    html.panel-anim body.panel-collapsed .panel-scroll > * { animation: itemOut 260ms ease both; }
-    html.panel-anim body.panel-collapsed #layout { transition-delay: 350ms; }
-    html.panel-anim body.panel-collapsed #panelBtn { transition-delay: 350ms, 0ms, 0ms; }
+    /* ---- Закрытие (~1.4 с): пункты гаснут снизу вверх, бумага бледнеет, перо втягивает линию; потом колонка сжимается ---- */
+    html.panel-anim body.panel-collapsed .pen .pen-1 { animation: penUndraw 950ms cubic-bezier(0.5, 0, 0.3, 1) 380ms both; }
+    html.panel-anim body.panel-collapsed .pen .pen-2 { animation: penUndraw 800ms cubic-bezier(0.5, 0, 0.3, 1) 300ms both; }
+    html.panel-anim body.panel-collapsed .pen .nib { animation: nibBack 950ms cubic-bezier(0.5, 0, 0.3, 1) 380ms both; }
+    html.panel-anim body.panel-collapsed .panel-card { animation: sheetOut 1250ms linear both; }
+    html.panel-anim body.panel-collapsed .panel-scroll > * { animation: itemOut 380ms ease both; animation-delay: calc((12 - var(--n, 0)) * 25ms); }
+    html.panel-anim body.panel-collapsed #layout { transition-delay: 600ms; }
+    html.panel-anim body.panel-collapsed #panelBtn { transition-delay: 600ms, 0ms, 0ms; }
   }
   @keyframes penDraw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
   @keyframes penUndraw { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 1; } }
@@ -315,13 +304,15 @@
     85% { opacity: 1; visibility: visible; background-color: rgba(245,236,218,0); border-color: transparent; outline-color: transparent; box-shadow: 0 12px 32px rgba(60,45,20,0), 3px 4px 0 rgba(47,42,37,0); }
     100% { opacity: 0; visibility: hidden; background-color: rgba(245,236,218,0); border-color: transparent; box-shadow: none; }
   }
-  @keyframes itemIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes itemIn { from { opacity: 0; transform: translateY(10px); filter: blur(2px); } to { opacity: 1; transform: none; filter: none; } }
+  @media (max-width: 1023.98px) and (prefers-reduced-motion: reduce) { html:not([data-motion="on"]) body.sheet-open .panel-scroll > *, html:not([data-motion="on"]) body.sheet-open .chips > .chip { animation: none; } }
+  @keyframes chipIn { 0% { opacity: 0; transform: translateY(8px) scale(0.86); } 70% { opacity: 1; transform: scale(1.04); } 100% { opacity: 1; transform: none; } }
   @keyframes itemOut { from { opacity: 1; } to { opacity: 0; } }
   /* «Уменьшение движения»: обычное плавное появление и исчезновение, без пера и сдвигов */
   @media (min-width: 1024px) and (prefers-reduced-motion: reduce) {
     html:not([data-motion="on"]) .pen { display: none; }
     html:not([data-motion="on"]) body:not(.panel-collapsed) .panel-card { animation: sheetFade 450ms ease both; }
-    html:not([data-motion="on"]) body:not(.panel-collapsed) .panel-scroll > * { animation: none; }
+    html:not([data-motion="on"]) body:not(.panel-collapsed) .panel-scroll > *, html:not([data-motion="on"]) body:not(.panel-collapsed) .chips > .chip { animation: none; }
     html:not([data-motion="on"]).panel-anim body.panel-collapsed .panel-card { animation: sheetFadeOut 250ms ease both; }
     html:not([data-motion="on"]).panel-anim body.panel-collapsed .panel-scroll > * { animation: none; }
     html:not([data-motion="on"]).panel-anim body.panel-collapsed #layout, html:not([data-motion="on"]).panel-anim body.panel-collapsed #panelBtn { transition-delay: 0ms; }
@@ -405,7 +396,20 @@
     .chip.on .i-fog .f1, .chip.on .i-fog .f3 { animation: icFog 3s ease-in-out infinite; } .chip.on .i-fog .f2 { animation: icFog 3s ease-in-out infinite reverse; }
     .chip.on .i-wind path { stroke-dasharray: 14 4; animation: icWind 1.4s linear infinite; }
     #windBtn.on[data-wind="2"] .i-wind path { animation-duration: 0.6s; }
+  }  @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+    .chip:hover .i-rays { transform-origin: 16px 16px; animation: icSpin 9s linear infinite; }
+    .chip:hover .i-setsun { animation: icSink 3.2s ease-in-out infinite; }
+    .chip:hover .i-star { animation: icTwinkle 1.8s ease-in-out infinite; } .chip:hover .i-star.s2 { animation-delay: 0.7s; }
+    .chip:hover .i-drops path { animation: icDrop 0.9s linear infinite; } .chip:hover .i-drops .d2 { animation-delay: 0.3s; } .chip:hover .i-drops .d3 { animation-delay: 0.6s; }
+    .chip:hover .i-flake { transform-origin: 16px 16px; animation: icFlake 4s ease-in-out infinite; }
+    .chip:hover .i-cloudm { animation: icDrift 3.4s ease-in-out infinite; } .chip:hover .i-cloudb { animation: icDrift 4.2s ease-in-out infinite reverse; }
+    .chip:hover .i-fog .f1, .chip:hover .i-fog .f3 { animation: icFog 3s ease-in-out infinite; } .chip:hover .i-fog .f2 { animation: icFog 3s ease-in-out infinite reverse; }
+    .chip:hover .i-wind path { stroke-dasharray: 14 4; animation: icWind 1.4s linear infinite; }
+    #windBtn:hover[data-wind="2"] .i-wind path { animation-duration: 0.6s; }
+    .chip:hover { border-color: rgba(47,42,37,0.45); }
+    .chips-one .chip:not(.on):hover { background: rgba(255,252,244,0.6); }
   }
+
   .wx-name { margin-top: 8px; text-align: center; font: italic 600 var(--fs-small)/1.2 var(--font); min-height: 1.2em; }
   .seg button.on { background: var(--ink); color: var(--paper); }
   #thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s1); }
@@ -486,9 +490,11 @@
   @media (max-width: 1023.98px) {
     #panel {
       position: fixed; left: 0; right: 0; bottom: 0; height: 60vh; height: 60dvh; overflow: visible;
-      transform: translateY(108%); transition: transform 400ms var(--ease); z-index: 70;
+      transform: translateY(108%); transition: transform 560ms var(--spring); z-index: 70;
     }
     body.sheet-open #panel { transform: none; }
+    html.panel-anim body.sheet-open .panel-scroll > * { animation: itemIn 520ms var(--ease) both; animation-delay: calc(180ms + var(--n, 0) * 70ms); }
+    html.panel-anim body.sheet-open .chips > .chip { animation: chipIn 460ms var(--spring) both; animation-delay: calc(300ms + var(--n, 0) * 70ms + var(--c, 0) * 60ms); }
     .panel-scroll { padding: var(--s4); grid-template-columns: minmax(0, 420px); justify-content: center; scroll-padding: var(--s4) 0; }
     .panel-card {
       left: max(var(--s1), var(--safe-l)); right: max(var(--s1), var(--safe-r)); top: 0; bottom: calc(var(--safe-b) + var(--s1)); width: auto;
@@ -734,6 +740,8 @@ window.__wl = WelcomeLoader.create({
     </section>
   </div></div>
 </aside>
+<script>document.querySelectorAll('.panel-scroll > *').forEach(function (el, i) { el.style.setProperty('--n', i); });
+document.querySelectorAll('.chips').forEach(function (g) { g.querySelectorAll('.chip').forEach(function (c, j) { c.style.setProperty('--c', j); }); });</script>
 <script>
 /* Перо (ПК): путь по границе карточки панели — углы те же, что у рамки .sketch (22/8/18/10 px по горизонтали, 10/18/8/22 по вертикали).
    Ставится сразу, до первой отрисовки, чтобы прорисовка началась с готового контура; при смене высоты окна пересчитывается. */

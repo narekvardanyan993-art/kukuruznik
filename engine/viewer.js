@@ -377,11 +377,13 @@
     '    if (uWeather.w > 0.0) {',
     '      vec2 ey = vec2(0.0, 5.0 / ' + FH.toFixed(1) + ');',
     '      float dUp = texture2D(depth, p - ey).r, dDn = texture2D(depth, p + ey).r;',
-    '      float cap = clamp((env.r - dUp) * 26.0, 0.0, 1.0);',                                     // верх предмета: над ним — дальше (крыша, крона, карниз)
+    '      float cap = clamp((env.r - dUp) / max(env.r, 0.06) * 7.0, 0.0, 1.0);',   // верх предмета; относительная разница — и у дальних крыш                                     // верх предмета: над ним — дальше (крыша, крона, карниз)
     '      float gnd = smoothstep(0.003, 0.015, dDn - dUp) * (1.0 - smoothstep(0.04, 0.09, dDn - dUp));',   // земля: глубина плавно растёт к зрителю
     '      float capB = b.a * clamp(1.0 - texture2D(bld, pb - ey * 1.6).a, 0.0, 1.0);',              // верхний край главного здания
-    '      float sm = max(max(cap, capB), gnd) * (1.0 - sky) * (0.7 + 0.6 * wxNoise(sc * vec2(90.0, 160.0))) * (0.55 + 0.45 * dd);',   // рыхло, дальнее — слабее
+    '      float sm = max(max(cap, capB), gnd) * (1.0 - sky) * (0.7 + 0.6 * wxNoise(sc * vec2(90.0, 160.0))) * (0.85 + 0.15 * dd);',   // рыхло
     '      c = mix(c, ' + v3(LK.weather.snowTint) + ' * mix(1.0, 0.35, uNightGnd), clamp(uWeather.w * ' + glf(LK.weather.snowK) + ' * sm, 0.0, 0.92));',
+    '      float gn = clamp((c.g - max(c.r, c.b)) * 7.0, 0.0, 1.0) * (1.0 - sky);',                  // зелень (трава, листва) зимой — серо-белая
+    '      c = mix(c, vec3(dot(c, vec3(0.3, 0.59, 0.11))) * vec3(0.98, 1.0, 1.04) * 1.12, uWeather.w * gn * 0.85);',
     '      c = mix(c, c * vec3(0.96, 0.98, 1.03), uWeather.w * 0.6);',                             // холодный свет
     '    }',
     '    float wisp = 0.6 * wxNoise(vec2(sc.x * 2.6 - uCloudT * 0.045, sc.y * 7.0)) + 0.4 * wxNoise(vec2(sc.x * 6.0 - uCloudT * 0.08, sc.y * 15.0 + 3.0));',   // полосы тумана плывут
@@ -403,7 +405,7 @@
     '  }',
     '  vec3 c = sa.rgb;',
     '  float shadow = cloudShadow(uv, uCloudT);',
-    '  c *= (1.0 - mix(uCloudK.x, uCloudK.y, uMix) * shadow * (1.0 - sa.a) * (1.0 - uNightGnd));',
+    '  c *= (1.0 - (mix(uCloudK.x, uCloudK.y, uMix) + uWeather.x * ' + glf(LK.weather.overcastShadow) + ') * shadow * (1.0 - sa.a) * (1.0 - uNightGnd));',   // в тучи тени облаков по земле гуще
     '  gl_FragColor = vec4(c, 1.0);',
     '}'
   ].join('\n');
@@ -1507,6 +1509,7 @@
     if (p1 === undefined) return;
     todAnim = { t0: null, T0: todT(tod.p), T1: todT(p1), p1: p1 };
     segMark('todSeg', 'data-tod', name);
+    if (name === 'night' && wx) { wx.rainbowT0 = 0; if (wx.label) showWxName(); }
     if (!useGL) fbEl.setAttribute('data-tod', name);
   }
   document.querySelectorAll('#todSeg button').forEach(function (b) {
@@ -1543,6 +1546,7 @@
     if (!CONFIG.WEATHER || !CONFIG.WEATHER[name]) return;
     var hadRain = !!wxOn.rain;
     wxOn[name] = !wxOn[name];
+    if (wxOn[name]) wx.rainbowT0 = 0;   // тучи или туман — радуги нет
     if (wxOn[name] && name === 'rain') wxOn.snow = false;   // дождь и снег вместе не бывают: включили одно — другое выключилось
     if (wxOn[name] && name === 'snow') wxOn.rain = false;
     if (hadRain && !wxOn.rain && tod.night < 0.5 && !wxOn.snow) wx.rainbowT0 = performance.now();   // дождь кончился днём — радуга
@@ -1554,7 +1558,7 @@
     var hadRain = !!wxOn.rain;
     wxOn.rain = v === 'rain'; wxOn.snow = v === 'snow';
     if (hadRain && !wxOn.rain && tod.night < 0.5 && !wxOn.snow) wx.rainbowT0 = performance.now();   // дождь кончился днём — радуга
-    if (wxOn.rain) wx.rainbowT0 = 0;
+    if (wxOn.rain || wxOn.snow) wx.rainbowT0 = 0;
     applyWeather();
   }
   document.querySelectorAll('#precipSeg [data-precip]').forEach(function (b) { b.addEventListener('click', function () { setPrecip(b.getAttribute('data-precip')); }); });
@@ -1618,7 +1622,7 @@
     var rbA = 0;   // радуга после дождя: 4 с проявляется, держится, 6 с тает (всего ~30 с); ночью и в тучах — нет
     if (wx.rainbowT0) {
       var ra0 = (now - wx.rainbowT0) / 1000;
-      rbA = clamp(ra0 / 4, 0, 1) * clamp((30 - ra0) / 6, 0, 1) * (1 - tod.night) * (1 - wx.cur[0]) * (1 - wx.cur[1]) * (1 - rainK);
+      rbA = clamp(ra0 / 5, 0, 1) * clamp((30 - ra0) / 7, 0, 1) * (1 - tod.night) * (1 - wx.cur[0]) * (1 - wx.cur[1]) * (1 - rainK) * (1 - snowK);
       if (ra0 > 30) { wx.rainbowT0 = 0; showWxName(); }
     }
     wx.flash = 0;
@@ -1637,10 +1641,12 @@
     pctx.clearRect(0, 0, W, H);
     var skyEnd = (CONFIG.DAY.SKY_END[frameIndex] || 0.55) * H;
     // молния: только буря + дождь; короткая двойная вспышка раз в 7–15 с
-    if (rainK > 0.5 && windIdx === 2 && !rm) {
-      if (!nextFlash) nextFlash = now + 2500 + pRng() * 4000;
+    var storm = rainK > 0.5 && windIdx === 2 && tod.night > 0.5 && !rm;   // гроза — ночью: дождь + буря
+    if (storm) {
+      if (!nextFlash) { nextFlash = now + 1200 + pRng() * 1500; wx.nextSheet = now + 600; }
+      if (now >= wx.nextSheet && flash === null) { wx.sheetT0 = now; wx.sheetK = 0.25 + 0.35 * pRng(); wx.nextSheet = now + 1400 + pRng() * 2600; }   // зарница: облака вспыхивают изнутри
       if (now >= nextFlash) {
-        flash = now; nextFlash = now + 6000 + pRng() * 8000;
+        flash = now; nextFlash = now + 4000 + pRng() * 5000;
         var bx = W * (0.15 + 0.7 * pRng()), by = 0, pts = [[bx, by]], seg = H * 0.035;   // зигзаг до горизонта, с ветками
         while (by < skyEnd * (0.8 + 0.3 * pRng())) { bx += (pRng() - 0.5) * seg * 1.6; by += seg * (0.6 + 0.8 * pRng()); pts.push([bx, by]); }
         var br = [], bi = 1 + Math.floor(pRng() * (pts.length - 2));
@@ -1648,11 +1654,16 @@
         for (var bk = 0; bk < 4; bk++) { cx0 += (pRng() - 0.2) * seg * 1.8; cy0 += seg * 0.8; br.push([cx0, cy0]); }
         wx.bolt = [pts, br];
       }
-    } else nextFlash = 0;
+    } else { nextFlash = 0; wx.sheetT0 = 0; }
+    if (wx.sheetT0) {
+      var sa2 = (now - wx.sheetT0) / 420, sf = sa2 < 1 ? Math.sin(sa2 * Math.PI) * (0.6 + 0.4 * Math.sin(sa2 * 40)) : 0;
+      if (sa2 >= 1) wx.sheetT0 = 0;
+      wx.flash = Math.max(wx.flash, sf * wx.sheetK);
+    }
     if (flash !== null) {
       var fa = now - flash, fl = fa < 160 ? 1 - 0.4 * fa / 160 : (fa < 230 ? 0.25 : (fa < 560 ? 0.85 * (1 - (fa - 230) / 330) : 0));   // двойная вспышка ~0.5 с
       if (fa > 560) { flash = null; wx.bolt = null; }
-      wx.flash = fl * rainK;
+      wx.flash = Math.max(wx.flash, fl * rainK);
       if (fl > 0 && wx.bolt) {
         pctx.save(); pctx.lineJoin = 'round'; pctx.lineCap = 'round';
         pctx.shadowColor = 'rgba(210,225,255,' + (0.9 * fl) + ')'; pctx.shadowBlur = 14 * d;
@@ -1663,14 +1674,27 @@
         pctx.restore();
       }
     }
-    if (rbA > 0.01) {   // радуга: широкая дуга над горизонтом, акварельно-прозрачная, только в небе
-      pctx.save(); pctx.beginPath(); pctx.rect(0, 0, W, skyEnd); pctx.clip();
-      var rcx = W * 0.62, rcy = skyEnd * 1.25, rr0 = Math.max(W, skyEnd) * 0.8, band = rr0 * 0.022;
-      ['228,80,70', '240,150,60', '236,210,90', '120,190,110', '90,140,210', '140,100,190'].forEach(function (col, k3) {
-        pctx.strokeStyle = 'rgba(' + col + ',' + (0.28 * rbA).toFixed(3) + ')'; pctx.lineWidth = band * 1.15;
-        pctx.beginPath(); pctx.arc(rcx, rcy, rr0 - k3 * band, Math.PI * 1.08, Math.PI * 1.92); pctx.stroke();
-      });
-      pctx.restore();
+    if (rbA > 0.01) {   // радуга: мягкие переходы цветов, концы и низ тают, рядом бледная вторая дуга; напротив солнца
+      var key = W + 'x' + H + 'x' + Math.round(skyEnd);
+      if (!wx.rbCv || wx.rbKey !== key) {
+        var rc2 = document.createElement('canvas'); rc2.width = W; rc2.height = H; var rx = rc2.getContext('2d');
+        var rcx = W * (CONFIG.SUN_SIDE === 'left' ? 0.66 : 0.34), rcy = skyEnd * 1.18, R0 = Math.max(W, skyEnd) * 0.72, bw = R0 * 0.09;
+        [[R0, 1, 1], [R0 * 1.2, 0.3, -1]].forEach(function (arc) {   // основная и вторая (бледнее, цвета наоборот)
+          for (var k4 = 0; k4 < 40; k4++) {
+            var f4 = k4 / 39, hue = arc[2] > 0 ? f4 * 275 : (1 - f4) * 275;
+            rx.strokeStyle = 'hsla(' + hue.toFixed(0) + ',85%,62%,' + (arc[1] * 0.16 * Math.sin(f4 * Math.PI) + 0.02).toFixed(3) + ')';
+            rx.lineWidth = bw / 40 * 1.6;
+            rx.beginPath(); rx.arc(rcx, rcy, arc[0] - f4 * bw, Math.PI * 1.02, Math.PI * 1.98); rx.stroke();
+          }
+        });
+        rx.globalCompositeOperation = 'destination-in';   // концы тают, у горизонта радуга растворяется
+        var gx = rx.createLinearGradient(0, 0, W, 0); gx.addColorStop(0, 'rgba(0,0,0,0)'); gx.addColorStop(0.28, 'rgba(0,0,0,1)'); gx.addColorStop(0.72, 'rgba(0,0,0,1)'); gx.addColorStop(1, 'rgba(0,0,0,0)');
+        rx.fillStyle = gx; rx.fillRect(0, 0, W, H);
+        var gy = rx.createLinearGradient(0, 0, 0, skyEnd); gy.addColorStop(0, 'rgba(0,0,0,1)'); gy.addColorStop(0.7, 'rgba(0,0,0,0.9)'); gy.addColorStop(1, 'rgba(0,0,0,0)');
+        rx.fillStyle = gy; rx.fillRect(0, 0, W, H);
+        wx.rbCv = rc2; wx.rbKey = key;
+      }
+      pctx.save(); pctx.globalAlpha = rbA; pctx.drawImage(wx.rbCv, 0, 0); pctx.restore();
     }
     if (rainK >= 0.01) {
       pctx.lineCap = 'round';
