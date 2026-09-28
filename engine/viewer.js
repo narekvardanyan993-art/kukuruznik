@@ -1534,6 +1534,7 @@
     if (wxOn.snow && windIdx === 2) to[1] = Math.max(to[1], 0.45);  // метель: видимость падает
     wx.from = wx.cur.slice(); wx.to = to; wx.t0 = null; wx.windFrom = wx.wind;
     document.querySelectorAll('#wxChips [data-wx]').forEach(function (b) { var on = !!wxOn[b.getAttribute('data-wx')]; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+    segMark('precipSeg', 'data-precip', wxOn.rain ? 'rain' : (wxOn.snow ? 'snow' : 'none'));
     var wb = document.getElementById('windBtn'); if (wb) { wb.setAttribute('data-wind', String(windIdx)); wb.classList.toggle('on', windIdx > 0); wb.setAttribute('aria-pressed', windIdx > 0 ? 'true' : 'false'); }
     wx.label = wxLabel(); showWxName();
   }
@@ -1548,6 +1549,15 @@
     if (wxOn.rain) wx.rainbowT0 = 0;
     applyWeather();
   }
+  // Осадки — одно из: сухо / дождь / снег
+  function setPrecip(v) {
+    var hadRain = !!wxOn.rain;
+    wxOn.rain = v === 'rain'; wxOn.snow = v === 'snow';
+    if (hadRain && !wxOn.rain && tod.night < 0.5 && !wxOn.snow) wx.rainbowT0 = performance.now();   // дождь кончился днём — радуга
+    if (wxOn.rain) wx.rainbowT0 = 0;
+    applyWeather();
+  }
+  document.querySelectorAll('#precipSeg [data-precip]').forEach(function (b) { b.addEventListener('click', function () { setPrecip(b.getAttribute('data-precip')); }); });
   function setWind(i) {
     var k = CONFIG.WIND_LEVELS && CONFIG.WIND_LEVELS[i];
     if (!k) return;
@@ -1557,6 +1567,7 @@
   document.querySelectorAll('#wxChips [data-wx]').forEach(function (b) { b.addEventListener('click', function () { setWeather(b.getAttribute('data-wx')); }); });
   var windBtnEl = document.getElementById('windBtn');
   if (windBtnEl) windBtnEl.addEventListener('click', function () { setWind((windIdx + 1) % 3); });
+  showWxName();   // название погоды сразу на языке страницы
   function stepWeather(now) {
     if (wx.t0 === null) wx.t0 = now;
     var k = sstep(0, 1, (now - wx.t0) / (CONFIG.WEATHER_FADE_MS || 1));
@@ -1777,7 +1788,7 @@
 
   // открытка: PNG текущего вида + подпись карандашным шрифтом внизу
   var cardBtn = document.getElementById('cardBtn');
-  if (!useGL) cardBtn.hidden = true;
+  if (!useGL) { cardBtn.hidden = true; cardBtn.parentNode.hidden = true; }
   cardBtn.addEventListener('click', function () {
     if (!useGL || glLost || !lastDraw) return;
     var d = lastDraw;

@@ -188,11 +188,6 @@
    "en": "Sky parade: flag of Armenia",
    "hy": "Երկնային շքերթ՝ Հայաստանի դրոշը"
   },
-  "weather": {
-   "ru": "Погода",
-   "en": "Weather",
-   "hy": "Եղանակ"
-  },
   "wxCloudy": {
    "ru": "Тучи",
    "en": "Clouds",
@@ -292,6 +287,31 @@
    "ru": "Радуга",
    "en": "Rainbow",
    "hy": "Ծիածան"
+  },
+  "oneOf": {
+   "ru": "одно из",
+   "en": "pick one",
+   "hy": "մեկը"
+  },
+  "together": {
+   "ru": "можно вместе",
+   "en": "combine",
+   "hy": "կարելի է միասին"
+  },
+  "precip": {
+   "ru": "Осадки",
+   "en": "Precipitation",
+   "hy": "Տեղումներ"
+  },
+  "skyAir": {
+   "ru": "Небо и воздух",
+   "en": "Sky and air",
+   "hy": "Երկինք և օդ"
+  },
+  "precipNone": {
+   "ru": "Сухо",
+   "en": "Dry",
+   "hy": "Չոր"
   }
  },
  "LOOK": {
