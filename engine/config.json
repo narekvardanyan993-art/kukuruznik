@@ -45,6 +45,46 @@
  "SHOOT_MS": 900,
  "WIND": true,
  "WIND_AMP_PX": 2.5,
+ "WEATHER": {
+  "clear": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "cloudy": [
+   1,
+   0,
+   0,
+   0
+  ],
+  "rain": [
+   0.85,
+   0.3,
+   1,
+   0
+  ],
+  "snow": [
+   0.6,
+   0.25,
+   0,
+   1
+  ],
+  "fog": [
+   0.35,
+   0.8,
+   0,
+   0
+  ]
+ },
+ "WEATHER_FADE_MS": 1800,
+ "WIND_LEVELS": [
+  1,
+  2.4,
+  4.5
+ ],
+ "RAIN_DROPS": 240,
+ "SNOW_FLAKES": 190,
  "PERF_MIN_FPS": 45,
  "FALLBACK_LAYER_K": 0.6,
  "UI_I18N": {
@@ -147,6 +187,56 @@
    "ru": "Парад в небе: флаг Армении",
    "en": "Sky parade: flag of Armenia",
    "hy": "Երկնային շքերթ՝ Հայաստանի դրոշը"
+  },
+  "weather": {
+   "ru": "Погода",
+   "en": "Weather",
+   "hy": "Եղանակ"
+  },
+  "wxClear": {
+   "ru": "Ясно",
+   "en": "Clear",
+   "hy": "Պարզ"
+  },
+  "wxCloudy": {
+   "ru": "Пасмурно",
+   "en": "Cloudy",
+   "hy": "Ամպամած"
+  },
+  "wxRain": {
+   "ru": "Дождь",
+   "en": "Rain",
+   "hy": "Անձրև"
+  },
+  "wxSnow": {
+   "ru": "Снег",
+   "en": "Snow",
+   "hy": "Ձյուն"
+  },
+  "wxFog": {
+   "ru": "Туман",
+   "en": "Fog",
+   "hy": "Մառախուղ"
+  },
+  "wind": {
+   "ru": "Ветер",
+   "en": "Wind",
+   "hy": "Քամի"
+  },
+  "windCalm": {
+   "ru": "Тихо",
+   "en": "Calm",
+   "hy": "Հանդարտ"
+  },
+  "windBreeze": {
+   "ru": "Ветрено",
+   "en": "Breezy",
+   "hy": "Քամոտ"
+  },
+  "windStorm": {
+   "ru": "Буря",
+   "en": "Storm",
+   "hy": "Փոթորիկ"
   }
  },
  "LOOK": {
@@ -294,6 +384,52 @@
     190,
     200,
     230
+   ]
+  },
+  "weather": {
+   "overcastSky": [
+    0.8,
+    0.82,
+    0.84
+   ],
+   "overcastDim": 0.16,
+   "overcastGray": 0.6,
+   "fogDay": [
+    0.88,
+    0.88,
+    0.86
+   ],
+   "fogNight": [
+    0.16,
+    0.18,
+    0.24
+   ],
+   "fogNear": 0.75,
+   "fogSky": 0.9,
+   "snowTint": [
+    0.95,
+    0.96,
+    0.99
+   ],
+   "snowK": 0.42,
+   "wetDim": 0.12,
+   "rainDay": [
+    60,
+    70,
+    92,
+    0.32
+   ],
+   "rainNight": [
+    175,
+    185,
+    205,
+    0.28
+   ],
+   "snowColor": [
+    255,
+    255,
+    255,
+    0.9
    ]
   }
  }

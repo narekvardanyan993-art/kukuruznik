@@ -338,6 +338,11 @@
     font: 600 var(--fs-small)/1.15 var(--font);
   }
   .seg button:last-child { border-right: none; }
+  .seg-wx { grid-auto-flow: row; grid-template-columns: repeat(6, 1fr); }   /* погода — 5 кнопок в две строки: 3 сверху, 2 снизу во всю ширину */
+  .seg-wx button { grid-column: span 2; }
+  .seg-wx button:nth-child(n+4) { grid-column: span 3; }
+  .seg-wx button:nth-child(3) { border-right: none; }
+  .seg-wx button:nth-child(-n+3) { border-bottom: 1px solid rgba(47,42,37,0.5); }
   .seg button.on { background: var(--ink); color: var(--paper); }
   #thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s1); }
   #thumbs button {
@@ -617,6 +622,24 @@ window.__wl = WelcomeLoader.create({
         <button type="button" data-tod="day" class="on" data-i18n="day">День</button>
         <button type="button" data-tod="sunset" data-i18n="sunset">Закат</button>
         <button type="button" data-tod="night" data-i18n="night">Ночь</button>
+      </div>
+    </section>
+    <section class="p-sec">
+      <h3 data-i18n="weather">Погода</h3>
+      <div class="seg seg-wx" id="wxSeg" role="group">
+        <button type="button" data-wx="clear" class="on" data-i18n="wxClear">Ясно</button>
+        <button type="button" data-wx="cloudy" data-i18n="wxCloudy">Пасмурно</button>
+        <button type="button" data-wx="rain" data-i18n="wxRain">Дождь</button>
+        <button type="button" data-wx="snow" data-i18n="wxSnow">Снег</button>
+        <button type="button" data-wx="fog" data-i18n="wxFog">Туман</button>
+      </div>
+    </section>
+    <section class="p-sec">
+      <h3 data-i18n="wind">Ветер</h3>
+      <div class="seg" id="windSeg" role="group">
+        <button type="button" data-wind="0" class="on" data-i18n="windCalm">Тихо</button>
+        <button type="button" data-wind="1" data-i18n="windBreeze">Ветрено</button>
+        <button type="button" data-wind="2" data-i18n="windStorm">Буря</button>
       </div>
     </section>
     <section class="p-sec">
