@@ -569,6 +569,9 @@
       opacity: 0; pointer-events: none; transition: opacity 300ms var(--ease);
     }
     body.sheet-open #scrim { opacity: 1; pointer-events: auto; }
+    /* шторка уезжает (sheet-closing, ~0,9 с): нажатия проходят сквозь неё и затемнение — к точке-подсказке или кнопке под ней.
+       Раньше нажатие сразу после закрытия попадало в уезжающую шторку (например, в «История здания») и открывало другую страницу. */
+    body.sheet-closing #panel, body.sheet-closing #scrim { pointer-events: none; }
   }
 
   /* без WebGL время суток — CSS-фильтром (окна ночью не светятся) */
