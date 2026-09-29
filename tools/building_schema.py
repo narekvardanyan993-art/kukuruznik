@@ -264,7 +264,7 @@ def validate(bdir, b, site):
                     if k not in kinds:
                         c.err('%s: life.%s' % (w, t), 'неизвестное событие «%s» (есть: %s)' % (k, ', '.join(sorted(kinds))))
         if 'closeUp' in fr:
-            cu = c.obj(fr['closeUp'], '%s: closeUp' % w, optional=('glints', 'perch', 'mast'))
+            cu = c.obj(fr['closeUp'], '%s: closeUp' % w, optional=('glints', 'perch', 'mast', 'banner'))
             if cu:
                 if 'glints' in cu:
                     c.boolean(cu['glints'], '%s: closeUp.glints' % w)
@@ -276,6 +276,10 @@ def validate(bdir, b, site):
                             c.numbers(p, '%s: closeUp.perch[%d]' % (w, j + 1), 2, 0, 1)
                 if 'mast' in cu:
                     c.numbers(cu['mast'], '%s: closeUp.mast' % w, 4, 0, 1)
+                if 'banner' in cu:   # знамя на фасаде (показ banner): [u середины, v карниза, v низа, полуширина по u]
+                    c.numbers(cu['banner'], '%s: closeUp.banner' % w, 4, 0, 1)
+                    if isinstance(cu['banner'], list) and len(cu['banner']) == 4 and all(isinstance(x, (int, float)) for x in cu['banner']) and cu['banner'][2] <= cu['banner'][1]:
+                        c.err('%s: closeUp.banner' % w, 'низ знамени должен быть ниже карниза (третье число больше второго)')
         hs = fr['hotspots']
         if not isinstance(hs, list):
             c.err('%s: hotspots' % w, 'должен быть список точек-подсказок')

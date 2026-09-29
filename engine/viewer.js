@@ -392,6 +392,7 @@
     '    }',
     '    float wisp = 0.6 * wxNoise(vec2(sc.x * 2.6 - uCloudT * 0.045, sc.y * 7.0)) + 0.4 * wxNoise(vec2(sc.x * 6.0 - uCloudT * 0.08, sc.y * 15.0 + 3.0));',   // полосы тумана плывут
     '    float fg = uWeather.y * clamp((pow(1.0 - dd, 1.3) * ' + glf(LK.weather.fogNear) + ' + sky * ' + glf(LK.weather.fogSky) + ') * (0.55 + 0.9 * wisp) + 0.18 * smoothstep(0.45, 0.95, sc.y) * wisp, 0.0, 0.95);',   // туман по глубине: дальнее тонет сильнее, у земли гуще
+    '    fg = min(0.93, fg * (1.0 + 0.45 * uNightGnd) * mix(1.0, 0.55 + 0.9 * wisp, uNightGnd));',   // ночью туман — клубами, светлее неба и земли (как в кино)
     '    c = mix(c, mix(' + v3(LK.weather.fogDay) + ', ' + v3(LK.weather.fogNight) + ', uNightGnd), fg);',
     '  }',
     '  if (uFlash > 0.0) c = mix(c, ' + v3(LK.weather.flash) + ', uFlash * (sky * mix(0.55, 0.9, uNightSky) + (1.0 - sky) * mix(0.12, 0.3, uNightGnd)));',
@@ -1491,11 +1492,18 @@
 
   // свернуть/развернуть (ПК) и шторка (телефон)
   if (lsGet('chka-panel') === 'collapsed') bodyEl.classList.add('panel-collapsed');
-  function closeSheet() { bodyEl.classList.remove('sheet-open'); }
+  function closeSheet() {   // на телефоне закрытие красивое: пункты гаснут, перо собирает контур, потом шторка уезжает
+    if (!bodyEl.classList.contains('sheet-open')) return;
+    if (desktopMQ.matches || reduced()) { bodyEl.classList.remove('sheet-open'); return; }
+    bodyEl.classList.add('sheet-closing');
+    setTimeout(function () { bodyEl.classList.remove('sheet-open'); bodyEl.classList.remove('sheet-closing'); }, 520);
+  }
+  var sheetCloseEl = document.getElementById('sheetClose');
+  if (sheetCloseEl) sheetCloseEl.addEventListener('click', closeSheet);
   panelBtn.addEventListener('click', function () {
     document.documentElement.classList.add('panel-anim');   // анимации закрытия/иконки включаются только после первого нажатия (не при загрузке)
     if (desktopMQ.matches) lsSet('chka-panel', bodyEl.classList.toggle('panel-collapsed') ? 'collapsed' : 'open');
-    else bodyEl.classList.toggle('sheet-open');
+    else if (bodyEl.classList.contains('sheet-open')) closeSheet(); else bodyEl.classList.add('sheet-open');
   });
   scrimEl.addEventListener('click', closeSheet);
   (desktopMQ.addEventListener ? desktopMQ.addEventListener('change', closeSheet) : desktopMQ.addListener(closeSheet));
@@ -1523,6 +1531,11 @@
     todAnim = { t0: null, T0: todT(tod.p), T1: todT(p1), p1: p1 };
     segMark('todSeg', 'data-tod', name);
     if (name === 'night' && wx) { wx.rainbowT0 = 0; if (wx.label) showWxName(); }
+    var cbtn = document.querySelector('#wxChips [data-wx=cloudy]');   // ночью тучи не видны — кнопка гаснет (и тучи выключаются)
+    if (cbtn && wx) {
+      cbtn.disabled = name === 'night'; cbtn.title = name === 'night' ? CONFIG.UI_I18N.nightNA[currentLang] : '';
+      if (name === 'night' && wxOn.cloudy) { wxOn.cloudy = false; applyWeather(); }
+    }
     if (!useGL) fbEl.setAttribute('data-tod', name);
   }
   document.querySelectorAll('#todSeg button').forEach(function (b) {
@@ -1837,11 +1850,21 @@
   // iPhone (iOS Safari) полноэкранный режим для страниц не поддерживает — кнопку прячем. iPad и остальные — работают.
   var isIPhone = /iPhone|iPod/.test(navigator.userAgent);
   var fsApi = !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
-  if (isIPhone || !fsApi || !(document.fullscreenEnabled || document.webkitFullscreenEnabled)) {
+  var immExitEl = document.getElementById('immExit'), immT = 0;
+  function immersive(on) {
+    bodyEl.classList.toggle('immersive', on); bodyEl.classList.remove('imm-idle');
+    clearTimeout(immT); if (on) immT = setTimeout(function () { bodyEl.classList.add('imm-idle'); }, 2500);
+  }
+  if (immExitEl) immExitEl.addEventListener('click', function () { immersive(false); });
+  stage.addEventListener('pointerdown', function () { if (bodyEl.classList.contains('immersive')) { bodyEl.classList.remove('imm-idle'); clearTimeout(immT); immT = setTimeout(function () { bodyEl.classList.add('imm-idle'); }, 2500); } });
+  if (isIPhone && fsBtn) {   // Safari на iPhone не даёт полный экран страницам — кнопка включает «только картинку»
+    fsBtn.addEventListener('click', function () { closeSheet(); setTimeout(function () { immersive(true); }, 400); });
+  } else if (!fsApi || !(document.fullscreenEnabled || document.webkitFullscreenEnabled)) {
     fsBtn.hidden = true;
     fsBtn.parentNode.hidden = true;   // и её пустая секция в панели
   }
   fsBtn.addEventListener('click', function () {
+    if (isIPhone) return;   // на iPhone — «только картинка» (выше)
     var el = document.documentElement;
     if (document.fullscreenElement || document.webkitFullscreenElement) {
       (document.exitFullscreen || document.webkitExitFullscreen).call(document);

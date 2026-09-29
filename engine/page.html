@@ -258,6 +258,8 @@
   /* Перо рисует контур листа (SVG поверх карточки, его путь строит скрипт по размеру карточки). Только ПК. */
   .pen { display: none; }
   .pen-m { display: none; }   /* перо шторки — только на телефоне */
+  #sheetClose { display: none; }
+  #immExit { display: none; }
   @media (min-width: 1024px) {
     #panel { overflow: visible; }   /* карточка и перо не обрезаются, пока колонка сжимается/растёт */
     .pen { display: block; position: absolute; left: var(--s2); top: var(--s2); width: 384px; height: calc(100% - 2 * var(--s2)); overflow: visible; pointer-events: none; z-index: 2; }
@@ -308,9 +310,10 @@
   }
   @keyframes itemIn { from { opacity: 0; transform: translateY(10px); filter: blur(2px); } to { opacity: 1; transform: none; filter: none; } }
   @media (max-width: 1023.98px) and (prefers-reduced-motion: reduce) { html:not([data-motion="on"]) body.sheet-open .panel-scroll > *, html:not([data-motion="on"]) body.sheet-open .chips > .chip { animation: none; } }
+  @keyframes sheetOutM { from { } to { background-color: rgba(245,236,218,0); box-shadow: none; opacity: 0.4; } }
   @keyframes sheetInM { from { background-color: rgba(245,236,218,0); box-shadow: none; } to { } }
   @keyframes h3Line { 0% { background-size: 0 1.5px; } 60% { background-size: 100% 1.5px; } 100% { background-size: 38px 1.5px; } }   /* перо подчёркивает заголовок и отступает к короткому штриху */
-  @keyframes chipIn { 0% { opacity: 0; transform: translateY(8px) scale(0.86); } 70% { opacity: 1; transform: scale(1.04); } 100% { opacity: 1; transform: none; } }
+  @keyframes chipIn { 0% { opacity: 0; transform: translateY(8px) scale(0.86); } 70% { opacity: 1; transform: scale(1.04); } 100% { transform: none; } }   /* 100% без opacity: выключенная кнопка остаётся бледной */
   @keyframes itemOut { from { opacity: 1; } to { opacity: 0; } }
   /* «Уменьшение движения»: обычное плавное появление и исчезновение, без пера и сдвигов */
   @media (min-width: 1024px) and (prefers-reduced-motion: reduce) {
@@ -342,17 +345,19 @@
   .chips-one { padding: 4px; border-radius: 16px; background: rgba(47,42,37,0.07); box-shadow: inset 0 1px 2px rgba(47,42,37,0.12); }
   .chip { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 60px; padding: 7px 3px 6px;
     border: 1.5px solid rgba(47,42,37,0.22); border-radius: 13px; background: rgba(255,252,244,0.75); color: var(--ink);
-    font: 600 12px/1.1 var(--font); cursor: pointer; box-shadow: 0 1px 0 rgba(47,42,37,0.10);
+    font: 600 12px/1.3 var(--font); cursor: pointer; box-shadow: 0 1px 0 rgba(47,42,37,0.10);
     transition: background-color 220ms var(--spring), color 220ms var(--spring), border-color 220ms var(--spring), transform 160ms var(--spring), box-shadow 220ms var(--spring); }
   .chips-one .chip { border-color: transparent; background: transparent; box-shadow: none; }
   .chip:active { transform: scale(0.94); }
   .chip.on { background: var(--ink); color: var(--paper); border-color: var(--ink); box-shadow: 0 2px 8px rgba(47,42,37,0.28); }
   .chip svg { width: 30px; height: 30px; overflow: visible; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-  .chip span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chip span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.4; padding-bottom: 1px; }
   .chips-many .chip::after { content: ''; position: absolute; top: 5px; right: 5px; width: 9px; height: 9px; border-radius: 50%;
     border: 1.5px solid rgba(47,42,37,0.35); background: transparent; transition: background-color 220ms, border-color 220ms; }
   .chips-many .chip.on::after { background: #7fbf6a; border-color: var(--paper); }
   .chips-text .chip { min-height: 44px; font-size: 15px; }
+  .chip:disabled { opacity: 0.35; cursor: not-allowed; filter: grayscale(1); }
+  .chip:disabled::after { display: none; }
   .chip text { fill: currentColor; stroke: none; font-family: var(--font); font-weight: 700; }
   /* цвета значков: солнце, закат, луна, облака, капли, снег */
   .i-sun { fill: #f2b632; stroke: #b9831a; }
@@ -510,6 +515,22 @@
     body.sheet-open #panel { transform: none; }
     html.panel-anim body.sheet-open .panel-scroll > * { animation: itemIn 520ms var(--ease) both; animation-delay: calc(650ms + var(--n, 0) * 70ms); }
     html.panel-anim body.sheet-open .chips > .chip, html.panel-anim body.sheet-open #thumbs button { animation: chipIn 460ms var(--spring) both; animation-delay: calc(760ms + var(--n, 0) * 70ms + var(--c, 0) * 60ms); }
+    #sheetClose { display: grid; place-items: center; position: absolute; top: 10px; right: 10px; z-index: 4; width: 40px; height: 40px; border-radius: 50%;
+      border: 1.5px solid rgba(47,42,37,0.3); background: rgba(255,252,244,0.85); color: var(--ink); cursor: pointer; }
+    #sheetClose svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 1; }
+    html.panel-anim body.sheet-open #sheetClose { animation: chipIn 420ms var(--spring) 900ms both; }
+    html.panel-anim body.sheet-open #sheetClose path { animation: penDraw 380ms ease 1050ms both; }
+    body.sheet-closing #sheetClose { transform: rotate(90deg) scale(0.6); opacity: 0; transition: transform 320ms var(--ease), opacity 320ms; }
+    /* закрытие шторки: пункты гаснут снизу вверх, перо «собирает» контур, бумага бледнеет — потом шторка уезжает вниз */
+    body.sheet-closing .panel-scroll > * { animation: itemOut 260ms ease both; animation-delay: calc((12 - var(--n, 0)) * 18ms); }
+    body.sheet-closing .pen-m path { animation: penUndraw 420ms cubic-bezier(0.5, 0, 0.3, 1) 120ms both; opacity: 1; }
+    body.sheet-closing .panel-card { animation: sheetOutM 420ms ease 160ms both; }
+    /* iPhone: «только картинка» вместо полного экрана (Safari на iPhone его не даёт) — прячем кнопки и подписи; крестик в углу возвращает */
+    body.immersive #bottomBar, body.immersive #panelBtn, body.immersive #prevBtn, body.immersive #nextBtn, body.immersive #dots, body.immersive #hotspots, body.immersive .plaque { opacity: 0 !important; pointer-events: none !important; transition: opacity 500ms; }
+    body.immersive #immExit { display: grid; place-items: center; position: fixed; top: calc(var(--safe-t, 0px) + 12px); right: calc(var(--safe-r, 0px) + 12px); z-index: 90; width: 40px; height: 40px; border-radius: 50%;
+      border: 1.5px solid rgba(47,42,37,0.3); background: rgba(255,252,244,0.8); color: var(--ink); animation: chipIn 420ms var(--spring) both; }
+    body.immersive #immExit svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+    body.immersive.imm-idle #immExit { opacity: 0.18; transition: opacity 800ms; }
     .pen-m { display: block; position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; overflow: visible; }
     .pen-m path { fill: none; stroke: var(--ink); stroke-width: 2.2; vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
     .pen-m .pm2 { stroke-width: 1; opacity: 0.4; }
@@ -697,7 +718,7 @@ window.__wl = WelcomeLoader.create({
 <div id="layout">
 <aside id="panel" aria-label="Menu">
   <svg class="pen" id="pen" aria-hidden="true"><path class="pen-1" pathLength="1"/><path class="pen-2" pathLength="1"/><circle class="nib" r="3.2" cx="0" cy="0"/></svg>
-  <div class="panel-card sketch"><svg class="pen-m" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path class="pm1" pathLength="1" d="M2 98 L2 5 Q2 2 5 2 L95 2 Q98 2 98 5 L98 98"/><path class="pm2" pathLength="1" d="M3.5 97 L3.4 6 Q3.6 3.4 6 3.5 L94 3.6 Q96.6 3.5 96.5 6 L96.6 97"/></svg><div class="panel-scroll">
+  <div class="panel-card sketch"><svg class="pen-m" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path class="pm1" pathLength="1" d="M2 98 L2 5 Q2 2 5 2 L95 2 Q98 2 98 5 L98 98"/><path class="pm2" pathLength="1" d="M3.5 97 L3.4 6 Q3.6 3.4 6 3.5 L94 3.6 Q96.6 3.5 96.5 6 L96.6 97"/></svg><button type="button" id="sheetClose" aria-label="Закрыть" data-i18n-title="close"><svg viewBox="0 0 32 32" aria-hidden="true"><path pathLength="1" d="M9 9l14 14M23 9L9 23"/></svg></button><div class="panel-scroll">
     <span class="p-title" data-i18n="panelTitle">{{TEXT:panelTitle}}</span>
     <div class="p-top">
       <div class="p-top-row">
@@ -789,6 +810,7 @@ document.querySelectorAll('.chips').forEach(function (g) { g.querySelectorAll('.
 </script>
 <button type="button" id="panelBtn" aria-label="Menu"><svg class="ic-wheel" viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="20" cy="20" r="16.5" stroke-width="2.2"/><circle cx="20" cy="20" r="14.2" stroke-width="0.8" opacity=".55"/><g class="arms"><g transform="rotate(0 20 20)"><path class="arm" style="--i:0" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(45 20 20)"><path class="arm" style="--i:1" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(90 20 20)"><path class="arm" style="--i:2" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(135 20 20)"><path class="arm" style="--i:3" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(180 20 20)"><path class="arm" style="--i:4" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(225 20 20)"><path class="arm" style="--i:5" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(270 20 20)"><path class="arm" style="--i:6" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(315 20 20)"><path class="arm" style="--i:7" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g></g><circle cx="20" cy="20" r="2.7" stroke-width="1.7"/></g></svg></button>
 <div id="scrim"></div>
+<button type="button" id="immExit" aria-label="Выйти" data-i18n-title="close"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M11 5H5v6M21 5h6v6M11 27H5v-6M21 27h6v-6"/></svg></button>
 <div id="bottomBar"><button type="button" id="flagBtnB" class="arrow-btn flag-btn" aria-label="Парад" data-i18n-title="flag"><svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g stroke-linecap="round" stroke-linejoin="round"><path class="fb fb1" d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 13 Q29 16 23 13 Q17 10 11 13 Z" fill="#d90012"/><path class="fb fb2" d="M11 13 Q17 10 23 13 Q29 16 35 13 L35 19 Q29 22 23 19 Q17 16 11 19 Z" fill="#1c4cc0"/><path class="fb fb3" d="M11 19 Q17 16 23 19 Q29 22 35 19 L35 25 Q29 28 23 25 Q17 22 11 25 Z" fill="#f2a800"/><g fill="none" stroke="currentColor"><path d="M9.2 5.5 L9.6 35.5" stroke-width="2.6"/><path d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 25 Q29 28 23 25 Q17 22 11 25 Z" stroke-width="2"/><path d="M11.6 7.8 Q17 5 23 8 Q29 11 34.6 8.2 M11.4 24.4 Q17 21.6 23 24.6 Q29 27.6 34.6 24.4" stroke-width="0.9" opacity=".55"/></g></g></svg></button><div id="barTitle"></div><a id="homeBtn" class="arrow-btn" href="{{HOME}}" aria-label="На главную"><svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 20.5L20 8.5l13.5 12" stroke-width="2.8"/><path d="M11 18.5V32h18V18.5" stroke-width="2.8"/><path d="M17 32v-8.5h6V32" stroke-width="2.4"/><path d="M7.4 21.2L20.4 9.5l12.9 11.4M12 19.4V32.8h17.4" stroke-width="1.1" opacity=".55"/></g></svg></a></div>
 <main id="view">
 <figure id="exhibit"><div id="frame">
