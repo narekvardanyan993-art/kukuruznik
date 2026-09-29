@@ -1821,6 +1821,8 @@
       var im = new Image();
       im.alt = ''; if (store[i]) im.src = store[i].thumb;
       b.appendChild(im);
+      var nm = document.createElement('span'); nm.className = 'th-num'; nm.textContent = String(i + 1); b.appendChild(nm);   // номер кадра
+      b.style.setProperty('--c', i);
       b.addEventListener('click', function () { goTo(i); });
       thumbsEl.appendChild(b);
     });

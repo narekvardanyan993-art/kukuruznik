@@ -257,6 +257,7 @@
   .panel-scroll > * { min-width: 0; }
   /* Перо рисует контур листа (SVG поверх карточки, его путь строит скрипт по размеру карточки). Только ПК. */
   .pen { display: none; }
+  .pen-m { display: none; }   /* перо шторки — только на телефоне */
   @media (min-width: 1024px) {
     #panel { overflow: visible; }   /* карточка и перо не обрезаются, пока колонка сжимается/растёт */
     .pen { display: block; position: absolute; left: var(--s2); top: var(--s2); width: 384px; height: calc(100% - 2 * var(--s2)); overflow: visible; pointer-events: none; z-index: 2; }
@@ -269,12 +270,13 @@
 
     /* ---- Появление (~1.5 с): перо ведёт основной контур листа (0.15–1.05 с; виден кончик пера), следом внутренний карандашный,
        потом бумага наливается цветом, потом текст проявляется по пунктам. Запускается при загрузке и при раскрытии панели. ---- */
-    body:not(.panel-collapsed) .pen .pen-1 { animation: penDraw 1400ms cubic-bezier(0.4, 0.05, 0.3, 1) 200ms both, penFade 400ms linear 1650ms both; }
-    body:not(.panel-collapsed) .pen .pen-2 { animation: penDraw 1250ms cubic-bezier(0.4, 0.05, 0.3, 1) 650ms both, penFade 400ms linear 1950ms both; }
-    body:not(.panel-collapsed) .pen .nib { animation: nibGo 1400ms cubic-bezier(0.4, 0.05, 0.3, 1) 200ms both; }
-    body:not(.panel-collapsed) .panel-card { animation: sheetIn 1500ms linear 750ms both; }
-    body:not(.panel-collapsed) .panel-scroll > * { animation: itemIn 620ms var(--ease) both; animation-delay: calc(1500ms + var(--n, 0) * 90ms); }
-    body:not(.panel-collapsed) .chips > .chip { animation: chipIn 520ms var(--spring) both; animation-delay: calc(1650ms + var(--n, 0) * 90ms + var(--c, 0) * 70ms); }
+    body:not(.panel-collapsed) .pen .pen-1 { animation: penDraw 1150ms cubic-bezier(0.4, 0.05, 0.3, 1) 150ms both, penFade 400ms linear 1350ms both; }
+    body:not(.panel-collapsed) .pen .pen-2 { animation: penDraw 1000ms cubic-bezier(0.4, 0.05, 0.3, 1) 500ms both, penFade 400ms linear 1600ms both; }
+    body:not(.panel-collapsed) .pen .nib { animation: nibGo 1150ms cubic-bezier(0.4, 0.05, 0.3, 1) 150ms both; }
+    body:not(.panel-collapsed) .panel-card { animation: sheetIn 1200ms linear 550ms both; }
+    body:not(.panel-collapsed) .panel-scroll > * { animation: itemIn 560ms var(--ease) both; animation-delay: calc(950ms + var(--n, 0) * 80ms); }
+    body:not(.panel-collapsed) .chips > .chip, body:not(.panel-collapsed) #thumbs button { animation: chipIn 500ms var(--spring) both; animation-delay: calc(1100ms + var(--n, 0) * 80ms + var(--c, 0) * 60ms); }
+    body:not(.panel-collapsed) .p-sec h3 { background: linear-gradient(currentColor, currentColor) 0 100% / 0 1.5px no-repeat; padding-bottom: 2px; animation: h3Line 700ms cubic-bezier(0.4, 0.05, 0.3, 1) both; animation-delay: calc(1050ms + var(--n, 0) * 80ms); }
 
     /* ---- Закрытие (~1.4 с): пункты гаснут снизу вверх, бумага бледнеет, перо втягивает линию; потом колонка сжимается ---- */
     html.panel-anim body.panel-collapsed .pen .pen-1 { animation: penUndraw 950ms cubic-bezier(0.5, 0, 0.3, 1) 380ms both; }
@@ -306,6 +308,8 @@
   }
   @keyframes itemIn { from { opacity: 0; transform: translateY(10px); filter: blur(2px); } to { opacity: 1; transform: none; filter: none; } }
   @media (max-width: 1023.98px) and (prefers-reduced-motion: reduce) { html:not([data-motion="on"]) body.sheet-open .panel-scroll > *, html:not([data-motion="on"]) body.sheet-open .chips > .chip { animation: none; } }
+  @keyframes sheetInM { from { background-color: rgba(245,236,218,0); box-shadow: none; } to { } }
+  @keyframes h3Line { 0% { background-size: 0 1.5px; } 60% { background-size: 100% 1.5px; } 100% { background-size: 38px 1.5px; } }   /* перо подчёркивает заголовок и отступает к короткому штриху */
   @keyframes chipIn { 0% { opacity: 0; transform: translateY(8px) scale(0.86); } 70% { opacity: 1; transform: scale(1.04); } 100% { opacity: 1; transform: none; } }
   @keyframes itemOut { from { opacity: 1; } to { opacity: 0; } }
   /* «Уменьшение движения»: обычное плавное появление и исчезновение, без пера и сдвигов */
@@ -414,12 +418,23 @@
   .seg button.on { background: var(--ink); color: var(--paper); }
   #thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s1); }
   #thumbs button {
-    padding: 0; border: 2px solid rgba(47,42,37,0.35); border-radius: 8px 4px 8px 4px;
-    overflow: hidden; cursor: pointer; background: #000; aspect-ratio: 4 / 5;
-    transition: border-color var(--dur) var(--spring), transform var(--dur) var(--spring);
+    position: relative; padding: 0; border: 1.5px solid rgba(47,42,37,0.25); border-radius: 12px;
+    overflow: hidden; cursor: pointer; background: #000; aspect-ratio: 4 / 5; box-shadow: 0 1px 0 rgba(47,42,37,0.12);
+    transition: border-color 260ms var(--spring), transform 320ms var(--spring), box-shadow 320ms var(--spring);
   }
-  #thumbs button img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 58%; }
-  #thumbs button.on { border-color: var(--ink); transform: scale(1.04); box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink); }
+  #thumbs button img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 58%; transition: transform 600ms var(--spring), filter 400ms; filter: saturate(0.85); }
+  #thumbs .th-num { position: absolute; left: 6px; bottom: 6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: rgba(245,236,218,0.92);
+    color: var(--ink); font: 700 11px/20px var(--font); text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.25); transition: background-color 260ms, color 260ms; }
+  #thumbs button.on { border-color: var(--ink); transform: scale(1.04); box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink), 0 6px 16px rgba(47,42,37,0.3); }
+  #thumbs button.on img { filter: none; }
+  #thumbs button.on .th-num { background: var(--ink); color: var(--paper); }
+  #thumbs button::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: radial-gradient(circle at var(--rx, 50%) var(--ry, 50%), rgba(255,255,255,0.45), rgba(255,255,255,0) 60%); opacity: 0; transition: opacity 400ms; pointer-events: none; }
+  #thumbs button:active { transform: scale(0.95); }
+  #thumbs button:active::after { opacity: 1; transition: none; }
+  @media (hover: hover) and (pointer: fine) {
+    #thumbs button:not(.on):hover { transform: translateY(-3px); border-color: rgba(47,42,37,0.6); box-shadow: 0 8px 18px rgba(47,42,37,0.25); }
+    #thumbs button:hover img { transform: scale(1.08); filter: none; }
+  }
   .p-row { display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: var(--s1); }
   .switch {
     flex: none; width: 54px; height: 30px; border-radius: 15px; border: 2px solid var(--ink);
@@ -493,8 +508,14 @@
       transform: translateY(108%); transition: transform 560ms var(--spring); z-index: 70;
     }
     body.sheet-open #panel { transform: none; }
-    html.panel-anim body.sheet-open .panel-scroll > * { animation: itemIn 520ms var(--ease) both; animation-delay: calc(180ms + var(--n, 0) * 70ms); }
-    html.panel-anim body.sheet-open .chips > .chip { animation: chipIn 460ms var(--spring) both; animation-delay: calc(300ms + var(--n, 0) * 70ms + var(--c, 0) * 60ms); }
+    html.panel-anim body.sheet-open .panel-scroll > * { animation: itemIn 520ms var(--ease) both; animation-delay: calc(650ms + var(--n, 0) * 70ms); }
+    html.panel-anim body.sheet-open .chips > .chip, html.panel-anim body.sheet-open #thumbs button { animation: chipIn 460ms var(--spring) both; animation-delay: calc(760ms + var(--n, 0) * 70ms + var(--c, 0) * 60ms); }
+    .pen-m { display: block; position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; overflow: visible; }
+    .pen-m path { fill: none; stroke: var(--ink); stroke-width: 2.2; vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
+    .pen-m .pm2 { stroke-width: 1; opacity: 0.4; }
+    html.panel-anim body.sheet-open .pen-m .pm1 { animation: penDraw 800ms cubic-bezier(0.4, 0.05, 0.3, 1) 120ms both, penFade 350ms linear 1100ms both; }
+    html.panel-anim body.sheet-open .pen-m .pm2 { animation: penDraw 700ms cubic-bezier(0.4, 0.05, 0.3, 1) 320ms both, penFade 350ms linear 1250ms both; }
+    html.panel-anim body.sheet-open .panel-card { animation: sheetInM 700ms ease 380ms both; }
     .panel-scroll { padding: var(--s4); grid-template-columns: minmax(0, 420px); justify-content: center; scroll-padding: var(--s4) 0; }
     .panel-card {
       left: max(var(--s1), var(--safe-l)); right: max(var(--s1), var(--safe-r)); top: 0; bottom: calc(var(--safe-b) + var(--s1)); width: auto;
@@ -676,7 +697,7 @@ window.__wl = WelcomeLoader.create({
 <div id="layout">
 <aside id="panel" aria-label="Menu">
   <svg class="pen" id="pen" aria-hidden="true"><path class="pen-1" pathLength="1"/><path class="pen-2" pathLength="1"/><circle class="nib" r="3.2" cx="0" cy="0"/></svg>
-  <div class="panel-card sketch"><div class="panel-scroll">
+  <div class="panel-card sketch"><svg class="pen-m" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path class="pm1" pathLength="1" d="M2 98 L2 5 Q2 2 5 2 L95 2 Q98 2 98 5 L98 98"/><path class="pm2" pathLength="1" d="M3.5 97 L3.4 6 Q3.6 3.4 6 3.5 L94 3.6 Q96.6 3.5 96.5 6 L96.6 97"/></svg><div class="panel-scroll">
     <span class="p-title" data-i18n="panelTitle">{{TEXT:panelTitle}}</span>
     <div class="p-top">
       <div class="p-top-row">
