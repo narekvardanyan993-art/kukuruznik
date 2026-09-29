@@ -692,7 +692,7 @@
      "lantern"
     ]
    },
-   "parade": "drones"
+   "parade": "fireworks"
   },
   {
    "name": "v_angle_4",
@@ -871,7 +871,7 @@
      "lantern"
     ]
    },
-   "parade": "heli"
+   "parade": "balloons"
   },
   {
    "name": "v_angle_5",
@@ -1016,7 +1016,7 @@
      0.097
     ]
    },
-   "parade": "planes"
+   "parade": "banner"
   }
  ],
  "aboutFacts": [

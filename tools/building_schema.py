@@ -15,7 +15,7 @@ import posixpath
 import re
 from pathlib import Path
 
-PARADE_KINDS = ('planes', 'drones', 'heli')   # виды парада (details.js): самолёты с дымом, дроны складываются во флаг, вертолёт несёт флаг
+PARADE_KINDS = ('planes', 'drones', 'heli', 'fireworks', 'balloons', 'banner')   # виды парада (details.js): самолёты с дымом, дроны-флаг, вертолёт с флагом, салют, воздушные шары, знамя на фасаде (крупный план)
 
 LANGS = ('hy', 'ru', 'en')
 ENGINE = Path(__file__).resolve().parent.parent / 'engine'
