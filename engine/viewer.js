@@ -1316,18 +1316,43 @@
       '<path d="M4 4 Q13 1 23 4 Q33 7 42 4 L42 28 Q33 31 23 28 Q13 25 4 28 Z" fill="none" stroke="#2f2a25" stroke-width="1.1" opacity=".75"/>' +
       '<path d="M3 2 L3.4 33" fill="none" stroke="#2f2a25" stroke-width="1.6" stroke-linecap="round"/></g></svg>';
     stage.appendChild(el);
-    var finished = false;
+    var finished = false; simpleT0 = performance.now();
     function end() { if (finished) return; finished = true; if (el.parentNode) el.parentNode.removeChild(el); done(); }
+    simpleEnd = end;
     el.addEventListener('animationend', function (e) { if (e.animationName === 'liteFlag') end(); });
     setTimeout(end, 9000);   // страховка
   }
+  var ringSegs = [], ringP = -1, simpleT0 = null, simpleEnd = null;
+  flagBtns.forEach(function (b) { ringSegs.push(b.querySelectorAll('.rs')); });
   function setParadeBusy(v) {
-    paradeBusy = v;
-    flagBtns.forEach(function (b) { b.setAttribute('aria-disabled', v ? 'true' : 'false'); b.classList.toggle('busy', v); });
+    paradeBusy = v; ringP = -1; if (!v) { simpleT0 = null; simpleEnd = null; }
+    flagBtns.forEach(function (b) { b.setAttribute('aria-pressed', v ? 'true' : 'false'); b.classList.toggle('busy', v); b.classList.toggle('wait', v); });
+    if (!v) ringDraw(0);
+  }
+  function ringDraw(p) {   // p: доля показа 0..1 (кольцо заполняется тремя цветами); p < 0 — «готовится»: три коротких штриха кружат
+    if (Math.abs(p - ringP) < 0.002) return; ringP = p;
+    ringSegs.forEach(function (segs) {
+      for (var k = 0; k < 3; k++) {
+        var l = p < 0 ? 0.24 : clamp(p * 3 - k, 0, 1);
+        segs[k].style.strokeDasharray = l.toFixed(4) + ' 3'; segs[k].style.strokeDashoffset = (-k).toString(); segs[k].style.opacity = l > 0.002 ? '1' : '0';
+      }
+    });
+  }
+  function ringStep(now) {   // из рендер-цикла, пока идёт показ
+    if (!paradeBusy) return;
+    var p = paradeWant ? -1 : simpleT0 !== null ? clamp((now - simpleT0) / 6400, 0, 1) : (window.Details && window.Details.paradeProgress ? window.Details.paradeProgress(now) : -1);
+    var w = p < 0; flagBtns.forEach(function (b) { if (b.classList.contains('wait') !== w) b.classList.toggle('wait', w); });
+    ringDraw(p);
+  }
+  function stopParade() {   // повторное нажатие во время показа — остановить
+    if (paradeWant) { paradeWant = null; setParadeBusy(false); return; }
+    if (simpleEnd) { simpleEnd(); return; }
+    if (window.Details && window.Details.paradeBusy && window.Details.paradeBusy()) window.Details.paradeAbort();
   }
   flagBtns.forEach(function (b) {
     b.addEventListener('click', function () {
-      if (paradeBusy || !hasParade(frameIndex) || fade) return;
+      if (paradeBusy) { stopParade(); return; }
+      if (!hasParade(frameIndex) || fade) return;
       closePopup(); closeSheet();
       setParadeBusy(true);
       paradeWant = { since: performance.now(), shown: null };
@@ -1399,7 +1424,7 @@
       if (dp >= 1) demoStop();
       else { var dk = Math.sin(Math.PI * dp); targetX = demo.ax * dk; targetY = demo.ay * dk; }
     }
-    paradeStep(now); flagFrameStep();
+    paradeStep(now); ringStep(now); flagFrameStep();
 
     // --- наклон ---
     if (ret) {
@@ -1492,18 +1517,24 @@
 
   // свернуть/развернуть (ПК) и шторка (телефон)
   if (lsGet('chka-panel') === 'collapsed') bodyEl.classList.add('panel-collapsed');
-  function closeSheet() {   // на телефоне закрытие красивое: пункты гаснут, перо собирает контур, потом шторка уезжает
-    if (!bodyEl.classList.contains('sheet-open')) return;
+  // закрытие шторки на телефоне — зеркало открытия: пункты гаснут снизу вверх, перо втягивает контур, бумага бледнеет, и уже на ходу
+  // шторка уезжает вниз (класс sheet-closing держится до конца спуска, чтобы пункты не проявились снова)
+  var closeT = [];
+  function closeSheet() {
+    if (!bodyEl.classList.contains('sheet-open') || bodyEl.classList.contains('sheet-closing')) return;
     if (desktopMQ.matches || reduced()) { bodyEl.classList.remove('sheet-open'); return; }
+    document.documentElement.classList.add('panel-anim');
     bodyEl.classList.add('sheet-closing');
-    setTimeout(function () { bodyEl.classList.remove('sheet-open'); bodyEl.classList.remove('sheet-closing'); }, 520);
+    closeT.push(setTimeout(function () { bodyEl.classList.remove('sheet-open'); }, 260));
+    closeT.push(setTimeout(function () { bodyEl.classList.remove('sheet-closing'); closeT = []; }, 860));
   }
+  function openSheet() { closeT.forEach(clearTimeout); closeT = []; bodyEl.classList.remove('sheet-closing'); bodyEl.classList.add('sheet-open'); }
   var sheetCloseEl = document.getElementById('sheetClose');
   if (sheetCloseEl) sheetCloseEl.addEventListener('click', closeSheet);
   panelBtn.addEventListener('click', function () {
     document.documentElement.classList.add('panel-anim');   // анимации закрытия/иконки включаются только после первого нажатия (не при загрузке)
     if (desktopMQ.matches) lsSet('chka-panel', bodyEl.classList.toggle('panel-collapsed') ? 'collapsed' : 'open');
-    else if (bodyEl.classList.contains('sheet-open')) closeSheet(); else bodyEl.classList.add('sheet-open');
+    else if (bodyEl.classList.contains('sheet-open') && !bodyEl.classList.contains('sheet-closing')) closeSheet(); else openSheet();
   });
   scrimEl.addEventListener('click', closeSheet);
   (desktopMQ.addEventListener ? desktopMQ.addEventListener('change', closeSheet) : desktopMQ.addListener(closeSheet));
