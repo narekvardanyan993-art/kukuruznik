@@ -1519,7 +1519,7 @@
   if (lsGet('chka-panel') === 'collapsed') bodyEl.classList.add('panel-collapsed');
   // закрытие шторки на телефоне — зеркало открытия и короче его: sheet-open снимается СРАЗУ, и шторка уезжает CSS-переходом (быстрый старт по
   // кривой iOS, мягкое торможение), пункты гаснут снизу вверх, перо втягивает контур. Класс sheet-closing держится до конца хода, чтобы пункты
-  // не проявились снова: его снимает transitionend шторки (запасной таймер 0,9 с — если переход не состоялся). Движение не зависит от таймеров JS.
+  // не проявились снова: его снимает transitionend шторки (запасной таймер 1,2 с — если переход не состоялся). Движение не зависит от таймеров JS.
   var closeT = [];
   var panelEl = document.getElementById('panel');
   function endClose() { closeT.forEach(clearTimeout); closeT = []; bodyEl.classList.remove('sheet-closing'); }
@@ -1529,7 +1529,7 @@
     document.documentElement.classList.add('panel-anim');
     bodyEl.classList.add('sheet-closing');
     bodyEl.classList.remove('sheet-open');
-    closeT.push(setTimeout(endClose, 900));
+    closeT.push(setTimeout(endClose, 1200));
   }
   if (panelEl) panelEl.addEventListener('transitionend', function (e) {
     if (e.target === panelEl && e.propertyName === 'transform' && bodyEl.classList.contains('sheet-closing')) endClose();

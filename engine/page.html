@@ -29,6 +29,7 @@
        оседание ~0.5% без заметного отскока). Кривая — ступенчатый отклик пружины, оседает за ~0.86 с. */
     --spring: cubic-bezier(0.22, 1, 0.36, 1);   /* запасной вариант, если браузер не знает linear() */
     --dur: 860ms;
+    --dur-p: 580ms;   /* ПК: раскрытие/сворачивание панели — на треть короче общей --dur (правка 30.09.2026) */
     --ease: cubic-bezier(0.22, 1, 0.36, 1);     /* прежняя кривая — только шторка и окна подсказок на телефоне */
     /* «Как у Apple» (правило проекта, см. docs/ANIMATION.md): быстрый старт — длинное мягкое торможение.
        --ios — кривая шторок iOS; --out — вход/появление (expo-out); --in — уход (разгон, короткий). */
@@ -75,7 +76,7 @@
   @media (min-width: 1024px) {
     #layout {
       display: grid; grid-template-columns: var(--panelW) 1fr;
-      transition: grid-template-columns var(--dur) var(--spring);
+      transition: grid-template-columns var(--dur-p) var(--spring);   /* анимация раскладки (не transform) — прежняя, оставлена; сокращена на треть */
     }
     body.panel-collapsed { --panelW: 48px; }
     /* Картинка как экспонат: паспарту (светлая бумага, поля 28 px) в тонкой рамке, мягкая тень — «висит на стене»;
@@ -91,20 +92,20 @@
       box-shadow: inset 0 0 0 1px rgba(255,255,255,0.55), 0 1px 0 rgba(47,42,37,0.4), 0 22px 48px rgba(60,45,20,0.30), 0 4px 10px rgba(60,45,20,0.18);
     }
     #stage {
-      /* доступная ширина: стена − паспарту (2×(12+2)) − место для стрелок; высота: окно − отступы (2×12) − паспарту (28) − табличка (52) − зазор (10) */
-      width: min(calc(100cqw - 28px - 64px), calc((100dvh - 24px - 28px - 52px - 10px) * var(--natW, {{FRAME_W}}) / var(--natH, {{FRAME_H}})));
+      /* доступная ширина: стена − паспарту (2×(12+2)) − место для стрелок и кнопки шоу по бокам рамки (по 72 px с каждой стороны — сами они на «стене», не на картинке); высота: окно − отступы (2×12) − паспарту (28) − табличка (52) − зазор (10) */
+      width: min(calc(100cqw - 28px - 148px), calc((100dvh - 24px - 28px - 52px - 10px) * var(--natW, {{FRAME_W}}) / var(--natH, {{FRAME_H}})));
       height: auto;
       aspect-ratio: var(--natW, {{FRAME_W}}) / var(--natH, {{FRAME_H}});
       border-radius: 1px;
       box-shadow: 0 0 0 1px rgba(47,42,37,0.45), inset 0 0 0 1px rgba(47,42,37,0.2);   /* тонкая линия окна паспарту */
     }
     #prevSide, #nextSide { position: absolute; top: 50%; z-index: 6; margin-top: -24px; }
-    #prevSide { left: -26px; }
-    #nextSide { right: -26px; }
+    #prevSide { left: -62px; }   /* стрелки и кнопка шоу целиком за рамкой, зазор 12 px: ничего не перекрывает картинку */
+    #nextSide { right: -62px; }
     .nav-side svg { width: 30px; height: 30px; }
-    /* кнопка шоу флага на ПК — как на телефоне (56 px, значок 36 px, кольцо хода, повторное нажатие — стоп): у правого края рамки, ниже стрелки */
+    /* кнопка шоу флага на ПК — как на телефоне (56 px, значок 36 px, кольцо хода, повторное нажатие — стоп): справа от рамки, на стене, ближе к низу */
     #frame #flagBtnP:not([hidden]) { display: grid; }
-    #frame #flagBtnP { position: absolute; z-index: 6; right: -34px; bottom: 44px; width: 56px; height: 56px; }
+    #frame #flagBtnP { position: absolute; z-index: 6; right: -70px; bottom: 44px; width: 56px; height: 56px; }
     #frame #flagBtnP svg { width: 36px; height: 36px; }
     #exhibit #plaque {
       display: block; max-width: max(100%, 460px); padding: 6px 18px; text-align: center;
@@ -287,24 +288,24 @@
     /* свёрнута без анимации (страница открыта уже свёрнутой): карточки нет */
     body.panel-collapsed .panel-card { opacity: 0; visibility: hidden; pointer-events: none; }
 
-    /* ---- Появление (~1.5 с): перо ведёт основной контур листа (0.15–1.05 с; виден кончик пера), следом внутренний карандашный,
+    /* ---- Появление (~1 с, на треть короче прежнего): перо ведёт основной контур листа (0.15–1.05 с; виден кончик пера), следом внутренний карандашный,
        потом бумага наливается цветом, потом текст проявляется по пунктам. Запускается при загрузке и при раскрытии панели. ---- */
-    body:not(.panel-collapsed) .pen .pen-1 { animation: penDraw 1150ms cubic-bezier(0.4, 0.05, 0.3, 1) 150ms both, penFade 400ms linear 1350ms both; }
-    body:not(.panel-collapsed) .pen .pen-2 { animation: penDraw 1000ms cubic-bezier(0.4, 0.05, 0.3, 1) 500ms both, penFade 400ms linear 1600ms both; }
-    body:not(.panel-collapsed) .pen .nib { animation: nibGo 1150ms cubic-bezier(0.4, 0.05, 0.3, 1) 150ms both; }
-    body:not(.panel-collapsed) .panel-card { animation: sheetIn 1200ms linear 550ms both; }
-    body:not(.panel-collapsed) .panel-scroll > * { animation: itemIn 560ms var(--ease) both; animation-delay: calc(950ms + var(--n, 0) * 80ms); }
-    body:not(.panel-collapsed) .chips > .chip, body:not(.panel-collapsed) #thumbs button { animation: chipIn 500ms var(--spring) both; animation-delay: calc(1100ms + var(--n, 0) * 80ms + var(--c, 0) * 60ms); }
-    body:not(.panel-collapsed) .p-sec h3 { background: linear-gradient(currentColor, currentColor) 0 100% / 0 1.5px no-repeat; padding-bottom: 2px; animation: h3Line 700ms cubic-bezier(0.4, 0.05, 0.3, 1) both; animation-delay: calc(1050ms + var(--n, 0) * 80ms); }
+    body:not(.panel-collapsed) .pen .pen-1 { animation: penDraw 770ms cubic-bezier(0.4, 0.05, 0.3, 1) 100ms both, penFade 270ms linear 900ms both; }
+    body:not(.panel-collapsed) .pen .pen-2 { animation: penDraw 670ms cubic-bezier(0.4, 0.05, 0.3, 1) 335ms both, penFade 270ms linear 1070ms both; }
+    body:not(.panel-collapsed) .pen .nib { animation: nibGo 770ms cubic-bezier(0.4, 0.05, 0.3, 1) 100ms both; }
+    body:not(.panel-collapsed) .panel-card { animation: sheetIn 800ms linear 370ms both; }
+    body:not(.panel-collapsed) .panel-scroll > * { animation: itemIn 375ms var(--ease) both; animation-delay: calc(635ms + var(--n, 0) * 54ms); }
+    body:not(.panel-collapsed) .chips > .chip, body:not(.panel-collapsed) #thumbs button { animation: chipIn 335ms var(--spring) both; animation-delay: calc(735ms + var(--n, 0) * 54ms + var(--c, 0) * 40ms); }
+    body:not(.panel-collapsed) .p-sec h3 { background: linear-gradient(currentColor, currentColor) 0 100% / 0 1.5px no-repeat; padding-bottom: 2px; animation: h3Line 470ms cubic-bezier(0.4, 0.05, 0.3, 1) both; animation-delay: calc(700ms + var(--n, 0) * 54ms); }
 
-    /* ---- Закрытие (~1.4 с): пункты гаснут снизу вверх, бумага бледнеет, перо втягивает линию; потом колонка сжимается ---- */
-    html.panel-anim body.panel-collapsed .pen .pen-1 { animation: penUndraw 950ms cubic-bezier(0.5, 0, 0.3, 1) 380ms both; }
-    html.panel-anim body.panel-collapsed .pen .pen-2 { animation: penUndraw 800ms cubic-bezier(0.5, 0, 0.3, 1) 300ms both; }
-    html.panel-anim body.panel-collapsed .pen .nib { animation: nibBack 950ms cubic-bezier(0.5, 0, 0.3, 1) 380ms both; }
-    html.panel-anim body.panel-collapsed .panel-card { animation: sheetOut 1250ms linear both; }
-    html.panel-anim body.panel-collapsed .panel-scroll > * { animation: itemOut 380ms ease both; animation-delay: calc((12 - var(--n, 0)) * 25ms); }
-    html.panel-anim body.panel-collapsed #layout { transition-delay: 600ms; }
-    html.panel-anim body.panel-collapsed #panelBtn { transition-delay: 600ms, 0ms, 0ms; }
+    /* ---- Закрытие (~0,95 с, на треть короче прежнего): пункты гаснут снизу вверх, бумага бледнеет, перо втягивает линию; потом колонка сжимается ---- */
+    html.panel-anim body.panel-collapsed .pen .pen-1 { animation: penUndraw 640ms cubic-bezier(0.5, 0, 0.3, 1) 255ms both; }
+    html.panel-anim body.panel-collapsed .pen .pen-2 { animation: penUndraw 540ms cubic-bezier(0.5, 0, 0.3, 1) 200ms both; }
+    html.panel-anim body.panel-collapsed .pen .nib { animation: nibBack 640ms cubic-bezier(0.5, 0, 0.3, 1) 255ms both; }
+    html.panel-anim body.panel-collapsed .panel-card { animation: sheetOut 840ms linear both; }
+    html.panel-anim body.panel-collapsed .panel-scroll > * { animation: itemOut 255ms var(--in) both; animation-delay: calc((12 - var(--n, 0)) * 17ms); }
+    html.panel-anim body.panel-collapsed #layout { transition-delay: 400ms; }
+    html.panel-anim body.panel-collapsed #panelBtn { transition-delay: 400ms, 0ms, 0ms; }
   }
   @keyframes penDraw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
   @keyframes penUndraw { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 1; } }
@@ -327,7 +328,9 @@
   }
   @keyframes itemIn { from { opacity: 0; transform: translateY(10px); filter: blur(2px); } to { opacity: 1; transform: none; filter: none; } }
   @media (max-width: 1023.98px) and (prefers-reduced-motion: reduce) { html:not([data-motion="on"]) body.sheet-open .panel-scroll > *, html:not([data-motion="on"]) body.sheet-open .chips > .chip { animation: none; } }
-  @keyframes sheetOutM { from { } to { background-color: rgba(245,236,218,0); box-shadow: none; opacity: 0; } }
+  @keyframes sheetOutM { from { } 25% { border-color: transparent; outline-color: transparent; } to { background-color: rgba(245,236,218,0); border-color: transparent; outline-color: transparent; box-shadow: none; } }   /* сначала гаснет родная рамка (остаётся линия пера), затем бумага */
+  @keyframes penFadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes penFadeIn2 { from { opacity: 0; } to { opacity: 0.4; } }
   @keyframes itemOutM { from { opacity: 1; transform: none; filter: none; } to { opacity: 0; transform: translateY(8px); filter: blur(2px); } }
   @keyframes closeOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: rotate(90deg) scale(0.6); } }
   @keyframes sheetInM { from { background-color: rgba(245,236,218,0); box-shadow: none; } to { } }
@@ -518,11 +521,13 @@
     #panelBtn {
       top: var(--s3); left: calc(var(--panelW) - 56px); width: 40px; height: 40px; border-radius: 50% 42% 50% 42%;
     }
+    #panelBtn { transition: left var(--dur-p) var(--spring), transform var(--dur-p) var(--spring), background var(--dur-p) var(--spring); }
+    .ic-wheel { transition-duration: 540ms; }
     #panelBtn .ic-wheel { width: 28px; height: 28px; transform: rotate(180deg); }
     body.panel-collapsed #panelBtn { left: 4px; }
     body.panel-collapsed #panelBtn .ic-wheel { transform: rotate(0deg); }
-    html.panel-anim body:not(.panel-collapsed) #panelBtn .arm { animation: armA 700ms var(--ease) both; animation-delay: calc(var(--i) * 55ms + 150ms); }
-    html.panel-anim body.panel-collapsed #panelBtn .arm { animation: armB 700ms var(--ease) both; animation-delay: calc(var(--i) * 55ms); }
+    html.panel-anim body:not(.panel-collapsed) #panelBtn .arm { animation: armA 470ms var(--ease) both; animation-delay: calc(var(--i) * 37ms + 100ms); }
+    html.panel-anim body.panel-collapsed #panelBtn .arm { animation: armB 470ms var(--ease) both; animation-delay: calc(var(--i) * 37ms); }
   }
 
   /* Телефон: та же панель, свёрнутая в круглую кнопку; по тапу выезжает снизу шторкой на 60% высоты */
@@ -551,18 +556,20 @@
     html.panel-anim body.sheet-open .pen-m .pm1 { animation: penDraw 800ms cubic-bezier(0.4, 0.05, 0.3, 1) 120ms both, penFade 350ms linear 1100ms both; }
     html.panel-anim body.sheet-open .pen-m .pm2 { animation: penDraw 700ms cubic-bezier(0.4, 0.05, 0.3, 1) 320ms both, penFade 350ms linear 1250ms both; }
     html.panel-anim body.sheet-open .panel-card { animation: sheetInM 700ms ease 380ms both; }
-    /* Закрытие шторки (~0.45 с) — зеркало открытия и короче его (правило 3 из docs/ANIMATION.md): всё стартует в один момент — и уход шторки,
-       и гашение пунктов, и втягивание пера. Раньше шторка трогалась только через 0,26 с по таймеру JS (на iPhone, пока рисует картинка, он
-       запаздывал) — отсюда «резко»: пауза, а затем рывок. Теперь движение целиком на переходе CSS: быстрый старт по кривой iOS и долгое мягкое
-       торможение. Пункты гаснут снизу вверх, крестик крутится и тает, бумага бледнеет на ходу. Класс sheet-closing держится до конца хода
-       (его снимает transitionend шторки, запасной таймер — 0,9 с), чтобы пункты не проявились снова.
+    /* Закрытие шторки (~0,9 с) — ровное зеркало открытия (~1,6 с) и короче его (правило 3 из docs/ANIMATION.md). Порядок обратный открытию:
+       1) уходит содержимое — пункты гаснут снизу вверх, крестик крутится и тает (0–0,4 с); 2) бумага бледнеет, родная рамка гаснет, и на её месте
+       остаётся линия пера — перо стирает контур обратным ходом (0,2–0,8 с); 3) шторка уезжает вниз по кривой iOS (0,4–0,9 с) — она не «исчезает»,
+       а сначала теряет содержимое и контур. Затемнение уходит вместе с шторкой. Всё на CSS (opacity, transform, обводка штриха): движение
+       считает браузер, а не таймеры JS. sheet-open снимается сразу; класс sheet-closing держится до конца хода (его снимает transitionend
+       шторки, запасной таймер — 1,2 с), чтобы пункты не проявились снова. Если шторку открыли снова посреди закрытия — она едет обратно
+       от текущего положения (переход, не перезапуск).
        Правила с html.panel-anim и ниже правил открытия — иначе анимации открытия перебивают закрытие (так и было на iPhone). */
     html.panel-anim body.sheet-closing #sheetClose { animation: closeOut 220ms var(--out) both; }
-    html.panel-anim body.sheet-closing .panel-scroll > * { animation: itemOutM 180ms var(--in) both; animation-delay: calc((12 - var(--n, 0)) * 8ms); }
-    html.panel-anim body.sheet-closing .pen-m .pm1 { animation: penUndraw 380ms var(--ios) 30ms both; opacity: 1; }
-    html.panel-anim body.sheet-closing .pen-m .pm2 { animation: penUndraw 300ms var(--ios) both; opacity: 0.4; }
-    html.panel-anim body.sheet-closing .panel-card { animation: sheetOutM 300ms var(--ios) 60ms both; }
-    body.sheet-closing #panel { transition: transform 430ms var(--ios); }
+    html.panel-anim body.sheet-closing .panel-scroll > * { animation: itemOutM 190ms var(--in) both; animation-delay: calc((12 - var(--n, 0)) * 16ms); }
+    html.panel-anim body.sheet-closing .pen-m .pm1 { animation: penFadeIn 120ms linear 200ms both, penUndraw 520ms var(--ios) 300ms both; }
+    html.panel-anim body.sheet-closing .pen-m .pm2 { animation: penFadeIn2 120ms linear 200ms both, penUndraw 420ms var(--ios) 220ms both; }
+    html.panel-anim body.sheet-closing .panel-card { animation: sheetOutM 420ms var(--ios) 200ms both; }
+    body.sheet-closing #panel { transition: transform 520ms var(--ios) 400ms; }
     .panel-scroll { padding: var(--s4); grid-template-columns: minmax(0, 420px); justify-content: center; scroll-padding: var(--s4) 0; }
     .panel-card {
       left: max(var(--s1), var(--safe-l)); right: max(var(--s1), var(--safe-r)); top: 0; bottom: calc(var(--safe-b) + var(--s1)); width: auto;
@@ -578,6 +585,7 @@
       opacity: 0; pointer-events: none; transition: opacity 300ms var(--ease);
     }
     body.sheet-open #scrim { opacity: 1; pointer-events: auto; }
+    body.sheet-closing #scrim { transition: opacity 520ms var(--ios) 380ms; }   /* затемнение уходит вместе со шторкой */
     /* Шторка уезжает (sheet-closing, ~0,9 с): сама она и затемнение нажатий не ловят — нажатие проходит к точке-подсказке под ними.
        Раньше нажатие сразу после закрытия попадало в уезжающую шторку («История здания» под точкой) и уводило на другую страницу.
        Кнопки внутри шторки (язык, время суток, открытка…) остаются нажимаемыми — они не уводят со страницы; ссылки — нет, пока шторка не уехала.
