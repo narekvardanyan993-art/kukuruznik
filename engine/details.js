@@ -870,6 +870,9 @@
     var down = clamp(t / 5, 0, 1), up = clamp((t - 17.5) / 4, 0, 1), k = (down * down * (3 - 2 * down)) * (1 - up * up * (3 - 2 * up));
     var L = V.projectB(f, uC - half, vTop), R = V.projectB(f, uC + half, vTop), B = V.projectB(f, uC, bn[2]);
     var bw = R[0] - L[0], len = (B[1] - L[1]) * k, line = nn > 0.5 ? '200,208,228' : ink(), a = 1 - kill;
+    // ночью ткань остаётся ПЛОТНОЙ (альфа 1 — фон сквозь неё не просвечивает): её тёмный цвет получается смешиванием с ночным тоном, а свет
+    // окрестности (небо сверху, фонари и окна снизу) ложится сверху мягким бликом — как на настоящей ткани, а не как на стекле
+    var cloth = function (col) { var c = col.split(','), d = 0.58 * nn; return Math.round(c[0] * (1 - d) + 14 * d) + ',' + Math.round(c[1] * (1 - d) + 20 * d) + ',' + Math.round(c[2] * (1 - d) + 44 * d); };
     if (k > 0.002) {
       var N = 16, pt = function (i, j) {   // i — вниз по длине, j — поперёк (0..3 = слева направо)
         var yy = L[1] + len * i / N, sway = Math.sin(t * 1.3 - i * 0.35) * bw * 0.05 * Math.pow(i / N, 1.4) * k, rip = Math.sin(t * 2.6 + j * 1.7 + i * 0.9) * bw * 0.012 * (i / N);
@@ -878,7 +881,7 @@
       pt.N = N;
       ctx.save();
       for (var s2 = 0; s2 < 3; s2++) {   // полосы вертикально: для inkFlag i идёт по длине, полосы — по j
-        ctx.fillStyle = 'rgba(' + WFLAG[s2] + ',' + (a * (nn > 0.5 ? 0.85 : 1)).toFixed(3) + ')';   // ткань плотная — окна сквозь неё не видны
+        ctx.fillStyle = 'rgba(' + cloth(WFLAG[s2]) + ',' + a.toFixed(3) + ')';   // ткань плотная (альфа 1, кроме ухода показа) — ни днём, ни ночью фон сквозь неё не виден
         ctx.beginPath();
         for (var i = 0; i <= N; i++) { var q = pt(i, s2); if (i) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]); }
         for (i = N; i >= 0; i--) { q = pt(i, s2 + 1); ctx.lineTo(q[0], q[1]); }
@@ -887,7 +890,13 @@
       ctx.save(); ctx.beginPath(); for (i = 0; i <= N; i++) { q = pt(i, 0); if (i) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]); } for (i = N; i >= 0; i--) { q = pt(i, 3); ctx.lineTo(q[0], q[1]); } ctx.closePath(); ctx.clip();
       var fg = ctx.createLinearGradient(L[0], 0, R[0], 0);   // складки ткани: мягкие тени и блики поперёк, медленно гуляют
       for (var fs = 0; fs <= 12; fs++) { var fv = Math.sin(fs * 1.9 + t * 0.7) * 0.5 + Math.sin(fs * 0.8 - t * 0.4) * 0.5; fg.addColorStop(fs / 12, fv > 0 ? 'rgba(255,250,235,' + (0.16 * fv * a).toFixed(3) + ')' : 'rgba(40,30,30,' + (-0.2 * fv * a).toFixed(3) + ')'); }
-      ctx.fillStyle = fg; ctx.fillRect(L[0] - bw, L[1], bw * 3, len + 4); ctx.restore();
+      ctx.fillStyle = fg; ctx.fillRect(L[0] - bw, L[1], bw * 3, len + 4);
+      if (nn > 0.02) {   // ночной свет окрестности: сверху холодный от неба, снизу тёплый от фонарей и окон
+        var lg = ctx.createLinearGradient(0, L[1], 0, L[1] + len);
+        lg.addColorStop(0, 'rgba(120,150,230,' + (0.16 * nn * a).toFixed(3) + ')'); lg.addColorStop(1, 'rgba(255,196,120,' + (0.26 * nn * a).toFixed(3) + ')');
+        ctx.fillStyle = lg; ctx.fillRect(L[0] - bw, L[1], bw * 3, len + 4);
+      }
+      ctx.restore();
       ctx.strokeStyle = 'rgba(' + line + ',' + (0.25 * a) + ')'; ctx.lineWidth = 0.6;   // складки — редкие вертикальные штрихи
       for (var fz = 1; fz < 9; fz++) { var fu = fz / 9 * 3; ctx.beginPath(); for (i = 0; i <= N; i++) { var qq = pt(i, fu); if (i) ctx.lineTo(qq[0] + Math.sin(fz * 2.1 + i * 0.5) * 1.2, qq[1]); else ctx.moveTo(qq[0], qq[1]); } ctx.stroke(); }
       ctx.strokeStyle = 'rgba(' + line + ',' + (0.85 * a) + ')'; ctx.lineWidth = 1;
@@ -895,7 +904,7 @@
       var e0 = pt(N, 0), e3 = pt(N, 3);
       if (down < 1 || up > 0) {   // рулон внизу, пока разворачивается: валик из тех же трёх полос с тенью и бликом; чем больше размотан, тем тоньше
         var rh = Math.max(3, bw * (0.16 - 0.1 * k)), rx0 = e0[0] - bw * 0.03, rw = e3[0] - e0[0] + bw * 0.06, ry = e0[1] - rh * 0.35;
-        for (var rk = 0; rk < 3; rk++) { ctx.fillStyle = 'rgba(' + WFLAG[rk] + ',' + (0.96 * a).toFixed(3) + ')'; ctx.fillRect(rx0 + rw * rk / 3, ry, rw / 3 + 0.5, rh); }
+        for (var rk = 0; rk < 3; rk++) { ctx.fillStyle = 'rgba(' + cloth(WFLAG[rk]) + ',' + a.toFixed(3) + ')'; ctx.fillRect(rx0 + rw * rk / 3, ry, rw / 3 + 0.5, rh); }
         var rg = ctx.createLinearGradient(0, ry, 0, ry + rh); rg.addColorStop(0, 'rgba(40,30,30,' + 0.3 * a + ')'); rg.addColorStop(0.35, 'rgba(255,250,235,' + 0.35 * a + ')'); rg.addColorStop(1, 'rgba(40,30,30,' + 0.45 * a + ')');
         ctx.fillStyle = rg; ctx.fillRect(rx0, ry, rw, rh);
         ctx.strokeStyle = 'rgba(' + line + ',' + (0.8 * a) + ')'; ctx.lineWidth = 0.8; ctx.strokeRect(rx0, ry, rw, rh);

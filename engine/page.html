@@ -82,30 +82,35 @@
        рисованный город на фоне — стена зала; под рамкой музейная табличка; стрелки прикреплены к краям рамки по центру высоты. */
     #view {
       container-type: inline-size;      /* 100cqw — ширина стены, плавно следует за панелью */
-      display: grid; place-items: center; padding: var(--s3); min-width: 0;
+      display: grid; place-items: center; padding: 12px; min-width: 0;
     }
-    #exhibit { margin: 0; display: grid; justify-items: center; row-gap: var(--s3); }
+    #exhibit { margin: 0; display: grid; justify-items: center; row-gap: 10px; }
     #frame {
-      position: relative; padding: 28px; background: #faf4e6;
-      border: 3px solid #3b332b; border-radius: 3px;
+      position: relative; padding: 12px; background: #faf4e6;
+      border: 2px solid #3b332b; border-radius: 3px;
       box-shadow: inset 0 0 0 1px rgba(255,255,255,0.55), 0 1px 0 rgba(47,42,37,0.4), 0 22px 48px rgba(60,45,20,0.30), 0 4px 10px rgba(60,45,20,0.18);
     }
     #stage {
-      /* доступная ширина: стена − паспарту − место для стрелок; высота: окно − отступы − паспарту − табличка */
-      width: min(calc(100cqw - 56px - 128px), calc((100dvh - 48px - 56px - 6px - 64px - var(--s3)) * var(--natW, {{FRAME_W}}) / var(--natH, {{FRAME_H}})));
+      /* доступная ширина: стена − паспарту (2×(12+2)) − место для стрелок; высота: окно − отступы (2×12) − паспарту (28) − табличка (52) − зазор (10) */
+      width: min(calc(100cqw - 28px - 64px), calc((100dvh - 24px - 28px - 52px - 10px) * var(--natW, {{FRAME_W}}) / var(--natH, {{FRAME_H}})));
       height: auto;
       aspect-ratio: var(--natW, {{FRAME_W}}) / var(--natH, {{FRAME_H}});
       border-radius: 1px;
       box-shadow: 0 0 0 1px rgba(47,42,37,0.45), inset 0 0 0 1px rgba(47,42,37,0.2);   /* тонкая линия окна паспарту */
     }
-    #prevSide, #nextSide { position: absolute; top: 50%; z-index: 6; margin-top: -32px; }
-    #prevSide { left: -35px; }
-    #nextSide { right: -35px; }
+    #prevSide, #nextSide { position: absolute; top: 50%; z-index: 6; margin-top: -24px; }
+    #prevSide { left: -26px; }
+    #nextSide { right: -26px; }
+    .nav-side svg { width: 30px; height: 30px; }
+    /* кнопка шоу флага на ПК — как на телефоне (56 px, значок 36 px, кольцо хода, повторное нажатие — стоп): у правого края рамки, ниже стрелки */
+    #frame #flagBtnP:not([hidden]) { display: grid; }
+    #frame #flagBtnP { position: absolute; z-index: 6; right: -34px; bottom: 44px; width: 56px; height: 56px; }
+    #frame #flagBtnP svg { width: 36px; height: 36px; }
     #exhibit #plaque {
-      display: block; max-width: min(460px, 100%); padding: 10px 24px; text-align: center;
+      display: block; max-width: max(100%, 460px); padding: 6px 18px; text-align: center;
       background: #f8f1e0; color: var(--ink); border: 1px solid rgba(47,42,37,0.55); border-radius: 2px;
-      box-shadow: inset 0 0 0 3px #f8f1e0, inset 0 0 0 4px rgba(47,42,37,0.25), 0 3px 8px rgba(60,45,20,0.22);
-      font: 600 15px/1.35 var(--font); letter-spacing: 0.02em;
+      box-shadow: inset 0 0 0 2px #f8f1e0, inset 0 0 0 3px rgba(47,42,37,0.25), 0 3px 8px rgba(60,45,20,0.22);
+      font: 600 13.5px/1.3 var(--font); letter-spacing: 0.02em;
     }
   }
   /* телефон: обёртки-экспонат не нужны, картинка на весь экран */
@@ -177,6 +182,7 @@
   .flag-btn { transition: opacity 400ms var(--spring), transform 200ms var(--spring); }
   .flag-btn.off-frame { opacity: 0; pointer-events: none; transform: scale(0.8); }
   #flagBtnB { display: none; }
+  #flagBtnP { display: none; }   /* кнопка шоу на ПК живёт у рамки картинки (см. блок ПК ниже) */
   /* упрощённый парад (слабое устройство, «уменьшить движение», нет WebGL): флаг проявляется в небе, чуть колышется и растворяется, ~6 с */
   .flag-lite { position: absolute; left: 50%; top: 14%; margin-left: -70px; z-index: 5; pointer-events: none; opacity: 0; animation: liteFlag 6.4s ease-in-out both; }
   .flag-lite svg { display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.25)); }
@@ -224,7 +230,7 @@
   /* ПК: на самой картинке остаются только картинка и точки-подсказки; «на сайт» и название — вверху
      панели, стрелки — в пустых полях по бокам, миниатюры вместо кружков-точек. Телефон не меняется. */
   .p-top, .nav-side, .p-build { display: none; }
-  .nav-side { width: 64px; height: 64px; }
+  .nav-side { width: 48px; height: 48px; }
   @media (min-width: 1024px) {
     #bottomBar, #dots, #build-version, #prevBtn, #nextBtn, .panel-scroll > .p-title { display: none; }
     .p-top { display: grid; justify-items: start; row-gap: var(--s1); margin-right: var(--s4); }
@@ -545,15 +551,18 @@
     html.panel-anim body.sheet-open .pen-m .pm1 { animation: penDraw 800ms cubic-bezier(0.4, 0.05, 0.3, 1) 120ms both, penFade 350ms linear 1100ms both; }
     html.panel-anim body.sheet-open .pen-m .pm2 { animation: penDraw 700ms cubic-bezier(0.4, 0.05, 0.3, 1) 320ms both, penFade 350ms linear 1250ms both; }
     html.panel-anim body.sheet-open .panel-card { animation: sheetInM 700ms ease 380ms both; }
-    /* закрытие шторки (~0.85 с) — зеркало открытия: крестик крутится и тает, пункты гаснут снизу вверх с лёгким уходом вниз,
-       перо втягивает контур, бумага бледнеет, и уже на ходу (с 0.26 с) шторка уезжает вниз по кривой iOS.
+    /* Закрытие шторки (~0.45 с) — зеркало открытия и короче его (правило 3 из docs/ANIMATION.md): всё стартует в один момент — и уход шторки,
+       и гашение пунктов, и втягивание пера. Раньше шторка трогалась только через 0,26 с по таймеру JS (на iPhone, пока рисует картинка, он
+       запаздывал) — отсюда «резко»: пауза, а затем рывок. Теперь движение целиком на переходе CSS: быстрый старт по кривой iOS и долгое мягкое
+       торможение. Пункты гаснут снизу вверх, крестик крутится и тает, бумага бледнеет на ходу. Класс sheet-closing держится до конца хода
+       (его снимает transitionend шторки, запасной таймер — 0,9 с), чтобы пункты не проявились снова.
        Правила с html.panel-anim и ниже правил открытия — иначе анимации открытия перебивают закрытие (так и было на iPhone). */
-    html.panel-anim body.sheet-closing #sheetClose { animation: closeOut 300ms var(--out) both; }
-    html.panel-anim body.sheet-closing .panel-scroll > * { animation: itemOutM 220ms var(--in) both; animation-delay: calc((12 - var(--n, 0)) * 12ms); }
-    html.panel-anim body.sheet-closing .pen-m .pm1 { animation: penUndraw 560ms var(--ios) 120ms both; opacity: 1; }
-    html.panel-anim body.sheet-closing .pen-m .pm2 { animation: penUndraw 440ms var(--ios) 60ms both; opacity: 0.4; }
-    html.panel-anim body.sheet-closing .panel-card { animation: sheetOutM 460ms var(--ios) 180ms both; }
-    body.sheet-closing #panel { transition: transform 560ms var(--ios); }
+    html.panel-anim body.sheet-closing #sheetClose { animation: closeOut 220ms var(--out) both; }
+    html.panel-anim body.sheet-closing .panel-scroll > * { animation: itemOutM 180ms var(--in) both; animation-delay: calc((12 - var(--n, 0)) * 8ms); }
+    html.panel-anim body.sheet-closing .pen-m .pm1 { animation: penUndraw 380ms var(--ios) 30ms both; opacity: 1; }
+    html.panel-anim body.sheet-closing .pen-m .pm2 { animation: penUndraw 300ms var(--ios) both; opacity: 0.4; }
+    html.panel-anim body.sheet-closing .panel-card { animation: sheetOutM 300ms var(--ios) 60ms both; }
+    body.sheet-closing #panel { transition: transform 430ms var(--ios); }
     .panel-scroll { padding: var(--s4); grid-template-columns: minmax(0, 420px); justify-content: center; scroll-padding: var(--s4) 0; }
     .panel-card {
       left: max(var(--s1), var(--safe-l)); right: max(var(--s1), var(--safe-r)); top: 0; bottom: calc(var(--safe-b) + var(--s1)); width: auto;
@@ -746,11 +755,9 @@ window.__wl = WelcomeLoader.create({
     <div class="p-top">
       <div class="p-top-row">
         <a class="arrow-btn p-home" id="homeBtnP" href="{{HOME}}" aria-label="На главную" data-i18n-title="home"><svg viewBox="0 0 40 40" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 20.5L20 8.5l13.5 12" stroke-width="2.8"/><path d="M11 18.5V32h18V18.5" stroke-width="2.8"/><path d="M17 32v-8.5h6V32" stroke-width="2.4"/><path d="M7.4 21.2L20.4 9.5l12.9 11.4M12 19.4V32.8h17.4" stroke-width="1.1" opacity=".55"/></g></svg></a>
-        <button type="button" id="flagBtnP" class="arrow-btn flag-btn" aria-label="Парад" data-i18n-title="flag"><svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g class="ring"><circle class="rt" cx="20" cy="20" r="18.4" pathLength="3"/><circle class="rs rs0" cx="20" cy="20" r="18.4" pathLength="3"/><circle class="rs rs1" cx="20" cy="20" r="18.4" pathLength="3"/><circle class="rs rs2" cx="20" cy="20" r="18.4" pathLength="3"/></g><g class="fg" stroke-linecap="round" stroke-linejoin="round"><path class="fb fb1" d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 13 Q29 16 23 13 Q17 10 11 13 Z" fill="#d90012"/><path class="fb fb2" d="M11 13 Q17 10 23 13 Q29 16 35 13 L35 19 Q29 22 23 19 Q17 16 11 19 Z" fill="#1c4cc0"/><path class="fb fb3" d="M11 19 Q17 16 23 19 Q29 22 35 19 L35 25 Q29 28 23 25 Q17 22 11 25 Z" fill="#f2a800"/><g fill="none" stroke="currentColor"><path d="M9.2 5.5 L9.6 35.5" stroke-width="2.6"/><path d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 25 Q29 28 23 25 Q17 22 11 25 Z" stroke-width="2"/><path d="M11.6 7.8 Q17 5 23 8 Q29 11 34.6 8.2 M11.4 24.4 Q17 21.6 23 24.6 Q29 27.6 34.6 24.4" stroke-width="0.9" opacity=".55"/></g></g></svg></button>
       </div>
       <span class="p-name" data-i18n="title">{{TEXT:title}}</span>
     </div>
-{{HISTORY_SECTION}}
     <section class="p-sec p-grp">
       <div class="grp-h"><h3 data-i18n="tod">Время суток</h3><span class="grp-hint" data-i18n="oneOf">одно из</span></div>
       <div class="chips chips-one" id="todSeg" role="group">
@@ -803,6 +810,7 @@ window.__wl = WelcomeLoader.create({
       <h3 data-i18n="about">О здании</h3>
       <div id="aboutText"></div>
     </section>
+{{HISTORY_SECTION}}
   </div></div>
 </aside>
 <script>document.querySelectorAll('.panel-scroll > *').forEach(function (el, i) { el.style.setProperty('--n', i); });
@@ -848,6 +856,7 @@ document.querySelectorAll('.chips').forEach(function (g) { g.querySelectorAll('.
   <div id="hsPopup" class="sketch"><div id="hsText"></div><button type="button" id="hsBack" class="p-btn"><span class="lbl-pc" data-i18n="hsBack">‹ назад</span><span class="lbl-phone" data-i18n="hsClose">× закрыть</span></button></div>
 </div>
 <button type="button" id="nextSide" class="arrow-btn nav-side nav-next" aria-label="Следующий кадр"><svg viewBox="0 0 40 40" width="42" height="42" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 9.5C20.5 14.5 16.8 18.6 13.5 20.3c3.4 1.9 7.3 5.6 10.6 10.6" stroke-width="3"/><path d="M24.6 10.6C21 15.4 17.4 19 14.6 20.7c3.2 2 6.8 5.4 10.4 9.8" stroke-width="1.2" opacity=".55"/></g></svg></button>
+<button type="button" id="flagBtnP" class="arrow-btn flag-btn" aria-label="Парад" data-i18n-title="flag"><svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g class="ring"><circle class="rt" cx="20" cy="20" r="18.4" pathLength="3"/><circle class="rs rs0" cx="20" cy="20" r="18.4" pathLength="3"/><circle class="rs rs1" cx="20" cy="20" r="18.4" pathLength="3"/><circle class="rs rs2" cx="20" cy="20" r="18.4" pathLength="3"/></g><g class="fg" stroke-linecap="round" stroke-linejoin="round"><path class="fb fb1" d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 13 Q29 16 23 13 Q17 10 11 13 Z" fill="#d90012"/><path class="fb fb2" d="M11 13 Q17 10 23 13 Q29 16 35 13 L35 19 Q29 22 23 19 Q17 16 11 19 Z" fill="#1c4cc0"/><path class="fb fb3" d="M11 19 Q17 16 23 19 Q29 22 35 19 L35 25 Q29 28 23 25 Q17 22 11 25 Z" fill="#f2a800"/><g fill="none" stroke="currentColor"><path d="M9.2 5.5 L9.6 35.5" stroke-width="2.6"/><path d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 25 Q29 28 23 25 Q17 22 11 25 Z" stroke-width="2"/><path d="M11.6 7.8 Q17 5 23 8 Q29 11 34.6 8.2 M11.4 24.4 Q17 21.6 23 24.6 Q29 27.6 34.6 24.4" stroke-width="0.9" opacity=".55"/></g></g></svg></button>
 </div><figcaption id="plaque" data-i18n="plaque"></figcaption></figure>
 </main>
 </div>
