@@ -584,20 +584,22 @@
     html.panel-anim body.sheet-open .pen-m .pm1 { animation: penDraw 800ms cubic-bezier(0.4, 0.05, 0.3, 1) 120ms both, penFade 350ms linear 1100ms both; }
     html.panel-anim body.sheet-open .pen-m .pm2 { animation: penDraw 700ms cubic-bezier(0.4, 0.05, 0.3, 1) 320ms both, penFade 350ms linear 1250ms both; }
     html.panel-anim body.sheet-open .panel-card { animation: sheetInM 700ms ease 380ms both; }
-    /* Закрытие шторки (~0,9 с) — ровное зеркало открытия (~1,6 с) и короче его (правило 3 из docs/ANIMATION.md). Порядок обратный открытию:
-       1) уходит содержимое — пункты гаснут снизу вверх, крестик крутится и тает (0–0,4 с); 2) бумага бледнеет, родная рамка гаснет, и на её месте
-       остаётся линия пера — перо стирает контур обратным ходом (0,2–0,8 с); 3) шторка уезжает вниз по кривой iOS (0,4–0,9 с) — она не «исчезает»,
-       а сначала теряет содержимое и контур. Затемнение уходит вместе с шторкой. Всё на CSS (opacity, transform, обводка штриха): движение
-       считает браузер, а не таймеры JS. sheet-open снимается сразу; класс sheet-closing держится до конца хода (его снимает transitionend
-       шторки, запасной таймер — 1,2 с), чтобы пункты не проявились снова. Если шторку открыли снова посреди закрытия — она едет обратно
-       от текущего положения (переход, не перезапуск).
+    /* Закрытие шторки (~1,1 с) — зеркало открытия (~1,6 с) и короче его (правило 3 docs/ANIMATION.md). Порядок обратный открытию:
+       1) уходит содержимое — пункты снизу вверх, крестик (0–0,4 с); 2) бумага и родная рамка бледнеют, на месте контура проявляется линия пера
+       (0,14–0,58 с); 3) перо стирает контур обратным ходом — ДО КОНЦА, на месте (0,26–0,9 с); затемнение уходит вместе со стиранием;
+       4) пустая к этому моменту шторка уезжает вниз (0,9–1,14 с) — её уже не видно.
+       Причина прежнего «резко пропадает» (e1.4 после 0bb552e): шторка трогалась вниз на 0,4 с, пока перо стирало контур до 0,82 с, а кривая
+       --ios выносит половину пути за первые ~0,15 с — недостёртый контур вместе с шторкой улетал за край экрана за ~0,3 с; бумага и
+       стирание тоже шли по --ios (почти всё — в первые 0,1 с). Теперь стирание и бледнение — по кривой пера (как при рисовании: мягкий старт
+       и долгий хвост), а уезд — только после стирания. Всё на CSS (opacity, transform, штрих пера); sheet-open снимается сразу, sheet-closing
+       снимает transitionend самой шторки (запасной таймер 1,6 с). Открыли снова посреди закрытия — шторка стоит на месте, классы как при открытии.
        Правила с html.panel-anim и ниже правил открытия — иначе анимации открытия перебивают закрытие (так и было на iPhone). */
     html.panel-anim body.sheet-closing #sheetClose { animation: closeOut 220ms var(--out) both; }
-    html.panel-anim body.sheet-closing .panel-scroll > * { animation: itemOutM 190ms var(--in) both; animation-delay: calc((12 - var(--n, 0)) * 16ms); }
-    html.panel-anim body.sheet-closing .pen-m .pm1 { animation: penFadeIn 120ms linear 200ms both, penUndraw 520ms var(--ios) 300ms both; }
-    html.panel-anim body.sheet-closing .pen-m .pm2 { animation: penFadeIn2 120ms linear 200ms both, penUndraw 420ms var(--ios) 220ms both; }
-    html.panel-anim body.sheet-closing .panel-card { animation: sheetOutM 420ms var(--ios) 200ms both; }
-    body.sheet-closing #panel { transition: transform 520ms var(--ios) 400ms; }
+    html.panel-anim body.sheet-closing .panel-scroll > * { animation: itemOutM 200ms var(--in) both; animation-delay: calc((12 - var(--n, 0)) * 16ms); }
+    html.panel-anim body.sheet-closing .pen-m .pm1 { animation: penFadeIn 120ms linear 140ms both, penUndraw 600ms cubic-bezier(0.4, 0.05, 0.3, 1) 300ms both; }
+    html.panel-anim body.sheet-closing .pen-m .pm2 { animation: penFadeIn2 120ms linear 140ms both, penUndraw 480ms cubic-bezier(0.4, 0.05, 0.3, 1) 260ms both; }
+    html.panel-anim body.sheet-closing .panel-card { animation: sheetOutM 420ms cubic-bezier(0.4, 0.05, 0.3, 1) 160ms both; }
+    body.sheet-closing #panel { transition: transform 240ms var(--in) 900ms; }
     .panel-scroll { padding: var(--s4); grid-template-columns: minmax(0, 420px); justify-content: center; scroll-padding: var(--s4) 0; }
     .panel-card {
       left: max(var(--s1), var(--safe-l)); right: max(var(--s1), var(--safe-r)); top: 0; bottom: calc(var(--safe-b) + var(--s1)); width: auto;
@@ -613,13 +615,13 @@
       opacity: 0; pointer-events: none; transition: opacity 300ms var(--ease);
     }
     body.sheet-open #scrim { opacity: 1; pointer-events: auto; }
-    body.sheet-closing #scrim { transition: opacity 520ms var(--ios) 380ms; }   /* затемнение уходит вместе со шторкой */
-    /* Шторка уезжает (sheet-closing, ~0,9 с): сама она и затемнение нажатий не ловят — нажатие проходит к точке-подсказке под ними.
+    body.sheet-closing #scrim { transition: opacity 620ms cubic-bezier(0.4, 0.05, 0.3, 1) 280ms; }   /* затемнение уходит вместе со шторкой */
+    /* Шторка закрывается (sheet-closing, ~1,1 с): сама она, её кнопки и затемнение нажатий не ловят — нажатие проходит к точке-подсказке под ними.
        Раньше нажатие сразу после закрытия попадало в уезжающую шторку («История здания» под точкой) и уводило на другую страницу.
-       Кнопки внутри шторки (язык, время суток, открытка…) остаются нажимаемыми — они не уводят со страницы; ссылки — нет, пока шторка не уехала.
+       (e1.5) Кнопки внутри закрывающейся шторки тоже не ловят нажатий: шторка ещё стоит на месте, но уже невидима.
        Класс снят (шторка уехала) или шторка открывается заново — всё ловит нажатия как обычно. */
     body.sheet-closing #panel, body.sheet-closing #scrim { pointer-events: none; }
-    body.sheet-closing #panel button { pointer-events: auto; }
+    body.sheet-closing #panel button { pointer-events: none; }   /* (e1.5) шторка ~0,9 с стоит на месте невидимой — её кнопки не должны ловить нажатия; sheet-open снимается сразу, поэтому повторное открытие не мешает */
   }
 
   /* без WebGL время суток — CSS-фильтром (окна ночью не светятся) */
