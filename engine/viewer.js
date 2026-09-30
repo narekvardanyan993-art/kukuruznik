@@ -1517,24 +1517,28 @@
 
   // свернуть/развернуть (ПК) и шторка (телефон)
   if (lsGet('chka-panel') === 'collapsed') bodyEl.classList.add('panel-collapsed');
-  // закрытие шторки на телефоне — зеркало открытия и короче его: sheet-open снимается СРАЗУ, и шторка уезжает CSS-переходом (быстрый старт по
-  // кривой iOS, мягкое торможение), пункты гаснут снизу вверх, перо втягивает контур. Класс sheet-closing держится до конца хода, чтобы пункты
-  // не проявились снова: его снимает transitionend шторки (запасной таймер 1,6 с — если переход не состоялся). Движение не зависит от таймеров JS.
+  // закрытие шторки на телефоне — простое и надёжное: sheet-open снимается СРАЗУ, sheet-closing включает CSS-переход (шторка с содержимым уезжает вниз и
+  // гаснет за 350 мс, затемнение гаснет одновременно) и отключает нажатия. Конец хода определяет таймер по длительности (а не transitionend — в Safari на
+  // iPhone событие может не прийти или прийти от другого элемента): по нему sheet-closing снимается. Открыли снова посреди закрытия — sheet-quick
+  // отключает вступительные анимации содержимого, шторка возвращается от текущего положения обычным переходом открытия (без миганий).
   var closeT = [];
-  var panelEl = document.getElementById('panel');
+  var CLOSE_MS = 350;
   function endClose() { closeT.forEach(clearTimeout); closeT = []; bodyEl.classList.remove('sheet-closing'); }
   function closeSheet() {
     if (!bodyEl.classList.contains('sheet-open') || bodyEl.classList.contains('sheet-closing')) return;
     if (desktopMQ.matches || reduced()) { bodyEl.classList.remove('sheet-open'); return; }
     document.documentElement.classList.add('panel-anim');
+    closeT.forEach(clearTimeout); closeT = [];
     bodyEl.classList.add('sheet-closing');
-    bodyEl.classList.remove('sheet-open');
-    closeT.push(setTimeout(endClose, 1600));
+    bodyEl.classList.remove('sheet-open', 'sheet-quick');
+    closeT.push(setTimeout(endClose, CLOSE_MS + 50));
   }
-  if (panelEl) panelEl.addEventListener('transitionend', function (e) {
-    if (e.target === panelEl && e.propertyName === 'transform' && bodyEl.classList.contains('sheet-closing')) endClose();
-  });
-  function openSheet() { closeT.forEach(clearTimeout); closeT = []; bodyEl.classList.remove('sheet-closing'); bodyEl.classList.add('sheet-open'); }
+  function openSheet() {
+    var was = bodyEl.classList.contains('sheet-closing');
+    closeT.forEach(clearTimeout); closeT = []; bodyEl.classList.remove('sheet-closing');
+    bodyEl.classList.toggle('sheet-quick', was);
+    bodyEl.classList.add('sheet-open');
+  }
   var sheetCloseEl = document.getElementById('sheetClose');
   if (sheetCloseEl) sheetCloseEl.addEventListener('click', closeSheet);
   panelBtn.addEventListener('click', function () {
