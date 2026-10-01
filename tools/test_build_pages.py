@@ -150,6 +150,30 @@ def main():
                 and any(x.startswith('kukuruznik/history.html') for x in n_dep))
         print('%s  --expect-change: остальные страницы побайтно — нетронутые проходят, тронутая страница, её зависимость и beta/engine/ ловятся' % ('OK   ' if good else 'ОШИБКА'))
         ok_all &= bool(good)
+        # publish_beta --expect-change (то же правило, что у publish_engine): пиксели только у целей, чьи файлы меняются, и у новых;
+        # все остальные страницы — побайтно как на main, любое отличие вне beta/ = красная до check_site
+        all_files = {str(f.relative_to(site)) for f in site.rglob('*') if f.is_file()}
+        lenin = {f for f in all_files if f.startswith('beta/tests/lenin/')}
+        ids1, new1, pr1 = bp.changed_targets(site, lenin, all_files - lenin)                       # новое здание: только оно
+        ids2, new2, pr2 = bp.changed_targets(site, {'beta/engine/viewer.js'}, all_files)           # новый бета-движок: все бета-здания, живые нет
+        ids3, new3, pr3 = bp.changed_targets(site, lenin | {'kukuruznik/index.html'}, all_files - lenin)   # лишнее: живая страница
+        ids4, new4, pr4 = bp.changed_targets(site, lenin | {'engine/viewer.js'}, all_files - lenin)         # лишнее: живой движок (от него зависят живые страницы)
+        import publish_beta as pb
+        seen = []
+        real_run = pb.subprocess.run
+        pb.subprocess.run = lambda cmd, **kw: (seen.append(cmd), type('R', (), {'returncode': 0})())[1]
+        try:
+            pb.run_check('x', True, only=ids1, allow_only=ids1)
+        finally:
+            pb.subprocess.run = real_run
+        cmd = seen[0] if seen else []
+        good = (ids1 == ['beta/tests/lenin'] and new1 == ['beta/tests/lenin'] and not pr1
+                and 'beta/kukuruznik' not in ids1 and 'beta/tests/test-1' not in ids1
+                and 'beta/kukuruznik' in ids2 and 'beta/tests/test-1' in ids2 and 'beta/tests/lenin' in ids2 and not new2 and not pr2
+                and any(x.startswith('kukuruznik/index.html') for x in pr3) and any(x.startswith('kukuruznik/index.html') for x in pr4)
+                and cmd[cmd.index('--only') + 1] == 'beta/tests/lenin' and cmd[cmd.index('--allow-change') + 1] == 'beta/tests/lenin')
+        print('%s  publish_beta --expect-change: пиксели только у изменяемых и новых целей (Ленин — один), нетронутые не снимаются, живая страница/движок в изменениях = красная, в check_site уходят точные --only/--allow-change' % ('OK   ' if good else 'ОШИБКА'))
+        ok_all &= bool(good)
         (site / 'engine' / 'viewer.js').write_text('// старый движок\n', encoding='utf-8')
         try:
             bp.build_live(site, live)

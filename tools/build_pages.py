@@ -427,21 +427,55 @@ def page_deps(site, page):
     return {str(x.relative_to(site)) for x in seen}
 
 
+def site_pages(site):
+    """Все html-страницы сайта (пути от корня site), кроме служебных папок (docs, tools, test-assets, …)."""
+    site = Path(site)
+    return sorted(str(f.relative_to(site)) for f in site.rglob('*.html')
+                  if 'node_modules' not in f.parts and '.git' not in f.parts and f.relative_to(site).parts[0] not in ('docs', 'tools', 'test-assets', 'src', 'engine3d'))
+
+
 def untouched_problems(site, changed, exempt_pages):
     """Режим publish_engine --expect-change: у каждой страницы сайта, КРОМЕ exempt_pages (их картинка меняется намеренно и сверяется
     проверкой check_site), ни сама страница, ни один файл, от которого она зависит (page_deps, включая engine/ и beta/engine/),
     не входит в changed — список файлов, которые эта публикация меняет относительно origin/main. Пиксели у таких страниц не снимаются:
     побайтное равенство файлов точнее и не зависит от шума растеризации. Возвращает список проблем (пусто — всё нетронуто)."""
     site, changed, bad = Path(site), set(changed), []
-    pages = sorted(str(f.relative_to(site)) for f in site.rglob('*.html')
-                   if 'node_modules' not in f.parts and '.git' not in f.parts and f.relative_to(site).parts[0] not in ('docs', 'tools', 'test-assets', 'src', 'engine3d'))
-    for pg in pages:
+    for pg in site_pages(site):
         if pg in exempt_pages:
             continue
         hit = sorted(page_deps(site, pg) & changed)
         if hit:
             bad.append('%s зависит от файлов, которые эта публикация меняет: %s' % (pg, ', '.join(hit[:4]) + ('…' if len(hit) > 4 else '')))
     return bad
+
+
+def check_id(page):
+    """Страница сайта -> id цели в tools/check_site.mjs: 'beta/tests/lenin/index.html' -> 'beta/tests/lenin', 'kukuruznik/history.html' -> 'kukuruznik/history'."""
+    if page == 'index.html':
+        return ''
+    return page[:-len('/index.html')] if page.endswith('/index.html') else page[:-len('.html')]
+
+
+def changed_targets(site, changed, tracked, allowed_prefix='beta/'):
+    """Режим publish_beta --expect-change: какие страницы эта публикация меняет — сама страница или любой файл, от которого она зависит (page_deps),
+    входит в changed (файлы, отличающиеся от origin/main: изменённые, новые). Остальные страницы по определению побайтно как на main.
+    tracked — файлы origin/main: страница, которой там нет, — новая цель. Возвращает (ids, new_ids, problems):
+      ids      — id целей check_site, у которых пиксели снимаются (изменяемые и новые), только страницы под allowed_prefix;
+      new_ids  — из них новые (их на сайте ещё нет);
+      problems — страницы ВНЕ allowed_prefix, которые публикация меняет (хаб, живые здания, about/history, 404…): любое — КРАСНАЯ до check_site."""
+    site, changed, tracked = Path(site), set(changed), set(tracked)
+    ids, new_ids, problems = set(), set(), []
+    for pg in site_pages(site):
+        hit = sorted(({pg} & changed) | (page_deps(site, pg) & changed))
+        if not hit:
+            continue
+        if not pg.startswith(allowed_prefix):
+            problems.append('%s должна остаться как на main, но публикация меняет: %s' % (pg, ', '.join(hit[:4]) + ('…' if len(hit) > 4 else '')))
+            continue
+        ids.add(check_id(pg))
+        if pg not in tracked:
+            new_ids.add(check_id(pg))
+    return sorted(ids), sorted(new_ids), problems
 
 
 def head_changes(old_html, new_html):

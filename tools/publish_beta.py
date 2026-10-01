@@ -3,8 +3,14 @@
 
   python3 tools/publish_beta.py --dry-run          # собрать во временной копии, проверить и показать изменения (без коммита и пуша)
   python3 tools/publish_beta.py                    # опубликовать: коммит в main + пуш
-  python3 tools/publish_beta.py --expect-change    # бета НАМЕРЕННО отличается от живого сайта (новая фишка): различия — в отчёт, не провал
+  python3 tools/publish_beta.py --expect-change    # бета НАМЕРЕННО отличается от живого сайта (новая фишка, новое здание): пиксели — только у целей, чьи файлы меняются публикацией
   python3 tools/publish_beta.py -m "beta: …"       # своё сообщение коммита
+
+С --expect-change (как у publish_engine.py --expect-change): check_site снимает пиксели ТОЛЬКО у целей, чьи отдаваемые файлы эта публикация меняет
+(страница или любой файл, от которого она зависит, — build_pages.changed_targets) и у новых целей; различия картинок у них допустимы, проблемы,
+ошибки консоли, 404 и fps проваливают как обычно. У всех остальных страниц (хаб, живые здания, about/history, нетронутые бета-здания…) пикселей нет —
+вместо них побайтно: файлы страницы и все её зависимости (включая engine/ и beta/engine/) должны совпасть с origin/main; любое отличие — КРАСНАЯ,
+публикация останавливается до check_site. Без --expect-change проверка прежняя: все цели, строго.
 
 Рабочая папка одна и остаётся на своей ветке. Скрипт сам:
   1. делает git fetch и создаёт ВРЕМЕННЫЙ worktree от origin/main во временной папке вне репозитория;
@@ -53,16 +59,19 @@ def build_beta(main_dir):
     return build_pages.build_beta(main_dir)
 
 
-def run_check(candidate, expect_change=False, strict=False, allow_extra=(), only=()):
+def run_check(candidate, expect_change=False, strict=False, allow_extra=(), only=(), allow_only=None):
     """Запускает tools/check_site.mjs: origin/main против собранного кандидата. True — зелёная проверка.
     strict — ни одна цель не может отличаться (publish_engine, publish_kukuruznik): даже бета обязана совпасть с сайтом;
     allow_extra — цели, у которых различия картинок намеренные (например здание с новыми кадрами);
-    only — снимать только эти цели (по умолчанию — все).
+    only — снимать только эти цели (по умолчанию — все);
+    allow_only — точный список целей, у которых различия картинок допустимы (вместо «вся бета»): publish_beta --expect-change.
     Переменная окружения CHKA_CHECK_RENDERER — отрисовка WebGL для проверки там, где нет Metal (облако/Linux: swiftshader).
     Ослабить проверку через окружение нельзя: другие параметры не передаются."""
     import os
     pairs = ','.join('beta/%s=%s' % (b, b) for b in LIVE_TWINS)   # бета-здание — строго против живого здания
     allow = [] if strict else ['beta'] + (['beta/%s' % b for b in LIVE_TWINS] if expect_change else [])
+    if allow_only is not None:
+        allow = list(allow_only)
     allow += list(allow_extra)
     cmd = ['node', str(ROOT / 'tools' / 'check_site.mjs'), '--candidate', str(candidate), '--compare-as', pairs]
     if allow:
@@ -126,6 +135,18 @@ def main():
 
         if args.skip_check:
             print('%s!!! ЗАЩИТНАЯ ПРОВЕРКА ПРОПУЩЕНА (--skip-check) !!!' % tag)
+        elif args.expect_change:
+            # файлы, отличающиеся от origin/main (рабочая копия — ровно origin/main + сборка): изменённые и новые, включая неучтённые в индексе
+            changed = set(git(tmp, 'diff', '--name-only', 'HEAD').splitlines()) | set(git(tmp, 'ls-files', '--others', '--exclude-standard').splitlines())
+            extra = sorted(p for p in changed if not p.startswith('beta/'))
+            tracked = set(git(tmp, 'ls-tree', '-r', '--name-only', 'HEAD').splitlines())
+            ids, new_ids, problems = build_pages.changed_targets(tmp, changed, tracked)
+            if extra or problems:
+                raise SystemExit('%sпубликация остановлена: затронуто то, что должно остаться как на main:\n  • %s' % (tag, '\n  • '.join(['вне beta/: %s' % p for p in extra] + problems)))
+            print('%sпиксели снимаются только у целей, чьи файлы меняются: %s%s' % (tag, ', '.join(ids) or '—', ('; новые: ' + ', '.join(new_ids)) if new_ids else ''))
+            print('%sвсе остальные страницы и их файлы (в т.ч. engine/, beta/engine/) побайтно как на main' % tag)
+            if ids and not run_check(tmp, True, only=ids, allow_only=ids):
+                raise SystemExit('%sпубликация остановлена: защитная проверка не зелёная (проблемы, ошибки консоли, fps). Открой отчёт (ссылка выше), исправь и повтори; обход — только явным --skip-check.' % tag)
         elif not run_check(tmp, args.expect_change):
             raise SystemExit('%sпубликация остановлена: защитная проверка не зелёная. Открой отчёт (ссылка выше), исправь и повтори; обход — только явным --skip-check.' % tag)
 
