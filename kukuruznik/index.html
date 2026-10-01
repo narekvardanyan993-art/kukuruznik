@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#f5ecda">
 <meta name="viewer-version" content="v12.1">
-<meta name="engine-version" content="e1.2">
+<meta name="engine-version" content="e1.4">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Չկա">
 <meta property="og:url" content="https://chka.am/kukuruznik/">
@@ -34,20 +34,20 @@
 <title>Կուկուռուզնիկ — Երիտասարդական պալատ | Չկա</title>
 <script>/* ?motion=1 — показать всё движение, даже если в системе включено «Уменьшить движение» (для проверки) */
 (function () { if (/[?&]motion=1/.test(location.search)) document.documentElement.setAttribute('data-motion', 'on'); })();</script>
-<link rel="preload" href="../engine/welcome-loader.js?v=e1.2" as="script">
-<link rel="preload" href="../engine/welcome-letters.js?v=e1.2" as="script">
-<link rel="preload" href="../engine/fonts/NotoSerif-latin.woff2?v=e1.2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../engine/welcome-loader.js?v=e1.4" as="script">
+<link rel="preload" href="../engine/welcome-letters.js?v=e1.4" as="script">
+<link rel="preload" href="../engine/fonts/NotoSerif-latin.woff2?v=e1.4" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.4" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.4" as="font" type="font/woff2" crossorigin>
 <style>
   /* Один шрифт для hy/ru/en — Noto Serif: латиница и кириллица (Noto Serif) и армянский (Noto Serif Armenian)
      из одной системы дизайна, лицензия OFL (fonts/LICENSE.txt). Подключён локально, один вес 400–700. */
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../engine/fonts/NotoSerif-latin.woff2?v=e1.2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    src: url(../engine/fonts/NotoSerif-latin.woff2?v=e1.4) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.2) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+    src: url(../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.4) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.2) format("woff2"); unicode-range: U+0308, U+0530-058F, U+2010, U+2024, U+25CC, U+FB13-FB17; }
+    src: url(../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.4) format("woff2"); unicode-range: U+0308, U+0530-058F, U+2010, U+2024, U+25CC, U+FB13-FB17; }
   :root {
     --font: "Chka Serif", "Noto Serif", serif;
     --paper: #f5ecda; --paper-2: #ede0c2; --ink: #2f2a25;
@@ -55,7 +55,13 @@
        оседание ~0.5% без заметного отскока). Кривая — ступенчатый отклик пружины, оседает за ~0.86 с. */
     --spring: cubic-bezier(0.22, 1, 0.36, 1);   /* запасной вариант, если браузер не знает linear() */
     --dur: 860ms;
+    --dur-p: 580ms;   /* ПК: раскрытие/сворачивание панели — на треть короче общей --dur (правка 30.09.2026) */
     --ease: cubic-bezier(0.22, 1, 0.36, 1);     /* прежняя кривая — только шторка и окна подсказок на телефоне */
+    /* «Как у Apple» (правило проекта, см. docs/ANIMATION.md): быстрый старт — длинное мягкое торможение.
+       --ios — кривая шторок iOS; --out — вход/появление (expo-out); --in — уход (разгон, короткий). */
+    --ios: cubic-bezier(0.32, 0.72, 0, 1);
+    --out: cubic-bezier(0.16, 1, 0.3, 1);
+    --in: cubic-bezier(0.4, 0, 0.9, 0.3);
     --panelW: 416px;   /* v12: панель шире на 30% (было 320) */
     /* Сетка отступов: шаг 8 px (8 / 16 / 24 / 32) — все внешние и внутренние отступы панели и оверлеев. */
     --s1: 8px; --s2: 16px; --s3: 24px; --s4: 32px;
@@ -96,37 +102,42 @@
   @media (min-width: 1024px) {
     #layout {
       display: grid; grid-template-columns: var(--panelW) 1fr;
-      transition: grid-template-columns var(--dur) var(--spring);
+      transition: grid-template-columns var(--dur-p) var(--spring);   /* анимация раскладки (не transform) — прежняя, оставлена; сокращена на треть */
     }
     body.panel-collapsed { --panelW: 48px; }
     /* Картинка как экспонат: паспарту (светлая бумага, поля 28 px) в тонкой рамке, мягкая тень — «висит на стене»;
        рисованный город на фоне — стена зала; под рамкой музейная табличка; стрелки прикреплены к краям рамки по центру высоты. */
     #view {
       container-type: inline-size;      /* 100cqw — ширина стены, плавно следует за панелью */
-      display: grid; place-items: center; padding: var(--s3); min-width: 0;
+      display: grid; place-items: center; padding: 12px; min-width: 0;
     }
-    #exhibit { margin: 0; display: grid; justify-items: center; row-gap: var(--s3); }
+    #exhibit { margin: 0; display: grid; justify-items: center; row-gap: 10px; }
     #frame {
-      position: relative; padding: 28px; background: #faf4e6;
-      border: 3px solid #3b332b; border-radius: 3px;
+      position: relative; padding: 12px; background: #faf4e6;
+      border: 2px solid #3b332b; border-radius: 3px;
       box-shadow: inset 0 0 0 1px rgba(255,255,255,0.55), 0 1px 0 rgba(47,42,37,0.4), 0 22px 48px rgba(60,45,20,0.30), 0 4px 10px rgba(60,45,20,0.18);
     }
     #stage {
-      /* доступная ширина: стена − паспарту − место для стрелок; высота: окно − отступы − паспарту − табличка */
-      width: min(calc(100cqw - 56px - 128px), calc((100dvh - 48px - 56px - 6px - 64px - var(--s3)) * var(--natW, 768) / var(--natH, 1365)));
+      /* доступная ширина: стена − паспарту (2×(12+2)) − место для стрелок и кнопки шоу по бокам рамки (по 72 px с каждой стороны — сами они на «стене», не на картинке); высота: окно − отступы (2×12) − паспарту (28) − табличка (52) − зазор (10) */
+      width: min(calc(100cqw - 28px - 148px), calc((100dvh - 24px - 28px - 52px - 10px) * var(--natW, 768) / var(--natH, 1365)));
       height: auto;
       aspect-ratio: var(--natW, 768) / var(--natH, 1365);
       border-radius: 1px;
       box-shadow: 0 0 0 1px rgba(47,42,37,0.45), inset 0 0 0 1px rgba(47,42,37,0.2);   /* тонкая линия окна паспарту */
     }
-    #prevSide, #nextSide { position: absolute; top: 50%; z-index: 6; margin-top: -32px; }
-    #prevSide { left: -35px; }
-    #nextSide { right: -35px; }
+    #prevSide, #nextSide { position: absolute; top: 50%; z-index: 6; margin-top: -24px; }
+    #prevSide { left: -62px; }   /* стрелки и кнопка шоу целиком за рамкой, зазор 12 px: ничего не перекрывает картинку */
+    #nextSide { right: -62px; }
+    .nav-side svg { width: 30px; height: 30px; }
+    /* кнопка шоу флага на ПК — как на телефоне (56 px, значок 36 px, кольцо хода, повторное нажатие — стоп): справа от рамки, на стене, ближе к низу */
+    #frame #flagBtnP:not([hidden]) { display: grid; }
+    #frame #flagBtnP { position: absolute; z-index: 6; right: -70px; bottom: 44px; width: 56px; height: 56px; }
+    #frame #flagBtnP svg { width: 36px; height: 36px; }
     #exhibit #plaque {
-      display: block; max-width: min(460px, 100%); padding: 10px 24px; text-align: center;
+      display: block; max-width: max(100%, 460px); padding: 6px 18px; text-align: center;
       background: #f8f1e0; color: var(--ink); border: 1px solid rgba(47,42,37,0.55); border-radius: 2px;
-      box-shadow: inset 0 0 0 3px #f8f1e0, inset 0 0 0 4px rgba(47,42,37,0.25), 0 3px 8px rgba(60,45,20,0.22);
-      font: 600 15px/1.35 var(--font); letter-spacing: 0.02em;
+      box-shadow: inset 0 0 0 2px #f8f1e0, inset 0 0 0 3px rgba(47,42,37,0.25), 0 3px 8px rgba(60,45,20,0.22);
+      font: 600 13.5px/1.3 var(--font); letter-spacing: 0.02em;
     }
   }
   /* телефон: обёртки-экспонат не нужны, картинка на весь экран */
@@ -198,6 +209,7 @@
   .flag-btn { transition: opacity 400ms var(--spring), transform 200ms var(--spring); }
   .flag-btn.off-frame { opacity: 0; pointer-events: none; transform: scale(0.8); }
   #flagBtnB { display: none; }
+  #flagBtnP { display: none; }   /* кнопка шоу на ПК живёт у рамки картинки (см. блок ПК ниже) */
   /* упрощённый парад (слабое устройство, «уменьшить движение», нет WebGL): флаг проявляется в небе, чуть колышется и растворяется, ~6 с */
   .flag-lite { position: absolute; left: 50%; top: 14%; margin-left: -70px; z-index: 5; pointer-events: none; opacity: 0; animation: liteFlag 6.4s ease-in-out both; }
   .flag-lite svg { display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.25)); }
@@ -210,14 +222,20 @@
   .flag-btn.busy .fb { animation: flagWave 800ms ease-in-out infinite; }
   .flag-btn.busy .fb2 { animation-delay: -130ms; }
   .flag-btn.busy .fb3 { animation-delay: -260ms; }
-  .flag-btn.busy svg { animation: flagGlow 2.4s linear infinite; }
   @keyframes flagWave { 0%, 100% { transform: skewY(0deg) scaleX(1); } 50% { transform: skewY(-9deg) scaleX(0.9); } }
-  @keyframes flagGlow {
-    0%, 100% { filter: drop-shadow(0 0 3px rgba(217,0,18,0.95)); }
-    33% { filter: drop-shadow(0 0 4px rgba(36,84,200,0.95)); }
-    66% { filter: drop-shadow(0 0 4px rgba(242,168,0,0.95)); }
-  }
-  @media (prefers-reduced-motion: reduce) { html:not([data-motion="on"]) .flag-btn.busy .fb, html:not([data-motion="on"]) .flag-btn.busy svg { animation: none; } }
+  /* идёт показ: флаг сжимается в центр и колышется, вокруг — кольцо цветами флага. Пока показ готовится (переход на кадр) —
+     три коротких штриха кружат; когда пошёл — кольцо заполняется по ходу показа (красный → синий → абрикосовый). Повторное нажатие — стоп. */
+  .flag-btn .fg { transform-box: view-box; transform-origin: 22px 20px; transition: transform 520ms var(--spring); }
+  .flag-btn.busy .fg { transform: scale(0.56); }
+  .flag-btn .ring { transform-box: view-box; transform-origin: 20px 20px; transform: rotate(-90deg); opacity: 0; transition: opacity 320ms var(--out); }
+  .flag-btn .ring circle { fill: none; stroke-width: 2.8; stroke-linecap: round; }
+  .flag-btn .rt { stroke: currentColor; opacity: 0.16; }
+  .flag-btn .rs { stroke-dasharray: 0 3; opacity: 0; }
+  .flag-btn .rs0 { stroke: #d90012; } .flag-btn .rs1 { stroke: #1c4cc0; } .flag-btn .rs2 { stroke: #f2a800; }
+  .flag-btn.busy .ring { opacity: 1; }
+  .flag-btn.busy.wait .ring { animation: ringSpin 1100ms linear infinite; }
+  @keyframes ringSpin { from { transform: rotate(-90deg); } to { transform: rotate(270deg); } }
+  @media (prefers-reduced-motion: reduce) { html:not([data-motion="on"]) .flag-btn.busy .fb, html:not([data-motion="on"]) .flag-btn.busy .ring { animation: none; } }
 
   #dots {
     position: absolute; left: 50%; bottom: calc(var(--safe-b) + var(--bar-h) + var(--s1)); transform: translateX(-50%);
@@ -239,7 +257,7 @@
   /* ПК: на самой картинке остаются только картинка и точки-подсказки; «на сайт» и название — вверху
      панели, стрелки — в пустых полях по бокам, миниатюры вместо кружков-точек. Телефон не меняется. */
   .p-top, .nav-side, .p-build { display: none; }
-  .nav-side { width: 64px; height: 64px; }
+  .nav-side { width: 48px; height: 48px; }
   @media (min-width: 1024px) {
     #bottomBar, #dots, #build-version, #prevBtn, #nextBtn, .panel-scroll > .p-title { display: none; }
     .p-top { display: grid; justify-items: start; row-gap: var(--s1); margin-right: var(--s4); }
@@ -283,6 +301,9 @@
   .panel-scroll > * { min-width: 0; }
   /* Перо рисует контур листа (SVG поверх карточки, его путь строит скрипт по размеру карточки). Только ПК. */
   .pen { display: none; }
+  .pen-m { display: none; }   /* перо шторки — только на телефоне */
+  #sheetClose { display: none; }
+  #immExit { display: none; }
   @media (min-width: 1024px) {
     #panel { overflow: visible; }   /* карточка и перо не обрезаются, пока колонка сжимается/растёт */
     .pen { display: block; position: absolute; left: var(--s2); top: var(--s2); width: 384px; height: calc(100% - 2 * var(--s2)); overflow: visible; pointer-events: none; z-index: 2; }
@@ -293,34 +314,24 @@
     /* свёрнута без анимации (страница открыта уже свёрнутой): карточки нет */
     body.panel-collapsed .panel-card { opacity: 0; visibility: hidden; pointer-events: none; }
 
-    /* ---- Появление (~1.5 с): перо ведёт основной контур листа (0.15–1.05 с; виден кончик пера), следом внутренний карандашный,
+    /* ---- Появление (~1 с, на треть короче прежнего): перо ведёт основной контур листа (0.15–1.05 с; виден кончик пера), следом внутренний карандашный,
        потом бумага наливается цветом, потом текст проявляется по пунктам. Запускается при загрузке и при раскрытии панели. ---- */
-    body:not(.panel-collapsed) .pen .pen-1 { animation: penDraw 900ms cubic-bezier(0.4, 0.05, 0.3, 1) 150ms both, penFade 250ms linear 1050ms both; }
-    body:not(.panel-collapsed) .pen .pen-2 { animation: penDraw 800ms cubic-bezier(0.4, 0.05, 0.3, 1) 450ms both, penFade 250ms linear 1250ms both; }
-    body:not(.panel-collapsed) .pen .nib { animation: nibGo 900ms cubic-bezier(0.4, 0.05, 0.3, 1) 150ms both; }
-    body:not(.panel-collapsed) .panel-card { animation: sheetIn 1000ms linear 500ms both; }
-    body:not(.panel-collapsed) .panel-scroll > * { animation: itemIn 380ms var(--ease) both; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(1) { animation-delay: 1000ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(2) { animation-delay: 1030ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(3) { animation-delay: 1060ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(4) { animation-delay: 1090ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(5) { animation-delay: 1120ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(6) { animation-delay: 1150ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(7) { animation-delay: 1180ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(8) { animation-delay: 1210ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(9) { animation-delay: 1240ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(10) { animation-delay: 1270ms; }
-    body:not(.panel-collapsed) .panel-scroll > *:nth-child(11) { animation-delay: 1300ms; }
+    body:not(.panel-collapsed) .pen .pen-1 { animation: penDraw 770ms cubic-bezier(0.4, 0.05, 0.3, 1) 100ms both, penFade 270ms linear 900ms both; }
+    body:not(.panel-collapsed) .pen .pen-2 { animation: penDraw 670ms cubic-bezier(0.4, 0.05, 0.3, 1) 335ms both, penFade 270ms linear 1070ms both; }
+    body:not(.panel-collapsed) .pen .nib { animation: nibGo 770ms cubic-bezier(0.4, 0.05, 0.3, 1) 100ms both; }
+    body:not(.panel-collapsed) .panel-card { animation: sheetIn 800ms linear 370ms both; }
+    body:not(.panel-collapsed) .panel-scroll > * { animation: itemIn 375ms var(--ease) both; animation-delay: calc(635ms + var(--n, 0) * 54ms); }
+    body:not(.panel-collapsed) .chips > .chip, body:not(.panel-collapsed) #thumbs button { animation: chipIn 335ms var(--spring) both; animation-delay: calc(735ms + var(--n, 0) * 54ms + var(--c, 0) * 40ms); }
+    body:not(.panel-collapsed) .p-sec h3 { background: linear-gradient(currentColor, currentColor) 0 100% / 0 1.5px no-repeat; padding-bottom: 2px; animation: h3Line 470ms cubic-bezier(0.4, 0.05, 0.3, 1) both; animation-delay: calc(700ms + var(--n, 0) * 54ms); }
 
-    /* ---- Закрытие (~0.9 с) — то же наоборот: текст гаснет, бумага бледнеет, контур «собирается» — перо втягивает линию обратно
-       по пути, кончик пера уходит к началу; потом колонка сжимается. Только после первого нажатия кнопки (html.panel-anim). ---- */
-    html.panel-anim body.panel-collapsed .pen .pen-1 { animation: penUndraw 650ms cubic-bezier(0.5, 0, 0.3, 1) 150ms both; }
-    html.panel-anim body.panel-collapsed .pen .pen-2 { animation: penUndraw 550ms cubic-bezier(0.5, 0, 0.3, 1) 100ms both; }
-    html.panel-anim body.panel-collapsed .pen .nib { animation: nibBack 650ms cubic-bezier(0.5, 0, 0.3, 1) 150ms both; }
-    html.panel-anim body.panel-collapsed .panel-card { animation: sheetOut 850ms linear both; }
-    html.panel-anim body.panel-collapsed .panel-scroll > * { animation: itemOut 260ms ease both; }
-    html.panel-anim body.panel-collapsed #layout { transition-delay: 350ms; }
-    html.panel-anim body.panel-collapsed #panelBtn { transition-delay: 350ms, 0ms, 0ms; }
+    /* ---- Закрытие (~0,95 с, на треть короче прежнего): пункты гаснут снизу вверх, бумага бледнеет, перо втягивает линию; потом колонка сжимается ---- */
+    html.panel-anim body.panel-collapsed .pen .pen-1 { animation: penUndraw 640ms cubic-bezier(0.5, 0, 0.3, 1) 255ms both; }
+    html.panel-anim body.panel-collapsed .pen .pen-2 { animation: penUndraw 540ms cubic-bezier(0.5, 0, 0.3, 1) 200ms both; }
+    html.panel-anim body.panel-collapsed .pen .nib { animation: nibBack 640ms cubic-bezier(0.5, 0, 0.3, 1) 255ms both; }
+    html.panel-anim body.panel-collapsed .panel-card { animation: sheetOut 840ms linear both; }
+    html.panel-anim body.panel-collapsed .panel-scroll > * { animation: itemOut 255ms var(--in) both; animation-delay: calc((12 - var(--n, 0)) * 17ms); }
+    html.panel-anim body.panel-collapsed #layout { transition-delay: 400ms; }
+    html.panel-anim body.panel-collapsed #panelBtn { transition-delay: 400ms, 0ms, 0ms; }
   }
   @keyframes penDraw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
   @keyframes penUndraw { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 1; } }
@@ -341,13 +352,17 @@
     85% { opacity: 1; visibility: visible; background-color: rgba(245,236,218,0); border-color: transparent; outline-color: transparent; box-shadow: 0 12px 32px rgba(60,45,20,0), 3px 4px 0 rgba(47,42,37,0); }
     100% { opacity: 0; visibility: hidden; background-color: rgba(245,236,218,0); border-color: transparent; box-shadow: none; }
   }
-  @keyframes itemIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes itemIn { from { opacity: 0; transform: translateY(10px); filter: blur(2px); } to { opacity: 1; transform: none; filter: none; } }
+  @media (max-width: 1023.98px) and (prefers-reduced-motion: reduce) { html:not([data-motion="on"]) body.sheet-open .panel-scroll > *, html:not([data-motion="on"]) body.sheet-open .chips > .chip { animation: none; } }
+  @keyframes sheetInM { from { background-color: rgba(245,236,218,0); box-shadow: none; } to { } }
+  @keyframes h3Line { 0% { background-size: 0 1.5px; } 60% { background-size: 100% 1.5px; } 100% { background-size: 38px 1.5px; } }   /* перо подчёркивает заголовок и отступает к короткому штриху */
+  @keyframes chipIn { 0% { opacity: 0; transform: translateY(8px) scale(0.86); } 70% { opacity: 1; transform: scale(1.04); } 100% { transform: none; } }   /* 100% без opacity: выключенная кнопка остаётся бледной */
   @keyframes itemOut { from { opacity: 1; } to { opacity: 0; } }
   /* «Уменьшение движения»: обычное плавное появление и исчезновение, без пера и сдвигов */
   @media (min-width: 1024px) and (prefers-reduced-motion: reduce) {
     html:not([data-motion="on"]) .pen { display: none; }
     html:not([data-motion="on"]) body:not(.panel-collapsed) .panel-card { animation: sheetFade 450ms ease both; }
-    html:not([data-motion="on"]) body:not(.panel-collapsed) .panel-scroll > * { animation: none; }
+    html:not([data-motion="on"]) body:not(.panel-collapsed) .panel-scroll > *, html:not([data-motion="on"]) body:not(.panel-collapsed) .chips > .chip { animation: none; }
     html:not([data-motion="on"]).panel-anim body.panel-collapsed .panel-card { animation: sheetFadeOut 250ms ease both; }
     html:not([data-motion="on"]).panel-anim body.panel-collapsed .panel-scroll > * { animation: none; }
     html:not([data-motion="on"]).panel-anim body.panel-collapsed #layout, html:not([data-motion="on"]).panel-anim body.panel-collapsed #panelBtn { transition-delay: 0ms; }
@@ -364,15 +379,110 @@
     font: 600 var(--fs-small)/1.15 var(--font);
   }
   .seg button:last-child { border-right: none; }
+  /* ---- панель (e1.3): кнопки-значки. «Одно из» — кнопки в общей дорожке (выбрана одна); «можно вместе» — отдельные кнопки
+     с отметкой в углу. Включённая кнопка — тёмная, её значок оживает (лучи, капли, снежинка, туман, ветер). ---- */
+  .p-grp .grp-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 0 6px; }
+  .p-grp .grp-h h3 { margin: 0; }
+  .grp-hint { font: italic 500 12px/1.2 var(--font); color: rgba(47,42,37,0.6); white-space: nowrap; }
+  .chips { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
+  .chips-one { padding: 4px; border-radius: 16px; background: rgba(47,42,37,0.07); box-shadow: inset 0 1px 2px rgba(47,42,37,0.12); }
+  .chip { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 60px; padding: 7px 3px 6px;
+    border: 1.5px solid rgba(47,42,37,0.22); border-radius: 13px; background: rgba(255,252,244,0.75); color: var(--ink);
+    font: 600 12px/1.3 var(--font); cursor: pointer; box-shadow: 0 1px 0 rgba(47,42,37,0.10);
+    transition: background-color 220ms var(--spring), color 220ms var(--spring), border-color 220ms var(--spring), transform 160ms var(--spring), box-shadow 220ms var(--spring); }
+  .chips-one .chip { border-color: transparent; background: transparent; box-shadow: none; }
+  .chip:active { transform: scale(0.94); }
+  .chip.on { background: var(--ink); color: var(--paper); border-color: var(--ink); box-shadow: 0 2px 8px rgba(47,42,37,0.28); }
+  .chip svg { width: 30px; height: 30px; overflow: visible; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .chip span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.4; padding-bottom: 1px; }
+  .chips-many .chip::after { content: ''; position: absolute; top: 5px; right: 5px; width: 9px; height: 9px; border-radius: 50%;
+    border: 1.5px solid rgba(47,42,37,0.35); background: transparent; transition: background-color 220ms, border-color 220ms; }
+  .chips-many .chip.on::after { background: #7fbf6a; border-color: var(--paper); }
+  .chips-text .chip { min-height: 44px; font-size: 15px; }
+  .chip:disabled { opacity: 0.35; cursor: not-allowed; filter: grayscale(1); }
+  .chip:disabled::after { display: none; }
+  .chip text { fill: currentColor; stroke: none; font-family: var(--font); font-weight: 700; }
+  /* цвета значков: солнце, закат, луна, облака, капли, снег */
+  .i-sun { fill: #f2b632; stroke: #b9831a; }
+  .i-setsun { fill: #f08a3c; stroke: #b95a1f; }
+  .i-glow { stroke: #f08a3c; }
+  .i-moon { fill: #efe6c4; stroke: #a99a64; }
+  .i-star { stroke: #e9c85a; }
+  .i-cloudf { fill: #fbf8f0; stroke: currentColor; }
+  .i-cloudb { fill: #d9dde3; stroke: currentColor; opacity: 0.9; }
+  .i-drops path { stroke: #4a86c5; stroke-width: 2.1; }
+  .i-flake { stroke: #6fa2cf; }
+  .i-fog path { stroke: #9aa3ab; stroke-width: 2.1; }
+  .i-wind path { stroke: currentColor; }
+  .i-check { stroke: #6aa05a; stroke-width: 2.2; }
+  .i-cardsun { stroke: #6aa05a; } .i-cardsun2 { fill: #f2b632; stroke: #b9831a; }
+  .chip.on .i-cloudf { fill: #fbf8f0; stroke: #fbf8f0; } .chip.on .i-cloudb { fill: #c9ced6; stroke: #c9ced6; }
+  .chip.on .i-drops path { stroke: #8cc0f2; } .chip.on .i-flake { stroke: #bfe0ff; } .chip.on .i-fog path { stroke: #d8dde2; }
+  /* ветер: уровень — две точки под значком (тихо — пусто, ветрено — одна, буря — две) */
+  #windBtn .lvl { position: absolute; top: 7px; left: 8px; display: flex; gap: 3px; }
+  #windBtn .lvl u { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: 0.2; }
+  #windBtn[data-wind="1"] .lvl u:first-child, #windBtn[data-wind="2"] .lvl u { opacity: 1; }
+  #windBtn .w3 { opacity: 0.35; } #windBtn[data-wind="2"] .w3 { opacity: 1; }
+  .p-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .p-acts .act[hidden] { display: none; }
+  .p-acts .chip-act { width: 100%; min-height: 64px; white-space: normal; }
+  .p-acts .chip-act span { white-space: normal; text-align: center; line-height: 1.15; }
+  /* живые значки — только у включённых и только без «уменьшения движения» */
+  @keyframes icSpin { to { transform: rotate(360deg); } }
+  @keyframes icSink { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(2.2px); } }
+  @keyframes icTwinkle { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+  @keyframes icDrop { 0% { transform: translate(0, -3px); opacity: 0; } 25% { opacity: 1; } 100% { transform: translate(-1.2px, 4px); opacity: 0; } }
+  @keyframes icFlake { 0% { transform: rotate(0) scale(1); } 50% { transform: rotate(60deg) scale(0.9); } 100% { transform: rotate(120deg) scale(1); } }
+  @keyframes icDrift { 0%, 100% { transform: translateX(-1.5px); } 50% { transform: translateX(1.5px); } }
+  @keyframes icFog { 0%, 100% { transform: translateX(-2px); } 50% { transform: translateX(2px); } }
+  @keyframes icWind { to { stroke-dashoffset: -40; } }
+  @keyframes icPop { 0% { transform: scale(0.8); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
+  @media (prefers-reduced-motion: no-preference) {
+    .chip.on svg { animation: icPop 360ms var(--spring); }
+    .chip.on .i-rays { transform-origin: 16px 16px; animation: icSpin 9s linear infinite; }
+    .chip.on .i-setsun { animation: icSink 3.2s ease-in-out infinite; }
+    .chip.on .i-star { animation: icTwinkle 1.8s ease-in-out infinite; } .chip.on .i-star.s2 { animation-delay: 0.7s; }
+    .chip.on .i-drops path { animation: icDrop 0.9s linear infinite; } .chip.on .i-drops .d2 { animation-delay: 0.3s; } .chip.on .i-drops .d3 { animation-delay: 0.6s; }
+    .chip.on .i-flake { transform-origin: 16px 16px; animation: icFlake 4s ease-in-out infinite; }
+    .chip.on .i-cloudm { animation: icDrift 3.4s ease-in-out infinite; } .chip.on .i-cloudb { animation: icDrift 4.2s ease-in-out infinite reverse; }
+    .chip.on .i-fog .f1, .chip.on .i-fog .f3 { animation: icFog 3s ease-in-out infinite; } .chip.on .i-fog .f2 { animation: icFog 3s ease-in-out infinite reverse; }
+    .chip.on .i-wind path { stroke-dasharray: 14 4; animation: icWind 1.4s linear infinite; }
+    #windBtn.on[data-wind="2"] .i-wind path { animation-duration: 0.6s; }
+  }  @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+    .chip:hover .i-rays { transform-origin: 16px 16px; animation: icSpin 9s linear infinite; }
+    .chip:hover .i-setsun { animation: icSink 3.2s ease-in-out infinite; }
+    .chip:hover .i-star { animation: icTwinkle 1.8s ease-in-out infinite; } .chip:hover .i-star.s2 { animation-delay: 0.7s; }
+    .chip:hover .i-drops path { animation: icDrop 0.9s linear infinite; } .chip:hover .i-drops .d2 { animation-delay: 0.3s; } .chip:hover .i-drops .d3 { animation-delay: 0.6s; }
+    .chip:hover .i-flake { transform-origin: 16px 16px; animation: icFlake 4s ease-in-out infinite; }
+    .chip:hover .i-cloudm { animation: icDrift 3.4s ease-in-out infinite; } .chip:hover .i-cloudb { animation: icDrift 4.2s ease-in-out infinite reverse; }
+    .chip:hover .i-fog .f1, .chip:hover .i-fog .f3 { animation: icFog 3s ease-in-out infinite; } .chip:hover .i-fog .f2 { animation: icFog 3s ease-in-out infinite reverse; }
+    .chip:hover .i-wind path { stroke-dasharray: 14 4; animation: icWind 1.4s linear infinite; }
+    #windBtn:hover[data-wind="2"] .i-wind path { animation-duration: 0.6s; }
+    .chip:hover { border-color: rgba(47,42,37,0.45); }
+    .chips-one .chip:not(.on):hover { background: rgba(255,252,244,0.6); }
+  }
+
+  .wx-name { margin-top: 8px; text-align: center; font: italic 600 var(--fs-small)/1.2 var(--font); min-height: 1.2em; }
   .seg button.on { background: var(--ink); color: var(--paper); }
   #thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s1); }
   #thumbs button {
-    padding: 0; border: 2px solid rgba(47,42,37,0.35); border-radius: 8px 4px 8px 4px;
-    overflow: hidden; cursor: pointer; background: #000; aspect-ratio: 4 / 5;
-    transition: border-color var(--dur) var(--spring), transform var(--dur) var(--spring);
+    position: relative; padding: 0; border: 1.5px solid rgba(47,42,37,0.25); border-radius: 12px;
+    overflow: hidden; cursor: pointer; background: #000; aspect-ratio: 4 / 5; box-shadow: 0 1px 0 rgba(47,42,37,0.12);
+    transition: border-color 260ms var(--spring), transform 320ms var(--spring), box-shadow 320ms var(--spring);
   }
-  #thumbs button img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 58%; }
-  #thumbs button.on { border-color: var(--ink); transform: scale(1.04); box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink); }
+  #thumbs button img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 58%; transition: transform 600ms var(--spring), filter 400ms; filter: saturate(0.85); }
+  #thumbs .th-num { position: absolute; left: 6px; bottom: 6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: rgba(245,236,218,0.92);
+    color: var(--ink); font: 700 11px/20px var(--font); text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.25); transition: background-color 260ms, color 260ms; }
+  #thumbs button.on { border-color: var(--ink); transform: scale(1.04); box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink), 0 6px 16px rgba(47,42,37,0.3); }
+  #thumbs button.on img { filter: none; }
+  #thumbs button.on .th-num { background: var(--ink); color: var(--paper); }
+  #thumbs button::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: radial-gradient(circle at var(--rx, 50%) var(--ry, 50%), rgba(255,255,255,0.45), rgba(255,255,255,0) 60%); opacity: 0; transition: opacity 400ms; pointer-events: none; }
+  #thumbs button:active { transform: scale(0.95); }
+  #thumbs button:active::after { opacity: 1; transition: none; }
+  @media (hover: hover) and (pointer: fine) {
+    #thumbs button:not(.on):hover { transform: translateY(-3px); border-color: rgba(47,42,37,0.6); box-shadow: 0 8px 18px rgba(47,42,37,0.25); }
+    #thumbs button:hover img { transform: scale(1.08); filter: none; }
+  }
   .p-row { display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: var(--s1); }
   .switch {
     flex: none; width: 54px; height: 30px; border-radius: 15px; border: 2px solid var(--ink);
@@ -432,20 +542,51 @@
     #panelBtn {
       top: var(--s3); left: calc(var(--panelW) - 56px); width: 40px; height: 40px; border-radius: 50% 42% 50% 42%;
     }
+    #panelBtn { transition: left var(--dur-p) var(--spring), transform var(--dur-p) var(--spring), background var(--dur-p) var(--spring); }
+    .ic-wheel { transition-duration: 540ms; }
     #panelBtn .ic-wheel { width: 28px; height: 28px; transform: rotate(180deg); }
     body.panel-collapsed #panelBtn { left: 4px; }
     body.panel-collapsed #panelBtn .ic-wheel { transform: rotate(0deg); }
-    html.panel-anim body:not(.panel-collapsed) #panelBtn .arm { animation: armA 700ms var(--ease) both; animation-delay: calc(var(--i) * 55ms + 150ms); }
-    html.panel-anim body.panel-collapsed #panelBtn .arm { animation: armB 700ms var(--ease) both; animation-delay: calc(var(--i) * 55ms); }
+    html.panel-anim body:not(.panel-collapsed) #panelBtn .arm { animation: armA 470ms var(--ease) both; animation-delay: calc(var(--i) * 37ms + 100ms); }
+    html.panel-anim body.panel-collapsed #panelBtn .arm { animation: armB 470ms var(--ease) both; animation-delay: calc(var(--i) * 37ms); }
   }
 
   /* Телефон: та же панель, свёрнутая в круглую кнопку; по тапу выезжает снизу шторкой на 60% высоты */
   @media (max-width: 1023.98px) {
     #panel {
       position: fixed; left: 0; right: 0; bottom: 0; height: 60vh; height: 60dvh; overflow: visible;
-      transform: translateY(108%); transition: transform 400ms var(--ease); z-index: 70;
+      transform: translateY(108%); opacity: 1; transition: transform 560ms var(--spring), opacity 250ms var(--ease); z-index: 70; will-change: transform, opacity;
     }
     body.sheet-open #panel { transform: none; }
+    html.panel-anim body.sheet-open .panel-scroll > * { animation: itemIn 520ms var(--ease) both; animation-delay: calc(650ms + var(--n, 0) * 70ms); }
+    html.panel-anim body.sheet-open .chips > .chip, html.panel-anim body.sheet-open #thumbs button { animation: chipIn 460ms var(--spring) both; animation-delay: calc(760ms + var(--n, 0) * 70ms + var(--c, 0) * 60ms); }
+    #sheetClose { display: grid; place-items: center; position: absolute; top: 10px; right: 10px; z-index: 4; width: 40px; height: 40px; border-radius: 50%;
+      border: 1.5px solid rgba(47,42,37,0.3); background: rgba(255,252,244,0.85); color: var(--ink); cursor: pointer; }
+    #sheetClose svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 1; }
+    html.panel-anim body.sheet-open #sheetClose { animation: chipIn 420ms var(--spring) 900ms both; }
+    html.panel-anim body.sheet-open #sheetClose path { animation: penDraw 380ms ease 1050ms both; }
+    /* iPhone: «только картинка» вместо полного экрана (Safari на iPhone его не даёт) — прячем кнопки и подписи; крестик в углу возвращает */
+    body.immersive #bottomBar, body.immersive #panelBtn, body.immersive #prevBtn, body.immersive #nextBtn, body.immersive #dots, body.immersive #hotspots, body.immersive .plaque { opacity: 0 !important; pointer-events: none !important; transition: opacity 500ms; }
+    body.immersive #immExit { display: grid; place-items: center; position: fixed; top: calc(var(--safe-t, 0px) + 12px); right: calc(var(--safe-r, 0px) + 12px); z-index: 90; width: 40px; height: 40px; border-radius: 50%;
+      border: 1.5px solid rgba(47,42,37,0.3); background: rgba(255,252,244,0.8); color: var(--ink); animation: chipIn 420ms var(--spring) both; }
+    body.immersive #immExit svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+    body.immersive.imm-idle #immExit { opacity: 0.18; transition: opacity 800ms; }
+    .pen-m { display: block; position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; overflow: visible; }
+    .pen-m path { fill: none; stroke: var(--ink); stroke-width: 2.2; vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
+    .pen-m .pm2 { stroke-width: 1; opacity: 0.4; }
+    html.panel-anim body.sheet-open .pen-m .pm1 { animation: penDraw 800ms cubic-bezier(0.4, 0.05, 0.3, 1) 120ms both, penFade 350ms linear 1100ms both; }
+    html.panel-anim body.sheet-open .pen-m .pm2 { animation: penDraw 700ms cubic-bezier(0.4, 0.05, 0.3, 1) 320ms both, penFade 350ms linear 1250ms both; }
+    html.panel-anim body.sheet-open .panel-card { animation: sheetInM 700ms ease 380ms both; }
+    /* Закрытие шторки (350 мс) — простое и надёжное: сразу при нажатии вся шторка вместе с содержимым уезжает вниз и гаснет (только transform + opacity,
+       кривая --ios — быстрый старт и мягкое торможение); затемнение гаснет одновременно. Никакого стирания пером и задержек: пункты, крестик и бумага
+       движутся вместе с шторкой (их анимации открытия при закрытии выключены сами — sheet-open уже снят). Класс sheet-closing держит JS-таймер по длительности
+       (viewer.js, 400 мс), а не transitionend — так в Safari на iPhone конец не зависит от событий. Открытие не менялось. */
+    body.sheet-closing #panel { transform: translateY(108%); opacity: 0; transition: transform 350ms var(--ios), opacity 350ms var(--ios); }
+    /* Закрыли и сразу открыли (шторка ещё едет): она возвращается от текущего положения обычным переходом открытия, а вступительные анимации
+       содержимого не запускаются заново (иначе пункты мигнули бы и проявились с нуля). Класс ставит viewer.js только для такого повторного открытия. */
+    html.panel-anim body.sheet-quick.sheet-open .panel-scroll > *, html.panel-anim body.sheet-quick.sheet-open .chips > .chip, html.panel-anim body.sheet-quick.sheet-open #thumbs button,
+    html.panel-anim body.sheet-quick.sheet-open #sheetClose, html.panel-anim body.sheet-quick.sheet-open #sheetClose path,
+    html.panel-anim body.sheet-quick.sheet-open .pen-m .pm1, html.panel-anim body.sheet-quick.sheet-open .pen-m .pm2, html.panel-anim body.sheet-quick.sheet-open .panel-card { animation: none; }
     .panel-scroll { padding: var(--s4); grid-template-columns: minmax(0, 420px); justify-content: center; scroll-padding: var(--s4) 0; }
     .panel-card {
       left: max(var(--s1), var(--safe-l)); right: max(var(--s1), var(--safe-r)); top: 0; bottom: calc(var(--safe-b) + var(--s1)); width: auto;
@@ -461,6 +602,11 @@
       opacity: 0; pointer-events: none; transition: opacity 300ms var(--ease);
     }
     body.sheet-open #scrim { opacity: 1; pointer-events: auto; }
+    body.sheet-closing #scrim { transition: opacity 350ms var(--ios); }   /* затемнение уходит вместе со шторкой */
+    /* Шторка уезжает (sheet-closing, 350 мс): ни она сама, ни её кнопки и ссылки, ни затемнение нажатий не ловят — нажатие проходит к точке-подсказке под ними
+       (раньше оно попадало в уезжающую шторку, на «Историю здания», и уводило на другую страницу). Класс снят (шторка уехала) или шторка
+       открывается заново — всё ловит нажатия как обычно. */
+    body.sheet-closing #panel, body.sheet-closing #panel *, body.sheet-closing #scrim { pointer-events: none !important; }
   }
 
   /* без WebGL время суток — CSS-фильтром (окна ночью не светятся) */
@@ -590,8 +736,8 @@
 <body>
 <script>try { if (localStorage.getItem('chka-panel') === 'collapsed') document.body.classList.add('panel-collapsed'); } catch (e) {}   /* панель, свёрнутая в прошлый раз, — сразу свёрнутой, без анимации закрытия */</script>
 
-<script src="../engine/welcome-letters.js?v=e1.2"></script>
-<script src="../engine/welcome-loader.js?v=e1.2"></script>
+<script src="../engine/welcome-letters.js?v=e1.4"></script>
+<script src="../engine/welcome-loader.js?v=e1.4"></script>
 <script>
 /* ===================== CONFIG =====================
    Все параметры эффекта «3D-фото» собраны здесь, ничего похожего
@@ -643,6 +789,46 @@ var CONFIG = {
  "SHOOT_MS": 900,
  "WIND": true,
  "WIND_AMP_PX": 2.5,
+ "WEATHER": {
+  "clear": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "cloudy": [
+   1,
+   0,
+   0,
+   0
+  ],
+  "rain": [
+   0.85,
+   0.3,
+   1,
+   0
+  ],
+  "snow": [
+   0.6,
+   0.25,
+   0,
+   1
+  ],
+  "fog": [
+   0,
+   0.85,
+   0,
+   0
+  ]
+ },
+ "WEATHER_FADE_MS": 4000,
+ "WIND_LEVELS": [
+  1,
+  2.4,
+  4.5
+ ],
+ "RAIN_DROPS": 240,
+ "SNOW_FLAKES": 190,
  "PERF_MIN_FPS": 45,
  "FALLBACK_LAYER_K": 0.6,
  "UI_I18N": {
@@ -745,6 +931,141 @@ var CONFIG = {
    "ru": "Парад в небе: флаг Армении",
    "en": "Sky parade: flag of Armenia",
    "hy": "Երկնային շքերթ՝ Հայաստանի դրոշը"
+  },
+  "wxCloudy": {
+   "ru": "Тучи",
+   "en": "Clouds",
+   "hy": "Ամպեր"
+  },
+  "wxRain": {
+   "ru": "Дождь",
+   "en": "Rain",
+   "hy": "Անձրև"
+  },
+  "wxSnow": {
+   "ru": "Снег",
+   "en": "Snow",
+   "hy": "Ձյուն"
+  },
+  "wxFog": {
+   "ru": "Туман",
+   "en": "Fog",
+   "hy": "Մառախուղ"
+  },
+  "wind": {
+   "ru": "Ветер",
+   "en": "Wind",
+   "hy": "Քամի"
+  },
+  "wxN_clear": {
+   "ru": "Ясно",
+   "en": "Clear",
+   "hy": "Պարզ"
+  },
+  "wxN_breezy": {
+   "ru": "Ветрено",
+   "en": "Breezy",
+   "hy": "Քամոտ"
+  },
+  "wxN_gale": {
+   "ru": "Буря",
+   "en": "Gale",
+   "hy": "Փոթորիկ"
+  },
+  "wxN_overcast": {
+   "ru": "Пасмурно",
+   "en": "Overcast",
+   "hy": "Ամպամած"
+  },
+  "wxN_rain": {
+   "ru": "Дождь",
+   "en": "Rain",
+   "hy": "Անձրև"
+  },
+  "wxN_slant": {
+   "ru": "Косой дождь",
+   "en": "Slanting rain",
+   "hy": "Թեք անձրև"
+  },
+  "wxN_thunder": {
+   "ru": "Гроза",
+   "en": "Thunderstorm",
+   "hy": "Ամպրոպ"
+  },
+  "wxN_snow": {
+   "ru": "Снегопад",
+   "en": "Snowfall",
+   "hy": "Ձյուն է գալիս"
+  },
+  "wxN_blizzard": {
+   "ru": "Метель",
+   "en": "Blizzard",
+   "hy": "Բուք"
+  },
+  "wxN_sleet": {
+   "ru": "Мокрый снег",
+   "en": "Sleet",
+   "hy": "Թաց ձյուն"
+  },
+  "wxN_fog": {
+   "ru": "Туман",
+   "en": "Fog",
+   "hy": "Մառախուղ"
+  },
+  "wxN_drizzle": {
+   "ru": "Морось",
+   "en": "Drizzle",
+   "hy": "Մաղող անձրև"
+  },
+  "wxN_haze": {
+   "ru": "Морозная дымка",
+   "en": "Frosty haze",
+   "hy": "Ցրտաշունչ մշուշ"
+  },
+  "wxN_gloom": {
+   "ru": "Хмурый туман",
+   "en": "Gloomy fog",
+   "hy": "Մռայլ մառախուղ"
+  },
+  "wxN_rainbow": {
+   "ru": "Радуга",
+   "en": "Rainbow",
+   "hy": "Ծիածան"
+  },
+  "oneOf": {
+   "ru": "одно из",
+   "en": "pick one",
+   "hy": "մեկը"
+  },
+  "together": {
+   "ru": "можно вместе",
+   "en": "combine",
+   "hy": "կարելի է միասին"
+  },
+  "precip": {
+   "ru": "Осадки",
+   "en": "Precipitation",
+   "hy": "Տեղումներ"
+  },
+  "skyAir": {
+   "ru": "Небо и воздух",
+   "en": "Sky and air",
+   "hy": "Երկինք և օդ"
+  },
+  "precipNone": {
+   "ru": "Сухо",
+   "en": "Dry",
+   "hy": "Չոր"
+  },
+  "close": {
+   "ru": "Закрыть",
+   "en": "Close",
+   "hy": "Փակել"
+  },
+  "nightNA": {
+   "ru": "Ночью туч не видно",
+   "en": "Clouds are not visible at night",
+   "hy": "Գիշերը ամպերը չեն երևում"
   },
   "title": {
    "ru": "Кукурузник, 1979",
@@ -918,6 +1239,58 @@ var CONFIG = {
     200,
     230
    ]
+  },
+  "weather": {
+   "overcastSky": [
+    0.8,
+    0.82,
+    0.84
+   ],
+   "overcastDim": 0.16,
+   "overcastGray": 0.35,
+   "fogDay": [
+    0.88,
+    0.88,
+    0.86
+   ],
+   "fogNight": [
+    0.34,
+    0.38,
+    0.46
+   ],
+   "fogNear": 0.75,
+   "fogSky": 0.5,
+   "snowTint": [
+    0.95,
+    0.96,
+    0.99
+   ],
+   "snowK": 0.95,
+   "wetDim": 0.12,
+   "rainDay": [
+    55,
+    65,
+    88,
+    0.55
+   ],
+   "rainNight": [
+    185,
+    195,
+    215,
+    0.45
+   ],
+   "snowColor": [
+    255,
+    255,
+    255,
+    0.9
+   ],
+   "flash": [
+    0.92,
+    0.94,
+    1.0
+   ],
+   "overcastShadow": 0.3
   }
  },
  "NIGHT_MAIN_LIT": [
@@ -1951,16 +2324,30 @@ var CONFIG = {
      ]
     ],
     "mast": [
-     0.735,
-     0.136,
-     0.735,
-     0.097
+     0.768,
+     0.199,
+     0.768,
+     0.138
+    ],
+    "banner": [
+     0.5,
+     0.2,
+     0.705,
+     0.07
     ]
    },
    "cloudScale": 0.42
   }
  ],
  "PARADE_FRAME": 0,
+ "PARADE_STYLES": [
+  "planes",
+  "drones",
+  "heli",
+  "fireworks",
+  "balloons",
+  "banner"
+ ],
  "ABOUT_FACTS": [
   "tower1",
   "tower2",
@@ -2025,51 +2412,71 @@ window.__wl = WelcomeLoader.create({
 <div id="layout">
 <aside id="panel" aria-label="Menu">
   <svg class="pen" id="pen" aria-hidden="true"><path class="pen-1" pathLength="1"/><path class="pen-2" pathLength="1"/><circle class="nib" r="3.2" cx="0" cy="0"/></svg>
-  <div class="panel-card sketch"><div class="panel-scroll">
+  <div class="panel-card sketch"><svg class="pen-m" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path class="pm1" pathLength="1" d="M2 98 L2 5 Q2 2 5 2 L95 2 Q98 2 98 5 L98 98"/><path class="pm2" pathLength="1" d="M3.5 97 L3.4 6 Q3.6 3.4 6 3.5 L94 3.6 Q96.6 3.5 96.5 6 L96.6 97"/></svg><button type="button" id="sheetClose" aria-label="Закрыть" data-i18n-title="close"><svg viewBox="0 0 32 32" aria-hidden="true"><path pathLength="1" d="M9 9l14 14M23 9L9 23"/></svg></button><div class="panel-scroll">
     <span class="p-title" data-i18n="panelTitle">Кукурузник</span>
     <div class="p-top">
       <div class="p-top-row">
         <a class="arrow-btn p-home" id="homeBtnP" href="../" aria-label="На главную" data-i18n-title="home"><svg viewBox="0 0 40 40" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 20.5L20 8.5l13.5 12" stroke-width="2.8"/><path d="M11 18.5V32h18V18.5" stroke-width="2.8"/><path d="M17 32v-8.5h6V32" stroke-width="2.4"/><path d="M7.4 21.2L20.4 9.5l12.9 11.4M12 19.4V32.8h17.4" stroke-width="1.1" opacity=".55"/></g></svg></a>
-        <button type="button" id="flagBtnP" class="arrow-btn flag-btn" aria-label="Парад" data-i18n-title="flag"><svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g stroke-linecap="round" stroke-linejoin="round"><path class="fb fb1" d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 13 Q29 16 23 13 Q17 10 11 13 Z" fill="#d90012"/><path class="fb fb2" d="M11 13 Q17 10 23 13 Q29 16 35 13 L35 19 Q29 22 23 19 Q17 16 11 19 Z" fill="#1c4cc0"/><path class="fb fb3" d="M11 19 Q17 16 23 19 Q29 22 35 19 L35 25 Q29 28 23 25 Q17 22 11 25 Z" fill="#f2a800"/><g fill="none" stroke="currentColor"><path d="M9.2 5.5 L9.6 35.5" stroke-width="2.6"/><path d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 25 Q29 28 23 25 Q17 22 11 25 Z" stroke-width="2"/><path d="M11.6 7.8 Q17 5 23 8 Q29 11 34.6 8.2 M11.4 24.4 Q17 21.6 23 24.6 Q29 27.6 34.6 24.4" stroke-width="0.9" opacity=".55"/></g></g></svg></button>
       </div>
       <span class="p-name" data-i18n="title">Кукурузник, 1979</span>
     </div>
-    <section class="p-sec"><a class="p-btn p-history" id="historyLink" href="about.html" data-i18n="history">История здания ›</a></section>
-    <section class="p-sec">
-      <h3 data-i18n="tod">Время суток</h3>
-      <div class="seg" id="todSeg" role="group">
-        <button type="button" data-tod="day" class="on" data-i18n="day">День</button>
-        <button type="button" data-tod="sunset" data-i18n="sunset">Закат</button>
-        <button type="button" data-tod="night" data-i18n="night">Ночь</button>
+    <section class="p-sec p-grp">
+      <div class="grp-h"><h3 data-i18n="tod">Время суток</h3><span class="grp-hint" data-i18n="oneOf">одно из</span></div>
+      <div class="chips chips-one" id="todSeg" role="group">
+        <button type="button" class="chip on" data-tod="day"><svg viewBox="0 0 32 32" aria-hidden="true"><g class="i-rays"><path d="M16 3.5v3.2M16 25.3v3.2M3.5 16h3.2M25.3 16h3.2M7.2 7.2l2.3 2.3M22.5 22.5l2.3 2.3M7.2 24.8l2.3-2.3M22.5 9.5l2.3-2.3"/></g><circle class="i-sun" cx="16" cy="16" r="5.6"/></svg><span data-i18n="day">День</span></button>
+        <button type="button" class="chip" data-tod="sunset"><svg viewBox="0 0 32 32" aria-hidden="true"><defs><clipPath id="icSetClip"><rect x="0" y="0" width="32" height="21"/></clipPath></defs><g clip-path="url(#icSetClip)"><circle class="i-setsun" cx="16" cy="20" r="6.5"/></g><path class="i-glow" d="M8 13.5l1.6 1M24 13.5l-1.6 1M16 8.5v1.8"/><path d="M4 21h24M8 25h16"/></svg><span data-i18n="sunset">Закат</span></button>
+        <button type="button" class="chip" data-tod="night"><svg viewBox="0 0 32 32" aria-hidden="true"><path class="i-moon" d="M20.5 24.5a9 9 0 1 1-6.8-17 7.2 7.2 0 0 0 6.8 17z"/><path class="i-star s1" d="M23.5 7.5v3M22 9h3"/><path class="i-star s2" d="M26 15v2.2M24.9 16.1h2.2"/></svg><span data-i18n="night">Ночь</span></button>
       </div>
+    </section>
+    <section class="p-sec p-grp">
+      <div class="grp-h"><h3 data-i18n="precip">Осадки</h3><span class="grp-hint" data-i18n="oneOf">одно из</span></div>
+      <div class="chips chips-one" id="precipSeg" role="group">
+        <button type="button" class="chip on" data-precip="none"><svg viewBox="0 0 32 32" aria-hidden="true"><path class="i-cloudf" d="M9 21h14.5a4.6 4.6 0 0 0 .5-9.2 6.6 6.6 0 0 0-12.5 1.5A3.9 3.9 0 0 0 9 21z"/><path class="i-check" d="M12.5 15.8l2.4 2.4 4.6-4.6"/></svg><span data-i18n="precipNone">Сухо</span></button>
+        <button type="button" class="chip" data-precip="rain"><svg viewBox="0 0 32 32" aria-hidden="true"><path class="i-cloudf" d="M9 17h14.5a4.5 4.5 0 0 0 .5-9 6.5 6.5 0 0 0-12.3 1.4A3.9 3.9 0 0 0 9 17z"/><g class="i-drops"><path class="d1" d="M11 20.5l-1.2 3.2"/><path class="d2" d="M16 20.5l-1.2 3.2"/><path class="d3" d="M21 20.5l-1.2 3.2"/></g></svg><span data-i18n="wxRain">Дождь</span></button>
+        <button type="button" class="chip" data-precip="snow"><svg viewBox="0 0 32 32" aria-hidden="true"><g class="i-flake"><path d="M16 5.5v21M6.9 10.75l18.2 10.5M6.9 21.25l18.2-10.5M13.2 7.3L16 9.6l2.8-2.3M13.2 24.7L16 22.4l2.8 2.3M7.6 14.6l3.5-.6-1.3-3.3M24.4 17.4l-3.5.6 1.3 3.3M7.6 17.4l3.5.6-1.3 3.3M24.4 14.6l-3.5-.6 1.3-3.3"/></g></svg><span data-i18n="wxSnow">Снег</span></button>
+      </div>
+    </section>
+    <section class="p-sec p-grp">
+      <div class="grp-h"><h3 data-i18n="skyAir">Небо и воздух</h3><span class="grp-hint" data-i18n="together">можно вместе</span></div>
+      <div class="chips chips-many" id="wxChips" role="group">
+        <button type="button" class="chip" data-wx="cloudy" aria-pressed="false"><svg viewBox="0 0 32 32" aria-hidden="true"><path class="i-cloudb" d="M14 14h10a3.6 3.6 0 0 0 .3-7.2 5 5 0 0 0-9.6 1A3 3 0 0 0 14 14z"/><path class="i-cloudf i-cloudm" d="M6.5 25h13.5a4.4 4.4 0 0 0 .4-8.8 6.2 6.2 0 0 0-11.7 1.3A3.7 3.7 0 0 0 6.5 25z"/></svg><span data-i18n="wxCloudy">Тучи</span></button>
+        <button type="button" class="chip" data-wx="fog" aria-pressed="false"><svg viewBox="0 0 32 32" aria-hidden="true"><g class="i-fog"><path class="f1" d="M5 11c3-2 5 2 8 0s5-2 8 0 4 1 6 0"/><path class="f2" d="M5 17c3-2 5 2 8 0s5-2 8 0 4 1 6 0"/><path class="f3" d="M5 23c3-2 5 2 8 0s5-2 8 0 4 1 6 0"/></g></svg><span data-i18n="wxFog">Туман</span></button>
+        <button type="button" class="chip" data-wind="0" id="windBtn" aria-pressed="false"><svg viewBox="0 0 32 32" aria-hidden="true"><g class="i-wind"><path class="w1" d="M4 12h15a3.5 3.5 0 1 0-3.5-3.5"/><path class="w2" d="M4 17h20a3.5 3.5 0 1 1-3.5 3.5"/><path class="w3" d="M4 22h10"/></g></svg><i class="lvl"><u></u><u></u></i><span data-i18n="wind">Ветер</span></button>
+      </div>
+      <div class="wx-name" id="wxName" aria-live="polite">Ясно</div>
     </section>
     <section class="p-sec">
       <h3 data-i18n="frames">Кадры</h3>
       <div id="thumbs"></div>
     </section>
-    <section class="p-sec"><button type="button" id="fsBtn" class="p-btn" data-i18n="fullscreen">Полный экран</button></section>
-    <section class="p-sec"><button type="button" id="cardBtn" class="p-btn" data-i18n="postcard">Сохранить открытку</button></section>
-    <section class="p-sec">
-      <h3 data-i18n="textSize">Размер текста</h3>
-      <div class="seg" id="sizeSeg" role="group">
-        <button type="button" data-size="large" class="on" data-i18n="sizeLarge">Крупный</button>
-        <button type="button" data-size="normal" data-i18n="sizeNormal">Обычный</button>
+    <section class="p-sec p-acts">
+      <div class="act"><button type="button" id="fsBtn" class="chip chip-act"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 12V6h6M26 12V6h-6M6 20v6h6M26 20v6h-6"/></svg><span data-i18n="fullscreen">Полный экран</span></button></div>
+      <div class="act"><button type="button" id="cardBtn" class="chip chip-act"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="5" y="8" width="22" height="16" rx="2.5"/><path class="i-cardsun" d="M9 20l5-5 4 4 3-3 3 4"/><circle class="i-cardsun2" cx="21" cy="12.5" r="1.6"/></svg><span data-i18n="postcard">Сохранить открытку</span></button></div>
+    </section>
+    <section class="p-sec p-grp">
+      <div class="grp-h"><h3 data-i18n="textSize">Размер текста</h3></div>
+      <div class="chips chips-one" id="sizeSeg" role="group">
+        <button type="button" class="chip" data-size="normal"><svg viewBox="0 0 32 32" aria-hidden="true"><text x="16" y="21" text-anchor="middle" font-size="12">Aa</text></svg><span data-i18n="sizeNormal">Обычный</span></button>
+        <button type="button" class="chip on" data-size="large"><svg viewBox="0 0 32 32" aria-hidden="true"><text x="16" y="23" text-anchor="middle" font-size="18">Aa</text></svg><span data-i18n="sizeLarge">Крупный</span></button>
       </div>
     </section>
-    <section class="p-sec">
-      <h3 data-i18n="language">Язык</h3>
-      <div class="seg" id="langSeg" role="group">
-        <button type="button" data-lang="hy">Հայ</button>
-        <button type="button" data-lang="ru">Рус</button>
-        <button type="button" data-lang="en">Eng</button>
+    <section class="p-sec p-grp">
+      <div class="grp-h"><h3 data-i18n="language">Язык</h3></div>
+      <div class="chips chips-one chips-text" id="langSeg" role="group">
+        <button type="button" class="chip" data-lang="hy"><b>Հայ</b></button>
+        <button type="button" class="chip" data-lang="ru"><b>Рус</b></button>
+        <button type="button" class="chip" data-lang="en"><b>Eng</b></button>
       </div>
     </section>
     <section class="p-sec p-about">
       <h3 data-i18n="about">О здании</h3>
       <div id="aboutText"></div>
     </section>
+    <section class="p-sec"><a class="p-btn p-history" id="historyLink" href="about.html" data-i18n="history">История здания ›</a></section>
   </div></div>
 </aside>
+<script>document.querySelectorAll('.panel-scroll > *').forEach(function (el, i) { el.style.setProperty('--n', i); });
+document.querySelectorAll('.chips').forEach(function (g) { g.querySelectorAll('.chip').forEach(function (c, j) { c.style.setProperty('--c', j); }); });</script>
 <script>
 /* Перо (ПК): путь по границе карточки панели — углы те же, что у рамки .sketch (22/8/18/10 px по горизонтали, 10/18/8/22 по вертикали).
    Ставится сразу, до первой отрисовки, чтобы прорисовка началась с готового контура; при смене высоты окна пересчитывается. */
@@ -2096,7 +2503,8 @@ window.__wl = WelcomeLoader.create({
 </script>
 <button type="button" id="panelBtn" aria-label="Menu"><svg class="ic-wheel" viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="20" cy="20" r="16.5" stroke-width="2.2"/><circle cx="20" cy="20" r="14.2" stroke-width="0.8" opacity=".55"/><g class="arms"><g transform="rotate(0 20 20)"><path class="arm" style="--i:0" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(45 20 20)"><path class="arm" style="--i:1" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(90 20 20)"><path class="arm" style="--i:2" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(135 20 20)"><path class="arm" style="--i:3" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(180 20 20)"><path class="arm" style="--i:4" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(225 20 20)"><path class="arm" style="--i:5" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(270 20 20)"><path class="arm" style="--i:6" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(315 20 20)"><path class="arm" style="--i:7" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g></g><circle cx="20" cy="20" r="2.7" stroke-width="1.7"/></g></svg></button>
 <div id="scrim"></div>
-<div id="bottomBar"><button type="button" id="flagBtnB" class="arrow-btn flag-btn" aria-label="Парад" data-i18n-title="flag"><svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g stroke-linecap="round" stroke-linejoin="round"><path class="fb fb1" d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 13 Q29 16 23 13 Q17 10 11 13 Z" fill="#d90012"/><path class="fb fb2" d="M11 13 Q17 10 23 13 Q29 16 35 13 L35 19 Q29 22 23 19 Q17 16 11 19 Z" fill="#1c4cc0"/><path class="fb fb3" d="M11 19 Q17 16 23 19 Q29 22 35 19 L35 25 Q29 28 23 25 Q17 22 11 25 Z" fill="#f2a800"/><g fill="none" stroke="currentColor"><path d="M9.2 5.5 L9.6 35.5" stroke-width="2.6"/><path d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 25 Q29 28 23 25 Q17 22 11 25 Z" stroke-width="2"/><path d="M11.6 7.8 Q17 5 23 8 Q29 11 34.6 8.2 M11.4 24.4 Q17 21.6 23 24.6 Q29 27.6 34.6 24.4" stroke-width="0.9" opacity=".55"/></g></g></svg></button><div id="barTitle"></div><a id="homeBtn" class="arrow-btn" href="../" aria-label="На главную"><svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 20.5L20 8.5l13.5 12" stroke-width="2.8"/><path d="M11 18.5V32h18V18.5" stroke-width="2.8"/><path d="M17 32v-8.5h6V32" stroke-width="2.4"/><path d="M7.4 21.2L20.4 9.5l12.9 11.4M12 19.4V32.8h17.4" stroke-width="1.1" opacity=".55"/></g></svg></a></div>
+<button type="button" id="immExit" aria-label="Выйти" data-i18n-title="close"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M11 5H5v6M21 5h6v6M11 27H5v-6M21 27h6v-6"/></svg></button>
+<div id="bottomBar"><button type="button" id="flagBtnB" class="arrow-btn flag-btn" aria-label="Парад" data-i18n-title="flag"><svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g class="ring"><circle class="rt" cx="20" cy="20" r="18.4" pathLength="3"/><circle class="rs rs0" cx="20" cy="20" r="18.4" pathLength="3"/><circle class="rs rs1" cx="20" cy="20" r="18.4" pathLength="3"/><circle class="rs rs2" cx="20" cy="20" r="18.4" pathLength="3"/></g><g class="fg" stroke-linecap="round" stroke-linejoin="round"><path class="fb fb1" d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 13 Q29 16 23 13 Q17 10 11 13 Z" fill="#d90012"/><path class="fb fb2" d="M11 13 Q17 10 23 13 Q29 16 35 13 L35 19 Q29 22 23 19 Q17 16 11 19 Z" fill="#1c4cc0"/><path class="fb fb3" d="M11 19 Q17 16 23 19 Q29 22 35 19 L35 25 Q29 28 23 25 Q17 22 11 25 Z" fill="#f2a800"/><g fill="none" stroke="currentColor"><path d="M9.2 5.5 L9.6 35.5" stroke-width="2.6"/><path d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 25 Q29 28 23 25 Q17 22 11 25 Z" stroke-width="2"/><path d="M11.6 7.8 Q17 5 23 8 Q29 11 34.6 8.2 M11.4 24.4 Q17 21.6 23 24.6 Q29 27.6 34.6 24.4" stroke-width="0.9" opacity=".55"/></g></g></svg></button><div id="barTitle"></div><a id="homeBtn" class="arrow-btn" href="../" aria-label="На главную"><svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 20.5L20 8.5l13.5 12" stroke-width="2.8"/><path d="M11 18.5V32h18V18.5" stroke-width="2.8"/><path d="M17 32v-8.5h6V32" stroke-width="2.4"/><path d="M7.4 21.2L20.4 9.5l12.9 11.4M12 19.4V32.8h17.4" stroke-width="1.1" opacity=".55"/></g></svg></a></div>
 <main id="view">
 <figure id="exhibit"><div id="frame">
 <button type="button" id="prevSide" class="arrow-btn nav-side" aria-label="Предыдущий кадр"><svg viewBox="0 0 40 40" width="42" height="42" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 9.5C20.5 14.5 16.8 18.6 13.5 20.3c3.4 1.9 7.3 5.6 10.6 10.6" stroke-width="3"/><path d="M24.6 10.6C21 15.4 17.4 19 14.6 20.7c3.2 2 6.8 5.4 10.4 9.8" stroke-width="1.2" opacity=".55"/></g></svg></button>
@@ -2110,13 +2518,14 @@ window.__wl = WelcomeLoader.create({
   <div id="hsPopup" class="sketch"><div id="hsText"></div><button type="button" id="hsBack" class="p-btn"><span class="lbl-pc" data-i18n="hsBack">‹ назад</span><span class="lbl-phone" data-i18n="hsClose">× закрыть</span></button></div>
 </div>
 <button type="button" id="nextSide" class="arrow-btn nav-side nav-next" aria-label="Следующий кадр"><svg viewBox="0 0 40 40" width="42" height="42" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 9.5C20.5 14.5 16.8 18.6 13.5 20.3c3.4 1.9 7.3 5.6 10.6 10.6" stroke-width="3"/><path d="M24.6 10.6C21 15.4 17.4 19 14.6 20.7c3.2 2 6.8 5.4 10.4 9.8" stroke-width="1.2" opacity=".55"/></g></svg></button>
+<button type="button" id="flagBtnP" class="arrow-btn flag-btn" aria-label="Парад" data-i18n-title="flag"><svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g class="ring"><circle class="rt" cx="20" cy="20" r="18.4" pathLength="3"/><circle class="rs rs0" cx="20" cy="20" r="18.4" pathLength="3"/><circle class="rs rs1" cx="20" cy="20" r="18.4" pathLength="3"/><circle class="rs rs2" cx="20" cy="20" r="18.4" pathLength="3"/></g><g class="fg" stroke-linecap="round" stroke-linejoin="round"><path class="fb fb1" d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 13 Q29 16 23 13 Q17 10 11 13 Z" fill="#d90012"/><path class="fb fb2" d="M11 13 Q17 10 23 13 Q29 16 35 13 L35 19 Q29 22 23 19 Q17 16 11 19 Z" fill="#1c4cc0"/><path class="fb fb3" d="M11 19 Q17 16 23 19 Q29 22 35 19 L35 25 Q29 28 23 25 Q17 22 11 25 Z" fill="#f2a800"/><g fill="none" stroke="currentColor"><path d="M9.2 5.5 L9.6 35.5" stroke-width="2.6"/><path d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 25 Q29 28 23 25 Q17 22 11 25 Z" stroke-width="2"/><path d="M11.6 7.8 Q17 5 23 8 Q29 11 34.6 8.2 M11.4 24.4 Q17 21.6 23 24.6 Q29 27.6 34.6 24.4" stroke-width="0.9" opacity=".55"/></g></g></svg></button>
 </div><figcaption id="plaque" data-i18n="plaque"></figcaption></figure>
 </main>
 </div>
 
-<script src="../engine/wall-data.js?v=e1.2" defer></script>
-<script src="../engine/wall.js?v=e1.2" defer></script>
-<script src="../engine/viewer.js?v=e1.2" defer>
+<script src="../engine/wall-data.js?v=e1.4" defer></script>
+<script src="../engine/wall.js?v=e1.4" defer></script>
+<script src="../engine/viewer.js?v=e1.4" defer>
 </script>
 </body>
 </html>

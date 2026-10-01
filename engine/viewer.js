@@ -31,6 +31,9 @@
   // скрытые кадры (hidden в building.json) убирает сборка (tools/build_pages.py), поэтому номер кадра везде один и тот же.
   var FRAMES = CONFIG.FRAMES, HS = CONFIG.HOTSPOTS, LAMPS = CONFIG.LAMPS;
   var PARADE_FRAME = CONFIG.PARADE_FRAME == null ? -1 : CONFIG.PARADE_FRAME;   // кадр, на котором живёт кнопка парада; -1 — у здания парада нет
+  // e1.3: парад может быть на нескольких кадрах, у каждого свой (самолёты / дроны / вертолёт); у старых настроек — только PARADE_FRAME, самолёты
+  var PARADE_STYLES = CONFIG.PARADE_STYLES || CONFIG.FRAMES.map(function (_, i) { return i === PARADE_FRAME ? 'planes' : null; });
+  function hasParade(i) { return !!PARADE_STYLES[i]; }
 
   // ---------- общие функции ----------
   function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
@@ -76,6 +79,7 @@
       var key = el.getAttribute('data-i18n');
       if (t[key]) setI18n(el, key);
     });
+    if (wx && wx.label) showWxName();   // название погоды — на новом языке
     document.querySelectorAll('[data-i18n-title]').forEach(function (el) {   // подписи кнопок без текста: aria-label и всплывающая подсказка
       var key = el.getAttribute('data-i18n-title');
       if (t[key]) { el.setAttribute('aria-label', t[key][currentLang]); el.title = t[key][currentLang]; }
@@ -206,6 +210,8 @@
     'uniform float uAspect;',     // ширина/высота экрана
     'uniform float uWindAmp;',    // амплитуда ветра на макушке дерева, в долях картинки
     'uniform float uWindOn;',     // 1 — ветер включён
+    'uniform vec4 uWeather;',
+    'uniform float uFlash;',      // молния: 0..1 — небо и облака вспыхивают (ночью заметнее)     // погода: x пасмурно, y туман, z мокрая земля (дождь), w снег; 0 — как без погоды
     'uniform vec2  uCellPx;',     // размер ячейки звёздной сетки в пикселях экрана
     'uniform vec4  uShoot;',      // падающая звезда: старт xy (экран 0..1), направление xy
     'uniform vec2  uShootP;',     // x = прогресс 0..1 (<0 — нет), y = длина пролёта
@@ -240,9 +246,13 @@
     '  float cycle2 = 53.0;',
     '  float p2 = fract((t + cycle1 * 0.5) / cycle2);',
     '  float b2 = blob(uv, vec2(mix(-0.35, 1.35, p2), 0.32), vec2(0.22, 0.13));',
-    '  return clamp(b1 + b2, 0.0, 1.0);',
+    '  float bb = clamp(b1 + b2, 0.0, 1.0);',
+    '  return bb;',
     '}',
     '',
+    'float wxHash(vec2 q) { return fract(sin(dot(q, vec2(127.1, 311.7))) * 43758.5453); }',
+    'float wxNoise(vec2 q) { vec2 i = floor(q), f = fract(q); f = f * f * (3.0 - 2.0 * f);',
+    '  return mix(mix(wxHash(i), wxHash(i + vec2(1.0, 0.0)), f.x), mix(wxHash(i + vec2(0.0, 1.0)), wxHash(i + vec2(1.0, 1.0)), f.x), f.y); }',
     // Готовый цвет пикселя одного кадра: параллакс, ветер, закат, ночь.
     'vec4 shadeFrame(sampler2D bg, sampler2D depth, sampler2D bld, sampler2D em, vec2 kd, float starQ, vec2 skyRef, vec4 crop, vec4 flag,' + (NI ? ' sampler2D sg, sampler2D sb, sampler2D ng, sampler2D nb, vec2 has,' : '') + ' vec2 uv, vec2 sc) {',
     '  uv = crop.xy + uv * crop.zw;',   // обрезка белого края бумаги: показываем только внутренний прямоугольник кадра
@@ -360,6 +370,32 @@
     '    nc += ' + v3(LK.windowGlow.color) + ' * winNight * ' + glf(LK.windowGlow.strength) + ' + ' + v3(LK.windowGlow.color2) + ' * winNight * winNight * ' + glf(LK.windowGlow.strength2) + ';',
     '    c = nc;',
     '  }',
+    // ---- погода (e1.3): при uWeather = 0 блок не выполняется — картинка ровно как без погоды ----
+    '  if (uWeather.x + uWeather.y + uWeather.z + uWeather.w > 0.0) {',
+    '    float dd = clamp(mix(env.r, kd.y, b.a), 0.0, 1.0);',                       // глубина точки: 0 — далеко, 1 — близко
+    '    float lw = dot(c, vec3(0.299, 0.587, 0.114));',
+    '    vec3 oc = mix(c, vec3(lw), ' + glf(LK.weather.overcastGray) + ') * (1.0 - ' + glf(LK.weather.overcastDim) + ' * (1.0 - 0.7 * uNightGnd));',   // пасмурно: цвета глуше, свет ровнее
+    '    oc = mix(oc, ' + v3(LK.weather.overcastSky) + ' * mix(1.0, 0.22, uNightSky) * clamp(lw / skyRef.x * 1.05, 0.7, 1.05), sky * 0.85);',   // небо — серое, звёзды тонут
+    '    c = mix(c, oc, uWeather.x);',
+    '    c *= 1.0 - ' + glf(LK.weather.wetDim) + ' * uWeather.z * (1.0 - sky);',           // мокрая земля и стены темнее
+    '    if (uWeather.w > 0.0) {',
+    '      vec2 ey = vec2(0.0, 5.0 / ' + FH.toFixed(1) + ');',
+    '      float dUp = texture2D(depth, p - ey).r, dDn = texture2D(depth, p + ey).r;',
+    '      float cap = clamp((env.r - dUp) / max(env.r, 0.06) * 7.0, 0.0, 1.0);',   // верх предмета; относительная разница — и у дальних крыш                                     // верх предмета: над ним — дальше (крыша, крона, карниз)
+    '      float gnd = smoothstep(0.003, 0.015, dDn - dUp) * (1.0 - smoothstep(0.04, 0.09, dDn - dUp));',   // земля: глубина плавно растёт к зрителю
+    '      float capB = b.a * clamp(1.0 - texture2D(bld, pb - ey * 1.6).a, 0.0, 1.0);',              // верхний край главного здания
+    '      float sm = max(max(cap, capB), gnd) * (1.0 - sky) * (0.7 + 0.6 * wxNoise(sc * vec2(90.0, 160.0))) * (0.85 + 0.15 * dd);',   // рыхло
+    '      c = mix(c, ' + v3(LK.weather.snowTint) + ' * mix(1.0, 0.35, uNightGnd), clamp(uWeather.w * ' + glf(LK.weather.snowK) + ' * sm, 0.0, 0.92));',
+    '      float gn = clamp((c.g - max(c.r, c.b)) * 7.0, 0.0, 1.0) * (1.0 - sky);',                  // зелень (трава, листва) зимой — серо-белая
+    '      c = mix(c, vec3(dot(c, vec3(0.3, 0.59, 0.11))) * vec3(0.98, 1.0, 1.04) * 1.12, uWeather.w * gn * 0.85);',
+    '      c = mix(c, c * vec3(0.96, 0.98, 1.03), uWeather.w * 0.6);',                             // холодный свет
+    '    }',
+    '    float wisp = 0.6 * wxNoise(vec2(sc.x * 2.6 - uCloudT * 0.045, sc.y * 7.0)) + 0.4 * wxNoise(vec2(sc.x * 6.0 - uCloudT * 0.08, sc.y * 15.0 + 3.0));',   // полосы тумана плывут
+    '    float fg = uWeather.y * clamp((pow(1.0 - dd, 1.3) * ' + glf(LK.weather.fogNear) + ' + sky * ' + glf(LK.weather.fogSky) + ') * (0.55 + 0.9 * wisp) + 0.18 * smoothstep(0.45, 0.95, sc.y) * wisp, 0.0, 0.95);',   // туман по глубине: дальнее тонет сильнее, у земли гуще
+    '    fg = min(0.93, fg * (1.0 + 0.45 * uNightGnd) * mix(1.0, 0.55 + 0.9 * wisp, uNightGnd));',   // ночью туман — клубами, светлее неба и земли (как в кино)
+    '    c = mix(c, mix(' + v3(LK.weather.fogDay) + ', ' + v3(LK.weather.fogNight) + ', uNightGnd), fg);',
+    '  }',
+    '  if (uFlash > 0.0) c = mix(c, ' + v3(LK.weather.flash) + ', uFlash * (sky * mix(0.55, 0.9, uNightSky) + (1.0 - sky) * mix(0.12, 0.3, uNightGnd)));',
     '  return vec4(c, sky);',   // a — доля неба в точке (тень облака на небо не кладём)
     '}',
     '',
@@ -374,7 +410,8 @@
     '  }',
     '  vec3 c = sa.rgb;',
     '  float shadow = cloudShadow(uv, uCloudT);',
-    '  c *= (1.0 - mix(uCloudK.x, uCloudK.y, uMix) * shadow * (1.0 - sa.a) * (1.0 - uNightGnd));',
+    '  if (uWeather.x > 0.0) shadow = clamp(mix(shadow, max(shadow, cloudShadow(uv * 0.7 + 0.15, uCloudT * 1.3 + 17.0)), uWeather.x) * (0.55 + 0.7 * wxNoise(uv * 3.5 + vec2(uCloudT * 0.02, 0.0))), 0.0, 1.0);',   // тучи: теней больше, края рваные
+    '  c *= (1.0 - (mix(uCloudK.x, uCloudK.y, uMix) + uWeather.x * ' + glf(LK.weather.overcastShadow) + ') * shadow * (1.0 - sa.a) * (1.0 - uNightGnd));',   // в тучи тени облаков по земле гуще
     '  gl_FragColor = vec4(c, 1.0);',
     '}'
   ].join('\n');
@@ -389,6 +426,7 @@
     'uniform float uAspect;',
     'uniform vec3 uLampH[16];', // ореол у лампы: x,y (текстурные координаты), z = яркость
     'uniform vec3 uLampB[16];', // пятно света на земле под лампой
+    'uniform float uFog;',      // туман: ореолы фонарей шире — свет рассеивается в дымке
     'float lum(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }',
     'void main() {',
     '  vec3 c = texture2D(uScene, vTc).rgb;',
@@ -411,7 +449,7 @@
     '      if (lh.z > 0.001) {',
     '        vec2 d = (vTc - lh.xy) * vec2(uAspect, 1.0);',
     '        float r2 = dot(d, d);',
-    '        c += ' + v3(LK.lampHalo.color) + ' * (exp(-r2 / ' + glf(LK.lampHalo.coreSize) + ') * ' + glf(LK.lampHalo.core) + ' + exp(-r2 / ' + glf(LK.lampHalo.wideSize) + ') * ' + glf(LK.lampHalo.wide) + ') * lh.z;',
+    '        c += ' + v3(LK.lampHalo.color) + ' * (exp(-r2 / ' + glf(LK.lampHalo.coreSize) + ') * ' + glf(LK.lampHalo.core) + ' + exp(-r2 / (' + glf(LK.lampHalo.wideSize) + ' * (1.0 + 5.0 * uFog))) * ' + glf(LK.lampHalo.wide) + ' * (1.0 + 1.6 * uFog)) * lh.z;',
     '      }',
     '      vec3 lb = uLampB[i];',
     '      if (lb.z > 0.001) {',
@@ -463,7 +501,7 @@
 
   var SCENE_NAMES = ['uBgA', 'uDepthA', 'uBldA', 'uEmA', 'uBgB', 'uDepthB', 'uBldB', 'uEmB',
     'uKdA', 'uKdB', 'uSkyRef', 'uCloudK', 'uCropA', 'uCropB', 'uFlagA', 'uFlagB', 'uStarQ', 'uMix', 'uShift', 'uZoom', 'uScale', 'uCoverScale', 'uCoverOffset', 'uTime', 'uCloudT',
-    'uSunset', 'uNightSky', 'uNightGnd', 'uStars', 'uFadeZoom', 'uAspect', 'uWindAmp', 'uWindOn', 'uCellPx', 'uShoot', 'uShootP']
+    'uSunset', 'uNightSky', 'uNightGnd', 'uStars', 'uFadeZoom', 'uAspect', 'uWindAmp', 'uWindOn', 'uWeather', 'uFlash', 'uCellPx', 'uShoot', 'uShootP']
     .concat(NI ? ['uSGA', 'uSBA', 'uNGA', 'uNBA', 'uSGB', 'uSBB', 'uNGB', 'uNBB', 'uHasA', 'uHasB', 'uSunMix', 'uNightMix'] : []);
 
   function initGLProgram() {   // возвращает Promise: шейдеры компилируются в фоне, приветствие и анимации не замирают
@@ -481,7 +519,7 @@
       uA.forEach(function (n, i) { if (US[n]) gl.uniform1i(US[n], i); });
       uB.forEach(function (n, i) { if (US[n]) gl.uniform1i(US[n], i + UB0); });
       gl.uniform1f(US.uScale, CONFIG.BASE_SCALE);
-      postPrg = finishProgram(hp, ['uScene', 'uSunset', 'uNight', 'uAspect', 'uLampH', 'uLampB'], UP);
+      postPrg = finishProgram(hp, ['uScene', 'uSunset', 'uNight', 'uAspect', 'uLampH', 'uLampB', 'uFog'], UP);
       gl.uniform1i(UP.uScene, 0);
       gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
       fbo = null; sceneTex = null; fboW = 0; fboH = 0;
@@ -603,6 +641,8 @@
     gl.uniform1f(US.uAspect, aspect);
     gl.uniform1f(US.uWindAmp, fx.windAmp);
     gl.uniform1f(US.uWindOn, fx.windOn ? 1 : 0);
+    gl.uniform4f(US.uWeather, wx.cur[0], wx.cur[1], wx.cur[2], wx.cover);
+    gl.uniform1f(US.uFlash, wx.flash || 0);
     gl.uniform2f(US.uCellPx, canvas.width / (STAR_CELLS[0] * visW), canvas.height / (STAR_CELLS[1] * visH));
     gl.uniform4f(US.uShoot, fx.shoot[0], fx.shoot[1], fx.shoot[2], fx.shoot[3]);
     gl.uniform2f(US.uShootP, fx.shootP, fx.shootLen);
@@ -617,6 +657,7 @@
     gl.uniform1f(UP.uSunset, (NI && fa.sG && (!fb || fb.sG)) ? 0 : tod.s);   // длинные тени процедурного заката; у закатной картинки они нарисованы
     gl.uniform1f(UP.uNight, tod.lights);
     gl.uniform1f(UP.uAspect, aspect);
+    gl.uniform1f(UP.uFog, wx.cur[1]);
     gl.uniform3fv(UP.uLampH, fx.lampH);
     gl.uniform3fv(UP.uLampB, fx.lampB);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -812,8 +853,14 @@
 
   // Что нужно живым деталям (details.js): текущий кадр, время суток, проекция точки кадра на сцену.
   window.__viewer = {
-    stage: stage, tod: tod,
+    stage: stage, tod: tod, weather: function () { return wx; },
+    testBolt: function () { nextFlash = performance.now(); },   // для проверки: следующая молния — сейчас
     frame: function () { return frameIndex; }, fading: function () { return !!fade; }, entry: function (i) { return store[i]; },
+    projectB: function (f, u, v) {   // точка слоя «здание» -> пиксели сцены (для пролёта «за зданием»)
+      var ld = lastDraw || { shiftX: 0, shiftY: 0, zoom: 0 };
+      var q = projectImg(u, v, f.dB, f.kB, ld.shiftX, ld.shiftY, ld.zoom, f.crop);
+      return [q[0] * stage.clientWidth, q[1] * stage.clientHeight];
+    },
     project: function (f, u, v, d) {
       var ld = lastDraw || { shiftX: 0, shiftY: 0, zoom: 0 };
       var q = projectImg(u, v, d, d * 2 - 1, ld.shiftX, ld.shiftY, ld.zoom, f.crop);
@@ -1118,6 +1165,7 @@
   var perfLevel = 0;                 // 0 — всё; 1 — выключены живые детали и падающие звёзды; 2 — ещё и ветер
   var perfOn = !/[?&]perf=0/.test(location.search);
   var fpsFrames = 0, fpsT0 = 0, perfSince = 0, perfLow = 0, perfGood = 0, perfRecov = 0;
+  var fpsBest = 0;   // лучший замеренный fps: у iPhone в энергосбережении и во встроенных страницах потолок 30 — ровные 30 там норма, а не перегрузка
   var nextToggleAt = 0, nextShootAt = 0, shootT0 = -1, secondPending = false;
   var fxRng = rng(99);
 
@@ -1188,7 +1236,21 @@
   }
 
   // Цель — 60 fps. Если средний fps ниже PERF_MIN_FPS (45): сначала выключаем ветер, потом падающие звёзды.
+  // диагностика: адрес с #debug — строчка вверху экрана (fps, уровень экономии, «уменьшение движения», погода). Для проверки на телефоне.
+  var dbgEl = null, dbgT = 0, dbgFrames = 0, dbgFps = 0;
+  function debugLine(now) {
+    if (location.hash !== '#debug') { if (dbgEl) { dbgEl.remove(); dbgEl = null; } return; }
+    dbgFrames++;
+    if (!dbgEl) { dbgEl = document.createElement('div'); dbgEl.style.cssText = 'position:fixed;left:6px;top:calc(env(safe-area-inset-top,0px) + 6px);z-index:99;font:11px/1.3 monospace;background:rgba(255,255,255,.85);color:#000;padding:3px 6px;border-radius:4px;pointer-events:none;white-space:pre'; document.body.appendChild(dbgEl); dbgT = now; }
+    if (now - dbgT < 1000) return;
+    dbgFps = dbgFrames * 1000 / (now - dbgT); dbgFrames = 0; dbgT = now;
+    var c = document.getElementById('wxCanvas');
+    dbgEl.textContent = 'fps ' + dbgFps.toFixed(0) + ' · экономия ' + perfLevel + ' · меньше движения ' + (reduced() ? 'ДА' : 'нет') + ' · dpr ' + (window.devicePixelRatio || 1) +
+      '\nпогода ' + wx.cur.map(function (x) { return x.toFixed(2); }).join('/') + ' · ветер ' + wx.wind.toFixed(1) + ' · холст ' + (c ? c.width + '×' + c.height + ' ' + (c.style.display || 'виден') : 'нет') +
+      ' · детали ' + (window.Details ? 'да' : 'нет');
+  }
   function perfCheck(now, busy) {
+    debugLine(now);
     if (!perfOn) return;
     if (!perfSince) perfSince = now;
     if (busy || !fpsT0 || now - perfSince < 4000) { fpsT0 = now; fpsFrames = 0; return; } // разогрев 4 с, переходы, чтение — не считаем
@@ -1196,7 +1258,8 @@
     var dt = now - fpsT0;
     if (dt >= 2500) {
       var fps = fpsFrames * 1000 / dt;
-      if (fps < CONFIG.PERF_MIN_FPS && document.visibilityState === 'visible') {
+      fpsBest = Math.max(fpsBest, fps);
+      if (fps < CONFIG.PERF_MIN_FPS && fps < fpsBest * 0.8 && document.visibilityState === 'visible') {   // медленно И заметно хуже, чем этот экран умеет
         perfGood = 0;
         if (perfLevel < 2 && ++perfLow >= 2) {   // два медленных окна подряд (5 с): одиночная заминка (окно на заднем плане, вкладка) не считается
           perfLow = 0; perfLevel++;              // сначала отключаем детали (и падающие звёзды), потом ветер
@@ -1204,10 +1267,10 @@
         }
       } else {
         perfLow = 0;
-        if (perfLevel >= 1 && fps >= 56 && ++perfGood >= Math.min(24, 4 + 2 * perfRecov)) {   // 10 с ровных 56+ fps без деталей — возвращаем; после каждого срыва ждём дольше (до 60 с), чтобы детали не «мигали»
+        if (perfLevel >= 1 && fps >= Math.min(56, fpsBest * 0.93) && ++perfGood >= Math.min(24, 4 + 2 * perfRecov)) {   // 10 с ровных 56+ fps без деталей — возвращаем; после каждого срыва ждём дольше (до 60 с), чтобы детали не «мигали»
           perfGood = 0; perfRecov++; perfLevel--;
           console.info('fps ровный -> возвращаю ' + (perfLevel === 0 ? 'живые детали' : 'ветер'));
-        } else if (fps < 56) perfGood = 0;
+        } else if (fps < Math.min(56, fpsBest * 0.93)) perfGood = 0;
       }
       fpsT0 = now; fpsFrames = 0;
     }
@@ -1235,7 +1298,7 @@
   var paradeBusy = false, paradeWant = null;
   var flagOnFrame = true;
   function flagFrameStep() {   // кнопка живёт только на кадре парада; при переходе на другой кадр гаснет сразу
-    var on = frameIndex === PARADE_FRAME && !fade;
+    var on = hasParade(frameIndex) && !fade;
     if (on === flagOnFrame) return;
     flagOnFrame = on;
     flagBtns.forEach(function (b) { b.classList.toggle('off-frame', !on); });
@@ -1253,18 +1316,43 @@
       '<path d="M4 4 Q13 1 23 4 Q33 7 42 4 L42 28 Q33 31 23 28 Q13 25 4 28 Z" fill="none" stroke="#2f2a25" stroke-width="1.1" opacity=".75"/>' +
       '<path d="M3 2 L3.4 33" fill="none" stroke="#2f2a25" stroke-width="1.6" stroke-linecap="round"/></g></svg>';
     stage.appendChild(el);
-    var finished = false;
+    var finished = false; simpleT0 = performance.now();
     function end() { if (finished) return; finished = true; if (el.parentNode) el.parentNode.removeChild(el); done(); }
+    simpleEnd = end;
     el.addEventListener('animationend', function (e) { if (e.animationName === 'liteFlag') end(); });
     setTimeout(end, 9000);   // страховка
   }
+  var ringSegs = [], ringP = -1, simpleT0 = null, simpleEnd = null;
+  flagBtns.forEach(function (b) { ringSegs.push(b.querySelectorAll('.rs')); });
   function setParadeBusy(v) {
-    paradeBusy = v;
-    flagBtns.forEach(function (b) { b.setAttribute('aria-disabled', v ? 'true' : 'false'); b.classList.toggle('busy', v); });
+    paradeBusy = v; ringP = -1; if (!v) { simpleT0 = null; simpleEnd = null; }
+    flagBtns.forEach(function (b) { b.setAttribute('aria-pressed', v ? 'true' : 'false'); b.classList.toggle('busy', v); b.classList.toggle('wait', v); });
+    if (!v) ringDraw(0);
+  }
+  function ringDraw(p) {   // p: доля показа 0..1 (кольцо заполняется тремя цветами); p < 0 — «готовится»: три коротких штриха кружат
+    if (Math.abs(p - ringP) < 0.002) return; ringP = p;
+    ringSegs.forEach(function (segs) {
+      for (var k = 0; k < 3; k++) {
+        var l = p < 0 ? 0.24 : clamp(p * 3 - k, 0, 1);
+        segs[k].style.strokeDasharray = l.toFixed(4) + ' 3'; segs[k].style.strokeDashoffset = (-k).toString(); segs[k].style.opacity = l > 0.002 ? '1' : '0';
+      }
+    });
+  }
+  function ringStep(now) {   // из рендер-цикла, пока идёт показ
+    if (!paradeBusy) return;
+    var p = paradeWant ? -1 : simpleT0 !== null ? clamp((now - simpleT0) / 6400, 0, 1) : (window.Details && window.Details.paradeProgress ? window.Details.paradeProgress(now) : -1);
+    var w = p < 0; flagBtns.forEach(function (b) { if (b.classList.contains('wait') !== w) b.classList.toggle('wait', w); });
+    ringDraw(p);
+  }
+  function stopParade() {   // повторное нажатие во время показа — остановить
+    if (paradeWant) { paradeWant = null; setParadeBusy(false); return; }
+    if (simpleEnd) { simpleEnd(); return; }
+    if (window.Details && window.Details.paradeBusy && window.Details.paradeBusy()) window.Details.paradeAbort();
   }
   flagBtns.forEach(function (b) {
     b.addEventListener('click', function () {
-      if (paradeBusy || frameIndex !== PARADE_FRAME || fade) return;
+      if (paradeBusy) { stopParade(); return; }
+      if (!hasParade(frameIndex) || fade) return;
       closePopup(); closeSheet();
       setParadeBusy(true);
       paradeWant = { since: performance.now(), shown: null };
@@ -1275,13 +1363,13 @@
     if (!paradeWant) return;
     if (now - paradeWant.since > 9000) { paradeWant = null; setParadeBusy(false); return; }   // что-то не так — не зависаем
     if (fade) return;
-    if (frameIndex !== PARADE_FRAME) { goTo(PARADE_FRAME); return; }
+    if (!hasParade(frameIndex)) { goTo(PARADE_FRAME); return; }
     if (paradeWant.shown === null) paradeWant.shown = now;
     if (now - paradeWant.shown < 450) return;
     paradeWant = null;
     var done = function () { setParadeBusy(false); };
     var full = useGL && perfLevel < 1 && !reduced() && window.Details && window.Details.parade;
-    if (!(full && window.Details.parade(done))) simpleParade(done);   // слабое устройство, «уменьшить движение», нет WebGL или занято — упрощённый парад
+    if (!(full && window.Details.parade(done, PARADE_STYLES[frameIndex]))) simpleParade(done);   // слабое устройство, «уменьшить движение», нет WebGL или занято — упрощённый парад
   }
 
   // ---------- рендер-цикл ----------
@@ -1336,7 +1424,7 @@
       if (dp >= 1) demoStop();
       else { var dk = Math.sin(Math.PI * dp); targetX = demo.ax * dk; targetY = demo.ay * dk; }
     }
-    paradeStep(now); flagFrameStep();
+    paradeStep(now); ringStep(now); flagFrameStep();
 
     // --- наклон ---
     if (ret) {
@@ -1375,7 +1463,7 @@
     if (useGL) {
       var tAmb = (now - t0) / 1000; // настоящее время: ветер, мерцание звёзд, «дыхание» фонарей
       fx.windOn = CONFIG.WIND && perfLevel < 2;
-      fx.windAmp = CONFIG.WIND_AMP_PX * (fb ? CONFIG.WIND_K[fa.idx] + (CONFIG.WIND_K[fb.idx] - CONFIG.WIND_K[fa.idx]) * mixState : CONFIG.WIND_K[fa.idx]) * (coverUvW / CONFIG.BASE_SCALE) / Math.max(1, stage.clientWidth);
+      fx.windAmp = CONFIG.WIND_AMP_PX * wx.wind * (fb ? CONFIG.WIND_K[fa.idx] + (CONFIG.WIND_K[fb.idx] - CONFIG.WIND_K[fa.idx]) * mixState : CONFIG.WIND_K[fa.idx]) * (coverUvW / CONFIG.BASE_SCALE) / Math.max(1, stage.clientWidth);
       stepNightFx(fa, fb, now);
       fillLamps(fa, fb, mixState, shiftX, shiftY, zoom, tAmb);
       stage.classList.toggle('is-night', tod.sky > 0.5);
@@ -1383,7 +1471,9 @@
       if (document.documentElement.getAttribute('data-night') !== nightNow) document.documentElement.setAttribute('data-night', nightNow);   // тёмная подложка кнопок на телефоне
       perfCheck(now, !!(fade || todAnim || (window.Details && window.Details.paradeBusy && window.Details.paradeBusy())));
       lastDraw = { fa: fa, fb: fb, mix: mixState, shiftX: shiftX, shiftY: shiftY, zoom: zoom, t: t, tAmb: tAmb };
+      stepWeather(now);
       if (!glLost) drawGL(fa, fb, mixState, shiftX, shiftY, zoom, t, tAmb);
+      drawPrecip(now, dt, rm);
       if (window.Details && window.Details.frame) { if (perfLevel < 1 && !rm) window.Details.frame(now); else window.Details.off(); }   // живые детали: тот же цикл, не свой rAF
     } else {
       var cssW = stage.clientWidth, cssH = stage.clientHeight;
@@ -1427,11 +1517,34 @@
 
   // свернуть/развернуть (ПК) и шторка (телефон)
   if (lsGet('chka-panel') === 'collapsed') bodyEl.classList.add('panel-collapsed');
-  function closeSheet() { bodyEl.classList.remove('sheet-open'); }
+  // закрытие шторки на телефоне — простое и надёжное: sheet-open снимается СРАЗУ, sheet-closing включает CSS-переход (шторка с содержимым уезжает вниз и
+  // гаснет за 350 мс, затемнение гаснет одновременно) и отключает нажатия. Конец хода определяет таймер по длительности (а не transitionend — в Safari на
+  // iPhone событие может не прийти или прийти от другого элемента): по нему sheet-closing снимается. Открыли снова посреди закрытия — sheet-quick
+  // отключает вступительные анимации содержимого, шторка возвращается от текущего положения обычным переходом открытия (без миганий).
+  var closeT = [];
+  var CLOSE_MS = 350;
+  function endClose() { closeT.forEach(clearTimeout); closeT = []; bodyEl.classList.remove('sheet-closing'); }
+  function closeSheet() {
+    if (!bodyEl.classList.contains('sheet-open') || bodyEl.classList.contains('sheet-closing')) return;
+    if (desktopMQ.matches || reduced()) { bodyEl.classList.remove('sheet-open'); return; }
+    document.documentElement.classList.add('panel-anim');
+    closeT.forEach(clearTimeout); closeT = [];
+    bodyEl.classList.add('sheet-closing');
+    bodyEl.classList.remove('sheet-open', 'sheet-quick');
+    closeT.push(setTimeout(endClose, CLOSE_MS + 50));
+  }
+  function openSheet() {
+    var was = bodyEl.classList.contains('sheet-closing');
+    closeT.forEach(clearTimeout); closeT = []; bodyEl.classList.remove('sheet-closing');
+    bodyEl.classList.toggle('sheet-quick', was);
+    bodyEl.classList.add('sheet-open');
+  }
+  var sheetCloseEl = document.getElementById('sheetClose');
+  if (sheetCloseEl) sheetCloseEl.addEventListener('click', closeSheet);
   panelBtn.addEventListener('click', function () {
     document.documentElement.classList.add('panel-anim');   // анимации закрытия/иконки включаются только после первого нажатия (не при загрузке)
     if (desktopMQ.matches) lsSet('chka-panel', bodyEl.classList.toggle('panel-collapsed') ? 'collapsed' : 'open');
-    else bodyEl.classList.toggle('sheet-open');
+    else if (bodyEl.classList.contains('sheet-open') && !bodyEl.classList.contains('sheet-closing')) closeSheet(); else openSheet();
   });
   scrimEl.addEventListener('click', closeSheet);
   (desktopMQ.addEventListener ? desktopMQ.addEventListener('change', closeSheet) : desktopMQ.addListener(closeSheet));
@@ -1458,11 +1571,298 @@
     if (p1 === undefined) return;
     todAnim = { t0: null, T0: todT(tod.p), T1: todT(p1), p1: p1 };
     segMark('todSeg', 'data-tod', name);
+    if (name === 'night' && wx) { wx.rainbowT0 = 0; if (wx.label) showWxName(); }
+    var cbtn = document.querySelector('#wxChips [data-wx=cloudy]');   // ночью тучи не видны — кнопка гаснет (и тучи выключаются)
+    if (cbtn && wx) {
+      cbtn.disabled = name === 'night'; cbtn.title = name === 'night' ? CONFIG.UI_I18N.nightNA[currentLang] : '';
+      if (name === 'night' && wxOn.cloudy) { wxOn.cloudy = false; applyWeather(); }
+    }
     if (!useGL) fbEl.setAttribute('data-tod', name);
   }
   document.querySelectorAll('#todSeg button').forEach(function (b) {
     b.addEventListener('click', function () { setTod(b.getAttribute('data-tod')); });
   });
+
+  // ---------- погода и ветер (e1.3) ----------
+  // wx.cur — доли эффектов [пасмурно, туман, мокро, снег], плавно идут к wx.to за WEATHER_FADE_MS; wx.wind — множитель качания деревьев.
+  var wx = { cur: [0, 0, 0, 0], from: [0, 0, 0, 0], to: [0, 0, 0, 0], t0: null, label: 'clear', wind: 1, windTo: 1, windFrom: 1, cover: 0, lastNow: 0, flash: 0, rainbowT0: 0 };
+  // Погода (e1.3): тучи, дождь, снег, туман включаются независимо; ветер — по кругу тихо/ветрено/буря. Всё выключено — ясно.
+  // Цель — по каждому эффекту наибольшее из включённых; сочетания дают своё: дождь + буря — гроза (темнее, молнии),
+  // снег + буря — метель (снег косо, дымка), дождь выключили днём — радуга. Под значками — название получившейся погоды.
+  var wxOn = {}, windIdx = 0;
+  function wxLabel() {
+    var r = wxOn.rain, s = wxOn.snow, f = wxOn.fog, c = wxOn.cloudy, st = windIdx === 2, k;
+    if (r && st) k = 'thunder'; else if (s && st) k = 'blizzard';
+    else if (r && f) k = 'drizzle'; else if (s && f) k = 'haze'; else if (r) k = windIdx ? 'slant' : 'rain'; else if (s) k = 'snow';
+    else if (f && c) k = 'gloom'; else if (f) k = 'fog'; else if (c) k = 'overcast'; else k = ['clear', 'breezy', 'gale'][windIdx];
+    return k;
+  }
+  function applyWeather() {
+    var to = [0, 0, 0, 0];
+    Object.keys(wxOn).forEach(function (k) { if (wxOn[k]) CONFIG.WEATHER[k].forEach(function (v, i) { to[i] = Math.max(to[i], v); }); });
+    if (wxOn.rain && windIdx === 2) to[0] = Math.max(to[0], 1);     // гроза: небо тяжелее
+    if (wxOn.snow && windIdx === 2) to[1] = Math.max(to[1], 0.45);  // метель: видимость падает
+    wx.from = wx.cur.slice(); wx.to = to; wx.t0 = null; wx.windFrom = wx.wind;
+    document.querySelectorAll('#wxChips [data-wx]').forEach(function (b) { var on = !!wxOn[b.getAttribute('data-wx')]; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+    segMark('precipSeg', 'data-precip', wxOn.rain ? 'rain' : (wxOn.snow ? 'snow' : 'none'));
+    var wb = document.getElementById('windBtn'); if (wb) { wb.setAttribute('data-wind', String(windIdx)); wb.classList.toggle('on', windIdx > 0); wb.setAttribute('aria-pressed', windIdx > 0 ? 'true' : 'false'); }
+    wx.label = wxLabel(); showWxName();
+  }
+  function showWxName() { var el = document.getElementById('wxName'); if (el) el.textContent = CONFIG.UI_I18N['wxN_' + (wx.rainbowT0 && !wx.label.match(/rain|thunder|sleet|drizzle|slant/) && wx.label !== 'snow' ? 'rainbow' : wx.label)][currentLang]; }
+  function setWeather(name) {
+    if (!CONFIG.WEATHER || !CONFIG.WEATHER[name]) return;
+    var hadRain = !!wxOn.rain;
+    wxOn[name] = !wxOn[name];
+    if (wxOn[name]) wx.rainbowT0 = 0;   // тучи или туман — радуги нет
+    if (wxOn[name] && name === 'rain') wxOn.snow = false;   // дождь и снег вместе не бывают: включили одно — другое выключилось
+    if (wxOn[name] && name === 'snow') wxOn.rain = false;
+    if (hadRain && !wxOn.rain && tod.night < 0.5 && !wxOn.snow) wx.rainbowT0 = performance.now();   // дождь кончился днём — радуга
+    if (wxOn.rain) wx.rainbowT0 = 0;
+    applyWeather();
+  }
+  // Осадки — одно из: сухо / дождь / снег
+  function setPrecip(v) {
+    var hadRain = !!wxOn.rain;
+    wxOn.rain = v === 'rain'; wxOn.snow = v === 'snow';
+    if (hadRain && !wxOn.rain && tod.night < 0.5 && !wxOn.snow) wx.rainbowT0 = performance.now();   // дождь кончился днём — радуга
+    if (wxOn.rain || wxOn.snow) wx.rainbowT0 = 0;
+    applyWeather();
+  }
+  document.querySelectorAll('#precipSeg [data-precip]').forEach(function (b) { b.addEventListener('click', function () { setPrecip(b.getAttribute('data-precip')); }); });
+  function setWind(i) {
+    var k = CONFIG.WIND_LEVELS && CONFIG.WIND_LEVELS[i];
+    if (!k) return;
+    windIdx = i; wx.windFrom = wx.wind; wx.windTo = k;
+    applyWeather();
+  }
+  document.querySelectorAll('#wxChips [data-wx]').forEach(function (b) { b.addEventListener('click', function () { setWeather(b.getAttribute('data-wx')); }); });
+  var windBtnEl = document.getElementById('windBtn');
+  if (windBtnEl) windBtnEl.addEventListener('click', function () { setWind((windIdx + 1) % 3); });
+  showWxName();   // название погоды сразу на языке страницы
+  function stepWeather(now) {
+    if (wx.t0 === null) wx.t0 = now;
+    var k = sstep(0, 1, (now - wx.t0) / (CONFIG.WEATHER_FADE_MS || 1));
+    for (var i = 0; i < 4; i++) wx.cur[i] = wx.from[i] + (wx.to[i] - wx.from[i]) * k;
+    wx.wind = wx.windFrom + (wx.windTo - wx.windFrom) * k;
+    // снежный покров: копится ~15 с, пока идёт снег, тает ~5 с
+    var dts = wx.lastNow ? Math.min(0.1, (now - wx.lastNow) / 1000) : 0; wx.lastNow = now;
+    var tgt = wx.to[3];
+    wx.cover = tgt > wx.cover ? Math.min(tgt, wx.cover + dts / 15) : Math.max(tgt, wx.cover - dts / 5);
+  }
+
+  // Капли и снежинки — отдельный прозрачный холст над картинкой (под точками-подсказками); создаётся, только когда нужен.
+  var pc = null, pctx = null, drops = [], flakes = [], leaves = [], splashes = [], pRng = rng(7), flash = null, nextFlash = 0;
+  function precipCanvas() {
+    if (pc) return;
+    pc = document.createElement('canvas');
+    pc.id = 'wxCanvas';
+    pc.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;z-index:4;pointer-events:none';
+    stage.insertBefore(pc, document.getElementById('hotspots'));
+    pctx = pc.getContext('2d');
+  }
+  // Молния: ломаная из середины вниз (смещение средней точки) + ветви; рисуется на своём слое и оставляется только в небе —
+  // за зданиями, деревьями и землёй её не видно, поэтому она «вдали».
+  function makeBolt(x0, y0, y1, seg) {
+    var main = [[x0, y0]], x = x0, y = y0, branches = [];
+    while (y < y1) { x += (pRng() - 0.5) * seg * 1.3; y += seg * (0.35 + 0.5 * pRng()); main.push([x, Math.min(y, y1)]); }
+    for (var k = 0; k < 3 + Math.floor(pRng() * 3); k++) {
+      var i0 = 1 + Math.floor(pRng() * (main.length * 0.7)), bx = main[i0][0], by = main[i0][1], dir = pRng() < 0.5 ? -1 : 1, br = [[bx, by]];
+      for (var j = 0; j < 3 + Math.floor(pRng() * 5); j++) { bx += dir * seg * (0.3 + 0.6 * pRng()); by += seg * (0.25 + 0.45 * pRng()); br.push([bx, by]); }
+      branches.push(br);
+    }
+    return { main: main, branches: branches };
+  }
+  var boltCv = null, skyMaskCv = {};
+  function skyMaskFor(i) {   // маска неба кадра из карты окружения (R — небо)
+    if (skyMaskCv[i]) return skyMaskCv[i] === 'loading' ? null : skyMaskCv[i];
+    skyMaskCv[i] = 'loading';
+    var im = new Image(); im.crossOrigin = 'anonymous';
+    im.onload = function () {
+      try {
+        var mw = 192, mh = Math.round(mw * FH / FW), c = document.createElement('canvas'); c.width = mw; c.height = mh;
+        var x = c.getContext('2d'); x.drawImage(im, 0, 0, mw, mh); var id = x.getImageData(0, 0, mw, mh), D = id.data;
+        for (var k = 0; k < D.length; k += 4) { D[k + 3] = D[k]; D[k] = D[k + 1] = D[k + 2] = 255; }
+        x.putImageData(id, 0, 0); skyMaskCv[i] = c;
+      } catch (e) { skyMaskCv[i] = null; }
+    };
+    im.onerror = function () { skyMaskCv[i] = null; };
+    im.src = FRAMES[i].env;
+    return null;
+  }
+  function drawBolt(fl, W, H, d) {
+    if (!boltCv) boltCv = document.createElement('canvas');
+    if (boltCv.width !== W || boltCv.height !== H) { boltCv.width = W; boltCv.height = H; }
+    var bc = boltCv.getContext('2d'); bc.clearRect(0, 0, W, H); bc.lineJoin = 'round'; bc.lineCap = 'round';
+    function path(pts) { bc.beginPath(); pts.forEach(function (pt, k) { if (k) bc.lineTo(pt[0], pt[1]); else bc.moveTo(pt[0], pt[1]); }); bc.stroke(); }
+    bc.shadowColor = 'rgba(190,210,255,' + fl + ')'; bc.shadowBlur = 22 * d;
+    bc.strokeStyle = 'rgba(170,195,255,' + (0.45 * fl).toFixed(3) + ')'; bc.lineWidth = 6 * d; path(wx.bolt.main);   // свечение вокруг
+    bc.shadowBlur = 8 * d;
+    wx.bolt.branches.forEach(function (br) { bc.strokeStyle = 'rgba(235,242,255,' + (0.7 * fl).toFixed(3) + ')'; bc.lineWidth = 1.1 * d; path(br); });
+    bc.strokeStyle = 'rgba(255,255,255,' + (0.95 * fl).toFixed(3) + ')'; bc.lineWidth = 2 * d; path(wx.bolt.main);
+    var m = skyMaskFor(frameIndex), ent = store[frameIndex];
+    if (m && ent) {   // только в небе
+      var p0 = window.__viewer.project(ent, 0, 0, 0), p1 = window.__viewer.project(ent, 1, 1, 0);
+      bc.globalCompositeOperation = 'destination-in'; bc.shadowBlur = 0;
+      bc.drawImage(m, p0[0] * d, p0[1] * d, (p1[0] - p0[0]) * d, (p1[1] - p0[1]) * d);
+      bc.globalCompositeOperation = 'source-over';
+    }
+    pctx.drawImage(boltCv, 0, 0);
+  }
+  var groundPts = {};
+  function groundFor(i) {
+    if (groundPts[i]) return groundPts[i] === 'loading' ? null : groundPts[i];
+    groundPts[i] = 'loading';
+    var F = FRAMES[i], gw = 72, gh = Math.round(gw * FH / FW), n = 0, imgs = {};
+    function done() {
+      if (++n < 3) return;
+      try {
+        var cv = document.createElement('canvas'); cv.width = gw; cv.height = gh; var x = cv.getContext('2d');
+        function px(im) { x.clearRect(0, 0, gw, gh); x.drawImage(im, 0, 0, gw, gh); return x.getImageData(0, 0, gw, gh).data; }
+        var D = px(imgs.d), E = px(imgs.e), B = px(imgs.b), pts = [];
+        for (var y = 2; y < gh - 2; y++) for (var xx = 0; xx < gw; xx++) {
+          var o = (y * gw + xx) * 4, g = (D[o + 8 * gw] - D[o - 8 * gw]) / 255;   // глубина ниже минус выше
+          if (E[o] > 90 || E[o + 1] > 8 || B[o + 3] > 90) continue;               // небо, дерево, главное здание — не земля
+          if (g > 0.012 && g < 0.2) pts.push([(xx + 0.5) / gw, (y + 0.5) / gh, D[o] / 255]);
+        }
+        groundPts[i] = pts;
+      } catch (e) { groundPts[i] = []; }
+    }
+    [['d', F.depth], ['e', F.env], ['b', F.building.color]].forEach(function (q) {
+      var im = new Image(); im.crossOrigin = 'anonymous'; im.onload = done; im.onerror = function () { groundPts[i] = []; }; im.src = q[1]; imgs[q[0]] = im;
+    });
+    return null;
+  }
+  function drawPrecip(now, dt, rm) {
+    var rainK = wx.cur[2], snowK = wx.cur[3], leafK = clamp((wx.wind - 1.4) / 1.6, 0, 1) * (1 - snowK);
+    var rbA = 0;   // радуга после дождя: 4 с проявляется, держится, 6 с тает (всего ~30 с); ночью и в тучах — нет
+    if (wx.rainbowT0) {
+      var ra0 = (now - wx.rainbowT0) / 1000;
+      rbA = clamp(ra0 / 5, 0, 1) * clamp((30 - ra0) / 7, 0, 1) * (1 - tod.night) * (1 - wx.cur[0]) * (1 - wx.cur[1]) * (1 - rainK) * (1 - snowK);
+      if (ra0 > 30) { wx.rainbowT0 = 0; showWxName(); }
+    }
+    wx.flash = 0;
+    if (rainK < 0.01 && snowK < 0.01 && leafK < 0.01 && rbA < 0.01) { if (pc && pc.style.display !== 'none') { pctx.clearRect(0, 0, pc.width, pc.height); pc.style.display = 'none'; } return; }
+    precipCanvas();
+    pc.style.display = '';
+    var d = Math.min(window.devicePixelRatio || 1, 1.5), w = stage.clientWidth, h = stage.clientHeight;
+    if (pc.width !== Math.round(w * d) || pc.height !== Math.round(h * d)) { pc.width = Math.round(w * d); pc.height = Math.round(h * d); }
+    var W = pc.width, H = pc.height, area = (w * h) / (390 * 844), lite = perfLevel >= 1 ? 0.5 : 1;
+    var nR = Math.round(CONFIG.RAIN_DROPS * area * lite), nS = Math.round(CONFIG.SNOW_FLAKES * area * lite);
+    while (drops.length < nR) drops.push({ x: pRng() * W, y: pRng() * H, z: 0.35 + 0.65 * pRng() });   // z: 1 — близко (длиннее, ярче)
+    while (flakes.length < nS) flakes.push({ x: pRng() * W, y: pRng() * H, z: 0.3 + 0.7 * pRng(), ph: pRng() * 6.28 });
+    var s = rm ? 0 : dt / 16.667, slant = 0.08 + 0.1 * (wx.wind - 1), night = tod.night, L = CONFIG.LOOK.weather;
+    var rc = [0, 1, 2].map(function (i) { return Math.round(L.rainDay[i] + (L.rainNight[i] - L.rainDay[i]) * night); });
+    var ra = L.rainDay[3] + (L.rainNight[3] - L.rainDay[3]) * night;
+    pctx.clearRect(0, 0, W, H);
+    var skyEnd = (CONFIG.DAY.SKY_END[frameIndex] || 0.55) * H;
+    // молния: только буря + дождь; короткая двойная вспышка раз в 7–15 с
+    var storm = rainK > 0.5 && windIdx === 2 && tod.night > 0.5 && !rm;   // гроза — ночью: дождь + буря
+    if (storm) {
+      if (!nextFlash) { nextFlash = now + 1200 + pRng() * 1500; wx.nextSheet = now + 600; }
+      if (now >= wx.nextSheet && flash === null) { wx.sheetT0 = now; wx.sheetK = 0.25 + 0.35 * pRng(); wx.nextSheet = now + 1400 + pRng() * 2600; }   // зарница: облака вспыхивают изнутри
+      if (now >= nextFlash) {
+        flash = now; nextFlash = now + 4000 + pRng() * 5000;
+        wx.bolt = makeBolt(W * (0.12 + 0.76 * pRng()), skyEnd * (0.08 + 0.12 * pRng()), skyEnd * (1.02 + 0.06 * pRng()), H * 0.028);
+      }
+    } else { nextFlash = 0; wx.sheetT0 = 0; }
+    if (wx.sheetT0) {
+      var sa2 = (now - wx.sheetT0) / 420, sf = sa2 < 1 ? Math.sin(sa2 * Math.PI) * (0.6 + 0.4 * Math.sin(sa2 * 40)) : 0;
+      if (sa2 >= 1) wx.sheetT0 = 0;
+      wx.flash = Math.max(wx.flash, sf * wx.sheetK);
+    }
+    if (flash !== null) {
+      var fa = now - flash, fl = fa < 160 ? 1 - 0.4 * fa / 160 : (fa < 230 ? 0.25 : (fa < 560 ? 0.85 * (1 - (fa - 230) / 330) : 0));   // двойная вспышка ~0.5 с
+      if (fa > 560) { flash = null; wx.bolt = null; }
+      wx.flash = Math.max(wx.flash, fl * rainK);
+      if (fl > 0 && wx.bolt) drawBolt(fl, W, H, d);
+    }
+    if (rbA > 0.01) {   // радуга: мягкие переходы цветов, концы и низ тают, рядом бледная вторая дуга; напротив солнца
+      var key = W + 'x' + H + 'x' + Math.round(skyEnd);
+      if (!wx.rbCv || wx.rbKey !== key) {
+        var rc2 = document.createElement('canvas'); rc2.width = W; rc2.height = H; var rx = rc2.getContext('2d');
+        var rcx = W * (CONFIG.SUN_SIDE === 'left' ? 0.66 : 0.34), rcy = skyEnd * 1.18, R0 = Math.max(W, skyEnd) * 0.72, bw = R0 * 0.09;
+        [[R0, 1, 1], [R0 * 1.2, 0.3, -1]].forEach(function (arc) {   // основная и вторая (бледнее, цвета наоборот)
+          for (var k4 = 0; k4 < 40; k4++) {
+            var f4 = k4 / 39, hue = arc[2] > 0 ? f4 * 275 : (1 - f4) * 275;
+            rx.strokeStyle = 'hsla(' + hue.toFixed(0) + ',85%,62%,' + (arc[1] * 0.16 * Math.sin(f4 * Math.PI) + 0.02).toFixed(3) + ')';
+            rx.lineWidth = bw / 40 * 1.6;
+            rx.beginPath(); rx.arc(rcx, rcy, arc[0] - f4 * bw, Math.PI * 1.02, Math.PI * 1.98); rx.stroke();
+          }
+        });
+        rx.globalCompositeOperation = 'destination-in';   // концы тают, у горизонта радуга растворяется
+        var gx = rx.createLinearGradient(0, 0, W, 0); gx.addColorStop(0, 'rgba(0,0,0,0)'); gx.addColorStop(0.28, 'rgba(0,0,0,1)'); gx.addColorStop(0.72, 'rgba(0,0,0,1)'); gx.addColorStop(1, 'rgba(0,0,0,0)');
+        rx.fillStyle = gx; rx.fillRect(0, 0, W, H);
+        var gy = rx.createLinearGradient(0, 0, 0, skyEnd); gy.addColorStop(0, 'rgba(0,0,0,1)'); gy.addColorStop(0.7, 'rgba(0,0,0,0.9)'); gy.addColorStop(1, 'rgba(0,0,0,0)');
+        rx.fillStyle = gy; rx.fillRect(0, 0, W, H);
+        wx.rbCv = rc2; wx.rbKey = key;
+      }
+      pctx.save(); pctx.globalAlpha = rbA; pctx.drawImage(wx.rbCv, 0, 0); pctx.restore();
+    }
+    if (rainK >= 0.01) {
+      pctx.lineCap = 'round';
+      var nRon = Math.round(nR * Math.min(1, rainK * 1.15));   // дождь начинается с редких капель
+      for (var i = 0; i < nRon; i++) {
+        var p = drops[i], v = (14 + 10 * p.z) * d * s, len = (10 + 16 * p.z) * d;
+        p.y += v; p.x += v * slant;
+        if (p.y > H) { p.y = -len - pRng() * 40 * d; p.x = pRng() * W * 1.2 - W * 0.1; }
+        if (p.x > W) p.x -= W;
+        pctx.strokeStyle = 'rgba(' + rc.join(',') + ',' + (ra * rainK * (0.45 + 0.55 * p.z)).toFixed(3) + ')';
+        pctx.lineWidth = (0.8 + 1.0 * p.z) * d;
+        pctx.beginPath(); pctx.moveTo(p.x, p.y); pctx.lineTo(p.x - len * slant, p.y - len); pctx.stroke();
+      }
+      // брызги на земле: маленькие «галочки» карандашом ниже линии горизонта
+      var nsp = rainK * 5 * area * s, gp = groundFor(frameIndex), ent = store[frameIndex];
+      while (gp && gp.length && ent && pRng() < nsp) {
+        var g0 = gp[Math.floor(pRng() * gp.length)], q = window.__viewer.project(ent, g0[0] + (pRng() - 0.5) / 72, g0[1], g0[2]);
+        splashes.push({ x: q[0] * d, y: q[1] * d, t0: now, r: (1.5 + 3 * pRng()) * d * (0.5 + g0[2]) }); nsp -= 1;
+      }
+      pctx.lineWidth = 0.9 * d;
+      for (var si = splashes.length - 1; si >= 0; si--) {
+        var sp = splashes[si], sa = (now - sp.t0) / 320;
+        if (sa >= 1) { splashes.splice(si, 1); continue; }
+        var rr = sp.r * (0.6 + sa);
+        pctx.strokeStyle = 'rgba(' + rc.join(',') + ',' + (0.55 * ra * 2 * (1 - sa) * rainK).toFixed(3) + ')';
+        pctx.beginPath(); pctx.moveTo(sp.x - rr, sp.y - rr * 0.9); pctx.lineTo(sp.x - rr * 0.3, sp.y); pctx.moveTo(sp.x + rr, sp.y - rr * 0.9); pctx.lineTo(sp.x + rr * 0.3, sp.y); pctx.stroke();
+      }
+    } else splashes.length = 0;
+    if (snowK >= 0.01) {
+      var sc = L.snowColor, t = now / 1000;
+      if (flakes.length > nS) flakes.length = nS;
+      var nSon = Math.round(nS * Math.min(1, snowK * 1.15));   // снег тоже начинается с редких снежинок
+      for (var j = 0; j < nSon; j++) {
+        var f = flakes[j], bl = windIdx === 2 ? 1 : 0, fv = (0.6 + 1.2 * f.z) * d * s * (1 + 1.2 * bl);
+        f.y += fv; f.x += (Math.sin(t * 0.9 + f.ph) * 0.5 + (wx.wind - 1) * 0.9 * (1 + 1.5 * bl)) * d * s;
+        if (bl && !rm) {   // метель: снежинка — короткий косой штрих
+          pctx.strokeStyle = 'rgba(' + sc[0] + ',' + sc[1] + ',' + sc[2] + ',' + (0.8 * snowK * (0.4 + 0.6 * f.z)).toFixed(3) + ')';
+          pctx.lineWidth = (1 + 1.6 * f.z) * d; pctx.lineCap = 'round';
+          pctx.beginPath(); pctx.moveTo(f.x, f.y); pctx.lineTo(f.x - (6 + 10 * f.z) * d, f.y - (2 + 3 * f.z) * d); pctx.stroke();
+        }
+        if (f.y > H) { f.y = -4 * d; f.x = pRng() * W; }
+        if (f.x > W) f.x -= W; if (f.x < 0) f.x += W;
+        pctx.fillStyle = 'rgba(' + sc[0] + ',' + sc[1] + ',' + sc[2] + ',' + (sc[3] * snowK * (0.5 + 0.5 * f.z)).toFixed(3) + ')';
+        pctx.strokeStyle = 'rgba(70,78,96,' + (0.5 * snowK * (0.4 + 0.6 * f.z)).toFixed(3) + ')';   // тонкий карандашный контур — снежинка видна и на светлом небе
+        pctx.lineWidth = 0.8 * d;
+        pctx.beginPath(); pctx.arc(f.x, f.y, (1.3 + 2.2 * f.z) * d, 0, 6.2832); pctx.fill(); pctx.stroke();
+      }
+    }
+    // ветер: листья летят слева направо, кувыркаясь (карандашный контур + зелёно-охристая заливка)
+    var nL = Math.round(leafK * 26 * area * lite);
+    while (leaves.length < nL) leaves.push({ x: -pRng() * W * 0.5, y: pRng() * H * 0.9, z: 0.4 + 0.6 * pRng(), ph: pRng() * 6.28, sp: pRng() * 6.28, hue: pRng() });
+    if (leaves.length > nL && leaves.length) leaves.length = nL;
+    var tl = now / 1000, nightL = 1 - 0.55 * tod.night;
+    for (var li = 0; li < leaves.length; li++) {
+      var lf = leaves[li], lv = (2.2 + 3.2 * lf.z) * (wx.wind / 2.4) * d * s;
+      lf.x += lv; lf.y += (Math.sin(tl * 2.1 + lf.ph) * 1.1 + 0.35) * d * s; lf.sp += 0.09 * s * (0.6 + lf.z);
+      if (lf.x > W + 20 * d || lf.y > H) { lf.x = -20 * d - pRng() * W * 0.3; lf.y = pRng() * H * 0.8; }
+      var ls = (3 + 4 * lf.z) * d, gC = lf.hue < 0.5 ? [120, 138, 70] : [176, 132, 58];
+      pctx.save(); pctx.translate(lf.x, lf.y); pctx.rotate(lf.sp); pctx.scale(1, 0.35 + 0.65 * Math.abs(Math.sin(lf.sp * 1.3)));
+      pctx.fillStyle = 'rgba(' + gC.map(function (c) { return Math.round(c * nightL); }).join(',') + ',' + (0.85 * leafK).toFixed(3) + ')';
+      pctx.strokeStyle = 'rgba(47,42,37,' + (0.7 * leafK).toFixed(3) + ')'; pctx.lineWidth = 0.8 * d;
+      pctx.beginPath(); pctx.ellipse(0, 0, ls, ls * 0.45, 0, 0, 6.2832); pctx.fill(); pctx.stroke();
+      pctx.beginPath(); pctx.moveTo(-ls, 0); pctx.lineTo(ls, 0); pctx.stroke();
+      pctx.restore();
+    }
+  }
 
   // миниатюры кадров
   function buildThumbs() {
@@ -1475,6 +1875,8 @@
       var im = new Image();
       im.alt = ''; if (store[i]) im.src = store[i].thumb;
       b.appendChild(im);
+      var nm = document.createElement('span'); nm.className = 'th-num'; nm.textContent = String(i + 1); b.appendChild(nm);   // номер кадра
+      b.style.setProperty('--c', i);
       b.addEventListener('click', function () { goTo(i); });
       thumbsEl.appendChild(b);
     });
@@ -1489,11 +1891,21 @@
   // iPhone (iOS Safari) полноэкранный режим для страниц не поддерживает — кнопку прячем. iPad и остальные — работают.
   var isIPhone = /iPhone|iPod/.test(navigator.userAgent);
   var fsApi = !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
-  if (isIPhone || !fsApi || !(document.fullscreenEnabled || document.webkitFullscreenEnabled)) {
+  var immExitEl = document.getElementById('immExit'), immT = 0;
+  function immersive(on) {
+    bodyEl.classList.toggle('immersive', on); bodyEl.classList.remove('imm-idle');
+    clearTimeout(immT); if (on) immT = setTimeout(function () { bodyEl.classList.add('imm-idle'); }, 2500);
+  }
+  if (immExitEl) immExitEl.addEventListener('click', function () { immersive(false); });
+  stage.addEventListener('pointerdown', function () { if (bodyEl.classList.contains('immersive')) { bodyEl.classList.remove('imm-idle'); clearTimeout(immT); immT = setTimeout(function () { bodyEl.classList.add('imm-idle'); }, 2500); } });
+  if (isIPhone && fsBtn) {   // Safari на iPhone не даёт полный экран страницам — кнопка включает «только картинку»
+    fsBtn.addEventListener('click', function () { closeSheet(); setTimeout(function () { immersive(true); }, 400); });
+  } else if (!fsApi || !(document.fullscreenEnabled || document.webkitFullscreenEnabled)) {
     fsBtn.hidden = true;
     fsBtn.parentNode.hidden = true;   // и её пустая секция в панели
   }
   fsBtn.addEventListener('click', function () {
+    if (isIPhone) return;   // на iPhone — «только картинка» (выше)
     var el = document.documentElement;
     if (document.fullscreenElement || document.webkitFullscreenElement) {
       (document.exitFullscreen || document.webkitExitFullscreen).call(document);
@@ -1514,7 +1926,7 @@
 
   // открытка: PNG текущего вида + подпись карандашным шрифтом внизу
   var cardBtn = document.getElementById('cardBtn');
-  if (!useGL) cardBtn.hidden = true;
+  if (!useGL) { cardBtn.hidden = true; cardBtn.parentNode.hidden = true; }
   cardBtn.addEventListener('click', function () {
     if (!useGL || glLost || !lastDraw) return;
     var d = lastDraw;
@@ -1528,6 +1940,7 @@
     c.width = W; c.height = H;
     var x = c.getContext('2d');
     x.drawImage(canvas, 0, 0);
+    ['fxCanvas', 'wxCanvas'].forEach(function (id) { var o = document.getElementById(id); if (o && o.style.display !== 'none' && o.width) x.drawImage(o, 0, 0, W, H); });   // облака, солнце, дождь и снег — тоже в открытку
     canvas.width = W0; canvas.height = H0; // следующий кадр цикла перерисует холст
     var caption = CONFIG.UI_I18N.title[currentLang] + ' · chka.am';
     var FONT = '"Chka Serif", "Noto Serif", serif';
