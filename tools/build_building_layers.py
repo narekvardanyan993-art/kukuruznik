@@ -6,8 +6,9 @@
 Что делает (для кадра <name> из spec):
   <name>.webp            цвет, размер кадра = spec.size (с потерями, q90)
   <name>_depth.webp      карта глубины (Depth Anything V2 Small, ONNX), без потерь
-  <name>_building.webp   RGBA-вырезка главного объекта: полигон spec.polygon (геометрия постамента) + контур статуи из IS-Net
-                         внутри spec.extra_box (координаты кадра), мягкий край
+  <name>_building.webp   RGBA-вырезка главного объекта. Если в spec есть cutout и задан --bg — по РАЗНИЦЕ кадра и фона (внутри грубого
+                         полигона cutout.region: порог cutout.thr, закрытие дыр, самая большая связная часть). Иначе — полигон spec.polygon
+                         (геометрия постамента) + контур статуи из IS-Net внутри spec.extra_box (координаты кадра). Край мягкий
   <name>_bg.webp         тот же кадр БЕЗ объекта (то, что открывается при наклоне): картинка --bg (нарисованный фон, тот же ракурс; Gemini)
                          или, если --bg не задан, кадр с вырезанным объектом, дорисованным cv2.inpaint (грубо: размазанные полосы)
   <name>_bg_depth.webp   глубина фона (по дорисованной картинке)
@@ -18,7 +19,7 @@
   depth_anything_v2_vits.onnx  — fabio-sim/Depth-Anything-ONNX, v2.0.0
   isnet-general-use.onnx       — danielgatis/rembg, v0.0.0
 Нужны: pillow, numpy, scipy, opencv-python-headless, onnxruntime.
-spec (JSON): name, size [W,H], polygon [[x,y]…], extra_box [x0,y0,x1,y1], window_boxes [[x0,y0,x1,y1]…], tree_margin, sky {std,dn,close},
+spec (JSON): name, size [W,H], polygon [[x,y]…], extra_box [x0,y0,x1,y1], cutout {region [[x,y]…], thr, close, grow} (вместо polygon/extra_box при --bg), window_boxes [[x0,y0,x1,y1]…], tree_margin, sky {std,dn,close},
   grade {chroma, gamma} — цветокоррекция слоёв «цвет / здание / фон» (в Lab: цветность ×chroma, яркость L^gamma; белая бумага остаётся белой),
   чтобы насыщенность и тон кадра были на уровне кадров Кукурузника (замер: средняя насыщенность 0,10–0,11, нижняя половина 0,14–0,16).
   Глубина, вырезка и маски считаются по исходному (неисправленному) цвету.
@@ -104,25 +105,42 @@ def main():
     d = depth_map(dsess, rgb, W, H)
     save((d * 255).astype(np.uint8), out / (name + '_depth.webp'), 'lossless')
 
-    # --- вырезка: полигон + статуя (IS-Net в рамке extra_box) ---
-    poly = np.array(spec['polygon'], np.int32)
-    mk = np.zeros((H, W), np.uint8); cv2.fillPoly(mk, [poly], 255)
-    m = isnet_mask(session(models / 'isnet-general-use.onnx'), rgb, W, H)
-    x0, y0, x1, y1 = spec['extra_box']
-    box = np.zeros((H, W), bool); box[y0:y1, x0:x1] = True
-    st = ndimage.binary_fill_holes(ndimage.binary_closing((m > 0.3) & box, structure=np.ones((5, 5))))
-    lab, k = ndimage.label(st)
-    if k > 1:
-        st = lab == (1 + int(np.argmax(ndimage.sum(st, lab, range(1, k + 1)))))
-    st = ndimage.binary_dilation(st, iterations=2)
-    bld = ndimage.binary_closing((mk > 0) | st, structure=np.ones((5, 5)))
+    # --- фон без объекта (нужен раньше, если вырезка идёт по разнице кадра и фона) ---
+    bg0 = np.asarray(Image.open(a.bg).convert('RGB').resize((W, H), Image.LANCZOS)) if a.bg else None
+
+    # --- вырезка ---
+    cut = spec.get('cutout')
+    if cut and bg0 is not None:
+        # объект = где кадр заметно отличается от фона, внутри грубой области; дыры закрываются, берётся самая большая часть
+        diff = ndimage.gaussian_filter(np.abs(rgb * 255 - bg0.astype(np.float32)).mean(-1), 1.5)
+        reg = np.zeros((H, W), np.uint8); cv2.fillPoly(reg, [np.array(cut['region'], np.int32)], 255)
+        bld = (diff > cut.get('thr', 30)) & (reg > 0)
+        bld = ndimage.binary_opening(bld, structure=np.ones((3, 3)))
+        c = cut.get('close', 15)
+        bld = ndimage.binary_closing(np.pad(bld, c), structure=np.ones((c, c)))[c:-c, c:-c]
+        bld = ndimage.binary_fill_holes(bld)
+        lab0, k0 = ndimage.label(bld)
+        if k0 > 1:
+            bld = lab0 == (1 + int(np.argmax(ndimage.sum(bld, lab0, range(1, k0 + 1)))))
+        bld = ndimage.binary_dilation(bld, iterations=cut.get('grow', 2))
+    else:
+        poly = np.array(spec['polygon'], np.int32)
+        mk = np.zeros((H, W), np.uint8); cv2.fillPoly(mk, [poly], 255)
+        m = isnet_mask(session(models / 'isnet-general-use.onnx'), rgb, W, H)
+        x0, y0, x1, y1 = spec['extra_box']
+        box = np.zeros((H, W), bool); box[y0:y1, x0:x1] = True
+        st = ndimage.binary_fill_holes(ndimage.binary_closing((m > 0.3) & box, structure=np.ones((5, 5))))
+        lab, k = ndimage.label(st)
+        if k > 1:
+            st = lab == (1 + int(np.argmax(ndimage.sum(st, lab, range(1, k + 1)))))
+        st = ndimage.binary_dilation(st, iterations=2)
+        bld = ndimage.binary_closing((mk > 0) | st, structure=np.ones((5, 5)))
     alpha = np.clip(ndimage.gaussian_filter(bld.astype(np.float32), 0.8) * 1.15, 0, 1)
     rgba = np.dstack([col8, (alpha * 255).astype(np.uint8)])
     save(Image.fromarray(rgba, 'RGBA'), out / (name + '_building.webp'), 'rgba')
 
     # --- фон без объекта ---
     if a.bg:
-        bg0 = np.asarray(Image.open(a.bg).convert('RGB').resize((W, H), Image.LANCZOS))
         outside = ~ndimage.binary_dilation(bld, iterations=12)
         mis = float(np.abs(bg0.astype(np.float32) - np.asarray(im).astype(np.float32)).mean(-1)[outside].mean())
         print('фон %s: расхождение с кадром вне объекта %.2f из 255 (меньше — точнее ракурс)' % (a.bg, mis))

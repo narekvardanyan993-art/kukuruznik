@@ -186,6 +186,8 @@ def validate(bdir, b, site):
         fs = look['frameSize']
         if not (isinstance(fs, list) and len(fs) == 2 and all(isinstance(x, int) and not isinstance(x, bool) and 64 <= x <= 8192 for x in fs)):
             c.err('look.frameSize', 'должен быть [ширина, высота] целыми пикселями (64…8192), а не %r' % (fs,))
+        elif abs(fs[0] * 16 / (fs[1] * 9) - 1) > 0.01:
+            c.err('look.frameSize', 'кадры всех зданий — вертикальные 9:16, как у Кукурузника (768×1365); а у вас %d×%d' % (fs[0], fs[1]))
         if look['sunSide'] not in ('left', 'right'):
             c.err('look.sunSide', 'должно быть "left" или "right", а не %r' % (look['sunSide'],))
 

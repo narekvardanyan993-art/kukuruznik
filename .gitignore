@@ -12,3 +12,9 @@ chka-log.md
 
 # Тестовые здания только для Mac: кадры других пропорций (4:5) и их настройки (docs/ENGINE-PLAN.md, п.6). Делает tools/make_prop45.py
 tests/local/
+
+# Референсы для Gemini (архивные фото с pastvu и др.): только для ориентира, в git не входят
+tests/*/source/ref/
+
+# Кэш Python
+__pycache__/

@@ -94,6 +94,7 @@ def main():
         ('10. точка ссылается на несуществующий факт', K, set_(lambda b: b['frames'][0]['hotspots'][0].__setitem__('key', 'nope')), 'факта «nope» нет в facts', None),
         ('11. все кадры скрыты', K, set_(lambda b: [f.__setitem__('hidden', True) for f in b['frames']]), 'все кадры скрыты', None),
         ('12. фонари ночной картинки при night: false', K, set_(lambda b: b['frames'][0].__setitem__('night', False)), 'night: false', None),
+        ('13. кадр не 9:16 (2:3)', K, set_(lambda b: b['look'].__setitem__('frameSize', [768, 1145])), 'вертикальные 9:16', None),
     ]
     ok_all = True
     print('Испорченные настройки — сборка должна остановиться с понятным текстом:\n')
