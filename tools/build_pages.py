@@ -342,6 +342,46 @@ def engine_files(d):
             if f.is_file() and not f.name.startswith('.') and f.name not in ENGINE_SKIP}
 
 
+def live_vs_beta(site, bdirs):
+    """Живое здание == проверенная бета, побайтно после замены адресов (docs/ENGINE-PLAN.md, этап 5).
+    Проверяет в собранной копии сайта: движок engine/ == beta/engine/; <здание>/index.html и manifest.json == beta/<здание>/… с тремя
+    неизбежными отличиями беты — адреса ../../<здание>/ → ./, ../../ → ../ и два тега noindex (robots, googlebot). Возвращает список проблем (пусто — равны).
+    Это замена пиксельному сравнению «живое ⇄ бета»: check_site снимает цели с разным зерном случайности (облака, птицы), поэтому
+    строго, пиксель в пиксель, живое и бета в одном прогоне не совпадают, а байты страниц — совпадают или нет однозначно."""
+    site = Path(site)
+    bad = []
+    if engine_files(site / 'engine') != engine_files(site / 'beta' / 'engine'):
+        bad.append('engine/ не равен beta/engine/')
+    for bd in bdirs:
+        for name in ('index.html', 'manifest.json'):
+            live = (site / bd / name).read_text(encoding='utf-8')
+            beta = (site / 'beta' / bd / name).read_text(encoding='utf-8')
+            beta = re.sub(r'^[ \t]*<meta name="(?:robots|googlebot)" content="noindex[^>]*>\n', '', beta, flags=re.M)
+            beta = beta.replace('../../%s/' % bd, '').replace('../../', '../')
+            if live != beta:
+                la, lb = live.splitlines(), beta.splitlines()
+                n = next((i for i in range(min(len(la), len(lb))) if la[i] != lb[i]), min(len(la), len(lb)))
+                bad.append('%s/%s: живая страница не равна бете (первое отличие — строка %d)' % (bd, name, n + 1))
+    return bad
+
+
+def head_changes(old_html, new_html):
+    """Что в <head> страницы изменилось (превью в соцсетях, поисковики, иконки, адрес, язык). Версия движка (?v=…, engine-version) не считается.
+    Возвращает список строк «было → стало»; пусто — шапка прежняя."""
+    def tags(h):
+        m = re.search(r'<head[^>]*>(.*?)</head>', h, re.S)
+        found = re.findall(r'<(?:meta|link|title)\b[^>]*>(?:[^<]*</title>)?', m.group(1) if m else '')
+        out = []
+        for t in found:
+            if 'name="engine-version"' in t:
+                continue
+            out.append(re.sub(r'\?v=[^"&\']*', '', t))
+        lang = re.search(r'<html[^>]*\blang="([^"]*)"', h)
+        return sorted(out) + ['<html lang=%s>' % (lang.group(1) if lang else '')]
+    a, b = tags(old_html), tags(new_html)
+    return ['было: %s' % t for t in a if t not in b] + ['стало: %s' % t for t in b if t not in a]
+
+
 def live_buildings(root=None):
     """Живые здания: папки в корне репозитория с building.json (tests/ — только бета)."""
     root = Path(root or ROOT)

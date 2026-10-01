@@ -4,6 +4,7 @@
   python3 tools/publish_engine.py --dry-run              # собрать во временной копии main, проверить, показать изменения (без коммита и пуша)
   python3 tools/publish_engine.py --dry-run --diff F     # то же + полный diff того, что уйдёт в main, в файл F
   python3 tools/publish_engine.py                        # опубликовать: ОДИН коммит в main + пуш (обычный, без --force)
+  python3 tools/publish_engine.py --expect-change        # движок НАМЕРЕННО меняет вид живых зданий (новая версия, проверенная на бете)
   python3 tools/publish_engine.py -m "engine: …"         # своё сообщение коммита
 
 Порядок жизни движка: правка в engine/ → tools/publish_beta.py (бета на beta/engine/) → проверка беты на телефоне →
@@ -17,7 +18,14 @@ tools/publish_engine.py (beta/engine/ → engine/, пересборка стра
   4. собирает: beta/ (tools/build_pages.build_beta), engine/ = beta/engine/ (проверенный), <здание>/index.html и manifest.json
      каждого живого здания (папки с building.json) на engine/ с ?v=<версия движка> во всех адресах движка;
   5. защитная проверка tools/check_site.mjs: кандидат против origin/main СТРОГО (ноль различий у всех целей, шапка/превью без
-     изменений, ошибки/404/fps), бета-Кукурузник — строго против живого. Красная — не пушит; обход только --skip-check;
+     изменений, ошибки/404/fps), бета-Кукурузник — строго против живого. Красная — не пушит; обход только --skip-check.
+     С --expect-change (новый движок меняет картинку живых зданий, строгое «до/после» для них невозможно): различия картинок
+     допускаются ТОЛЬКО у живых зданий и их беты-пары (ошибки, 404, fps проваливают как обычно; остальные цели — строго), а вместо
+     пикселей проверяется то, что проверено на бете, — скриптом, точно:
+       • beta/ после пересборки не изменилась ни в одном файле (бета на сайте — ровно та, что владелец смотрел на iPhone);
+       • <здание>/index.html и manifest.json == beta/<здание>/… побайтно (после замены адресов и без двух тегов noindex), engine/ == beta/engine/;
+       • шапка живого здания (title, description, canonical, og:*, twitter:*, иконки, viewport, lang) прежняя — меняется только версия движка;
+       • в коммит идут только engine/, beta/ (пусто), <здание>/index.html, <здание>/manifest.json — about/history и всё остальное не тронуты;
   6. коммитит ТОЛЬКО beta/, engine/ и <здание>/index.html, <здание>/manifest.json живых зданий — одним коммитом;
   7. в конце ВСЕГДА удаляет временный worktree.
 """
@@ -44,6 +52,7 @@ def main():
     ap = argparse.ArgumentParser(description='Проверенный бета-движок -> живые здания (одним коммитом в main).')
     ap.add_argument('--dry-run', action='store_true', help='собрать, проверить и показать изменения; без коммита и пуша')
     ap.add_argument('--diff', metavar='FILE', help='записать полный diff того, что уйдёт в main, в файл')
+    ap.add_argument('--expect-change', action='store_true', help='движок намеренно меняет вид живых зданий: картинки живых зданий не сравниваются с прежними, взамен — точная проверка «живое == проверенная бета»')
     ap.add_argument('--skip-check', action='store_true', help='ОБХОД защитной проверки — только осознанно')
     ap.add_argument('-m', '--message', help='сообщение коммита')
     args = ap.parse_args()
@@ -87,6 +96,22 @@ def main():
         # 5. проверка: всё строго (ни одна цель не может отличаться), бета-Кукурузник — строго против живого
         if args.skip_check:
             print('%s!!! ЗАЩИТНАЯ ПРОВЕРКА ПРОПУЩЕНА (--skip-check) !!!' % tag)
+        elif args.expect_change:
+            problems = []
+            beta_changed = [p for p in staged if p.startswith('beta/')]
+            if beta_changed:
+                problems.append('beta/ изменилась при пересборке (%d файлов, например %s): бета на сайте — не та, что собирается сейчас' % (len(beta_changed), beta_changed[0]))
+            problems += bp.live_vs_beta(tmp, bdirs)
+            for b in bdirs:
+                old = pb.git(ROOT, 'show', '%s:%s/index.html' % (base, b), check=False)
+                new = (tmp / b / 'index.html').read_text(encoding='utf-8')
+                problems += ['%s: шапка изменилась — %s' % (b, c) for c in (bp.head_changes(old, new) if old else ['на сайте не было страницы'])]
+            if problems:
+                raise SystemExit('%sпубликация остановлена: живое здание не равно проверенной бете:\n  • %s' % (tag, '\n  • '.join(problems)))
+            print('%sживое == проверенная бета (страницы, манифест, движок), шапка прежняя, beta/ не менялась' % tag)
+            allow = list(bdirs) + ['beta/%s' % b for b in pb.LIVE_TWINS]
+            if not pb.run_check(tmp, strict=True, allow_extra=allow):
+                raise SystemExit('%sпубликация остановлена: защитная проверка не зелёная (остальные цели — строго); обход — только явным --skip-check.' % tag)
         elif not pb.run_check(tmp, strict=True):
             raise SystemExit('%sпубликация остановлена: защитная проверка не зелёная; обход — только явным --skip-check.' % tag)
         if args.dry_run:

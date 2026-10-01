@@ -125,6 +125,18 @@ def main():
                 and all(r.endswith('?v=' + ver) for r in refs) and 'noindex' not in page and 'tests' not in page)
         print('%s  живые здания (%s) собираются на engine/: %d адресов движка, все с ?v=%s, без noindex' % ('OK   ' if good else 'ОШИБКА', ', '.join(live), len(refs), ver))
         ok_all &= bool(good)
+        # живое здание == проверенная бета (publish_engine --expect-change): равны; порча живой страницы и шапки — ловится
+        vb = bp.live_vs_beta(site, live)
+        lp = site / 'kukuruznik' / 'index.html'
+        orig = lp.read_text(encoding='utf-8')
+        lp.write_text(orig.replace('<canvas', '<canvas data-x="1"', 1), encoding='utf-8')
+        vb_bad = bp.live_vs_beta(site, live)
+        lp.write_text(orig, encoding='utf-8')
+        hc_same = bp.head_changes(orig.replace('?v=' + ver, '?v=e0.0'), orig)
+        hc_bad = bp.head_changes(orig, orig.replace('og:title', 'og:titl', 1))
+        good = not vb and vb_bad and not hc_same and hc_bad
+        print('%s  живое == бета (страницы, манифест, движок) распознаётся, порча и смена шапки ловятся' % ('OK   ' if good else 'ОШИБКА'))
+        ok_all &= bool(good)
         (site / 'engine' / 'viewer.js').write_text('// старый движок\n', encoding='utf-8')
         try:
             bp.build_live(site, live)
