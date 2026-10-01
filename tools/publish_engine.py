@@ -20,8 +20,10 @@ tools/publish_engine.py (beta/engine/ → engine/, пересборка стра
   5. защитная проверка tools/check_site.mjs: кандидат против origin/main СТРОГО (ноль различий у всех целей, шапка/превью без
      изменений, ошибки/404/fps), бета-Кукурузник — строго против живого. Красная — не пушит; обход только --skip-check.
      С --expect-change (новый движок меняет картинку живых зданий, строгое «до/после» для них невозможно): различия картинок
-     допускаются ТОЛЬКО у живых зданий и их беты-пары (ошибки, 404, fps проваливают как обычно; остальные цели — строго), а вместо
-     пикселей проверяется то, что проверено на бете, — скриптом, точно:
+     допускаются ТОЛЬКО у живых зданий и их беты-пары (ошибки, 404, fps проваливают как обычно); пиксели снимаются только у них
+     (check_site --only). У всех остальных страниц (хаб, about/history, beta/tests/*, …) пикселей нет — вместо них побайтно: ни
+     страница, ни файлы, от которых она зависит (engine/, beta/engine/, ассеты), не меняются публикацией (build_pages.untouched_problems);
+     для самих живых зданий вместо пикселей проверяется то, что проверено на бете, — скриптом, точно:
        • beta/ после пересборки не изменилась ни в одном файле (бета на сайте — ровно та, что владелец смотрел на iPhone);
        • <здание>/index.html и manifest.json == beta/<здание>/… побайтно (после замены адресов и без двух тегов noindex), engine/ == beta/engine/;
        • шапка живого здания (title, description, canonical, og:*, twitter:*, иконки, viewport, lang) прежняя — меняется только версия движка;
@@ -109,9 +111,19 @@ def main():
             if problems:
                 raise SystemExit('%sпубликация остановлена: живое здание не равно проверенной бете:\n  • %s' % (tag, '\n  • '.join(problems)))
             print('%sживое == проверенная бета (страницы, манифест, движок), шапка прежняя, beta/ не менялась' % tag)
-            allow = list(bdirs) + ['beta/%s' % b for b in pb.LIVE_TWINS]
-            if not pb.run_check(tmp, strict=True, allow_extra=allow):
-                raise SystemExit('%sпубликация остановлена: защитная проверка не зелёная (остальные цели — строго); обход — только явным --skip-check.' % tag)
+            # остальные цели (хаб, about/history, beta/tests/*, …): пиксели не снимаем — побайтно: ни страница, ни её зависимости
+            # (в том числе engine/ и beta/engine/) не меняются этой публикацией; в рабочей копии нет других изменений, чем коммит
+            dirty = [l[3:] for l in pb.git(tmp, 'status', '--porcelain', '-uall').splitlines()]
+            twins = ['beta/%s' % b for b in pb.LIVE_TWINS]
+            exempt = {'%s/index.html' % b for b in list(bdirs) + twins}
+            extra = [p for p in dirty if not ok(p)]
+            nt = bp.untouched_problems(tmp, set(staged) | set(dirty), exempt)
+            if extra or nt:
+                raise SystemExit('%sпубликация остановлена: затронуто то, что должно остаться как на main:\n  • %s' % (tag, '\n  • '.join(['вне разрешённых путей: %s' % p for p in extra] + nt)))
+            print('%sостальные страницы и их файлы (в т.ч. beta/engine/) побайтно как на main; пиксели снимаются только у %s' % (tag, ', '.join(sorted(set(bdirs) | set(twins)))))
+            allow = list(bdirs) + twins
+            if not pb.run_check(tmp, strict=True, allow_extra=allow, only=list(bdirs) + twins):
+                raise SystemExit('%sпубликация остановлена: защитная проверка не зелёная (проблемы, ошибки консоли, fps); обход — только явным --skip-check.' % tag)
         elif not pb.run_check(tmp, strict=True):
             raise SystemExit('%sпубликация остановлена: защитная проверка не зелёная; обход — только явным --skip-check.' % tag)
         if args.dry_run:

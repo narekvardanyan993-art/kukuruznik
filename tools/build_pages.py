@@ -365,6 +365,54 @@ def live_vs_beta(site, bdirs):
     return bad
 
 
+_DEP_TOKEN = re.compile(r"[A-Za-z0-9_./~%@+-]+\.(?:html|js|mjs|css|json|webp|png|jpe?g|svg|gif|ico|woff2?|ttf|mp3|ogg|wav|m4a|mp4|webm|txt|webmanifest)\b")
+_DEP_TEXT = ('.html', '.js', '.mjs', '.css', '.json', '.webmanifest')
+
+
+def page_deps(site, page):
+    """Все файлы сайта, от которых может зависеть страница page (путь от корня site): сама страница и всё, что на неё ссылается
+    транзитивно (html, css, js, json). Консервативно: берутся ВСЕ строки, похожие на путь к файлу с известным расширением, и считаются
+    относительно папки файла-владельца и папки страницы (так браузер разрешает адреса из скриптов); существующие файлы — зависимости."""
+    site = Path(site).resolve()
+    page = (site / page).resolve()
+    seen, todo = set(), [page]
+    while todo:
+        f = todo.pop()
+        if f in seen or not f.is_file():
+            continue
+        seen.add(f)
+        if f.suffix.lower() not in _DEP_TEXT:
+            continue
+        text = f.read_text(encoding='utf-8', errors='ignore')
+        for m in _DEP_TOKEN.finditer(text):
+            tok = m.group(0)
+            if re.search(r'https?://[^\s"\'()<>]*$', text[max(0, m.start() - 300):m.end()]):
+                continue   # внешний адрес
+            bases = [site] if tok.startswith('/') else [f.parent, page.parent]
+            for base in bases:
+                cand = (base / tok.lstrip('/').split('?')[0]).resolve()
+                if site in cand.parents and cand.is_file():
+                    todo.append(cand)
+    return {str(x.relative_to(site)) for x in seen}
+
+
+def untouched_problems(site, changed, exempt_pages):
+    """Режим publish_engine --expect-change: у каждой страницы сайта, КРОМЕ exempt_pages (их картинка меняется намеренно и сверяется
+    проверкой check_site), ни сама страница, ни один файл, от которого она зависит (page_deps, включая engine/ и beta/engine/),
+    не входит в changed — список файлов, которые эта публикация меняет относительно origin/main. Пиксели у таких страниц не снимаются:
+    побайтное равенство файлов точнее и не зависит от шума растеризации. Возвращает список проблем (пусто — всё нетронуто)."""
+    site, changed, bad = Path(site), set(changed), []
+    pages = sorted(str(f.relative_to(site)) for f in site.rglob('*.html')
+                   if 'node_modules' not in f.parts and '.git' not in f.parts and f.relative_to(site).parts[0] not in ('docs', 'tools', 'test-assets', 'src', 'engine3d'))
+    for pg in pages:
+        if pg in exempt_pages:
+            continue
+        hit = sorted(page_deps(site, pg) & changed)
+        if hit:
+            bad.append('%s зависит от файлов, которые эта публикация меняет: %s' % (pg, ', '.join(hit[:4]) + ('…' if len(hit) > 4 else '')))
+    return bad
+
+
 def head_changes(old_html, new_html):
     """Что в <head> страницы изменилось (превью в соцсетях, поисковики, иконки, адрес, язык). Версия движка (?v=…, engine-version) не считается.
     Возвращает список строк «было → стало»; пусто — шапка прежняя."""

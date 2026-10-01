@@ -53,10 +53,11 @@ def build_beta(main_dir):
     return build_pages.build_beta(main_dir)
 
 
-def run_check(candidate, expect_change=False, strict=False, allow_extra=()):
+def run_check(candidate, expect_change=False, strict=False, allow_extra=(), only=()):
     """Запускает tools/check_site.mjs: origin/main против собранного кандидата. True — зелёная проверка.
     strict — ни одна цель не может отличаться (publish_engine, publish_kukuruznik): даже бета обязана совпасть с сайтом;
-    allow_extra — цели, у которых различия картинок намеренные (например здание с новыми кадрами).
+    allow_extra — цели, у которых различия картинок намеренные (например здание с новыми кадрами);
+    only — снимать только эти цели (по умолчанию — все).
     Переменная окружения CHKA_CHECK_RENDERER — отрисовка WebGL для проверки там, где нет Metal (облако/Linux: swiftshader).
     Ослабить проверку через окружение нельзя: другие параметры не передаются."""
     import os
@@ -66,6 +67,8 @@ def run_check(candidate, expect_change=False, strict=False, allow_extra=()):
     cmd = ['node', str(ROOT / 'tools' / 'check_site.mjs'), '--candidate', str(candidate), '--compare-as', pairs]
     if allow:
         cmd += ['--allow-change', ','.join(allow)]
+    if only:   # снимать только эти цели (publish_engine --expect-change: остальные проверены побайтно)
+        cmd += ['--only', ','.join(only)]
     if os.environ.get('CHKA_CHECK_RENDERER'):
         cmd += ['--renderer', os.environ['CHKA_CHECK_RENDERER']]
     print('проверка: ' + ' '.join(cmd[1:]))

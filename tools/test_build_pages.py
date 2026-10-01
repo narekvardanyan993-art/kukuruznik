@@ -137,6 +137,19 @@ def main():
         good = not vb and vb_bad and not hc_same and hc_bad
         print('%s  живое == бета (страницы, манифест, движок) распознаётся, порча и смена шапки ловятся' % ('OK   ' if good else 'ОШИБКА'))
         ok_all &= bool(good)
+        # publish_engine --expect-change: остальные страницы — побайтно (untouched_problems), без пикселей
+        exempt = {'kukuruznik/index.html', 'beta/kukuruznik/index.html'}
+        live_changed = {'engine/VERSION', 'engine/viewer.js', 'engine/details.js', 'kukuruznik/index.html'}
+        n_ok = bp.untouched_problems(site, live_changed, exempt)
+        n_beta = bp.untouched_problems(site, live_changed | {'beta/engine/viewer.js'}, exempt)   # бета-движок тронут — тестовые здания затронуты
+        n_page = bp.untouched_problems(site, live_changed | {'beta/tests/test-1/index.html'}, exempt)   # страница тестового здания изменена
+        (site / 'kukuruznik' / 'history.html').write_text('<link href="../assets/x.css"><script src="../engine/viewer.js"></script>', encoding='utf-8')
+        n_dep = bp.untouched_problems(site, live_changed, exempt)   # страница about/history зависит от живого движка
+        (site / 'kukuruznik' / 'history.html').unlink()
+        good = (not n_ok and any('beta/tests/test-1' in x for x in n_beta) and any('beta/tests/test-1/index.html зависит' in x for x in n_page)
+                and any(x.startswith('kukuruznik/history.html') for x in n_dep))
+        print('%s  --expect-change: остальные страницы побайтно — нетронутые проходят, тронутая страница, её зависимость и beta/engine/ ловятся' % ('OK   ' if good else 'ОШИБКА'))
+        ok_all &= bool(good)
         (site / 'engine' / 'viewer.js').write_text('// старый движок\n', encoding='utf-8')
         try:
             bp.build_live(site, live)
