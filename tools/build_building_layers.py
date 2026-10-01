@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Слои кадра для движка из ОДНОЙ нарисованной картинки (здание без парных кадров «со зданием / без здания»).
 
-  python3 tools/build_building_layers.py --src ИСХОДНИК.jpg --spec tests/lenin/layers.json --out tests/lenin/frames --models ПАПКА_С_МОДЕЛЯМИ
+  python3 tools/build_building_layers.py --src ИСХОДНИК.jpg --spec tests/lenin/layers.json --out tests/lenin/frames --models ПАПКА_С_МОДЕЛЯМИ [--bg ФОН.jpg]
 
 Что делает (для кадра <name> из spec):
   <name>.webp            цвет, размер кадра = spec.size (с потерями, q90)
   <name>_depth.webp      карта глубины (Depth Anything V2 Small, ONNX), без потерь
   <name>_building.webp   RGBA-вырезка главного объекта: полигон spec.polygon (геометрия постамента) + контур статуи из IS-Net
                          внутри spec.extra_box (координаты кадра), мягкий край
-  <name>_bg.webp         тот же кадр с вырезанным объектом, дорисованным cv2.inpaint (то, что открывается при наклоне)
+  <name>_bg.webp         тот же кадр БЕЗ объекта (то, что открывается при наклоне): картинка --bg (нарисованный фон, тот же ракурс; Gemini)
+                         или, если --bg не задан, кадр с вырезанным объектом, дорисованным cv2.inpaint (грубо: размазанные полосы)
   <name>_bg_depth.webp   глубина фона (по дорисованной картинке)
   <name>_env.webp        R — небо, G/B — высота и фаза деревьев (tools/build_env_masks.py: sky_mask, tree_labels)
   <name>_win2.webp       окна других зданий в рамках spec.window_boxes (other_windows оттуда же)
@@ -17,7 +18,12 @@
   depth_anything_v2_vits.onnx  — fabio-sim/Depth-Anything-ONNX, v2.0.0
   isnet-general-use.onnx       — danielgatis/rembg, v0.0.0
 Нужны: pillow, numpy, scipy, opencv-python-headless, onnxruntime.
-spec (JSON): name, size [W,H], polygon [[x,y]…], extra_box [x0,y0,x1,y1], window_boxes [[x0,y0,x1,y1]…], tree_margin, sky {std,dn,close}.
+spec (JSON): name, size [W,H], polygon [[x,y]…], extra_box [x0,y0,x1,y1], window_boxes [[x0,y0,x1,y1]…], tree_margin, sky {std,dn,close},
+  grade {chroma, gamma} — цветокоррекция слоёв «цвет / здание / фон» (в Lab: цветность ×chroma, яркость L^gamma; белая бумага остаётся белой),
+  чтобы насыщенность и тон кадра были на уровне кадров Кукурузника (замер: средняя насыщенность 0,10–0,11, нижняя половина 0,14–0,16).
+  Глубина, вырезка и маски считаются по исходному (неисправленному) цвету.
+--bg: фон без объекта; при запуске печатается расхождение фона с кадром ВНЕ объекта (средняя абсолютная разница, 0–255): чем меньше, тем точнее
+  совпал ракурс (при выборе из нескольких попыток Gemini брать наименьшее).
 Тяжёлое (две модели + дорисовка) занимает ~1 минуту на CPU. Результат — в git (tests/<здание>/frames), исходник — рядом (tests/<здание>/source).
 """
 import argparse
@@ -55,6 +61,15 @@ def isnet_mask(sess, rgb01, W, H):
     return cv2.resize(m, (W, H))
 
 
+def grade(rgb_u8, chroma, gamma):
+    """Цветность ×chroma и яркость L^gamma в Lab (белая бумага L=1 остаётся белой)."""
+    lab = cv2.cvtColor(rgb_u8, cv2.COLOR_RGB2LAB).astype(np.float32)
+    lab[..., 0] = np.clip((lab[..., 0] / 255.0) ** gamma, 0, 1) * 255
+    lab[..., 1] = 128 + (lab[..., 1] - 128) * chroma
+    lab[..., 2] = 128 + (lab[..., 2] - 128) * chroma
+    return cv2.cvtColor(np.clip(lab, 0, 255).astype(np.uint8), cv2.COLOR_LAB2RGB)
+
+
 def save(arr_or_im, path, kind):
     im = arr_or_im if isinstance(arr_or_im, Image.Image) else Image.fromarray(arr_or_im)
     if kind == 'lossless':
@@ -71,6 +86,7 @@ def main():
     ap.add_argument('--spec', required=True)
     ap.add_argument('--out', required=True)
     ap.add_argument('--models', required=True)
+    ap.add_argument('--bg', help='фон без объекта (тот же ракурс); без него — cv2.inpaint')
     a = ap.parse_args()
     spec = json.loads(Path(a.spec).read_text(encoding='utf-8'))
     name, (W, H) = spec['name'], spec['size']
@@ -79,7 +95,10 @@ def main():
 
     im = Image.open(a.src).convert('RGB').resize((W, H), Image.LANCZOS)
     rgb = np.asarray(im).astype(np.float32) / 255
-    save(im, out / (name + '.webp'), 'lossy')
+    g = spec.get('grade')
+    gr = (lambda a: grade(a, g['chroma'], g['gamma'])) if g else (lambda a: a)
+    col8 = gr(np.asarray(im))   # исправленный цвет — для слоёв «цвет / здание / фон»; модели и маски идут по исходному
+    save(Image.fromarray(col8), out / (name + '.webp'), 'lossy')
 
     dsess = session(models / 'depth_anything_v2_vits.onnx')
     d = depth_map(dsess, rgb, W, H)
@@ -98,15 +117,20 @@ def main():
     st = ndimage.binary_dilation(st, iterations=2)
     bld = ndimage.binary_closing((mk > 0) | st, structure=np.ones((5, 5)))
     alpha = np.clip(ndimage.gaussian_filter(bld.astype(np.float32), 0.8) * 1.15, 0, 1)
-    rgba = np.dstack([(rgb * 255).astype(np.uint8), (alpha * 255).astype(np.uint8)])
+    rgba = np.dstack([col8, (alpha * 255).astype(np.uint8)])
     save(Image.fromarray(rgba, 'RGBA'), out / (name + '_building.webp'), 'rgba')
 
     # --- фон без объекта ---
-    hole = ndimage.binary_dilation(bld, iterations=4).astype(np.uint8) * 255
-    bg = cv2.inpaint(cv2.cvtColor((rgb * 255).astype(np.uint8), cv2.COLOR_RGB2BGR), hole, 7, cv2.INPAINT_TELEA)
-    bg = cv2.cvtColor(bg, cv2.COLOR_BGR2RGB)
-    save(bg, out / (name + '_bg.webp'), 'lossy')
-    dbg = depth_map(dsess, bg.astype(np.float32) / 255, W, H)
+    if a.bg:
+        bg0 = np.asarray(Image.open(a.bg).convert('RGB').resize((W, H), Image.LANCZOS))
+        outside = ~ndimage.binary_dilation(bld, iterations=12)
+        mis = float(np.abs(bg0.astype(np.float32) - np.asarray(im).astype(np.float32)).mean(-1)[outside].mean())
+        print('фон %s: расхождение с кадром вне объекта %.2f из 255 (меньше — точнее ракурс)' % (a.bg, mis))
+    else:
+        hole = ndimage.binary_dilation(bld, iterations=4).astype(np.uint8) * 255
+        bg0 = cv2.cvtColor(cv2.inpaint(cv2.cvtColor(np.asarray(im), cv2.COLOR_RGB2BGR), hole, 7, cv2.INPAINT_TELEA), cv2.COLOR_BGR2RGB)
+    save(gr(bg0), out / (name + '_bg.webp'), 'lossy')
+    dbg = depth_map(dsess, bg0.astype(np.float32) / 255, W, H)
     save((dbg * 255).astype(np.uint8), out / (name + '_bg_depth.webp'), 'lossless')
 
     # --- небо, деревья, окна (как tools/build_env_masks.py) ---

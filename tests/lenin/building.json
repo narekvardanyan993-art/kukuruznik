@@ -70,7 +70,12 @@
     "frameSize": [768, 1145],
     "sunSide": "right"
   },
-  "tuning": {},
+  "tuning": {
+    "MAX_SHIFT_X": 0.015,
+    "MAX_SHIFT_Y": 0.0088,
+    "ZOOM_NEAR": 0.016,
+    "BREATH_AMPLITUDE": 0.0033
+  },
   "frames": [
     {
       "name": "lenin_1",
