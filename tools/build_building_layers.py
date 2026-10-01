@@ -19,7 +19,8 @@
   depth_anything_v2_vits.onnx  — fabio-sim/Depth-Anything-ONNX, v2.0.0
   isnet-general-use.onnx       — danielgatis/rembg, v0.0.0
 Нужны: pillow, numpy, scipy, opencv-python-headless, onnxruntime.
-spec (JSON): name, size [W,H], polygon [[x,y]…], extra_box [x0,y0,x1,y1], cutout {region [[x,y]…], thr, close, grow} (вместо polygon/extra_box при --bg), window_boxes [[x0,y0,x1,y1]…], tree_margin, sky {std,dn,close},
+trees: false — без качания; true (по умолчанию) — группы по глубине (tools/build_env_masks.tree_labels, мелкие кроны); объект {a, close, grow, bottom, min_area, waves} — ВСЕ кроны по цвету фона (нужен --bg), одинаковая высота-амплитуда, фаза — бегущая волна.
+spec (JSON): name, size [W,H], polygon [[x,y]…], extra_box [x0,y0,x1,y1], cutout {region [[x,y]…], thr, close, grow, tree_a, open, tree_erode, add [[полигон]…]} (вместо polygon/extra_box при --bg), window_boxes [[x0,y0,x1,y1]…], tree_margin, sky {std,dn,close},
   grade {chroma, gamma} — цветокоррекция слоёв «цвет / здание / фон» (в Lab: цветность ×chroma, яркость L^gamma; белая бумага остаётся белой),
   чтобы насыщенность и тон кадра были на уровне кадров Кукурузника (замер: средняя насыщенность 0,10–0,11, нижняя половина 0,14–0,16).
   Глубина, вырезка и маски считаются по исходному (неисправленному) цвету.
@@ -71,6 +72,40 @@ def grade(rgb_u8, chroma, gamma):
     return cv2.cvtColor(np.clip(lab, 0, 255).astype(np.uint8), cv2.COLOR_LAB2RGB)
 
 
+def veg_tree_env(bg_rgb_u8, sky, cfg):
+    """Деревья по ЦВЕТУ фона (листва зеленее бумаги), все кроны сразу — чтобы качались ВСЕ, а не одна группа.
+    Возвращает (высота 0–1 от низа к верху кроны, фаза 0–1). Фаза плавно бежит вдоль кадра (бегущая волна),
+    поэтому у соседних крон нет разрыва; амплитуду задаёт сам движок, одинаковую для всех."""
+    H, W = bg_rgb_u8.shape[:2]
+    lab = cv2.cvtColor(bg_rgb_u8, cv2.COLOR_RGB2LAB).astype(np.float32)
+    g = (lab[..., 1] - 128) < cfg.get('a', -2.5)
+    g = ndimage.binary_opening(g, structure=np.ones((3, 3)))
+    c = cfg.get('close', 17)
+    g = ndimage.binary_closing(np.pad(g, c), structure=np.ones((c, c)))[c:-c, c:-c]
+    g = ndimage.binary_fill_holes(ndimage.binary_dilation(g, iterations=cfg.get('grow', 3)))
+    g &= ~ndimage.binary_dilation(sky, iterations=3)
+    g[int(H * cfg.get('bottom', 0.63)):] = False
+    lab0, k = ndimage.label(g)
+    keep = np.zeros_like(g)
+    for i in range(1, k + 1):
+        m = lab0 == i
+        if m.sum() >= cfg.get('min_area', 1500):
+            keep |= m
+    hgt = np.zeros((H, W), np.float32)
+    ph = np.zeros((H, W), np.float32)
+    yy = np.arange(H, dtype=np.float32)[:, None]
+    lab1, k1 = ndimage.label(keep)
+    xx = np.arange(W, dtype=np.float32)[None, :]
+    wave = 0.1 + 0.9 * ((xx / W * cfg.get('waves', 1.3)) % 1.0)
+    for i in range(1, k1 + 1):
+        m = lab1 == i
+        ys, _ = np.nonzero(m)
+        hf = np.clip((ys.max() - yy) / max(1, ys.max() - ys.min()), 0, 1) ** 1.2
+        hgt = np.where(m, hf, hgt)
+        ph = np.where(m, wave, ph)
+    return hgt, ph, k1
+
+
 def save(arr_or_im, path, kind):
     im = arr_or_im if isinstance(arr_or_im, Image.Image) else Image.fromarray(arr_or_im)
     if kind == 'lossless':
@@ -115,13 +150,26 @@ def main():
         diff = ndimage.gaussian_filter(np.abs(rgb * 255 - bg0.astype(np.float32)).mean(-1), 1.5)
         reg = np.zeros((H, W), np.uint8); cv2.fillPoly(reg, [np.array(cut['region'], np.int32)], 255)
         bld = (diff > cut.get('thr', 30)) & (reg > 0)
+        if 'tree_a' in cut:    # листва у краёв объекта (зеленее порога по сглаженному цвету кадра) — не объект: убирает зелёные пятна
+            af = ndimage.gaussian_filter(cv2.cvtColor(np.asarray(im), cv2.COLOR_RGB2LAB).astype(np.float32)[..., 1] - 128, cut.get('tree_sigma', 2.5))
+            bld &= af > cut['tree_a']
         bld = ndimage.binary_opening(bld, structure=np.ones((3, 3)))
         c = cut.get('close', 15)
         bld = ndimage.binary_closing(np.pad(bld, c), structure=np.ones((c, c)))[c:-c, c:-c]
         bld = ndimage.binary_fill_holes(bld)
+        if cut.get('open'):    # срезать тонкие обрывки туши, прилипшие к краю (кусочки веток)
+            o = cut['open']
+            bld = ndimage.binary_opening(np.pad(bld, o), structure=np.ones((o, o)))[o:-o, o:-o]
+        if cut.get('tree_erode'):    # у листвы край объекта сжать на N пикселей (зелёная кайма)
+            azone = ndimage.gaussian_filter(cv2.cvtColor(np.asarray(im), cv2.COLOR_RGB2LAB).astype(np.float32)[..., 1] - 128, 4) < cut.get('tree_zone', -1.5)
+            azone = ndimage.binary_dilation(azone, iterations=6)
+            bld = np.where(azone, ndimage.binary_erosion(bld, iterations=cut['tree_erode']), bld)
         lab0, k0 = ndimage.label(bld)
         if k0 > 1:
             bld = lab0 == (1 + int(np.argmax(ndimage.sum(bld, lab0, range(1, k0 + 1)))))
+        for pl in cut.get('add', []):    # дорисовать вручную: полигоны, где разница слабая (бледная стена у края кадра)
+            ad = np.zeros((H, W), np.uint8); cv2.fillPoly(ad, [np.array(pl, np.int32)], 255)
+            bld |= ad > 0
         bld = ndimage.binary_dilation(bld, iterations=cut.get('grow', 2))
     else:
         poly = np.array(spec['polygon'], np.int32)
@@ -158,16 +206,20 @@ def main():
     sky = be.sky_mask(dn, rgb, name)
     env = np.zeros((H, W, 3), np.float32)
     env[..., 0] = ndimage.gaussian_filter(sky.astype(np.float32), 1.5)
-    lab = be.tree_labels(dn, bld, sky, spec.get('tree_margin', 0.07)) if spec.get('trees', True) else np.zeros((H, W), np.int32)
-    nt = int(lab.max())
-    hgt, ph = np.zeros((H, W), np.float32), np.zeros((H, W), np.float32)
-    yy = np.arange(H, dtype=np.float32)[:, None]
-    for i in range(1, nt + 1):
-        mm = lab == i
-        ys, _ = np.nonzero(mm)
-        hf = np.clip((ys.max() - yy) / max(1, ys.max() - ys.min()), 0, 1) ** 1.2
-        hgt = np.where(mm, hf, hgt)
-        ph = np.where(mm, 0.1 + 0.9 * ((i * 0.6180339) % 1.0), ph)
+    tr = spec.get('trees', True)
+    if isinstance(tr, dict) and bg0 is not None:      # деревья по цвету фона: качаются все кроны одинаково
+        hgt, ph, nt = veg_tree_env(bg0, sky, tr)
+    else:
+        lab = be.tree_labels(dn, bld, sky, spec.get('tree_margin', 0.07)) if tr else np.zeros((H, W), np.int32)
+        nt = int(lab.max())
+        hgt, ph = np.zeros((H, W), np.float32), np.zeros((H, W), np.float32)
+        yy = np.arange(H, dtype=np.float32)[:, None]
+        for i in range(1, nt + 1):
+            mm = lab == i
+            ys, _ = np.nonzero(mm)
+            hf = np.clip((ys.max() - yy) / max(1, ys.max() - ys.min()), 0, 1) ** 1.2
+            hgt = np.where(mm, hf, hgt)
+            ph = np.where(mm, 0.1 + 0.9 * ((i * 0.6180339) % 1.0), ph)
     env[..., 1], env[..., 2] = ndimage.gaussian_filter(hgt, 1.5), ph
     save((np.clip(env, 0, 1) * 255).astype(np.uint8), out / (name + '_env.webp'), 'lossless')
     be.WINDOW_BOXES[name] = [tuple(b) for b in spec.get('window_boxes', [])]
