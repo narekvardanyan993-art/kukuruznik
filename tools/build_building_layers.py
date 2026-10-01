@@ -4,7 +4,7 @@
   python3 tools/build_building_layers.py --src ИСХОДНИК.jpg --spec tests/lenin/layers.json --out tests/lenin/frames --models ПАПКА_С_МОДЕЛЯМИ [--bg ФОН.jpg]
 
 Что делает (для кадра <name> из spec):
-  <name>.webp            цвет, размер кадра = spec.size (с потерями, q90)
+  <name>.webp            цвет, размер кадра = spec.size (с потерями, q90). С --bg: вне объекта (вырезка + 2 px) — пиксели ФОНА, не кадра (см. ниже)
   <name>_depth.webp      карта глубины (Depth Anything V2 Small, ONNX), без потерь
   <name>_building.webp   RGBA-вырезка главного объекта. Если в spec есть cutout и задан --bg — по РАЗНИЦЕ кадра и фона (внутри грубого
                          полигона cutout.region: порог cutout.thr, закрытие дыр, самая большая связная часть). Иначе — полигон spec.polygon
@@ -19,6 +19,10 @@
   depth_anything_v2_vits.onnx  — fabio-sim/Depth-Anything-ONNX, v2.0.0
   isnet-general-use.onnx       — danielgatis/rembg, v0.0.0
 Нужны: pillow, numpy, scipy, opencv-python-headless, onnxruntime.
+Почему кадр вне объекта = фон (с --bg): движок кладёт «землю» из <name>.webp, а на месте объекта — фон; всё, что кадр содержит вокруг вырезки
+  (ореол акварели, мазки вокруг фигуры), остаётся неподвижным и при наклоне смотрится как «копия» рядом с объектом. Поэтому вне вырезки кадр = фон.
+  Маска неба/деревьев/окон при этом считается по ФОНУ: иначе на месте объекта неба «нет», и при наклоне там вылезает неокрашенное/тёмное пятно силуэта
+  (день — бледный ореол, тучи/дождь — тёмный).
 trees: false — без качания; true (по умолчанию) — группы по глубине (tools/build_env_masks.tree_labels, мелкие кроны); объект {a, close, grow, bottom, min_area, waves} — ВСЕ кроны по цвету фона (нужен --bg), одинаковая высота-амплитуда, фаза — бегущая волна.
 spec (JSON): name, size [W,H], polygon [[x,y]…], extra_box [x0,y0,x1,y1], cutout {region [[x,y]…], thr, close, grow, tree_a, open, tree_erode, add [[полигон]…]} (вместо polygon/extra_box при --bg), window_boxes [[x0,y0,x1,y1]…], tree_margin, sky {std,dn,close},
   grade {chroma, gamma} — цветокоррекция слоёв «цвет / здание / фон» (в Lab: цветность ×chroma, яркость L^gamma; белая бумага остаётся белой),
@@ -184,6 +188,9 @@ def main():
         st = ndimage.binary_dilation(st, iterations=2)
         bld = ndimage.binary_closing((mk > 0) | st, structure=np.ones((5, 5)))
     alpha = np.clip(ndimage.gaussian_filter(bld.astype(np.float32), 0.8) * 1.15, 0, 1)
+    if bg0 is not None and spec.get('ground_from_bg', True):   # кадр вне объекта = фон: никаких неподвижных остатков кадра рядом с вырезкой
+        keep = ndimage.binary_dilation(bld, iterations=2)
+        save(Image.fromarray(np.where(keep[..., None], col8, gr(bg0))), out / (name + '.webp'), 'lossy')
     rgba = np.dstack([col8, (alpha * 255).astype(np.uint8)])
     save(Image.fromarray(rgba, 'RGBA'), out / (name + '_building.webp'), 'rgba')
 
@@ -200,10 +207,13 @@ def main():
     save((dbg * 255).astype(np.uint8), out / (name + '_bg_depth.webp'), 'lossless')
 
     # --- небо, деревья, окна (как tools/build_env_masks.py) ---
-    lo, hi = np.percentile(d * 255, 2), np.percentile(d * 255, 98)
-    dn = np.clip((d * 255 - lo) / (hi - lo + 1e-6), 0, 1)
+    # с --bg маски считаются по ФОНУ (там на месте объекта небо/земля, а не силуэт), иначе по кадру
+    bgm = bg0 is not None and spec.get('ground_from_bg', True)
+    dsrc, rsrc = (dbg, bg0.astype(np.float32) / 255) if bgm else (d, rgb)
+    lo, hi = np.percentile(dsrc * 255, 2), np.percentile(dsrc * 255, 98)
+    dn = np.clip((dsrc * 255 - lo) / (hi - lo + 1e-6), 0, 1)
     be.SKY_PARAMS[name] = spec.get('sky', dict(std=0.05, dn=0.5, close=9))
-    sky = be.sky_mask(dn, rgb, name)
+    sky = be.sky_mask(dn, rsrc, name)
     env = np.zeros((H, W, 3), np.float32)
     env[..., 0] = ndimage.gaussian_filter(sky.astype(np.float32), 1.5)
     tr = spec.get('trees', True)
@@ -223,7 +233,7 @@ def main():
     env[..., 1], env[..., 2] = ndimage.gaussian_filter(hgt, 1.5), ph
     save((np.clip(env, 0, 1) * 255).astype(np.uint8), out / (name + '_env.webp'), 'lossless')
     be.WINDOW_BOXES[name] = [tuple(b) for b in spec.get('window_boxes', [])]
-    win2, nw = be.other_windows(name, rgb, bld, sky)
+    win2, nw = be.other_windows(name, rsrc, bld, sky)
     save((np.clip(win2, 0, 1) * 255).astype(np.uint8), out / (name + '_win2.webp'), 'lossless')
     print('%s: кадр %dx%d, небо %.0f%%, объект %.1f%%, деревьев %d, окон %d' % (name, W, H, sky.mean() * 100, bld.mean() * 100, nt, nw))
 

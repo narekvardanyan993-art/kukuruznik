@@ -98,21 +98,14 @@
   "open": 5,
   "tree_erode": 2
  },
- "window_boxes": [
-  [
-   0,
-   745,
-   170,
-   860
-  ]
- ],
+ "window_boxes": [],
  "sky": {
   "std": 0.05,
   "dn": 0.5,
   "close": 9
  },
  "grade": {
-  "chroma": 1.1,
+  "chroma": 1.3,
   "gamma": 1.1
  },
  "trees": {
