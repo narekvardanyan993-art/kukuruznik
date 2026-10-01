@@ -114,9 +114,9 @@
     }
     #stage {
       /* доступная ширина: стена − паспарту (2×(12+2)) − место для стрелок и кнопки шоу по бокам рамки (по 72 px с каждой стороны — сами они на «стене», не на картинке); высота: окно − отступы (2×12) − паспарту (28) − табличка (52) − зазор (10) */
-      width: min(calc(100cqw - 28px - 148px), calc((100dvh - 24px - 28px - 52px - 10px) * var(--natW, 768) / var(--natH, 1145)));
+      width: min(calc(100cqw - 28px - 148px), calc((100dvh - 24px - 28px - 52px - 10px) * var(--natW, 768) / var(--natH, 1365)));
       height: auto;
-      aspect-ratio: var(--natW, 768) / var(--natH, 1145);
+      aspect-ratio: var(--natW, 768) / var(--natH, 1365);
       border-radius: 1px;
       box-shadow: 0 0 0 1px rgba(47,42,37,0.45), inset 0 0 0 1px rgba(47,42,37,0.2);   /* тонкая линия окна паспарту */
     }
@@ -743,10 +743,10 @@ var CONFIG = {
   "ru",
   "en"
  ],
- "MAX_SHIFT_X": 0.015,
- "MAX_SHIFT_Y": 0.0088,
+ "MAX_SHIFT_X": 0.0156,
+ "MAX_SHIFT_Y": 0.0094,
  "BASE_SCALE": 1.05,
- "ZOOM_NEAR": 0.016,
+ "ZOOM_NEAR": 0.0156,
  "DEPTH_BLUR_PX": 6,
  "MAX_TEX_SIZE": 1600,
  "MAX_TILT_X_DEG": 20,
@@ -755,7 +755,7 @@ var CONFIG = {
  "RETURN_MS": 800,
  "SWIPE_MIN_PX": 50,
  "SWIPE_MAX_MS": 350,
- "BREATH_AMPLITUDE": 0.0033,
+ "BREATH_AMPLITUDE": 0.0031,
  "BREATH_PERIOD_S": 6,
  "SPRING_RESPONSE": 0.65,
  "SPRING_DAMPING": 0.86,
@@ -1300,7 +1300,7 @@ var CONFIG = {
  "MAIN_WINDOW_SHARE": 0,
  "FRAME_SIZE": [
   768,
-  1145
+  1365
  ],
  "SUN_SIDE": "right",
  "DAY": {
@@ -1319,10 +1319,10 @@ var CONFIG = {
   "GREEN_PULL": 0.78,
   "GREEN_SAT": 1.9,
   "SKY_REF": [
-   0.93
+   0.89
   ],
   "SKY_END": [
-   0.66
+   0.5
   ]
  },
  "CLOUD_SHADOW": [
@@ -1352,20 +1352,20 @@ var CONFIG = {
    {
     "key": "sculptor",
     "layer": "building",
-    "u": 0.5,
-    "v": 0.49
+    "u": 0.755,
+    "v": 0.29
    },
    {
     "key": "opened",
     "layer": "building",
-    "u": 0.5,
-    "v": 0.63
+    "u": 0.746,
+    "v": 0.505
    },
    {
     "key": "removed",
     "layer": "building",
-    "u": 0.24,
-    "v": 0.76
+    "u": 0.556,
+    "v": 0.66
    }
   ]
  ],
@@ -1417,7 +1417,7 @@ var CONFIG = {
    },
    "skyBand": [
     0.04,
-    0.38
+    0.31
    ],
    "clouds": 3,
    "sunDay": [
