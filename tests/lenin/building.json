@@ -1,0 +1,100 @@
+{
+  "format": 1,
+  "id": "lenin",
+  "meta": {
+    "url": "https://chka.am/beta/tests/lenin/",
+    "title": {
+      "hy": "Լենինի արձանը, Երևան | Չկա",
+      "ru": "Памятник Ленину, Ереван | Չկա",
+      "en": "Lenin Monument, Yerevan | Չկա"
+    },
+    "description": {"hy": "Երևանի կենտրոնական հրապարակի Լենինի արձանը (1940–1991)՝ գծանկար, փորձնական էջ։"},
+    "ogImage": null,
+    "ogAlt": {"hy": "Լենինի արձանը Երևանում, գծանկար"},
+    "themeColor": "#f5ecda",
+    "favicon": "../../assets/favicon-32.png",
+    "appleTouchIcon": "../../assets/icon-180.png",
+    "viewerVersion": "test"
+  },
+  "app": {"name": "Ленин", "shortName": "Ленин"},
+  "links": {"home": "../../", "history": null},
+  "framesDir": "frames/",
+  "text": {
+    "title": {"hy": "Լենինի արձանը, 1940", "ru": "Памятник Ленину, 1940", "en": "Lenin Monument, 1940"},
+    "pageTitle": {
+      "hy": "Լենինի արձանը, Երևան | Չկա",
+      "ru": "Памятник Ленину, Ереван | Չկա",
+      "en": "Lenin Monument, Yerevan | Չկա"
+    },
+    "plaque": {
+      "hy": "Լենինի արձանը · 1940–1991 · գծանկար արխիվային լուսանկարից · շարժիչի փորձարկում",
+      "ru": "Памятник Ленину · 1940–1991 · рисунок по архивному фото · проверка движка",
+      "en": "Lenin Monument · 1940–1991 · drawing after an archive photo · engine check"
+    },
+    "panelTitle": {"hy": "Լենինի արձանը", "ru": "Памятник Ленину", "en": "Lenin Monument"},
+    "welcome": {
+      "hy": "Բարի գալուստ Լենինի արձանի մոտ",
+      "ru": "Добро пожаловать к памятнику Ленину",
+      "en": "Welcome to the Lenin Monument"
+    }
+  },
+  "facts": {
+    "sculptor": {
+      "hy": "Արձանի հեղինակը քանդակագործ Սերգեյ Մերկուրովն է։",
+      "ru": "Автор памятника — скульптор Сергей Меркуров.",
+      "en": "The monument is by the sculptor Sergey Merkurov."
+    },
+    "opened": {
+      "hy": "Արձանը բացվել է 1940 թվականի նոյեմբերի 24-ին՝ այժմյան Հանրապետության հրապարակում։",
+      "ru": "Памятник открыт 24 ноября 1940 года на нынешней площади Республики.",
+      "en": "The monument was unveiled on 24 November 1940 on what is now Republic Square."
+    },
+    "removed": {
+      "hy": "Արձանը ապամոնտաժվել է 1991 թվականի ապրիլի 13-ին։",
+      "ru": "Памятник снят 13 апреля 1991 года.",
+      "en": "The monument was taken down on 13 April 1991."
+    }
+  },
+  "aboutFacts": ["sculptor", "opened", "removed"],
+  "postcardFile": "lenin-1940.png",
+  "look": {
+    "day": {
+      "skyTop": [0.58, 0.78, 0.97],
+      "skyHor": [0.83, 0.92, 0.99],
+      "mix": 0.55,
+      "greenHue": 0.3,
+      "greenPull": 0.78,
+      "greenSat": 1.9
+    },
+    "night": {"dim": 0.64, "mainLit": [0, 0], "otherLit": [0.15, 0.25], "mainWindowShare": 0},
+    "frameSize": [768, 1145],
+    "sunSide": "right"
+  },
+  "tuning": {},
+  "frames": [
+    {
+      "name": "lenin_1",
+      "night": false,
+      "sunset": false,
+      "crop": [0, 0, 1, 1],
+      "flag": null,
+      "cloudShadow": 0.12,
+      "wind": 1,
+      "sky": {"ref": 0.93, "end": 0.66, "band": [0.04, 0.38], "clouds": 3},
+      "hotspots": [
+        {"key": "sculptor", "layer": "building", "u": 0.5, "v": 0.49},
+        {"key": "opened", "layer": "building", "u": 0.5, "v": 0.63},
+        {"key": "removed", "layer": "building", "u": 0.24, "v": 0.76}
+      ],
+      "nightLamps": [],
+      "nightHalo": 1,
+      "lamps": [],
+      "sun": {"day": [0.8, 0.11], "sunset": [0.82, 0.52], "moon": [0.8, 0.12]},
+      "life": {
+        "day": ["birds", "plane", "cranes", "kite"],
+        "sunset": ["birds", "plane", "cranes", "lantern"],
+        "night": ["plane", "winlight", "lantern"]
+      }
+    }
+  ]
+}

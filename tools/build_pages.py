@@ -69,6 +69,15 @@ def default_buildings(root=None, with_local=False):
     return out
 
 
+def own_frames(bd, root=None):
+    """У тестового здания в git лежат СВОИ кадры (tests/<имя>/frames/*.webp) — на сайт они идут в beta/<здание>/frames/ (чтобы попасть в коммит беты).
+    Остальные здания берут кадры с живого сайта (Кукурузник, тесты 1–2) или лежат только на Mac (tests/local)."""
+    if not bd.startswith('tests/') or bd.startswith(LOCAL_DIR + '/'):
+        return False
+    f = Path(root or ROOT) / bd / 'frames'
+    return f.is_dir() and any(f.glob('*.webp'))
+
+
 def rel(from_dir, target):
     """Относительный адрес от папки страницы (например 'beta/kukuruznik/') до пути на сайте ('kukuruznik/frames/')."""
     r = posixpath.relpath('/' + target.strip('/'), '/' + from_dir.strip('/'))
@@ -229,13 +238,14 @@ def make_manifest(b, bdir, page_dir):
     }, ensure_ascii=False, indent=2) + '\n'
 
 
-def render(b, bdir, page_dir, engine_dir, beta, version=None):
+def render(b, bdir, page_dir, engine_dir, beta, version=None, own_frames=False):
     """HTML страницы здания. page_dir/engine_dir — пути от корня сайта ('beta/kukuruznik/', 'beta/engine/').
     version — версия движка для ?v= в адресах (по умолчанию engine/VERSION исходника)."""
     version = version or engine_version()
     bid = bdir
     t = (ENGINE / 'page.html').read_text(encoding='utf-8')
-    cfg = make_config(b, rel(page_dir, site_path(bid, b['framesDir'])))
+    frames_to = posixpath.normpath(posixpath.join(page_dir, b['framesDir'])) + '/' if own_frames else site_path(bid, b['framesDir'])   # свои кадры лежат рядом со страницей беты
+    cfg = make_config(b, rel(page_dir, frames_to))
     js = json.dumps(cfg, ensure_ascii=False, indent=1).replace('</', '<\\/')
     esc = lambda s: html.escape(s, quote=True)
     rep = {
@@ -302,6 +312,13 @@ def build_beta(site, bdirs=None, root=None, with_local=False):
             src = Path(root or ROOT) / bd / 'frames'
             if src.is_dir():
                 shutil.copytree(src, site / bd / 'frames', dirs_exist_ok=True)
+    own = [bd for bd in bdirs if own_frames(bd, root)]
+    same = lambda bd: (site / bd / 'frames').resolve() == (Path(root or ROOT) / bd / 'frames').resolve()   # site = сам репозиторий: ничего не копировать и не убирать
+    for bd in own:
+        if same(bd):
+            continue
+        # свои кадры тестового здания: временно на место, где их ждёт проверялщик настроек (после сборки уберём — коммитится только beta/)
+        shutil.copytree(Path(root or ROOT) / bd / 'frames', site / bd / 'frames', dirs_exist_ok=True)
     check_buildings(bdirs, site, root)   # ошибки настроек — до любой записи
     beta = site / 'beta'
     if beta.exists():
@@ -321,10 +338,24 @@ def build_beta(site, bdirs=None, root=None, with_local=False):
         page_dir = 'beta/%s/' % bd
         out = site / page_dir / 'index.html'
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(render(b, bd, page_dir, 'beta/engine/', beta=True), encoding='utf-8')
+        out.write_text(render(b, bd, page_dir, 'beta/engine/', beta=True, own_frames=bd in own), encoding='utf-8')
         written.append(str(out.relative_to(site)))
+        if bd in own:   # кадры здания — рядом со страницей: beta/tests/<имя>/frames/*.webp
+            for src in sorted((Path(root or ROOT) / bd / 'frames').glob('*.webp')):
+                dst = out.parent / 'frames' / src.name
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(src, dst)
+                written.append(str(dst.relative_to(site)))
         (out.parent / 'manifest.json').write_text(make_manifest(b, bd, page_dir), encoding='utf-8')
         written.append(str((out.parent / 'manifest.json').relative_to(site)))
+    for bd in own:   # временная копия кадров для проверялщика больше не нужна
+        if not same(bd):
+            shutil.rmtree(site / bd / 'frames', ignore_errors=True)
+            for d in (site / bd, (site / bd).parent):   # пустые папки tests/<имя>/ и tests/ не оставляем
+                try:
+                    d.rmdir()
+                except OSError:
+                    pass
     first = load_building(bdirs[0], root)
     # beta/ перенаправляет на первое здание (Кукурузник); тестовые здания нигде не упоминаются и ни откуда не связаны
     (beta / 'index.html').write_text(BETA_INDEX % {'target': bdirs[0] + '/', 'icon': rel('beta/', site_path(bdirs[0], first['meta']['favicon']))}, encoding='utf-8')
