@@ -70,6 +70,57 @@
     blurPass(tmp, a, w, h, r, false);
   }
 
+  // Тот же бокс-блюр, но для Float32Array (для нормированного сглаживания глубины здания).
+  function blurPassF(src, dst, w, h, r, horiz) {
+    var n = horiz ? w : h, lines = horiz ? h : w;
+    var stride = horiz ? 1 : w, lineStride = horiz ? w : 1, div = 2 * r + 1;
+    for (var l = 0; l < lines; l++) {
+      var base = l * lineStride, sum = 0, k, i;
+      for (k = -r; k <= r; k++) sum += src[base + Math.min(n - 1, Math.max(0, k)) * stride];
+      for (i = 0; i < n; i++) {
+        dst[base + i * stride] = sum / div;
+        sum += src[base + Math.min(n - 1, i + r + 1) * stride] - src[base + Math.max(0, i - r) * stride];
+      }
+    }
+  }
+  function boxBlurF(a, w, h, r) { var tmp = new Float32Array(a.length); blurPassF(a, tmp, w, h, r, true); blurPassF(tmp, a, w, h, r, false); }
+
+  // Глубина здания ПО ТОЧКАМ (настройка BUILDING_DEPTH_PIXEL; по умолчанию выключена — здание едет жёстко на средней глубине).
+  // Зачем: у здания, которое уходит к зрителю (лестница постамента), низ стоит на земле ближе средней глубины; при жёстком сдвиге
+  // нижняя кромка едет иначе, чем пол под ней, и на стыке «плывёт». Здесь у каждой точки здания — своя глубина из карты глубины:
+  // внутри вырезки (отступив от края, чтобы не захватить небо/землю за силуэтом) — сглаженная карта, к краю и наружу — продолжение
+  // ближайших значений (наружу нужно для обратного поиска в шейдере у края силуэта). Нижняя кромка тогда совпадает с глубиной
+  // пола в точке контакта: карта глубины на стыке непрерывна. Возвращает Uint8Array w*h (0 далеко … 255 близко).
+  function buildingDepthField(keep, alphaPx, dm, w, h) {
+    var n = w * h, i, x, y;
+    var R = Math.max(2, Math.round(w / 96)), E = Math.max(2, Math.round(w / 128));
+    var core = new Uint8Array(n);
+    for (i = 0; i < n; i++) core[i] = keep[i] && alphaPx[i * 4 + 3] > 200 ? 255 : 0;
+    boxBlur(core, w, h, E);                                          // ≈ сужение маски на E px: глубина у силуэта смешана с фоном
+    var D = new Float32Array(n), M = new Float32Array(n), cnt = 0;
+    for (y = 0; y < h; y++) {
+      var dy = clamp(((y + 0.5) / h * dm.h) | 0, 0, dm.h - 1) * dm.w;
+      for (x = 0; x < w; x++) {
+        i = y * w + x;
+        if (core[i] >= 250) { M[i] = 1; D[i] = dm.d[dy + clamp(((x + 0.5) / w * dm.w) | 0, 0, dm.w - 1)]; cnt++; }
+      }
+    }
+    var out = new Uint8Array(n), done = new Uint8Array(n);
+    if (!cnt) return null;
+    for (var r = R, pass = 0; pass < 12; r *= 2, pass++) {               // нормированное сглаживание; каждый следующий радиус заполняет то, что не дотянулось
+      var DM = new Float32Array(n), MM = M.slice(), left = 0;
+      for (i = 0; i < n; i++) DM[i] = D[i] * M[i];
+      boxBlurF(DM, w, h, r); boxBlurF(MM, w, h, r);
+      for (i = 0; i < n; i++) {
+        if (done[i]) continue;
+        if (MM[i] > 0.02 || (pass === 0 && M[i])) { out[i] = clamp(Math.round(DM[i] / Math.max(MM[i], 1e-6)), 0, 255); done[i] = 1; }
+        else left++;
+      }
+      if (!left || r > Math.max(w, h)) break;
+    }
+    return out;
+  }
+
   // Карта глубины -> 1 канал: растягиваем контраст по 2–98 перцентилю
   // (плоскость фокуса всегда в середине диапазона), затем размываем
   // 3 проходами бокс-блюра (~CONFIG.DEPTH_BLUR_PX) — резкие ступеньки
@@ -175,6 +226,7 @@
       dc++;
     }
     var meanD = dc ? dsum / dc / 255 : 0.5;
+    var bldD = CONFIG.BUILDING_DEPTH_PIXEL ? buildingDepthField(keep, px, dm, w, h) : null;
 
     // 4) «земля»: цельный кадр (подиум, лестницы, всё вокруг), а на месте
     // самого здания — фон без здания. Здание поверх едет жёстко и открывает этот фон.
@@ -207,7 +259,7 @@
     }
     var alpha = new Uint8Array(n);
     for (i = 0; i < n; i++) alpha[i] = px[i * 4 + 3];
-    return { w: w, h: h, ground: ground, bldPm: bldPm, alpha: alpha, dayPx: dayPx, plate: bp, win: { w: w, h: h, d: win }, meanD: meanD };
+    return { w: w, h: h, ground: ground, bldPm: bldPm, alpha: alpha, dayPx: dayPx, plate: bp, win: { w: w, h: h, d: win }, meanD: meanD, bldD: bldD };
   }
 
   function rng(seed) { // mulberry32: одинаковые «случайные» окна при каждом запуске
@@ -357,6 +409,11 @@
           ground: bld.ground, bldPm: bld.bldPm, gpuDepth: env.gpuDepth, ew: env.ew, eh: env.eh, emis: env.emis,
           wins: env.wins, skyFrac: env.skyFrac, starQ: env.starQ, winList: winList, thumb: tb
         };
+        if (bld.bldD) {   // глубина здания по точкам — в альфе «земли» (лишний сэмплер шейдеру не нужен: на iPhone их ровно 16)
+          var n4 = bld.w * bld.h, g4 = new Uint8Array(n4 * 4);
+          for (var q = 0; q < n4; q++) { g4[q * 4] = bld.ground[q * 3]; g4[q * 4 + 1] = bld.ground[q * 3 + 1]; g4[q * 4 + 2] = bld.ground[q * 3 + 2]; g4[q * 4 + 3] = bld.bldD[q]; }
+          out.ground4 = g4; out.bldD = { w: bld.w, h: bld.h, d: bld.bldD };
+        }
         return out;
       });
     });
