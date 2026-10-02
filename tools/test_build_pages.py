@@ -168,12 +168,13 @@ def main():
         finally:
             pb.subprocess.run = real_run
         cmd = seen[0] if seen else []
-        good = (ids1 == ['beta/tests/lenin'] and new1 == ['beta/tests/lenin'] and not pr1
+        exp1 = ['beta/tests/lenin'] + ['beta/tests/lenin/' + n[:-5] for n in bp.OWN_PAGES if (ROOT / 'tests' / 'lenin' / n).is_file()]   # Ленин + его архив/история (если есть)
+        good = (ids1 == exp1 and new1 == exp1 and not pr1
                 and 'beta/kukuruznik' not in ids1 and 'beta/tests/test-1' not in ids1
                 and 'beta/kukuruznik' in ids2 and 'beta/tests/test-1' in ids2 and 'beta/tests/lenin' in ids2 and not new2 and not pr2
                 and any(x.startswith('kukuruznik/index.html') for x in pr3) and any(x.startswith('kukuruznik/index.html') for x in pr4)
-                and cmd[cmd.index('--only') + 1] == 'beta/tests/lenin' and cmd[cmd.index('--allow-change') + 1] == 'beta/tests/lenin')
-        print('%s  publish_beta --expect-change: пиксели только у изменяемых и новых целей (Ленин — один), нетронутые не снимаются, живая страница/движок в изменениях = красная, в check_site уходят точные --only/--allow-change' % ('OK   ' if good else 'ОШИБКА'))
+                and cmd[cmd.index('--only') + 1] == ','.join(exp1) and cmd[cmd.index('--allow-change') + 1] == ','.join(exp1))
+        print('%s  publish_beta --expect-change: пиксели только у изменяемых и новых целей (Ленин и его страницы), нетронутые не снимаются, живая страница/движок в изменениях = красная, в check_site уходят точные --only/--allow-change' % ('OK   ' if good else 'ОШИБКА'))
         ok_all &= bool(good)
         (site / 'engine' / 'viewer.js').write_text('// старый движок\n', encoding='utf-8')
         try:

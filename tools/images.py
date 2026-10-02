@@ -55,14 +55,16 @@ def cards():
         print('карточка  %s/card.webp  (%dx%d — впиши эти числа в карточку)' % (d, w, h))
 
 
-def galleries():
+def galleries(dirs=None):
     """Галерея архивных фото на странице здания — необязательный блок.
 
        Кладёшь снимки в <папка здания>/gallery-source/что-угодно.jpg —
        имя файла станет и именем в gallery/, и его нужно будет
        подставить в data-full/src на странице (см. docs/NOVOE-ZDANIE.md).
+       dirs — папки зданий (по умолчанию все папки верхнего уровня); тестовое здание:
+       python3 tools/images.py --gallery tests/lenin   (только его галерея, остальное не трогается)
     """
-    for d in sorted(os.listdir(HERE)):
+    for d in (dirs if dirs is not None else sorted(os.listdir(HERE))):
         src_dir = os.path.join(HERE, d, 'gallery-source')
         if not os.path.isdir(src_dir):
             continue
@@ -83,7 +85,10 @@ def galleries():
             print('галерея  %s/gallery/%s.webp + %s-thumb.webp' % (d, base, base))
 
 
-hero('hero-photo')
-hero('hero-sketch')
-cards()
-galleries()
+if len(sys.argv) == 3 and sys.argv[1] == '--gallery':
+    galleries([sys.argv[2].rstrip('/')])
+else:
+    hero('hero-photo')
+    hero('hero-sketch')
+    cards()
+    galleries()

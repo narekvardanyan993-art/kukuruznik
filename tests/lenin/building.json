@@ -17,7 +17,7 @@
     "viewerVersion": "test"
   },
   "app": {"name": "Ленин", "shortName": "Ленин"},
-  "links": {"home": "../../", "history": null},
+  "links": {"home": "../../", "history": "about.html"},
   "framesDir": "frames/",
   "text": {
     "title": {"hy": "Լենին, 1980-ականներ", "ru": "Ленин, 1980-е", "en": "Lenin, 1980s"},

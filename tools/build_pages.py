@@ -217,11 +217,41 @@ def engine_version():
     return (ENGINE / 'VERSION').read_text(encoding='utf-8').strip()
 
 
-def history_section(b, bdir, page_dir):
+def history_section(b, bdir, page_dir, own=False):
     h = b['links']['history']
     if not h:   # у здания нет страницы истории — кнопки в панели нет
         return ''
-    return '    <section class="p-sec"><a class="p-btn p-history" id="historyLink" href="%s" data-i18n="history">История здания ›</a></section>' % html.escape(rel(page_dir, site_path(bdir, h)), quote=True)
+    # тестовое здание со своими файлами (own_frames): страница истории лежит рядом со страницей беты (copy_own_pages)
+    target = posixpath.normpath(posixpath.join(page_dir, h)) if own else site_path(bdir, h)
+    return '    <section class="p-sec"><a class="p-btn p-history" id="historyLink" href="%s" data-i18n="history">История здания ›</a></section>' % html.escape(rel(page_dir, target), quote=True)
+
+
+OWN_PAGES = ('about.html', 'history.html')   # страницы «архив и хроника» и «история» тестового здания (tests/<имя>/), если есть
+
+
+def copy_own_pages(bd, out_dir, page_dir, root=None):
+    """Тестовое здание со своими файлами: about.html, history.html и gallery/*.webp из tests/<имя>/ — рядом со страницей беты
+    (beta/tests/<имя>/). В страницах адреса от корня сайта написаны от папки здания (../../assets/…) — пересчитываются для беты.
+    Возвращает список записанных файлов (пути от out_dir)."""
+    src = Path(root or ROOT) / bd
+    repo_root = posixpath.relpath('/', '/' + bd.strip('/')) + '/'          # tests/lenin -> ../../
+    site_root = posixpath.relpath('/', '/' + page_dir.strip('/')) + '/'    # beta/tests/lenin/ -> ../../../
+    out = []
+    for name in OWN_PAGES:
+        f = src / name
+        if f.is_file():
+            t = f.read_text(encoding='utf-8')
+            t = re.sub(r'((?:href|src)=")' + re.escape(repo_root), lambda m: m.group(1) + site_root, t)
+            (out_dir / name).write_text(t, encoding='utf-8')
+            out.append(name)
+    g = src / 'gallery'
+    if g.is_dir():
+        for f in sorted(g.glob('*.webp')):
+            dst = out_dir / 'gallery' / f.name
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(f, dst)
+            out.append('gallery/' + f.name)
+    return out
 
 
 def make_manifest(b, bdir, page_dir):
@@ -255,7 +285,7 @@ def render(b, bdir, page_dir, engine_dir, beta, version=None, own_frames=False):
         '{{E}}': rel(page_dir, engine_dir),
         '{{V}}': version,
         '{{HOME}}': esc(rel(page_dir, site_path(bid, b['links']['home']))),
-        '{{HISTORY_SECTION}}': history_section(b, bdir, page_dir),
+        '{{HISTORY_SECTION}}': history_section(b, bdir, page_dir, own=own_frames),
         '{{TEXT:panelTitle}}': esc(b['text']['panelTitle']['ru']),
         '{{TEXT:title}}': esc(b['text']['title']['ru']),
         '{{FRAME_W}}': str(b['look']['frameSize'][0]),
@@ -346,6 +376,8 @@ def build_beta(site, bdirs=None, root=None, with_local=False):
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(src, dst)
                 written.append(str(dst.relative_to(site)))
+            for name in copy_own_pages(bd, out.parent, page_dir, root):   # архив/история здания, если есть
+                written.append(str((out.parent / name).relative_to(site)))
         (out.parent / 'manifest.json').write_text(make_manifest(b, bd, page_dir), encoding='utf-8')
         written.append(str((out.parent / 'manifest.json').relative_to(site)))
     for bd in own:   # временная копия кадров для проверялщика больше не нужна
