@@ -317,7 +317,7 @@
     body:not(.panel-collapsed) .panel-card { animation: sheetIn 800ms linear 370ms both; }
     body:not(.panel-collapsed) .panel-scroll > * { animation: itemIn 375ms var(--ease) both; animation-delay: calc(635ms + var(--n, 0) * 54ms); }
     body:not(.panel-collapsed) .chips > .chip, body:not(.panel-collapsed) #thumbs button { animation: chipIn 335ms var(--spring) both; animation-delay: calc(735ms + var(--n, 0) * 54ms + var(--c, 0) * 40ms); }
-    body:not(.panel-collapsed) .p-sec h3 { background: linear-gradient(currentColor, currentColor) 0 100% / 0 1.5px no-repeat; padding-bottom: 2px; animation: h3Line 470ms cubic-bezier(0.4, 0.05, 0.3, 1) both; animation-delay: calc(700ms + var(--n, 0) * 54ms); }
+    body:not(.panel-collapsed) .p-sec h3 { background: linear-gradient(rgba(47,42,37,0.32), rgba(47,42,37,0.32)) 0 100% / 0 1px no-repeat; padding-bottom: 2px; animation: h3Line 470ms cubic-bezier(0.4, 0.05, 0.3, 1) both; animation-delay: calc(700ms + var(--n, 0) * 54ms); }
 
     /* ---- Закрытие (~0,95 с, на треть короче прежнего): пункты гаснут снизу вверх, бумага бледнеет, перо втягивает линию; потом колонка сжимается ---- */
     html.panel-anim body.panel-collapsed .pen .pen-1 { animation: penUndraw 640ms cubic-bezier(0.5, 0, 0.3, 1) 255ms both; }
@@ -350,7 +350,7 @@
   @keyframes itemIn { from { opacity: 0; transform: translateY(10px); filter: blur(2px); } to { opacity: 1; transform: none; filter: none; } }
   @media (max-width: 1023.98px) and (prefers-reduced-motion: reduce) { html:not([data-motion="on"]) body.sheet-open .panel-scroll > *, html:not([data-motion="on"]) body.sheet-open .chips > .chip { animation: none; } }
   @keyframes sheetInM { from { background-color: rgba(245,236,218,0); box-shadow: none; } to { } }
-  @keyframes h3Line { 0% { background-size: 0 1.5px; } 60% { background-size: 100% 1.5px; } 100% { background-size: 38px 1.5px; } }   /* перо подчёркивает заголовок и отступает к короткому штриху */
+  @keyframes h3Line { 0% { background-size: 0 1px; } 60% { background-size: 100% 1px; } 100% { background-size: 38px 1px; } }   /* перо подчёркивает заголовок и отступает к короткому штриху */
   @keyframes chipIn { 0% { opacity: 0; transform: translateY(8px) scale(0.86); } 70% { opacity: 1; transform: scale(1.04); } 100% { transform: none; } }   /* 100% без opacity: выключенная кнопка остаётся бледной */
   @keyframes itemOut { from { opacity: 1; } to { opacity: 0; } }
   /* «Уменьшение движения»: обычное плавное появление и исчезновение, без пера и сдвигов */
@@ -1120,7 +1120,7 @@ var CONFIG = {
   },
   "sunsetSmear": {
    "length": 0.012,
-   "strength": 0.5,
+   "strength": 0.0,
    "dark": 0.68
   },
   "nightProc": {
@@ -1314,7 +1314,7 @@ var CONFIG = {
    0.92,
    0.99
   ],
-  "MIX": 0.55,
+  "MIX": 0.8,
   "GREEN_HUE": 0.3,
   "GREEN_PULL": 0.78,
   "GREEN_SAT": 1.9,
