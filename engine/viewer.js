@@ -99,7 +99,23 @@
     });
     langButtons.forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-lang') === currentLang); });
     document.documentElement.lang = currentLang;
+    fitTitle();
   }
+
+  // Название в нижней полосе телефона: если строка не влезает (длинный заголовок на узком экране, напр. армянский на 375 px),
+  // кегль уменьшается ровно настолько, чтобы влезла (не меньше 13 px). Влезающие названия не трогаются — кегль из CSS.
+  function fitTitle() {
+    var el = pageTitleEl;
+    if (!el) return;
+    el.style.fontSize = '';
+    if (!el.clientWidth || el.scrollWidth <= el.clientWidth) return;
+    var fs = parseFloat(getComputedStyle(el).fontSize);
+    while (fs > 13 && el.scrollWidth > el.clientWidth) {
+      fs = Math.round((fs - 0.25) * 100) / 100;
+      el.style.fontSize = fs + 'px';
+    }
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitTitle).catch(function () {});
 
   langButtons.forEach(function (b) {
     b.addEventListener('click', function () {
@@ -901,7 +917,7 @@
     coverOffX = (1 - coverUvW) / 2;
     coverOffY = (1 - coverUvH) / 2;
   }
-  window.addEventListener('resize', function () { resize(true); if (window.__penFit) window.__penFit(); });
+  window.addEventListener('resize', function () { resize(true); fitTitle(); if (window.__penFit) window.__penFit(); });
   window.addEventListener('orientationchange', function () { setTimeout(function () { resize(true); }, 200); });
 
   function setNaturalSize(w, h) {
