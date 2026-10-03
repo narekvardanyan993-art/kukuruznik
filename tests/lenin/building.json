@@ -10,7 +10,7 @@
     },
     "description": {"hy": "Լենինի արձանը (1940–1991) Երևանի կենտրոնական հրապարակում՝ 1970-ականների վերջի – 1980-ականների տեսքով, գծանկար, փորձնական էջ։"},
     "ogImage": null,
-    "ogAlt": {"hy": "Լենինի արձանը Երևանում, գծանկար"},
+    "ogAlt": {"hy": "Լենինի արձանը Երևանում, գծանկար", "ru": "Памятник Ленину в Ереване, рисунок", "en": "Lenin Monument in Yerevan, drawing"},
     "themeColor": "#f5ecda",
     "favicon": "../../assets/favicon-32.png",
     "appleTouchIcon": "../../assets/icon-180.png",
