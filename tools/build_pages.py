@@ -747,6 +747,17 @@ def hub_outside_diff(old, new, slug):
     return bad
 
 
+def with_404_known(text, slug):
+    """404.html: адрес здания в списке known (опечатка в адресе /<slug>/… ведёт на здание, а не на главную). Уже есть — без изменений."""
+    m = re.search(r"var known = \{([^}]*)\};", text)
+    if not m:
+        raise SystemExit('СТОП: в 404.html нет списка known')
+    if re.search(r"(?:^|[\s{,])'?%s'?\s*:" % re.escape(slug), m.group(1)):
+        return text
+    body = m.group(1).replace("'index.html'", "%s: '%s/', 'index.html'" % (slug if re.fullmatch(r'[a-z_][a-z0-9_]*', slug) else "'%s'" % slug, slug), 1)
+    return text[:m.start(1)] + body + text[m.end(1):]
+
+
 def verify(site, bid='kukuruznik'):
     """Сверка: CONFIG из building.json + engine/config.json (с адресами кадров как на живой странице) == CONFIG живой страницы.
     Ключ LOOK и STAR_CELLS появились в движке после живой страницы (этап 4) — их в живом CONFIG нет; остальное сравнивается."""

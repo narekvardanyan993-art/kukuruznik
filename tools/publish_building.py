@@ -17,7 +17,8 @@
   2. <slug>/ на сайте собирается заново: кадры, about.html, history.html, gallery/, og-картинка, картинка карточки (без noindex);
      <slug>/index.html и manifest.json — на ЖИВОМ движке engine/ (движок не меняется; не совпадает с исходником — стоп);
   3. главная: карточка здания из building.json; любое другое отличие главной от сайта — стоп (чужие правки главной не уезжают);
-  4. в коммит — только <slug>/ и index.html; остальные страницы сайта и их файлы побайтно как на main (build_pages.untouched_problems);
+  4. 404.html: <slug> в списке known (опечатка в адресе ведёт на здание);
+     в коммит — только <slug>/, index.html и 404.html; остальные страницы сайта и их файлы побайтно как на main (build_pages.untouched_problems);
   5. check_site: новое здание и главная — снимаются (различия допустимы, ошибки/404/fps — нет), Кукурузник — строго 0 отличий;
   6. коммит + пуш; печатает команду отката. В конце ВСЕГДА удаляет временный worktree.
 """
@@ -69,10 +70,12 @@ def main():
         if problems:
             raise SystemExit('СТОП: главная в ветке отличается от сайта не только карточкой %s:\n  • %s' % (slug, '\n  • '.join(problems)))
         (tmp / 'index.html').write_text(new_hub, encoding='utf-8')
+        nf = tmp / '404.html'   # опечатка в адресе здания ведёт на здание (docs/NOVOE-ZDANIE.md: имя в список known)
+        nf.write_text(bp.with_404_known(nf.read_text(encoding='utf-8'), slug), encoding='utf-8')
         print('%sсобрано: %d файлов в %s/, карточка на главной' % (tag, len(files), slug))
-        pb.git(tmp, 'add', '-A', slug, 'index.html')
+        pb.git(tmp, 'add', '-A', slug, 'index.html', '404.html')
         staged = pb.git(tmp, 'diff', '--cached', '--name-only').splitlines()
-        outside = [p for p in staged if not (p == 'index.html' or p.startswith(slug + '/'))]
+        outside = [p for p in staged if not (p in ('index.html', '404.html') or p.startswith(slug + '/'))]
         dirty = [l[3:] for l in pb.git(tmp, 'status', '--porcelain', '-uall').splitlines() if not l.startswith(('A ', 'M ', 'D ', 'R '))]
         if outside or dirty:
             raise SystemExit('в коммит/рабочую копию попало лишнее: %s — стоп' % (outside + dirty))
@@ -84,7 +87,7 @@ def main():
         if args.diff:
             Path(args.diff).write_text(pb.git(tmp, 'diff', '--cached', '--stat', '--stat-width=110') + '\n\n' + pb.git(tmp, 'diff', '--cached'), encoding='utf-8')
             print('%sполный diff: %s' % (tag, args.diff))
-        own = {p for p in bp.site_pages(tmp) if p == 'index.html' or p.startswith(slug + '/')}
+        own = {p for p in bp.site_pages(tmp) if p in ('index.html', '404.html') or p.startswith(slug + '/')}
         nt = bp.untouched_problems(tmp, set(staged), own, stop={'index.html'})   # главная меняется намеренно (снимается check_site); ссылка на неё — не зависимость
         if nt:
             raise SystemExit('%sСТОП: публикация задевает другие страницы:\n  • %s' % (tag, '\n  • '.join(nt)))
