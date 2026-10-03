@@ -435,16 +435,17 @@ _DEP_TOKEN = re.compile(r"[A-Za-z0-9_./~%@+-]+\.(?:html|js|mjs|css|json|webp|png
 _DEP_TEXT = ('.html', '.js', '.mjs', '.css', '.json', '.webmanifest')
 
 
-def page_deps(site, page):
+def page_deps(site, page, stop=()):
     """Все файлы сайта, от которых может зависеть страница page (путь от корня site): сама страница и всё, что на неё ссылается
     транзитивно (html, css, js, json). Консервативно: берутся ВСЕ строки, похожие на путь к файлу с известным расширением, и считаются
     относительно папки файла-владельца и папки страницы (так браузер разрешает адреса из скриптов); существующие файлы — зависимости."""
     site = Path(site).resolve()
     page = (site / page).resolve()
+    stop = {(site / s).resolve() for s in stop}   # эти файлы не считаются зависимостью и не обходятся (publish_building: главная — ссылка, а не часть страницы)
     seen, todo = set(), [page]
     while todo:
         f = todo.pop()
-        if f in seen or not f.is_file():
+        if f in seen or not f.is_file() or (f in stop and f != page):
             continue
         seen.add(f)
         if f.suffix.lower() not in _DEP_TEXT:
@@ -469,7 +470,7 @@ def site_pages(site):
                   if 'node_modules' not in f.parts and '.git' not in f.parts and f.relative_to(site).parts[0] not in ('docs', 'tools', 'test-assets', 'src', 'engine3d'))
 
 
-def untouched_problems(site, changed, exempt_pages):
+def untouched_problems(site, changed, exempt_pages, stop=()):
     """Режим publish_engine --expect-change: у каждой страницы сайта, КРОМЕ exempt_pages (их картинка меняется намеренно и сверяется
     проверкой check_site), ни сама страница, ни один файл, от которого она зависит (page_deps, включая engine/ и beta/engine/),
     не входит в changed — список файлов, которые эта публикация меняет относительно origin/main. Пиксели у таких страниц не снимаются:
@@ -478,7 +479,7 @@ def untouched_problems(site, changed, exempt_pages):
     for pg in site_pages(site):
         if pg in exempt_pages:
             continue
-        hit = sorted(page_deps(site, pg) & changed)
+        hit = sorted(page_deps(site, pg, stop) & changed)
         if hit:
             bad.append('%s зависит от файлов, которые эта публикация меняет: %s' % (pg, ', '.join(hit[:4]) + ('…' if len(hit) > 4 else '')))
     return bad

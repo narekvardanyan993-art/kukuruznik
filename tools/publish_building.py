@@ -85,7 +85,7 @@ def main():
             Path(args.diff).write_text(pb.git(tmp, 'diff', '--cached', '--stat', '--stat-width=110') + '\n\n' + pb.git(tmp, 'diff', '--cached'), encoding='utf-8')
             print('%sполный diff: %s' % (tag, args.diff))
         own = {p for p in bp.site_pages(tmp) if p == 'index.html' or p.startswith(slug + '/')}
-        nt = bp.untouched_problems(tmp, set(staged), own)
+        nt = bp.untouched_problems(tmp, set(staged), own, stop={'index.html'})   # главная меняется намеренно (снимается check_site); ссылка на неё — не зависимость
         if nt:
             raise SystemExit('%sСТОП: публикация задевает другие страницы:\n  • %s' % (tag, '\n  • '.join(nt)))
         print('%sостальные страницы и их файлы побайтно как на main' % tag)
