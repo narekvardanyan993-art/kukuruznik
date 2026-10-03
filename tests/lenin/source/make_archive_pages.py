@@ -32,12 +32,12 @@ PHOTOS = [
     dict(name='lenin-1940s', file='Lenin_Statue_in_Yerevan_Lenin_Square.jpg',
          cap=('Հուշարձանը, 1940-ականներ', 'Памятник, 1940-е', 'The monument, 1940s'),
          alt='Памятник Ленину в Ереване, 1940-е', pd=True, pos='50% 0%'),   # pos: кадрирование 4:3 в главе истории — по верху, иначе срезается статуя
+    dict(name='stamp-1978', file='The_Soviet_Union_1978_CPA_4889_stamp_(Armenian_Architecture._Lenin_statue_and_Government_House,_Lenin_Square,_Yerevan).jpg',
+         cap=('Խորհրդային փոստային նամականիշ, 1978. հուշարձանը և Կառավարության շենքը', 'Почтовая марка СССР, 1978: памятник и Дом правительства', 'Soviet postage stamp, 1978: the monument and Government House'),
+         alt='Почтовая марка СССР 1978 года с памятником Ленину и Домом правительства', pd=True, stamp=True),
     dict(name='removal-1991-square', file='Lenin_Statue_Removal_in_Yerevan_05.jpg',
          cap=('1991, ապրիլի 13. տեսարան հրապարակին', '13 апреля 1991: вид на площадь', '13 April 1991: view of the square'),
          alt='Площадь в день снятия памятника, 13 апреля 1991'),
-    dict(name='removal-1991-pedestal', file='Lenin_Statue_Removal_in_Yerevan_06.jpg',
-         cap=('1991, ապրիլի 13. արձանը պատվանդանին', '13 апреля 1991: статуя на постаменте', '13 April 1991: the statue on its pedestal'),
-         alt='Статуя на постаменте в день снятия, 13 апреля 1991'),
     dict(name='removal-1991-crane', file='Lenin_Statue_Removal_in_Yerevan_02.jpg',
          cap=('1991, ապրիլի 13. արձանը բարձրացնում են կռունկով', '13 апреля 1991: статую поднимают краном', '13 April 1991: the statue lifted by crane'),
          alt='Статую поднимают краном с постамента, 13 апреля 1991'),
@@ -52,6 +52,11 @@ def credit(p, lang):
     """Подпись источника в окне просмотра — формат Кукурузника: «фото: <автор / Wikimedia Commons>, <лицензия> · сжато»."""
     lead = {'hy': 'լուսանկարը՝', 'ru': 'фото:', 'en': 'photo:'}[lang]
     done = {'hy': 'սեղմված', 'ru': 'сжато', 'en': 'compressed'}[lang]
+    if p.get('stamp'):
+        lead = {'hy': 'նամականիշը՝', 'ru': 'марка:', 'en': 'stamp:'}[lang]
+        who = {'hy': 'ԽՍՀՄ փոստ (ձևավորումը՝ Ն. Չերկասովի)', 'ru': 'Почта СССР (оформление Н. Черкасова)', 'en': 'USSR Post (design by N. Cherkasov)'}[lang] + ' / Wikimedia Commons'
+        lic = {'hy': 'հանրային սեփականություն', 'ru': 'общественное достояние', 'en': 'public domain'}[lang]
+        return "%s <a href='%s' target='_blank' rel='noopener'>%s</a>, %s · %s" % (lead, COMMONS + p['file'], who, lic, done)
     if p.get('pd'):
         who = {'hy': 'հեղինակն անհայտ է', 'ru': 'автор неизвестен', 'en': 'unknown author'}[lang] + ' / Wikimedia Commons'
         lic = {'hy': 'հանրային սեփականություն', 'ru': 'общественное достояние', 'en': 'public domain'}[lang]
@@ -64,6 +69,11 @@ def figcaption(p):
     """Подпись под фото в главе истории (как в kukuruznik/history.html)."""
     lead = tri('լուսանկարը՝', 'фото:', 'photo:')
     done = tri('սեղմված', 'сжато', 'compressed')
+    if p.get('stamp'):
+        lead = tri('նամականիշը՝', 'марка:', 'stamp:')
+        who = tri('ԽՍՀՄ փոստ (ձևավորումը՝ Ն. Չերկասովի)', 'Почта СССР (оформление Н. Черкасова)', 'USSR Post (design by N. Cherkasov)')
+        lic = tri('հանրային սեփականություն', 'общественное достояние', 'public domain')
+        return '%s\n        <a href="%s" target="_blank" rel="noopener">%s / Wikimedia Commons</a>, %s ·\n        %s' % (lead, COMMONS + p['file'], who, lic, done)
     if p.get('pd'):
         who = tri('հեղինակն անհայտ է', 'автор неизвестен', 'unknown author')
         lic = tri('հանրային սեփականություն', 'общественное достояние', 'public domain')
