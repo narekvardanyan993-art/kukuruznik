@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+<meta charset="utf-8">
+<script>
+(function () {
+  try {
+    var K = 'chka-lang', L = ['hy', 'ru', 'en'], l = localStorage.getItem(K);
+    if (!l) {
+      var n = ((navigator.languages && navigator.languages[0]) || navigator.language || '').toLowerCase();
+      for (var i = 0; i < L.length; i++) { if (n.indexOf(L[i]) === 0) { l = L[i]; break; } }
+    }
+    if (L.indexOf(l) === -1) l = 'hy';
+    document.documentElement.setAttribute('data-lang', l);
+    document.documentElement.setAttribute('lang', l);
+  } catch (e) { document.documentElement.setAttribute('data-lang', 'hy'); }
+})();
+</script>
+<script>
+/* крупный текст («А+») и появление главной — до отрисовки, без мигания */
+(function () {
+  var d = document.documentElement;
+  try { if (localStorage.getItem('chka-fs') === 'big') d.classList.add('fs-big'); } catch (e) {}
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="googlebot" content="noindex, nofollow">
+<meta name="theme-color" content="#fbfaf7">
+<title>История памятника Ленину | Չկա</title>
+<meta name="description" content="Памятник Ленину на главной площади Еревана: от места в плане Таманяна до снятия в 1991 году. Пять глав. Скрытая бета.">
+<link rel="icon" href="../../../assets/favicon-32.png">
+<link rel="apple-touch-icon" href="../../../assets/icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700&family=Noto+Sans+Armenian:wght@500;600;700&family=Caveat:wght@600&display=swap">
+<link rel="stylesheet" href="../../../assets/hub.css?v=12">
+<link rel="stylesheet" href="../../../assets/story.css?v=13">
+<link rel="stylesheet" href="../../../assets/history.css?v=3">
+</head>
+<body>
+
+<div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
+
+<nav class="nav"><div class="nav-in">
+  <a class="logo" href="about.html" aria-label="Назад к архиву памятника"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span class="logo-sub"><span class="i18n-inline" lang="hy">Լենինի արձանը</span><span class="i18n-inline" lang="ru">Памятник Ленину</span><span class="i18n-inline" lang="en">Lenin Monument</span></span></a>
+  <div class="lang-switch-mount" data-lang-switch></div>
+</div></nav>
+
+<main class="page history">
+
+  <header class="h-head reveal">
+    <p class="h-eyebrow">
+      <span class="i18n-inline" lang="hy">հինգ գլուխ</span><span class="i18n-inline" lang="ru">пять глав</span><span class="i18n-inline" lang="en">five chapters</span>
+    </p>
+    <h1>
+      <span class="i18n-inline" lang="hy">Հրապարակի և հուշարձանի պատմությունը</span><span class="i18n-inline" lang="ru">История площади и памятника</span><span class="i18n-inline" lang="en">The Square and the Monument</span>
+    </h1>
+    <p class="h-sub">
+      <span class="i18n-block" lang="hy">Ինչպես Երևանի գլխավոր հրապարակում հայտնվեց Լենինի հուշարձանը և ինչ մնաց դրանից։</span><span class="i18n-block" lang="ru">Как на главной площади Еревана появился памятник Ленину и что от него осталось.</span><span class="i18n-block" lang="en">How a Lenin monument came to stand on Yerevan's main square — and what is left of it.</span>
+    </p>
+  </header>
+
+  <section class="chapter reveal" id="ch1">
+    <p class="ch-num">01</p>
+    <h2>
+      <span class="i18n-inline" lang="hy">Նախապես թողնված տեղը</span><span class="i18n-inline" lang="ru">Место, оставленное заранее</span><span class="i18n-inline" lang="en">A place set aside in advance</span>
+    </h2>
+    <div class="ch-text">
+      <p class="i18n-block hy" lang="hy">Երևանի գլխավոր հրապարակը նախագծել է ճարտարապետ Ալեքսանդր Թամանյանը՝ քաղաքի 1924 թվականի գլխավոր հատակագծում։ Շինարարությունն սկսվել է 1926 թվականին՝ Կառավարության շենքից։ Լենինի արձանի համար Թամանյանը տեղ էր հատկացրել հրապարակի հարավային կողմում, որտեղ հրապարակը միանում է բուլվարին։ 1920-ական թվականների վերջին այնտեղ դրվել էր փոքր օբելիսկ՝ գրությամբ, որ այստեղ հուշարձան է կանգնեցվելու։</p>
+      <p class="i18n-block" lang="ru">Главную площадь Еревана спроектировал архитектор Александр Таманян в генеральном плане города 1924 года. Строить её начали в 1926 году — с Дома правительства. Место для памятника Ленину Таманян отвёл на южной стороне, там, где площадь переходит в бульвар. В конце 1920-х годов там поставили небольшой обелиск с надписью о том, что здесь будет установлен памятник.</p>
+      <p class="i18n-block" lang="en">Yerevan's main square was designed by the architect Alexander Tamanian as part of the city's 1924 general plan. Construction began in 1926, starting with the Government House. Tamanian set aside a spot for a Lenin monument on the south side, where the square meets the boulevard. In the late 1920s a small obelisk was placed there, with an inscription saying that a monument would stand on this spot.</p>
+    </div>
+  </section>
+
+  <section class="chapter reveal" id="ch2">
+    <p class="ch-num">02</p>
+    <h2>
+      <span class="i18n-inline" lang="hy">Մրցույթն ու բացումը</span><span class="i18n-inline" lang="ru">Конкурс и открытие</span><span class="i18n-inline" lang="en">Competition and unveiling</span>
+    </h2>
+    <figure class="ch-fig">
+      <img src="gallery/lenin-1940s.webp" alt="Памятник Ленину в Ереване, 1940-е" style="object-position: 50% 0%" loading="lazy" decoding="async">
+      <figcaption>
+        <span class="i18n-inline" lang="hy">լուսանկարը՝</span><span class="i18n-inline" lang="ru">фото:</span><span class="i18n-inline" lang="en">photo:</span>
+        <a href="https://commons.wikimedia.org/wiki/File:Lenin_Statue_in_Yerevan_Lenin_Square.jpg" target="_blank" rel="noopener"><span class="i18n-inline" lang="hy">հեղինակն անհայտ է</span><span class="i18n-inline" lang="ru">автор неизвестен</span><span class="i18n-inline" lang="en">unknown author</span> / Wikimedia Commons</a>, <span class="i18n-inline" lang="hy">հանրային սեփականություն</span><span class="i18n-inline" lang="ru">общественное достояние</span><span class="i18n-inline" lang="en">public domain</span> ·
+        <span class="i18n-inline" lang="hy">սեղմված</span><span class="i18n-inline" lang="ru">сжато</span><span class="i18n-inline" lang="en">compressed</span>
+      </figcaption>
+    </figure>
+    <div class="ch-text">
+      <p class="i18n-block hy" lang="hy">1938 թվականին հայտարարվեց հուշարձանի նախագծի համամիութենական մրցույթ։ Արձանը հանձնարարվեց քանդակագործ Սերգեյ Մերկուրովին, պատվանդանը՝ ճարտարապետներ Նատալյա Պարեմուզովային և Լևոն Վարդանովին։ Արձանը պատրաստվեց կռածո պղնձից, պատվանդանը՝ գրանիտից։ Հուշարձանը բացվեց 1940 թվականի նոյեմբերի 24-ին՝ Հայաստանում խորհրդային իշխանության 20-ամյակի առթիվ։</p>
+      <p class="i18n-block" lang="ru">В 1938 году объявили всесоюзный конкурс на проект памятника. Статую поручили скульптору Сергею Меркурову, постамент — архитекторам Наталье Паремузовой и Левону Вартанову. Статую выковали из меди, постамент сделали из гранита. Памятник открыли 24 ноября 1940 года, к 20-летию советской власти в Армении.</p>
+      <p class="i18n-block" lang="en">In 1938 an all-Union competition for the monument's design was announced. The statue was entrusted to the sculptor Sergey Merkurov, the pedestal to the architects Natalia Paremuzova and Levon Vartanov. The statue was made of forged copper, the pedestal of granite. The monument was unveiled on 24 November 1940, for the 20th anniversary of Soviet rule in Armenia.</p>
+    </div>
+  </section>
+
+  <section class="chapter reveal" id="ch3">
+    <p class="ch-num">03</p>
+    <h2>
+      <span class="i18n-inline" lang="hy">Լենինի հրապարակը</span><span class="i18n-inline" lang="ru">Площадь Ленина</span><span class="i18n-inline" lang="en">Lenin Square</span>
+    </h2>
+    <div class="ch-text">
+      <p class="i18n-block hy" lang="hy">Խորհրդային տարիներին հրապարակը կոչվում էր Լենինի հրապարակ։ Արձանի տակ ամբիոն կար. Մայիսի 1-ի և նոյեմբերի 7-ի տոնական ցույցերի և շքերթների ժամանակ դրա վրա կանգնում էին Խորհրդային Հայաստանի ղեկավարները։</p>
+      <p class="i18n-block" lang="ru">В советские годы площадь называлась площадью Ленина. Под статуей была трибуна: на праздничных демонстрациях и парадах 1 Мая и 7 Ноября на ней стояли руководители Советской Армении.</p>
+      <p class="i18n-block" lang="en">In Soviet times it was called Lenin Square. Beneath the statue was a tribune: during the May Day and 7 November demonstrations and parades, the leaders of Soviet Armenia stood on it.</p>
+    </div>
+  </section>
+
+  <section class="chapter reveal" id="ch4">
+    <p class="ch-num">04</p>
+    <h2>
+      <span class="i18n-inline" lang="hy">1991-ի ապրիլը</span><span class="i18n-inline" lang="ru">Апрель 1991-го</span><span class="i18n-inline" lang="en">April 1991</span>
+    </h2>
+    <figure class="ch-fig">
+      <img src="gallery/removal-1991-crane.webp" alt="Статую поднимают краном с постамента, 13 апреля 1991" loading="lazy" decoding="async">
+      <figcaption>
+        <span class="i18n-inline" lang="hy">լուսանկարը՝</span><span class="i18n-inline" lang="ru">фото:</span><span class="i18n-inline" lang="en">photo:</span>
+        <a href="https://commons.wikimedia.org/wiki/File:Lenin_Statue_Removal_in_Yerevan_02.jpg" target="_blank" rel="noopener">Armenian Museum of Photo and Video Materials / Wikimedia Commons</a>,
+        <a href="https://creativecommons.org/licenses/by-sa/2.0/" target="_blank" rel="noopener">CC BY-SA 2.0</a> ·
+        <span class="i18n-inline" lang="hy">սեղմված</span><span class="i18n-inline" lang="ru">сжато</span><span class="i18n-inline" lang="en">compressed</span>
+      </figcaption>
+    </figure>
+    <div class="ch-text">
+      <p class="i18n-block hy" lang="hy">1990 թվականին հրապարակը վերանվանվեց Հանրապետության հրապարակ։ 1991 թվականի մարտի 28-ին Երևանի քաղաքային խորհուրդը որոշեց ապամոնտաժել հուշարձանը։ 1991 թվականի ապրիլի 13-ին արձանը կռունկով բարձրացրին պատվանդանից և բեռնատարով տարան. այդ օրը հրապարակում շատ մարդիկ էին հավաքվել։</p>
+      <p class="i18n-block" lang="ru">В 1990 году площадь переименовали в площадь Республики. 28 марта 1991 года горсовет Еревана решил снять памятник. 13 апреля 1991 года статую подняли краном с постамента и увезли на грузовике; на площадь в этот день пришло много людей.</p>
+      <p class="i18n-block" lang="en">In 1990 the square was renamed Republic Square. On 28 March 1991 the Yerevan City Council decided to remove the monument. On 13 April 1991 the statue was lifted off its pedestal by crane and taken away on a truck; many people came to the square that day.</p>
+    </div>
+  </section>
+
+  <section class="chapter reveal" id="ch5">
+    <p class="ch-num">05</p>
+    <h2>
+      <span class="i18n-inline" lang="hy">Ինչ մնաց</span><span class="i18n-inline" lang="ru">Что осталось</span><span class="i18n-inline" lang="en">What remains</span>
+    </h2>
+    <figure class="ch-fig">
+      <img src="gallery/removal-1991-truck.webp" alt="Статую увозят на грузовике, 13 апреля 1991" loading="lazy" decoding="async">
+      <figcaption>
+        <span class="i18n-inline" lang="hy">լուսանկարը՝</span><span class="i18n-inline" lang="ru">фото:</span><span class="i18n-inline" lang="en">photo:</span>
+        <a href="https://commons.wikimedia.org/wiki/File:Lenin_Statue_Removal_in_Yerevan_3.jpg" target="_blank" rel="noopener">Armenian Museum of Photo and Video Materials / Wikimedia Commons</a>,
+        <a href="https://creativecommons.org/licenses/by-sa/2.0/" target="_blank" rel="noopener">CC BY-SA 2.0</a> ·
+        <span class="i18n-inline" lang="hy">սեղմված</span><span class="i18n-inline" lang="ru">сжато</span><span class="i18n-inline" lang="en">compressed</span>
+      </figcaption>
+    </figure>
+    <div class="ch-text">
+      <p class="i18n-block hy" lang="hy">Դատարկ պատվանդանը կանգուն մնաց ևս հինգ տարի և ապամոնտաժվեց 1996 թվականի հուլիսին։ Ապամոնտաժումից հետո արձանի մարմինը տեղափոխեցին Հայաստանի ազգային պատկերասրահի բակ, իսկ գլուխն առանձին պահեստ տարան։</p>
+      <p class="i18n-block" lang="ru">Пустой постамент простоял ещё пять лет и был разобран в июле 1996 года. Статую после снятия перевезли во двор Национальной галереи Армении, а голову отдельно отправили на склад.</p>
+      <p class="i18n-block" lang="en">The empty pedestal stood for five more years and was dismantled in July 1996. After the removal the statue was taken to the courtyard of the National Gallery of Armenia, and its head was put into storage separately.</p>
+    </div>
+  </section>
+
+  <section class="h-sources reveal">
+    <h2>
+      <span class="i18n-inline" lang="hy">Աղբյուրներ</span><span class="i18n-inline" lang="ru">Источники</span><span class="i18n-inline" lang="en">Sources</span>
+    </h2>
+    <span class="i18n-block" lang="hy">Փաստերը վերապատմված են իմ իսկ բառերով՝ առանց հոդվածների տեքստը կրկնօրինակելու։</span><span class="i18n-block" lang="ru">Факты пересказаны своими словами, без копирования текста статей.</span><span class="i18n-block" lang="en">Facts are retold in my own words, without copying the text of the articles.</span>
+    <ul class="h-src-list">
+      <li><a href="https://mediamax.am/ru/specialprojects/yerevan-XX-century/6339/" target="_blank" rel="noopener">mediamax.am</a> — «Памятник Ленину — (не)живая история» (по книге М. Григоряна «Площадь Ленина в Ереване», 1969)</li>
+      <li><a href="https://hy.wikipedia.org/wiki/%D4%BC%D5%A5%D5%B6%D5%AB%D5%B6%D5%AB_%D5%B0%D5%B8%D6%82%D5%B7%D5%A1%D6%80%D5%B1%D5%A1%D5%B6_(%D4%B5%D6%80%D6%87%D5%A1%D5%B6)" target="_blank" rel="noopener">hy.wikipedia.org</a> — «Լենինի հուշարձան (Երևան)»</li>
+      <li><a href="https://hy.wikipedia.org/wiki/%D5%80%D5%A1%D5%B6%D6%80%D5%A1%D5%BA%D5%A5%D5%BF%D5%B8%D6%82%D5%A9%D5%B5%D5%A1%D5%B6_%D5%B0%D6%80%D5%A1%D5%BA%D5%A1%D6%80%D5%A1%D5%AF_(%D4%B5%D6%80%D6%87%D5%A1%D5%B6)" target="_blank" rel="noopener">hy.wikipedia.org</a> — «Հանրապետության հրապարակ (Երևան)»</li>
+      <li><a href="https://en.wikipedia.org/wiki/Republic_Square,_Yerevan" target="_blank" rel="noopener">en.wikipedia.org</a> — «Republic Square, Yerevan»</li>
+      <li><a href="http://www.aniarc.am/2021/07/16/the-dismantling-of-lenins-statue-took-place-in-1991-16-20-2021/" target="_blank" rel="noopener">aniarc.am</a></li>
+      <li><a href="https://commons.wikimedia.org/wiki/Category:Statue_of_Lenin_in_Yerevan" target="_blank" rel="noopener">commons.wikimedia.org</a> — Statue of Lenin in Yerevan</li>
+    </ul>
+  </section>
+
+  <section class="next-sec reveal">
+    <a class="btn btn-ghost" href="about.html">
+      <span class="i18n-inline" lang="hy">← հուշարձանի արխիվ</span><span class="i18n-inline" lang="ru">← к архиву памятника</span><span class="i18n-inline" lang="en">← back to the monument archive</span>
+    </a>
+  </section>
+
+  <footer class="foot reveal">
+    <p class="brand"><span class="hy">Չկա</span> · <a href="../../../"><span class="i18n-inline" lang="hy">գլխավոր էջ</span><span class="i18n-inline" lang="ru">на главную альбома</span><span class="i18n-inline" lang="en">back to the album</span></a></p>
+    <p class="photo-rights"><span class="i18n-block" lang="hy">Արխիվային լուսանկարները պատկանում են իրենց հեղինակներին և արխիվներին։ Օգտագործվում են ոչ առևտրային նախագծում՝ աղբյուրը նշելով։ Եթե դուք հեղինակն եք և ցանկանում եք ուղղել ստորագրությունը կամ հեռացնել լուսանկարը՝ <a href="https://www.tiktok.com/@ht_product">գրեք ինձ</a>։</span><span class="i18n-block" lang="ru">Архивные фото принадлежат их авторам и архивам. Используются в некоммерческом проекте с указанием источника. Если вы автор и хотите исправить подпись или убрать фото — <a href="https://www.tiktok.com/@ht_product">напишите мне</a>.</span><span class="i18n-block" lang="en">Archival photos belong to their authors and archives. Used in a non-commercial project with the source credited. If you are the author and want to fix a caption or remove a photo — <a href="https://www.tiktok.com/@ht_product">message me</a>.</span></p>
+    <p class="tiktok"><a class="btn" href="https://www.tiktok.com/@ht_product"><span class="i18n-inline" lang="hy">TikTok-ում</span><span class="i18n-inline" lang="ru">мой TikTok</span><span class="i18n-inline" lang="en">my TikTok</span></a></p>
+  </footer>
+
+</main>
+
+<script src="../../../assets/i18n.js?v=2" defer></script>
+<script src="../../../assets/chka-common.js?v=2" defer></script>
+<script src="../../../assets/history.js?v=1" defer></script>
+</body>
+</html>
