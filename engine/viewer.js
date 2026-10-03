@@ -99,7 +99,23 @@
     });
     langButtons.forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-lang') === currentLang); });
     document.documentElement.lang = currentLang;
+    fitTitle();
   }
+
+  // Название в нижней полосе телефона: если строка не влезает (длинный заголовок на узком экране, напр. армянский на 375 px),
+  // кегль уменьшается ровно настолько, чтобы влезла (не меньше 13 px). Влезающие названия не трогаются — кегль из CSS.
+  function fitTitle() {
+    var el = pageTitleEl;
+    if (!el) return;
+    el.style.fontSize = '';
+    if (!el.clientWidth || el.scrollWidth <= el.clientWidth) return;
+    var fs = parseFloat(getComputedStyle(el).fontSize);
+    while (fs > 13 && el.scrollWidth > el.clientWidth) {
+      fs = Math.round((fs - 0.25) * 100) / 100;
+      el.style.fontSize = fs + 'px';
+    }
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitTitle).catch(function () {});
 
   langButtons.forEach(function (b) {
     b.addEventListener('click', function () {
@@ -191,8 +207,8 @@
     NI ? 'uniform vec2 uHasA; uniform vec2 uHasB;' : '',         // x — есть картинка заката, y — есть картинка ночи
     NI ? 'uniform float uSunMix; uniform float uNightMix;' : '', // день→закат (2.5 с), закат→ночь (3 с): плавное растворение
     'uniform vec4  uCropA; uniform vec4 uCropB; uniform vec4 uFlagA; uniform vec4 uFlagB;',   // обрезка кадров A/B: x0, y0, ширина, высота (доли)
-    'uniform vec2  uKdA;',        // здание кадра A: x = k (-1..1), y = средняя глубина 0..1
-    'uniform vec2  uKdB;',
+    'uniform vec3  uKdA;',        // здание кадра A: x = k (-1..1), y = средняя глубина 0..1, z = 1 — глубина здания по точкам (альфа земли)
+    'uniform vec3  uKdB;',
     'uniform vec2  uStarQ;',      // доля ячеек со звездой для кадров A/B (зависит от площади неба)
     'uniform float uMix;',        // 0 = кадр A, 1 = кадр B
     'uniform vec2  uShift;',      // max-сдвиг * наклон + «дыхание», в долях картинки
@@ -254,7 +270,7 @@
     'float wxNoise(vec2 q) { vec2 i = floor(q), f = fract(q); f = f * f * (3.0 - 2.0 * f);',
     '  return mix(mix(wxHash(i), wxHash(i + vec2(1.0, 0.0)), f.x), mix(wxHash(i + vec2(0.0, 1.0)), wxHash(i + vec2(1.0, 1.0)), f.x), f.y); }',
     // Готовый цвет пикселя одного кадра: параллакс, ветер, закат, ночь.
-    'vec4 shadeFrame(sampler2D bg, sampler2D depth, sampler2D bld, sampler2D em, vec2 kd, float starQ, vec2 skyRef, vec4 crop, vec4 flag,' + (NI ? ' sampler2D sg, sampler2D sb, sampler2D ng, sampler2D nb, vec2 has,' : '') + ' vec2 uv, vec2 sc) {',
+    'vec4 shadeFrame(sampler2D bg, sampler2D depth, sampler2D bld, sampler2D em, vec3 kd, float starQ, vec2 skyRef, vec4 crop, vec4 flag,' + (NI ? ' sampler2D sg, sampler2D sb, sampler2D ng, sampler2D nb, vec2 has,' : '') + ' vec2 uv, vec2 sc) {',
     '  uv = crop.xy + uv * crop.zw;',   // обрезка белого края бумаги: показываем только внутренний прямоугольник кадра
     // фон и земля: у каждого пикселя свой сдвиг (3 итерации против «резины» на краях)
     '  vec2 p = uv;',
@@ -280,6 +296,14 @@
     '  vec4 eg = texture2D(em, pc);',                         // окна других зданий: g = свет ночью, a = сама маска
     // здание: один общий сдвиг и масштаб на весь предмет — жёсткое тело
     '  vec2 pb = 0.5 + (uv - 0.5) / (1.0 + uZoom * kd.y) - kd.x * uShift;',
+    '  float bdL = kd.y;',
+    // BUILDING_DEPTH_PIXEL: у каждой точки здания своя глубина (альфа земли) — низ лестницы/постамента едет вместе с полом под ним
+    '  if (kd.z > 0.5) {',
+    '    for (int i = 0; i < 3; i++) {',
+    '      bdL = texture2D(bg, clamp(pb, 0.0, 1.0)).a;',
+    '      pb = 0.5 + (uv - 0.5) / (1.0 + uZoom * bdL) - (bdL * 2.0 - 1.0) * uShift;',
+    '    }',
+    '  }',
     '  vec4 b = texture2D(bld, pb);',                         // цвет уже умножен на альфу
     '  vec4 eb = texture2D(em, pb);',                         // окна главного здания: r = свет ночью, b = сама маска
     '  c = b.rgb + c * (1.0 - b.a);',
@@ -372,7 +396,7 @@
     '  }',
     // ---- погода (e1.3): при uWeather = 0 блок не выполняется — картинка ровно как без погоды ----
     '  if (uWeather.x + uWeather.y + uWeather.z + uWeather.w > 0.0) {',
-    '    float dd = clamp(mix(env.r, kd.y, b.a), 0.0, 1.0);',                       // глубина точки: 0 — далеко, 1 — близко
+    '    float dd = clamp(mix(env.r, bdL, b.a), 0.0, 1.0);',                       // глубина точки: 0 — далеко, 1 — близко
     '    float lw = dot(c, vec3(0.299, 0.587, 0.114));',
     '    vec3 oc = mix(c, vec3(lw), ' + glf(LK.weather.overcastGray) + ') * (1.0 - ' + glf(LK.weather.overcastDim) + ' * (1.0 - 0.7 * uNightGnd));',   // пасмурно: цвета глуше, свет ровнее
     '    oc = mix(oc, ' + v3(LK.weather.overcastSky) + ' * mix(1.0, 0.22, uNightSky) * clamp(lw / skyRef.x * 1.05, 0.7, 1.05), sky * 0.85);',   // небо — серое, звёзды тонут
@@ -558,7 +582,7 @@
   }
   function uploadDay(f, r) {
     var steps = [
-      function () { f.bgTex = texRGB(r.w, r.h, r.ground); },                 // земля: кадр с подложкой на месте здания
+      function () { f.bgTex = r.ground4 ? texRGBA(r.w, r.h, r.ground4) : texRGB(r.w, r.h, r.ground); },   // земля: кадр с подложкой на месте здания (+ в альфе глубина здания по точкам, если включена)
       function () { f.depthTex = texRGBA(r.ew, r.eh, r.gpuDepth); },         // R глубина, G небо, B высота дерева, A фаза (вдвое мельче)
       function () { f.bldTex = texRGBA(r.w, r.h, r.bldPm); },                // здание, цвет уже умножен на альфу
       function () { f.emTex = texRGBA(r.ew, r.eh, r.emis); }                 // окна: R/G свет ночью (главное здание/другие здания), B/A сами маски
@@ -618,8 +642,8 @@
     bindFrame(fa, 0);
     if (fb) bindFrame(fb, UB0);
     gl.uniform4fv(US.uCropA, fa.crop); gl.uniform4fv(US.uFlagA, fa.flag);
-    gl.uniform2f(US.uKdA, fa.kB, fa.dB);
-    if (fb) { gl.uniform2f(US.uKdB, fb.kB, fb.dB); gl.uniform4fv(US.uCropB, fb.crop); gl.uniform4fv(US.uFlagB, fb.flag); }
+    gl.uniform3f(US.uKdA, fa.kB, fa.dB, fa.bldD ? 1 : 0);
+    if (fb) { gl.uniform3f(US.uKdB, fb.kB, fb.dB, fb.bldD ? 1 : 0); gl.uniform4fv(US.uCropB, fb.crop); gl.uniform4fv(US.uFlagB, fb.flag); }
     gl.uniform2f(US.uStarQ, fa.starQ, fb ? fb.starQ : 0);
     gl.uniform2f(US.uCloudK, CONFIG.CLOUD_SHADOW[fa.idx] || 0.12, fb ? (CONFIG.CLOUD_SHADOW[fb.idx] || 0.12) : 0.12);
     gl.uniform4f(US.uSkyRef, CONFIG.DAY.SKY_REF[fa.idx] || 0.86, CONFIG.DAY.SKY_END[fa.idx] || 0.55,
@@ -728,7 +752,7 @@
   var prep = (function () {
     var worker = null, pend = {}, seq = 0, mainReadyP = null;
     var cfg = {
-      MAX_TEX_SIZE: CONFIG.MAX_TEX_SIZE, DEPTH_BLUR_PX: CONFIG.DEPTH_BLUR_PX, STARS: CONFIG.STARS,
+      MAX_TEX_SIZE: CONFIG.MAX_TEX_SIZE, DEPTH_BLUR_PX: CONFIG.DEPTH_BLUR_PX, STARS: CONFIG.STARS, BUILDING_DEPTH_PIXEL: !!CONFIG.BUILDING_DEPTH_PIXEL,
       NIGHT_MAIN_LIT: CONFIG.NIGHT_MAIN_LIT, FRAME_SIZE: CONFIG.FRAME_SIZE, STAR_CELLS: STAR_CELLS, NIGHT_OTHER_LIT: CONFIG.NIGHT_OTHER_LIT, WINDOW_BRIGHT: CONFIG.WINDOW_BRIGHT, DAY: CONFIG.DAY
     };
     function viaMain(method, args) {
@@ -799,7 +823,7 @@
     if (dayP[i]) return dayP[i];
     dayP[i] = prep.call('day', [FRAMES[i], i]).then(function (r) {
       var entry = {
-        w: r.w, h: r.h, depth: r.depth, thumb: r.thumb ? URL.createObjectURL(r.thumb) : '', dB: r.dB, kB: r.kB,
+        w: r.w, h: r.h, depth: r.depth, thumb: r.thumb ? URL.createObjectURL(r.thumb) : '', dB: r.dB, kB: r.kB, bldD: (useGL && r.bldD) || null,
         ew: r.ew, eh: r.eh, emis: r.emis, wins: r.wins, skyFrac: r.skyFrac, starQ: r.starQ, emDirty: false,
         lamps: lampsFor(LAMPS[i], i, r.depth), winList: r.winList, nightLit: null, haloK: 1, idx: i,
         flag: new Float32Array(CONFIG.FLAGS[i] || [0, 0, 0, 0]),
@@ -893,7 +917,7 @@
     coverOffX = (1 - coverUvW) / 2;
     coverOffY = (1 - coverUvH) / 2;
   }
-  window.addEventListener('resize', function () { resize(true); if (window.__penFit) window.__penFit(); });
+  window.addEventListener('resize', function () { resize(true); fitTitle(); if (window.__penFit) window.__penFit(); });
   window.addEventListener('orientationchange', function () { setTimeout(function () { resize(true); }, 200); });
 
   function setNaturalSize(w, h) {
@@ -988,6 +1012,12 @@
     return dm.d[y * dm.w + x] / 255;
   }
 
+  function bldDepthAt(frameIdx, u, v) {   // глубина здания по точкам (BUILDING_DEPTH_PIXEL) — та же, что в альфе земли у шейдера
+    var bd = store[frameIdx] && store[frameIdx].bldD;
+    if (!bd) return store[frameIdx] ? store[frameIdx].dB : 0.5;
+    return bd.d[clamp(Math.round(v * (bd.h - 1)), 0, bd.h - 1) * bd.w + clamp(Math.round(u * (bd.w - 1)), 0, bd.w - 1)] / 255;
+  }
+
   function buildHotspots(frameIdx) {
     hotspotsEl.innerHTML = '';
     activeHotspots = [];
@@ -1006,7 +1036,8 @@
       });
       hotspotsEl.appendChild(btn);
       var d, k;
-      if (useGL && hs.layer === 'building') { d = store[frameIdx].dB; k = store[frameIdx].kB; }   // здание — жёстко, общий сдвиг
+      if (useGL && hs.layer === 'building' && store[frameIdx].bldD) { d = bldDepthAt(frameIdx, hs.u, hs.v); k = d * 2 - 1; }   // здание с глубиной по точкам
+      else if (useGL && hs.layer === 'building') { d = store[frameIdx].dB; k = store[frameIdx].kB; }   // здание — жёстко, общий сдвиг
       else if (useGL) { d = depthAt(frameIdx, hs.u, hs.v); k = d * 2 - 1; }                       // фон/земля — по пикселю
       else { d = 0; k = hs.layer === 'building' ? CONFIG.FALLBACK_LAYER_K : -CONFIG.FALLBACK_LAYER_K; }
       activeHotspots.push({ el: btn, hs: hs, d: d, k: k });
