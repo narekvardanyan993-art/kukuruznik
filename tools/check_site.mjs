@@ -5,7 +5,7 @@
 // и «кандидат» — и сравнивает их снимки:
 //   • каждое здание с просмотрщиком (kukuruznik/, beta/, beta/<имя>/, любая папка с index.html, где есть id="stage"):
 //     каждый кадр × день/закат/ночь × телефон 390×844 и ПК 1440×900, плюс парад и «живые детали» (принудительно);
-//   • прогулка по кликам (телефон и ПК): приветствие доходит до конца, панель открывается/закрывается, карточка точки-подсказки,
+//   • прогулка по кликам (телефон и ПК): заставка уходит (≤15 с) и все кадры загружаются (≤45 с) — две отдельные метрики, панель открывается/закрывается, карточка точки-подсказки,
 //     языки hy/ru/en, кнопка парада (на кадре 2 не срабатывает, на кадре 1 — парад), сохранение открытки (сама картинка);
 //   • страницы: главная, about.html и history.html каждого здания (вверху и целиком);
 //   • СТРОГОЕ попиксельное сравнение: любой отличающийся пиксель — различие. Два исключения, оба с объяснением в отчёте:
@@ -55,6 +55,8 @@ const FPS_MIN = 50, FPS_DROP = 0.10; // порог fps: не ниже 50 и не
 // Допуск на шум растеризации Chrome — ТОЛЬКО внутри областей панели и миниатюр на ПК (рамки записываются в снимок в момент съёмки).
 // Измерено по повторным прогонам одного и того же сайта: шум там до 109 пикселей с разницей до 48 из 255. Вне этих областей — строгий ноль.
 const NOISE_PX = 200, NOISE_DELTA = 60, REGION_PAD = 6;
+const WELCOME_MAX_S = 15;   // заставка (приветствие) должна уйти — это видит человек
+const LOADED_MAX_S = 45;    // все кадры загружены — идёт в фоне; Кукурузнику (5 кадров) нужно ~20 с, на медленном Mac — ~31 с
 const PAGE_ATTEMPTS_A = 3, PAGE_ATTEMPTS_B = 5;
 const VIEWER_RETRIES_B = 2;   // просмотрщик кандидата: если снимок вне областей допуска не совпал — переснять весь проход ещё до 2 раз (Chrome изредка по-другому растрирует мелкие детали, например край точки-подсказки)   // обычные страницы: сколько раз снимать «как на сайте» (варианты Chrome) и сколько раз переснимать кандидата
 const VIEWPORTS = { phone: { width: 390, height: 844 }, pc: { width: 1440, height: 900 } };
@@ -378,13 +380,19 @@ async function captureWalk(browser, origin, target, vpName, outDir) {
   try {
     const t0 = Date.now();
     await page.goto(origin + target.url, { waitUntil: 'load', timeout: 60000 });
-    let welcomeMs = null;
-    for (let i = 0; i < 120; i++) {   // до 30 с
+    // две разные метрики: «заставка ушла» (то, что видит человек) и «все кадры загружены» (фон; у Кукурузника 5 кадров — ~20 с)
+    let goneMs = null, loadedMs = null;
+    for (let i = 0; i < LOADED_MAX_S * 4; i++) {
       const st = await page.evaluate(() => { const w = document.getElementById('welcome'); return { gone: !w || w.hidden, loaded: document.documentElement.getAttribute('data-loaded') === 'all' && !!window.Details }; });
-      if (st.gone && st.loaded) { welcomeMs = Date.now() - t0; break; }
+      if (st.gone && goneMs == null) goneMs = Date.now() - t0;
+      if (st.loaded && loadedMs == null) loadedMs = Date.now() - t0;
+      if (goneMs != null && loadedMs != null) break;
+      if (goneMs == null && Date.now() - t0 > WELCOME_MAX_S * 1000) break;
       await sleep(250);
     }
-    if (welcomeMs == null) throw new Error('приветствие не дошло до конца за 30 с');
+    if (goneMs == null) throw new Error(`заставка не ушла за ${WELCOME_MAX_S} с`);
+    if (loadedMs == null) throw new Error(`кадры не загрузились за ${LOADED_MAX_S} с (заставка ушла за ${(goneMs / 1000).toFixed(1)} с)`);
+    const welcomeMs = { gone: goneMs, loaded: loadedMs };
     await page.evaluate(() => window.__freezeAnimations());
     await page.evaluate(() => document.fonts && document.fonts.ready);
     await sleep(phone ? 600 : 3000);   // демо-наклон после приветствия (таймер 250 мс); на ПК — стена из букв и «перо» панели
@@ -793,7 +801,7 @@ details>summary{cursor:pointer;margin:.5em 0}
   for (const [id, t] of Object.entries(R.targets)) {
     h += `<h2>${esc(id)} ${badge(t.status)}</h2>`;
     if (t.retried) h += `<p>Пересъёмка кандидата: ${t.retried} снимков совпали побайтно со второго/третьего прохода (разовая дрожь растеризации Chrome).</p>`;
-    if (t.welcome) h += `<p>Приветствие дошло до конца за: ${Object.entries(t.welcome).map(([k, v]) => `${k} ${(v / 1000).toFixed(1)} с`).join(', ')}</p>`;
+    if (t.welcome) h += `<p>Приветствие: ${Object.entries(t.welcome).map(([k, v]) => `${k} — заставка ушла ${(v.gone / 1000).toFixed(1)} с, кадры загружены ${(v.loaded / 1000).toFixed(1)} с`).join('; ')}</p>`;
     if (t.head && t.head.length) h += `<h3>Шапка страницы (сырой HTML: превью в соцсетях, значки)</h3><table><tr><th>тег</th><th>было</th><th>стало</th><th></th></tr>` + t.head.map((d) => `<tr><td>${esc(d.k)}</td><td>${esc(d.a ?? '—')}</td><td>${esc(d.b ?? '—')}</td><td>${d.strict ? badge('fail') : badge('info')}</td></tr>`).join('') + '</table>';
     else if (t.head) h += `<p>Шапка страницы (превью в соцсетях, заголовок, canonical, значки) — без изменений.</p>`;
     if (t.headNote) h += `<p>${esc(t.headNote)}</p>`;
@@ -955,7 +963,7 @@ async function main() {
     writeReport(out, R);
     fs.writeFileSync(path.join(out, 'result.json'), JSON.stringify({ ok: R.ok, failures: R.failures, aLabel, bLabel, env, totalShots: R.totalShots, exact: R.exact || 0, regions: R.regions, seconds: R.seconds, targets: Object.fromEntries(Object.entries(R.targets).map(([k, v]) => [k, { status: v.status, total: v.total, changed: v.changed, problems: v.problems.length }])) }, null, 1));
     log(R.ok ? 'ЗЕЛЁНАЯ' : 'КРАСНАЯ');
-    for (const [id, t] of Object.entries(R.targets)) log(`  ${id.padEnd(30)} ${t.status.padEnd(8)} снимков ${t.total}, отличаются ${t.changed}${t.noise ? ` (+${t.noise} шум в панели)` : ''}, проблем ${t.problems.length}${t.fpsNote ? ', fps ' + t.fpsNote : ''}${t.retried ? `, переснято и совпало ${t.retried}` : ''}${t.welcome ? ', приветствие ' + Object.entries(t.welcome).map(([k, v]) => `${k} ${(v / 1000).toFixed(1)} с`).join(' / ') : ''}`);
+    for (const [id, t] of Object.entries(R.targets)) log(`  ${id.padEnd(30)} ${t.status.padEnd(8)} снимков ${t.total}, отличаются ${t.changed}${t.noise ? ` (+${t.noise} шум в панели)` : ''}, проблем ${t.problems.length}${t.fpsNote ? ', fps ' + t.fpsNote : ''}${t.retried ? `, переснято и совпало ${t.retried}` : ''}${t.welcome ? ', заставка/кадры ' + Object.entries(t.welcome).map(([k, v]) => `${k} ${(v.gone / 1000).toFixed(1)}/${(v.loaded / 1000).toFixed(1)} с`).join(' / ') : ''}`);
     for (const [id, t] of Object.entries(R.targets)) for (const d of (t.head || []).filter((x) => !x.strict)) log(`  шапка ${id}: ${d.k}: «${d.a ?? '—'}» → «${d.b ?? '—'}» (не превью — только в отчёт)`);
     for (const [id, t] of Object.entries(R.targets)) if (t.headNote) log(`  шапка ${id}: ${t.headNote}`);
     for (const f of R.failures) log('  ✗ ' + f);
