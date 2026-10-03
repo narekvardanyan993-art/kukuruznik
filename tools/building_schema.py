@@ -109,7 +109,7 @@ class Checker:
 def validate(bdir, b, site):
     c = Checker(bdir, site)
     if not c.obj(b, 'файл', required=('format', 'id', 'meta', 'app', 'links', 'framesDir', 'text', 'facts', 'aboutFacts',
-                                      'postcardFile', 'look', 'frames'), optional=('tuning',)):
+                                      'postcardFile', 'look', 'frames'), optional=('tuning', 'live', 'card')):
         return c.errors
     if b['format'] != 1:
         c.err('format', 'неизвестный формат %r (нужен 1)' % (b['format'],))
@@ -328,6 +328,28 @@ def validate(bdir, b, site):
     # --- tuning: переопределение чисел движка ---
     if 'tuning' in b:
         check_tuning(c, b['tuning'])
+    # --- live / card: тестовое здание, переведённое в живые (tools/publish_building.py) ---
+    if 'live' in b:
+        lv = b['live']
+        if not isinstance(lv, dict):
+            c.err('live', 'должен быть объект')
+        else:
+            if c.string(lv.get('slug'), 'live.slug') and not re.fullmatch(r'[a-z0-9][a-z0-9-]*', lv['slug']):
+                c.err('live.slug', 'адрес здания — латиница, цифры и дефис (например lenin)')
+            if not isinstance(lv.get('meta', {}), dict):
+                c.err('live.meta', 'должен быть объект')
+            elif 'url' in lv.get('meta', {}) and not str(lv['meta']['url']).startswith('https://'):
+                c.err('live.meta.url', 'адрес должен начинаться с https://')
+    if 'card' in b:
+        cd = c.obj(b['card'], 'card', required=('eyebrow', 'meta', 'image'), optional=('title', 'history'))
+        if cd:
+            c.i18n(cd['eyebrow'], 'card.eyebrow')
+            c.i18n(cd['meta'], 'card.meta')
+            if 'title' in cd:
+                c.i18n(cd['title'], 'card.title')
+            c.string(cd['image'], 'card.image')
+            if 'history' in cd:
+                c.string(cd['history'], 'card.history', allow_none=True)
     return c.errors
 
 

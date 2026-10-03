@@ -116,7 +116,7 @@ def main():
         print('%s  тестовые здания нигде не упоминаются%s' % ('OK   ' if not leak else 'ОШИБКА', (': ' + ', '.join(leak)) if leak else ''))
         ok_all &= not leak
         # живые здания (этап 5): только из проверенного движка; живой движок, не совпадающий с исходником, останавливает сборку
-        live = bp.live_buildings()
+        live = bp.live_buildings(site=site)
         lf = bp.build_live(site, live, engine_from=site / 'beta' / 'engine')
         page = (site / 'kukuruznik' / 'index.html').read_text(encoding='utf-8')
         ver = bp.engine_version()
@@ -176,6 +176,23 @@ def main():
                 and cmd[cmd.index('--only') + 1] == ','.join(exp1) and cmd[cmd.index('--allow-change') + 1] == ','.join(exp1))
         print('%s  publish_beta --expect-change: пиксели только у изменяемых и новых целей (Ленин и его страницы), нетронутые не снимаются, живая страница/движок в изменениях = красная, в check_site уходят точные --only/--allow-change' % ('OK   ' if good else 'ОШИБКА'))
         ok_all &= bool(good)
+        # живое здание из tests/<имя> (publish_building): файлы на месте, без noindex и без tests/, адрес и превью живые;
+        # карточка на главной в исходнике == собранная из building.json; до публикации на сайте publish_engine его не видит
+        for slug in bp.test_live_slugs():
+            pf = bp.place_live_files(site, slug)
+            lf2 = bp.build_live(site, [slug])
+            pg = (site / slug / 'index.html').read_text(encoding='utf-8')
+            subs = [(site / slug / n).read_text(encoding='utf-8') for n in bp.OWN_PAGES if (site / slug / n).is_file()]
+            b2 = bp.load_live(slug)[1]
+            card_ok = bp.render_card(slug) in (ROOT / 'index.html').read_text(encoding='utf-8')
+            good = ('noindex' not in pg and all('noindex' not in s for s in subs) and 'tests/' not in pg and all('tests/' not in s for s in subs)
+                    and ('<link rel="canonical" href="%s">' % b2['meta']['url']) in pg
+                    and (not b2['meta']['ogImage'] or ('og:image" content="%s%s"' % (b2['meta']['url'], b2['meta']['ogImage'])) in pg)
+                    and '%s/index.html' % slug in lf2 and any(f.startswith(slug + '/frames/') for f in pf)
+                    and slug in bp.live_buildings(site=site) and slug not in bp.live_buildings(site=tmp / 'нет-сайта'))
+            print('%s  живое здание %s из tests/: файлы, адрес, превью, без noindex и tests/%s' % ('OK   ' if good else 'ОШИБКА', slug, '' if card_ok else ' — НО карточка на главной не совпадает с building.json (card)'))
+            ok_all &= bool(good and card_ok)
+            shutil.rmtree(site / slug)
         (site / 'engine' / 'viewer.js').write_text('// старый движок\n', encoding='utf-8')
         try:
             bp.build_live(site, live)

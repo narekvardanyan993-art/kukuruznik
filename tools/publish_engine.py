@@ -59,8 +59,6 @@ def main():
     ap.add_argument('-m', '--message', help='сообщение коммита')
     args = ap.parse_args()
     tag = '[dry-run] ' if args.dry_run else ''
-    bdirs = bp.live_buildings()
-    message = args.message or 'engine: живые здания (%s) на движке %s — %s' % (', '.join(bdirs), bp.engine_version(), time.strftime('%Y-%m-%d %H:%M'))
 
     pb.git(ROOT, 'fetch', pb.REMOTE, pb.BRANCH)
     base = pb.git(ROOT, 'rev-parse', '%s/%s' % (pb.REMOTE, pb.BRANCH))
@@ -68,6 +66,8 @@ def main():
     print('%sвременный worktree: %s (от %s/%s = %s)' % (tag, tmp, pb.REMOTE, pb.BRANCH, base[:7]))
     try:
         pb.git(ROOT, 'worktree', 'add', '--detach', str(tmp), base)
+        bdirs = bp.live_buildings(site=tmp)   # живые здания — те, что уже есть на сайте (включая переведённые из tests/ через publish_building)
+        message = args.message or 'engine: живые здания (%s) на движке %s — %s' % (', '.join(bdirs), bp.engine_version(), time.strftime('%Y-%m-%d %H:%M'))
         st = subprocess.run([sys.executable, str(ROOT / 'tools' / 'test_build_pages.py')], capture_output=True, text=True)
         if st.returncode != 0:
             raise SystemExit('самопроверка сборщика (tools/test_build_pages.py) красная:\n' + st.stdout[-3000:])

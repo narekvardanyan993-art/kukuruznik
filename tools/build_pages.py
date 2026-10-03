@@ -415,7 +415,10 @@ def live_vs_beta(site, bdirs):
     bad = []
     if engine_files(site / 'engine') != engine_files(site / 'beta' / 'engine'):
         bad.append('engine/ не равен beta/engine/')
+    tl = test_live_slugs()
     for bd in bdirs:
+        if bd in tl:   # живое здание из tests/<имя>: бета лежит в beta/tests/<имя>/ с другими адресами и превью — побайтно не сравнить,
+            continue   # его картинку сверяет check_site (publish_engine снимает пиксели у всех живых зданий)
         for name in ('index.html', 'manifest.json'):
             live = (site / bd / name).read_text(encoding='utf-8')
             beta = (site / 'beta' / bd / name).read_text(encoding='utf-8')
@@ -527,10 +530,54 @@ def head_changes(old_html, new_html):
     return ['было: %s' % t for t in a if t not in b] + ['стало: %s' % t for t in b if t not in a]
 
 
-def live_buildings(root=None):
-    """Живые здания: папки в корне репозитория с building.json (tests/ — только бета)."""
+def live_buildings(root=None, site=None):
+    """Живые здания (их адреса на сайте): папки в корне репозитория с building.json, плюс тестовые здания tests/<имя>/ с блоком
+    "live" в building.json (переведены в живые tools/publish_building.py). site — корень сайта: тестовое здание считается живым,
+    только если оно там уже опубликовано (<slug>/index.html есть) — иначе publish_engine не пытается собрать то, чего на сайте нет."""
     root = Path(root or ROOT)
-    return sorted(d.name for d in root.iterdir() if d.is_dir() and not d.name.startswith('.') and d.name != 'tests' and (d / 'building.json').exists())
+    out = [d.name for d in root.iterdir() if d.is_dir() and not d.name.startswith('.') and d.name != 'tests' and (d / 'building.json').exists()]
+    for slug in test_live_slugs(root):
+        if slug not in out and (site is None or (Path(site) / slug / 'index.html').exists()):
+            out.append(slug)
+    return sorted(out)
+
+
+def test_live_slugs(root=None):
+    """{адрес на сайте: папка исходника} для тестовых зданий с блоком "live" (tests/lenin -> lenin)."""
+    root = Path(root or ROOT)
+    out = {}
+    t = root / 'tests'
+    if t.is_dir():
+        for d in sorted(t.iterdir()):
+            f = d / 'building.json'
+            if d.name != 'local' and f.exists():
+                b = json.loads(f.read_text(encoding='utf-8'))
+                if isinstance(b.get('live'), dict):
+                    out[b['live'].get('slug') or d.name] = 'tests/' + d.name
+    return out
+
+
+LIVE_ONLY_KEYS = ('slug',)   # служебные ключи блока live — в настройки здания не сливаются
+
+
+def load_live(slug, root=None):
+    """Настройки ЖИВОГО здания по адресу slug: из папки slug/ в корне репозитория или из tests/<имя>/ с блоком live
+    (тогда live поверх настроек: адрес, значки, превью — всё, что на сайте лежит иначе, чем в бете). Блоки live и card в
+    результат не попадают. Возвращает (папка исходника, настройки)."""
+    root = Path(root or ROOT)
+    if (root / slug / 'building.json').exists():
+        b = load_building(slug, root)
+        src = slug
+    else:
+        tl = test_live_slugs(root)
+        if slug not in tl:
+            raise SystemExit('СБОРКА ОСТАНОВЛЕНА: нет живого здания %s (ни %s/building.json, ни tests/*/building.json с live.slug = %s)' % (slug, slug, slug))
+        src = tl[slug]
+        b = load_building(src, root)
+        over = {k: v for k, v in b['live'].items() if k not in LIVE_ONLY_KEYS}
+        deep_merge(b, over)
+    b = {k: v for k, v in b.items() if k not in ('live', 'card')}
+    return src, b
 
 
 def build_live(site, bdirs=None, engine_from=None, root=None):
@@ -541,8 +588,12 @@ def build_live(site, bdirs=None, engine_from=None, root=None):
     site = Path(site)
     if not (site / 'CNAME').exists():
         raise SystemExit('%s не похоже на корень сайта (нет CNAME)' % site)
-    bdirs = list(bdirs or live_buildings(root))
-    check_buildings(bdirs, site, root)   # ошибки настроек — до любой записи
+    bdirs = list(bdirs or live_buildings(root, site))
+    errors = []   # ошибки настроек — до любой записи (у тестового здания — с блоком live поверх)
+    for bd in bdirs:
+        errors += building_schema.validate(bd, load_live(bd, root)[1], site)
+    if errors:
+        raise SystemExit('СБОРКА ОСТАНОВЛЕНА: ошибки в настройках зданий (%d):\n  • %s' % (len(errors), '\n  • '.join(errors)))
     live = site / 'engine'
     written = []
     if engine_from:
@@ -564,14 +615,135 @@ def build_live(site, bdirs=None, engine_from=None, root=None):
                          % ((live / 'VERSION').read_text(encoding='utf-8').strip(), engine_version()))
     version = (live / 'VERSION').read_text(encoding='utf-8').strip()
     for bd in bdirs:
-        b = load_building(bd, root)
+        b = load_live(bd, root)[1]
         page_dir = '%s/' % bd
         out = site / page_dir / 'index.html'
+        out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(render(b, bd, page_dir, 'engine/', beta=False, version=version), encoding='utf-8')
         written.append(str(out.relative_to(site)))
         (out.parent / 'manifest.json').write_text(make_manifest(b, bd, page_dir), encoding='utf-8')
         written.append(str((out.parent / 'manifest.json').relative_to(site)))
     return written
+
+
+_NOINDEX = re.compile(r'^[ \t]*<meta name="(?:robots|googlebot)" content="noindex[^>]*>\n', re.M)
+
+
+def place_live_files(site, slug, root=None):
+    """Тестовое здание (tests/<имя>/ с блоком live) -> файлы живого здания <site>/<slug>/: кадры frames/*.webp, about.html,
+    history.html, gallery/*.webp (адреса от корня сайта пересчитываются под новую папку, теги noindex убираются), картинка
+    превью (live.meta.ogImage) и картинка карточки главной (card.image). Папка <slug>/ сначала очищается целиком —
+    на сайте лежит ровно то, что в исходнике. Страницу index.html и manifest.json собирает build_live. Возвращает список файлов."""
+    root = Path(root or ROOT)
+    tl = test_live_slugs(root)
+    if slug not in tl:
+        raise SystemExit('СТОП: нет тестового здания с live.slug = %s (tests/*/building.json с блоком "live")' % slug)
+    src = tl[slug]
+    raw = load_building(src, root)
+    b = load_live(slug, root)[1]
+    out = Path(site) / slug
+    if out.exists():
+        shutil.rmtree(out)
+    out.mkdir(parents=True)
+    written = []
+    fsrc = root / src / b['framesDir']
+    for f in sorted(fsrc.glob('*.webp')):
+        dst = out / b['framesDir'] / f.name
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(f, dst)
+        written.append(str(dst.relative_to(site)))
+    for name in copy_own_pages(src, out, slug + '/', root):
+        if name.endswith('.html'):
+            pg = out / name
+            pg.write_text(_NOINDEX.sub('', pg.read_text(encoding='utf-8')), encoding='utf-8')
+        written.append('%s/%s' % (slug, name))
+    for rp in (b['meta'].get('ogImage'), (raw.get('card') or {}).get('image')):
+        if rp:
+            f = root / src / rp
+            if not f.is_file():
+                raise SystemExit('СТОП: нет файла %s/%s' % (src, rp))
+            dst = out / rp
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(f, dst)
+            written.append(str(dst.relative_to(site)))
+    return written
+
+
+def _i18n_spans(d):
+    return ''.join('<span class="i18n-inline" lang="%s">%s</span>' % (l, html.escape(d[l], quote=False)) for l in LANGS)
+
+
+GO_3D = ('<span class="go"><span class="i18n-inline" lang="hy">Բացել 3D-ով</span><span class="i18n-inline" lang="ru">Открыть 3D</span>'
+         '<span class="i18n-inline" lang="en">Open in 3D</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" '
+         'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>')
+HISTORY_WORD = {'hy': 'պատմությունը', 'ru': 'история', 'en': 'history'}
+
+
+def render_card(slug, root=None):
+    """Карточка здания на главной (index.html) из блока card в building.json — как у Кукурузника. Между метками
+    <!-- card:<slug> --> и <!-- /card:<slug> -->; руками не править."""
+    src = test_live_slugs(root).get(slug, slug)
+    b = load_building(src, root)
+    cd = b.get('card')
+    if not cd:
+        raise SystemExit('СТОП: в %s/building.json нет блока card (карточка главной)' % src)
+    e = lambda s: html.escape(s, quote=True)
+    title = cd.get('title') or b['text']['title']
+    lines = [
+        '      <!-- card:%s — собирается из %s/building.json (card), руками не править -->' % (slug, src),
+        '      <li class="card reveal">',
+        '        <a class="card-in" href="%s/" data-transition>' % e(slug),
+        '          <div class="pic"><img src="%s/%s" width="480" height="480" alt="" loading="lazy" decoding="async"></div>' % (e(slug), e(cd['image'])),
+        '          <div class="txt">',
+        '            <span class="eyebrow">%s</span>' % _i18n_spans(cd['eyebrow']),
+        '            <h3>%s</h3>' % _i18n_spans(title),
+        '            <p class="meta">%s</p>' % _i18n_spans(cd['meta']),
+        '            ' + GO_3D,
+        '          </div>',
+        '        </a>',
+    ]
+    if cd.get('history'):
+        lines.append('        <a class="card-history" href="%s/%s">%s</a>' % (e(slug), e(cd['history']), _i18n_spans(HISTORY_WORD)))
+    lines += ['      </li>', '      <!-- /card:%s -->' % slug]
+    return '\n'.join(lines)
+
+
+def _card_span(text, slug):
+    a = text.find('      <!-- card:%s ' % slug)
+    if a < 0:
+        a = text.find('<!-- card:%s -->' % slug)
+    endm = '<!-- /card:%s -->' % slug
+    z = text.find(endm)
+    if a < 0 or z < 0 or z < a:
+        return None
+    return a, z + len(endm)
+
+
+def hub_with_card(hub, slug, card_html):
+    """Главная с карточкой здания slug на месте меток card:<slug> (метки обязаны быть в исходной главной)."""
+    sp = _card_span(hub, slug)
+    if not sp:
+        raise SystemExit('СТОП: в index.html нет меток <!-- card:%s --> … <!-- /card:%s --> — некуда ставить карточку' % (slug, slug))
+    return hub[:sp[0]] + card_html + hub[sp[1]:]
+
+
+def hub_outside_diff(old, new, slug):
+    """Главная на сайте (old) -> новая (new): все отличия обязаны лежать внутри карточки slug (между метками в new).
+    Иначе публикация здания унесла бы на сайт чужие, непроверенные правки главной. Возвращает список проблем."""
+    import difflib
+    sp = _card_span(new, slug)
+    if not sp:
+        return ['в новой главной нет меток карточки %s' % slug]
+    nl = new.splitlines()
+    first = new[:sp[0]].count('\n')
+    last = new[:sp[1]].count('\n')
+    bad = []
+    for op, i1, i2, j1, j2 in difflib.SequenceMatcher(None, old.splitlines(), nl, autojunk=False).get_opcodes():
+        if op == 'equal':
+            continue
+        if not (j1 >= first and j2 <= last + 1 and (j2 > j1 or first <= j1 <= last + 1)):
+            bad.append('главная: отличие вне карточки %s — строки сайта %d–%d: %s' % (slug, i1 + 1, i2, (old.splitlines()[i1:i2] or nl[j1:j2] or [''])[0].strip()[:90]))
+    return bad
 
 
 def verify(site, bid='kukuruznik'):
