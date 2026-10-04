@@ -213,6 +213,17 @@ const INIT_SCRIPT = () => {
   if (!window.__keepAnimations) document.addEventListener('DOMContentLoaded', () => document.head.appendChild(st));
   window.__freezeAnimations = () => { if (!st.isConnected) document.head.appendChild(st); };
 };
+// Перед каждым снимком: (1) раскладка и шрифты — после смены языка нужные шрифты подгружаются в фоне по реальному времени,
+// и снимок попадал то до, то после (строки сдвигаются на доли пикселя); (2) стена из букв на ПК перестраивается по РЕАЛЬНОМУ таймеру
+// (0.3–1 с после смены классов/размеров, wall.js) — перестраиваем её сейчас тем же кодом (window.__wallRelayout), если она уже показана.
+// Обе копии сайта снимаются одинаково; сравнение не ослабляется.
+const settleDom = (page) => page.evaluate(async () => {
+  const wait = (pr, ms) => Promise.race([pr, new Promise((r) => setTimeout(r, ms))]);   // не зависнуть, если шрифт так и не догрузился
+  void document.body.offsetHeight;
+  if (document.fonts) { await wait(document.fonts.ready, 3000); for (let i = 0; i < 40 && document.fonts.status !== 'loaded'; i++) await new Promise((r) => setTimeout(r, 50)); }
+  const w = document.getElementById('wall');
+  if (window.__wallRelayout && w && w.classList.contains('on')) window.__wallRelayout();
+});
 const hashSeed = (s) => { let h = 2166136261; for (const c of s) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
 
 async function newPage(browser, origin, vp, { virtual = true, mobile = false, dsf = 1, keepAnimations = false } = {}) {
@@ -278,7 +289,7 @@ async function captureViewer(browser, origin, target, vpName, outDir) {
   // (другая фаза «дыхания» и ветра) — и мелкие детали на резких краях выходят чуть по-разному от прогона к прогону.
   const gpuDone = () => page.evaluate(() => { const c = document.getElementById('gl'); const g = c && (c.getContext('webgl') || c.getContext('experimental-webgl')); if (g) { g.finish(); const px = new Uint8Array(4); g.readPixels(0, 0, 1, 1, g.RGBA, g.UNSIGNED_BYTE, px); } });
   const snap = async (name) => {
-    await gpuDone(); await sleep(60);
+    await settleDom(page); await gpuDone(); await sleep(60);
     const regions = await noiseRegions(page, vpName);
     const buf = await page.screenshot({ type: 'png' });
     fs.writeFileSync(path.join(outDir, name + '.png'), buf);
@@ -360,7 +371,7 @@ async function captureWalk(browser, origin, target, vpName, outDir) {
   const seed = (s) => page.evaluate((v) => window.__seed(v), hashSeed(`${target.id}|walk|${vpName}|${s}`));
   const gpuDone = () => page.evaluate(() => { const c = document.getElementById('gl'); const g = c && (c.getContext('webgl') || c.getContext('experimental-webgl')); if (g) { g.finish(); const px = new Uint8Array(4); g.readPixels(0, 0, 1, 1, g.RGBA, g.UNSIGNED_BYTE, px); } });
   const snap = async (name) => {
-    await seed('snap-' + name); await adv(700); await gpuDone(); await sleep(60);
+    await seed('snap-' + name); await adv(700); await settleDom(page); await gpuDone(); await sleep(60);
     const regions = await noiseRegions(page, vpName);
     const buf = await page.screenshot({ type: 'png' });
     fs.writeFileSync(path.join(outDir, name + '.png'), buf);
@@ -686,7 +697,11 @@ async function launchBrowsers() {
   const chromeArgs = opt.renderer === 'swiftshader' ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] : ['--use-angle=metal', '--ignore-gpu-blocklist', '--enable-gpu'];
   // Флаги «детерминированного режима» Chrome: все стадии композитора до отрисовки, без асинхронного декодирования картинок (checker imaging),
   // без потоковых анимаций и прокрутки, без тайм-аутов первой отрисовки.
-  const common = ['--run-all-compositor-stages-before-draw', '--disable-new-content-rendering-timeout', '--disable-threaded-animation', '--disable-threaded-scrolling', '--disable-checker-imaging', '--disable-image-animation-resync', '--disable-gpu-rasterization', '--hide-scrollbars', '--disable-lcd-text', '--font-render-hinting=none', '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE 127.0.0.1'];   // DOM (панель, точки-подсказки, страницы) растрируется программно; WebGL-холст просмотрщика — на GPU
+  // --disable-features=CanvasNoise: Chrome (защита от отпечатков) подмешивает СЛУЧАЙНЫЙ шум в чтение холста, на котором рисовали текст/фигуры
+  // (открытка: fillText → toBlob) — у двух прогонов одного и того же сайта открытка разная. Это свойство браузера, не сайта.
+  // --disable-partial-raster: без него Chrome перерисовывает только изменившуюся часть плитки поверх старой — итог зависит от того, какие
+  // промежуточные состояния успели нарисоваться в реальном времени (кольцо флага, скруглённые углы миниатюр «гуляют» на 1–10 из 255).
+  const common = ['--disable-features=CanvasNoise', '--disable-partial-raster', '--run-all-compositor-stages-before-draw', '--disable-new-content-rendering-timeout', '--disable-threaded-animation', '--disable-threaded-scrolling', '--disable-checker-imaging', '--disable-image-animation-resync', '--disable-gpu-rasterization', '--hide-scrollbars', '--disable-lcd-text', '--font-render-hinting=none', '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE 127.0.0.1'];   // DOM (панель, точки-подсказки, страницы) растрируется программно; WebGL-холст просмотрщика — на GPU
   const gl = await puppeteer.launch({ headless: 'new', args: [...chromeArgs, ...common] });
   const sw = await puppeteer.launch({ headless: 'new', args: ['--disable-gpu', ...common] });
   return { gl, sw };
@@ -750,7 +765,7 @@ async function runSite(label, root, targets, outBase, guideRes, guideDir) {
         for (const [k, v] of Object.entries(r.shots)) res[t.id].shots[`${vpName}/${k}`] = v;
         res[t.id].problems.push(...r.problems.map((p) => ({ ...p, vp: vpName })));
         res[t.id].external += r.external;
-        log(`${label} · ${t.id} · ${vpName}: ${Object.keys(r.shots).length} снимков` + (r.problems.length ? `, проблем: ${r.problems.length}` : ''));
+        log(`${label} · ${t.id} · ${vpName}: ${Object.keys(r.shots).length} снимков` + (r.problems.length ? `, проблем: ${r.problems.length} — ${r.problems.slice(0, 3).map((x) => x.type + ': ' + x.msg).join('; ')}` : ''));
       }
     }
     if (opt.structure) {
@@ -801,7 +816,7 @@ details>summary{cursor:pointer;margin:.5em 0}
   for (const [id, t] of Object.entries(R.targets)) {
     h += `<h2>${esc(id)} ${badge(t.status)}</h2>`;
     if (t.retried) h += `<p>Пересъёмка кандидата: ${t.retried} снимков совпали побайтно со второго/третьего прохода (разовая дрожь растеризации Chrome).</p>`;
-    if (t.welcome) h += `<p>Приветствие: ${Object.entries(t.welcome).map(([k, v]) => `${k} — заставка ушла ${(v.gone / 1000).toFixed(1)} с, кадры загружены ${(v.loaded / 1000).toFixed(1)} с`).join('; ')}</p>`;
+    if (t.welcome) h += `<p>Приветствие: ${Object.entries(t.welcome).filter(([, v]) => v).map(([k, v]) => `${k} — заставка ушла ${(v.gone / 1000).toFixed(1)} с, кадры загружены ${(v.loaded / 1000).toFixed(1)} с`).join('; ')}</p>`;
     if (t.head && t.head.length) h += `<h3>Шапка страницы (сырой HTML: превью в соцсетях, значки)</h3><table><tr><th>тег</th><th>было</th><th>стало</th><th></th></tr>` + t.head.map((d) => `<tr><td>${esc(d.k)}</td><td>${esc(d.a ?? '—')}</td><td>${esc(d.b ?? '—')}</td><td>${d.strict ? badge('fail') : badge('info')}</td></tr>`).join('') + '</table>';
     else if (t.head) h += `<p>Шапка страницы (превью в соцсетях, заголовок, canonical, значки) — без изменений.</p>`;
     if (t.headNote) h += `<p>${esc(t.headNote)}</p>`;
@@ -963,7 +978,7 @@ async function main() {
     writeReport(out, R);
     fs.writeFileSync(path.join(out, 'result.json'), JSON.stringify({ ok: R.ok, failures: R.failures, aLabel, bLabel, env, totalShots: R.totalShots, exact: R.exact || 0, regions: R.regions, seconds: R.seconds, targets: Object.fromEntries(Object.entries(R.targets).map(([k, v]) => [k, { status: v.status, total: v.total, changed: v.changed, problems: v.problems.length }])) }, null, 1));
     log(R.ok ? 'ЗЕЛЁНАЯ' : 'КРАСНАЯ');
-    for (const [id, t] of Object.entries(R.targets)) log(`  ${id.padEnd(30)} ${t.status.padEnd(8)} снимков ${t.total}, отличаются ${t.changed}${t.noise ? ` (+${t.noise} шум в панели)` : ''}, проблем ${t.problems.length}${t.fpsNote ? ', fps ' + t.fpsNote : ''}${t.retried ? `, переснято и совпало ${t.retried}` : ''}${t.welcome ? ', заставка/кадры ' + Object.entries(t.welcome).map(([k, v]) => `${k} ${(v.gone / 1000).toFixed(1)}/${(v.loaded / 1000).toFixed(1)} с`).join(' / ') : ''}`);
+    for (const [id, t] of Object.entries(R.targets)) log(`  ${id.padEnd(30)} ${t.status.padEnd(8)} снимков ${t.total}, отличаются ${t.changed}${t.noise ? ` (+${t.noise} шум в панели)` : ''}, проблем ${t.problems.length}${t.fpsNote ? ', fps ' + t.fpsNote : ''}${t.retried ? `, переснято и совпало ${t.retried}` : ''}${t.welcome ? ', заставка/кадры ' + Object.entries(t.welcome).filter(([, v]) => v).map(([k, v]) => `${k} ${(v.gone / 1000).toFixed(1)}/${(v.loaded / 1000).toFixed(1)} с`).join(' / ') : ''}`);
     for (const [id, t] of Object.entries(R.targets)) for (const d of (t.head || []).filter((x) => !x.strict)) log(`  шапка ${id}: ${d.k}: «${d.a ?? '—'}» → «${d.b ?? '—'}» (не превью — только в отчёт)`);
     for (const [id, t] of Object.entries(R.targets)) if (t.headNote) log(`  шапка ${id}: ${t.headNote}`);
     for (const f of R.failures) log('  ✗ ' + f);
