@@ -176,6 +176,17 @@ def main():
                 and cmd[cmd.index('--only') + 1] == ','.join(exp1) and cmd[cmd.index('--allow-change') + 1] == ','.join(exp1))
         print('%s  publish_beta --expect-change: пиксели только у изменяемых и новых целей (Ленин и его страницы), нетронутые не снимаются, живая страница/движок в изменениях = красная, в check_site уходят точные --only/--allow-change' % ('OK   ' if good else 'ОШИБКА'))
         ok_all &= bool(good)
+        # publish_building: пары «бета ⇄ живое» нет (twins=False), у publish_beta/publish_engine — есть (по умолчанию)
+        seen2 = []
+        pb.subprocess.run = lambda cmd, **kw: (seen2.append(cmd), type('R', (), {'returncode': 0})())[1]
+        try:
+            pb.run_check('x', strict=True, allow_extra=['hub', 'lenin'], only=['hub', 'kukuruznik', 'lenin'], twins=False)
+            pb.run_check('x', strict=True)
+        finally:
+            pb.subprocess.run = real_run
+        good = len(seen2) == 2 and '--compare-as' not in seen2[0] and '--compare-as' in seen2[1] and seen2[0][seen2[0].index('--only') + 1] == 'hub,kukuruznik,lenin'
+        print('%s  publish_building: check_site без пары «бета ⇄ живое»; publish_beta/publish_engine — с парой' % ('OK   ' if good else 'ОШИБКА'))
+        ok_all &= bool(good)
         # живое здание из tests/<имя> (publish_building): файлы на месте, без noindex и без tests/, адрес и превью живые;
         # карточка на главной в исходнике == собранная из building.json; до публикации на сайте publish_engine его не видит
         for slug in bp.test_live_slugs():

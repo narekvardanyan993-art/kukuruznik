@@ -59,13 +59,15 @@ def build_beta(main_dir):
     return build_pages.build_beta(main_dir)
 
 
-def run_check(candidate, expect_change=False, strict=False, allow_extra=(), only=(), allow_only=None):
+def run_check(candidate, expect_change=False, strict=False, allow_extra=(), only=(), allow_only=None, twins=True):
     """Запускает tools/check_site.mjs: origin/main против собранного кандидата. True — зелёная проверка.
     strict — ни одна цель не может отличаться (publish_engine, publish_kukuruznik): даже бета обязана совпасть с сайтом;
     allow_extra — цели, у которых различия картинок намеренные (например здание с новыми кадрами);
     only — снимать только эти цели (по умолчанию — все);
     allow_only — точный список целей, у которых различия картинок допустимы (вместо «вся бета»): publish_beta --expect-change.
     Переменная окружения CHKA_CHECK_RENDERER — отрисовка WebGL для проверки там, где нет Metal (облако/Linux: swiftshader).
+    twins=False — без пар «бета-здание ⇄ живое» (publish_building: бета этой публикацией не меняется — это доказано побайтно,
+    а пара снимается с разным зерном случайности и строго не совпадает никогда).
     Ослабить проверку через окружение нельзя: другие параметры не передаются."""
     import os
     pairs = ','.join('beta/%s=%s' % (b, b) for b in LIVE_TWINS)   # бета-здание — строго против живого здания
@@ -73,7 +75,7 @@ def run_check(candidate, expect_change=False, strict=False, allow_extra=(), only
     if allow_only is not None:
         allow = list(allow_only)
     allow += list(allow_extra)
-    cmd = ['node', str(ROOT / 'tools' / 'check_site.mjs'), '--candidate', str(candidate), '--compare-as', pairs]
+    cmd = ['node', str(ROOT / 'tools' / 'check_site.mjs'), '--candidate', str(candidate)] + (['--compare-as', pairs] if twins else [])
     if allow:
         cmd += ['--allow-change', ','.join(allow)]
     if only:   # снимать только эти цели (publish_engine --expect-change: остальные проверены побайтно)
