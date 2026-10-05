@@ -24,7 +24,7 @@
   Маска неба/деревьев/окон при этом считается по ФОНУ: иначе на месте объекта неба «нет», и при наклоне там вылезает неокрашенное/тёмное пятно силуэта
   (день — бледный ореол, тучи/дождь — тёмный).
 trees: false — без качания; true (по умолчанию) — группы по глубине (tools/build_env_masks.tree_labels, мелкие кроны); объект {a, close, grow, bottom, min_area, waves} — ВСЕ кроны по цвету фона (нужен --bg), одинаковая высота-амплитуда, фаза — бегущая волна.
-spec (JSON): name, size [W,H], polygon [[x,y]…], extra_box [x0,y0,x1,y1], cutout {region [[x,y]…], thr, close, grow, tree_a, open, tree_erode, add [[полигон]…]} (вместо polygon/extra_box при --bg), window_boxes [[x0,y0,x1,y1]…], tree_margin, sky {std,dn,close},
+spec (JSON): name, size [W,H], polygon [[x,y]…], extra_box [x0,y0,x1,y1], cutout {region [[x,y]…], thr, close, grow, tree_a, open, tree_erode, add [[полигон]…]} (вместо polygon/extra_box при --bg), window_boxes [[x0,y0,x1,y1]…], tree_margin, sky {std,dn,close,max_v — небо не ниже доли высоты},
   grade {chroma, gamma} — цветокоррекция слоёв «цвет / здание / фон» (в Lab: цветность ×chroma, яркость L^gamma; белая бумага остаётся белой),
   чтобы насыщенность и тон кадра были на уровне кадров Кукурузника (замер: средняя насыщенность 0,10–0,11, нижняя половина 0,14–0,16).
   Глубина, вырезка и маски считаются по исходному (неисправленному) цвету.
@@ -174,7 +174,8 @@ def main():
         for pl in cut.get('add', []):    # дорисовать вручную: полигоны, где разница слабая (бледная стена у края кадра)
             ad = np.zeros((H, W), np.uint8); cv2.fillPoly(ad, [np.array(pl, np.int32)], 255)
             bld |= ad > 0
-        bld = ndimage.binary_dilation(bld, iterations=cut.get('grow', 2))
+        if cut.get('grow', 2) > 0:    # iterations=0 у scipy = «расширять до упора» (вырезка на весь кадр) — 0 значит «не расширять»
+            bld = ndimage.binary_dilation(bld, iterations=cut.get('grow', 2))
     else:
         poly = np.array(spec['polygon'], np.int32)
         mk = np.zeros((H, W), np.uint8); cv2.fillPoly(mk, [poly], 255)
@@ -214,6 +215,9 @@ def main():
     dn = np.clip((dsrc * 255 - lo) / (hi - lo + 1e-6), 0, 1)
     be.SKY_PARAMS[name] = spec.get('sky', dict(std=0.05, dn=0.5, close=9))
     sky = be.sky_mask(dn, rsrc, name)
+    mv = (spec.get('sky') or {}).get('max_v')
+    if mv:    # небо только выше этой доли высоты: дальний город/дымка у горизонта похожи на небо (Ленин B, G, 06.10.2026)
+        sky[int(round(mv * H)):, :] = False
     env = np.zeros((H, W, 3), np.float32)
     env[..., 0] = ndimage.gaussian_filter(sky.astype(np.float32), 1.5)
     tr = spec.get('trees', True)

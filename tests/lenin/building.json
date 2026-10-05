@@ -87,7 +87,7 @@
       "flag": null,
       "cloudShadow": 0.12,
       "wind": 1,
-      "sky": {"ref": 0.89, "end": 0.5, "band": [0.04, 0.31], "clouds": 3},
+      "sky": {"ref": 0.89, "end": 0.5, "band": [0.04, 0.19], "clouds": 3},
       "hotspots": [
         {"key": "sculptor", "layer": "building", "u": 0.755, "v": 0.29},
         {"key": "opened", "layer": "building", "u": 0.746, "v": 0.505},

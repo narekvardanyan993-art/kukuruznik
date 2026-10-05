@@ -20,14 +20,14 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
 W, H = 768, 1365
 CFG = {   # координаты кадра 768×1365
- 'lenin_2': {'poly': [(272,447),(290,447),(294,478),(294,515),(312,519),(312,547),(267,547),(267,516),(271,478)], 'isnet': 'refine'},
+ 'lenin_2': {'sky_max_v': 0.225, 'poly': [(272,447),(290,447),(294,478),(294,515),(312,519),(312,547),(267,547),(267,516),(271,478)], 'isnet': 'refine'},
  'lenin_3': {'poly': [(300,290),(462,290),(462,872),(300,872)], 'isnet': 'inside',
              'extra': [[(212,868),(556,868),(556,1003),(212,1003)]]},
- 'lenin_4': {'poly': [(60,170),(712,170),(712,1150),(768,1150),(768,1365),(0,1365),(0,1150),(60,1150)], 'isnet': 'inside', 'no_sky': True, 'top': (420, 0.3), 'close': 13,
+ 'lenin_4': {'poly': [(60,170),(712,170),(712,1150),(768,1150),(768,1365),(0,1365),(0,1150),(60,1150)], 'isnet': 'inside', 'no_sky': True, 'top': (420, 0.3), 'close': 13, 'grow': 0,
              'head': [(338,190),(432,190),(438,288),(452,305),(478,318),(505,335),(525,365),(545,425),(212,425),(232,368),(255,338),(285,320),(318,305),(334,290)]},
  'lenin_5': {'grade': {'chroma': 1.15, 'gamma': 1.0}, 'poly': [(50,330),(175,330),(175,560),(50,560)], 'isnet': 'inside',
              'extra': [[(20,553),(162,553),(162,795),(215,800),(220,835),(265,840),(268,912),(45,915),(28,795)]]},
- 'lenin_6': {'poly': [(150,830),(185,830),(205,870),(215,960),(222,965),(232,1080),(237,1140),(190,1175),(130,1150),(122,1080),(135,1050),(140,965),(145,880)], 'isnet': 'refine'},
+ 'lenin_6': {'sky_max_v': 0.115, 'poly': [(150,830),(185,830),(205,870),(215,960),(222,965),(232,1080),(237,1140),(190,1175),(130,1150),(122,1080),(135,1050),(140,965),(145,880)], 'isnet': 'refine'},
 }
 
 def fill(m, polys):
@@ -61,6 +61,11 @@ def object_mask(fid, rgb01, sess):
             yy, xx = np.mgrid[:H, :W]
             zone = (yy >= 200) & (yy < 425) & ~((xx > 355) & (xx < 425) & (yy < 245))
             m &= ~(band & zone & (L > 76) & (np.hypot(A, B) < 14))
+            # defringe (06.10): у верхней половины край маски внутрь на 2 px и светлые небронзовые пиксели в полосе 4 px — не статуя
+            up = yy < c.get('defringe_y', 980)
+            edge = m & ~ndimage.binary_erosion(m, iterations=4)
+            m &= ~(edge & up & (L > 70) & (np.hypot(A, B) < 16))
+            m = np.where(up, ndimage.binary_erosion(m, iterations=2), m)
     else:   # refine: полигон, но без явного фона, который IS-Net не считает объектом
         m = poly & (net | ndimage.binary_erosion(poly, iterations=3))
     m |= fill(np.zeros((H, W), np.uint8), c.get('extra', [])) > 0
@@ -132,6 +137,10 @@ def main():
         spec['grade'] = CFG[fid].get('grade', {'chroma': 1.0, 'gamma': 1.0})
         reg = contour(ndimage.binary_dilation(m, iterations=10), 2.0)
         spec['cutout'] = dict(base['cutout'], region=reg[0], add=contour(m, 0.8))
+        if 'grow' in CFG[fid]:
+            spec['cutout']['grow'] = CFG[fid]['grow']      # D: без расширения края (иначе белая каёмка неба на плечах)
+        if 'sky_max_v' in CFG[fid]:
+            spec['sky'] = dict(spec.get('sky') or {}, max_v=CFG[fid]['sky_max_v'])
         (fd / 'layers.json').write_text(json.dumps(spec, ensure_ascii=False) + '\n', encoding='utf-8')
         rep = ROOT / 'tests/lenin/report' / fid; rep.mkdir(parents=True, exist_ok=True)
         ov = (small * 255).astype(np.uint8).copy(); e = m ^ ndimage.binary_erosion(m, iterations=2)
