@@ -27,6 +27,8 @@
   // sunDayDrawn (солнце уже нарисовано на картинке — только ореол), lawn ([u0, v0, u1, v1] — бабочки и светлячки; нет — их нет),
   // closeUp (крупный план: glints — блики в окнах, perch — кромка, куда садятся птицы, mast — мачта флага [u низ, v низ, u верх, v верх]; banner — знамя [u середины, v карниза, v низа, полуширина])
   function SC(fr) { return (root.CONFIG && root.CONFIG.SCENE && root.CONFIG.SCENE[fr]) || {}; }
+  // e1.5: showBand — своя полоса для парада (доли высоты), если у кадра задана; иначе парад идёт в полосе неба skyBand, как раньше
+  function PB(fr) { var S = SC(fr); return S.showBand || S.skyBand; }
 
   var V = null, cv = null, ctx = null, dpr = 1, W = 0, H = 0;
   var active = [], nextAt = 0, lastKey = null, lastFrame = -1, lastKind = '';
@@ -520,7 +522,7 @@
   }
   function startParade(onEnd, style) {
     var fr = V.frame(); if (par || V.fading() || !V.entry(fr)) return false;
-    var band = SC(fr).skyBand, vc = band[0] + (band[1] - band[0]) * 0.30, now = performance.now();
+    var band = PB(fr), vc = band[0] + (band[1] - band[0]) * 0.30, now = performance.now();
     style = style || 'planes';
     var behind = /:behind$/.test(style) || (!!SC(fr).closeUp && style !== 'banner'); style = style.replace(/:behind$/, '');
     var skyOnly = style === 'balloons' || style === 'fireworks';   // шары и ракеты поднимаются из-за города
@@ -561,6 +563,7 @@
       stepParade(now, w);
       if (!so) occlude(fr);
       else { var m = skyMaskD(fr), f = V.entry(fr); if (m && f) { var a0 = V.project(f, 0, 0, 0), a1 = V.project(f, 1, 1, 0); ctx.save(); ctx.globalCompositeOperation = 'destination-in'; ctx.drawImage(m, a0[0], a0[1], a1[0] - a0[0], a1[1] - a0[1]); ctx.restore(); } }
+      if (so && par.behind) occlude(fr);   // e1.5: салют/шары на кадре «за зданием» — ещё и за вырезкой (маска неба у Ленина по подложке, где здания нет)
     } finally { ctx = main; }
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(lay, 0, 0); ctx.restore();
   }
@@ -789,7 +792,7 @@
     return [pH[0] + (pT[0] - pH[0]) * ke + Math.sin(kk * 14 + f.u * 50) * 1.2 * s0, pH[1] + (pT[1] - pH[1]) * ke];
   }
   function stepFireworks(now, w) {
-    var t = (now - par.t0) / 1000, nn = wts().n, s0 = sf(), kill = par.abort ? clamp((now - par.abort) / 700, 0, 1) : 0, band = SC(par.fr).skyBand;
+    var t = (now - par.t0) / 1000, nn = wts().n, s0 = sf(), kill = par.abort ? clamp((now - par.abort) / 700, 0, 1) : 0, band = PB(par.fr);
     var night = nn > 0.5, bh = band[1] - band[0];
     if (!par.fw) {
       par.fw = [];
@@ -932,7 +935,7 @@
     ctx.restore();
   }
   function stepBalloons(now, w) {
-    var t = (now - par.t0) / 1000, nn = wts().n, s0 = sf(), kill = par.abort ? clamp((now - par.abort) / 700, 0, 1) : 0, band = SC(par.fr).skyBand;
+    var t = (now - par.t0) / 1000, nn = wts().n, s0 = sf(), kill = par.abort ? clamp((now - par.abort) / 700, 0, 1) : 0, band = PB(par.fr);
     if (!par.bl) {
       par.bl = [];
       var sets = [[0, 1, 2]];   // у всех шаров — флаг Армении сверху вниз: красный, синий, абрикосовый
