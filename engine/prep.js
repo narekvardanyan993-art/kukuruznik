@@ -125,7 +125,7 @@
   // (плоскость фокуса всегда в середине диапазона), затем размываем
   // 3 проходами бокс-блюра (~CONFIG.DEPTH_BLUR_PX) — резкие ступеньки
   // глубины на границе здания и неба иначе рвут картинку.
-  function prepareDepth(img) {
+  function prepareDepth(img, raw) {   // raw (e1.5, frame.depthRaw): карта уже в нужном диапазоне — контраст не растягивать
     var fit = fitToCap(img), w = fit.w, h = fit.h;
     var c = mkCanvas();
     c.width = w; c.height = h;
@@ -138,7 +138,7 @@
     for (i = 0; i < 256; i++) { acc += hist[i]; if (acc >= n * 0.02) { lo = i; break; } }
     acc = 0;
     for (i = 255; i >= 0; i--) { acc += hist[i]; if (acc >= n * 0.02) { hi = i; break; } }
-    if (hi - lo < 8) { lo = 0; hi = 255; }
+    if (hi - lo < 8 || raw) { lo = 0; hi = 255; }
     var span = hi - lo;
     for (i = 0; i < n; i++) a[i] = clamp(Math.round((a[i] - lo) * 255 / span), 0, 255);
     var r = Math.max(1, Math.round(CONFIG.DEPTH_BLUR_PX / 2)), tmp = new Uint8Array(n);
@@ -396,7 +396,7 @@
   // ---------- один кадр: день ----------
   function prepDay(f, i) {
     return Promise.all([load(f.color), load(f.depth), load(f.bg.color), load(f.building.color), load(f.env), load(f.win2)]).then(function (imgs) {
-      var depth = prepareDepth(imgs[1]);
+      var depth = prepareDepth(imgs[1], !!f.depthRaw);
       var bld = analyzeBuilding(imgs[3], depth, imgs[0], imgs[2]);
       var env = prepareEnv(imgs[4], imgs[5], depth, bld, i);
       // список окон главного здания (центр и размер, доли кадра) — для «живых» деталей ночью

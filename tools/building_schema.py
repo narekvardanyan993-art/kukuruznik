@@ -203,7 +203,7 @@ def validate(bdir, b, site):
         nm = f.get('name') if isinstance(f, dict) else None
         w = 'кадр %d%s' % (i + 1, ' (%s)' % nm if isinstance(nm, str) else '')
         fr = c.obj(f, w, required=('name', 'crop', 'flag', 'cloudShadow', 'wind', 'sky', 'sun', 'life', 'hotspots', 'nightLamps', 'nightHalo', 'lamps'),
-                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains'))
+                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw'))
         if not fr:
             continue
         if not (isinstance(nm, str) and re.fullmatch(r'[A-Za-z0-9_\-]+', nm)):
@@ -234,6 +234,8 @@ def validate(bdir, b, site):
         if fr['flag'] is not None:
             if c.numbers(fr['flag'], '%s: flag' % w, 4, 0, 1) and (fr['flag'][0] + fr['flag'][2] > 1.0001 or fr['flag'][1] + fr['flag'][3] > 1.0001):
                 c.err('%s: flag' % w, 'флаг [x, y, ширина, высота] выходит за кадр')
+        if 'depthRaw' in fr:      # e1.5: карта глубины кадра без растяжки контраста (значения файла = глубина в шейдере)
+            c.boolean(fr['depthRaw'], '%s: depthRaw' % w)
         if 'bldDepth' in fr:      # e1.5: здание кадра жёстко на этой глубине (0 — далеко, 1 — близко)
             c.number(fr['bldDepth'], '%s: bldDepth' % w, 0, 1)
         if 'showBand' in fr:      # e1.5: полоса парада [v верх, v низ] вместо sky.band

@@ -128,7 +128,7 @@ def make_config(b, frames_url):
         'DAY': day,
         'CLOUD_SHADOW': [f['cloudShadow'] for f in fr],
         'WIND_K': [f['wind'] for f in fr],
-        'FRAMES': [frame_files(frames_url, f['name'], f.get('night', True), f.get('sunset', True)) for f in fr],
+        'FRAMES': [dict(frame_files(frames_url, f['name'], f.get('night', True), f.get('sunset', True)), **({'depthRaw': True} if f.get('depthRaw') else {})) for f in fr],
         'HOTSPOTS': [f['hotspots'] for f in fr],
         'CROP': [f['crop'] for f in fr],
         'FLAGS': [f['flag'] or [0, 0, 0, 0] for f in fr],
