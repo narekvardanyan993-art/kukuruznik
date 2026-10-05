@@ -190,7 +190,7 @@ def main():
             cut = old.rstrip().rstrip('}').rstrip().rstrip(']').rstrip()
             last = nb['frames'][-1]
             ok(new.startswith(cut) and last['name'] == 'lenin_9' and last['hidden'] is True and 'parade' not in last
-               and [f['name'] for f in nb['frames'] if not f.get('hidden')] == ['lenin_1'] and (bd / 'frames' / 'lenin_9_env.webp').is_file()
+               and [f['name'] for f in nb['frames'] if not f.get('hidden')] == [f['name'] for f in b['frames'] if not f.get('hidden')] and (bd / 'frames' / 'lenin_9_env.webp').is_file()
                and not nf.building_schema.validate('tests/lenin', nb, root),
                '--add: кадр в конце frames скрытым (без парада), начало файла байт-в-байт, видимые кадры прежние, слои в frames/, схема OK')
             r = nf.run('lenin', 'lenin_9', root=root)
