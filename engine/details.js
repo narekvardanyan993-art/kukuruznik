@@ -505,6 +505,47 @@
     ctx.fillRect(b[0] - 2 * s, b[1] - 1, 4 * s, 1.5);
     ctx.restore();
   }
+  // ---------- ФОНТАНЫ (e1.5; кадр с fountains в настройках здания, у остальных ничего не рисуется) ----------
+  // jets: [[u основания, v основания, высота струи (доля высоты кадра), полуширина (доля ширины)], …]; glints: [[u, v], …] — блики на воде;
+  // squash — сплюснутость кругов ряби (вид сверху). Всё на глубине площади под точкой (как точки-подсказки слоя «фон») — при наклоне на месте.
+  // Стиль рисунка: бледная акварельная струя, тонкие карандашные штрихи бегут вверх, капли по дугам, круги ряби расходятся и тают, блики мерцают.
+  function drawFountains(now, w, f, F) {
+    var t = now / 1000, s0 = sf(), a0 = 1 - 0.6 * w.n, sq = F.squash || 0.38;
+    ctx.save(); ctx.lineCap = 'round';
+    (F.jets || []).forEach(function (j, k) {
+      var d = depthAt(f, j[0], j[1]), b = P(j[0], j[1], d), tp = P(j[0], j[1] - j[2], d), h = b[1] - tp[1], hw = Math.max(1.5, P(j[0] + j[3], j[1], d)[0] - b[0]);
+      var hh = h * (0.93 + 0.06 * Math.sin(t * 2.3 + k * 1.7) + 0.025 * Math.sin(t * 7.1 + k));
+      ctx.lineWidth = Math.max(0.6, 0.8 * s0);
+      for (var r = 0; r < 3; r++) {   // рябь: три круга от струи
+        var p = (t * 0.42 + r / 3 + k * 0.29) % 1, rx = hw * (1.3 + 3.4 * p);
+        ctx.globalAlpha = a0 * 0.6 * (1 - p) * (1 - p); ctx.strokeStyle = 'rgb(62,88,112)';
+        ctx.beginPath(); ctx.ellipse(b[0], b[1], rx, rx * sq, 0, 0, 6.283); ctx.stroke();
+      }
+      ctx.globalAlpha = a0 * 0.7; ctx.fillStyle = 'rgb(238,247,252)';   // тело струи — бледная акварель
+      ctx.beginPath(); ctx.moveTo(b[0] - hw * 0.5, b[1]);
+      ctx.quadraticCurveTo(b[0] - hw * 0.22, b[1] - hh * 0.6, b[0] - hw * 0.14, b[1] - hh);
+      ctx.quadraticCurveTo(b[0], b[1] - hh * 1.08, b[0] + hw * 0.14, b[1] - hh);
+      ctx.quadraticCurveTo(b[0] + hw * 0.22, b[1] - hh * 0.6, b[0] + hw * 0.5, b[1]); ctx.closePath(); ctx.fill();
+      ctx.setLineDash([3 * s0, 4 * s0]); ctx.lineDashOffset = -t * 26 * s0;   // штрихи бегут вверх
+      ctx.globalAlpha = a0 * 0.45; ctx.strokeStyle = 'rgb(70,96,122)'; ctx.lineWidth = Math.max(0.5, 0.7 * s0);
+      [-0.28, 0, 0.28].forEach(function (o) { ctx.beginPath(); ctx.moveTo(b[0] + hw * o * 1.4, b[1]); ctx.quadraticCurveTo(b[0] + hw * o, b[1] - hh * 0.6, b[0] + hw * o * 0.5, b[1] - hh * 0.98); ctx.stroke(); });
+      ctx.setLineDash([]);
+      for (var i = 0; i < 12; i++) {   // капли падают дугами наружу
+        var ph = (t * 0.85 + i / 12 + k * 0.37) % 1, side = i % 2 ? 1 : -1, sp = hw * (0.7 + 0.9 * ((i * 7) % 5) / 5);
+        var x = b[0] + side * sp * ph, y = b[1] - hh * (1 - 1.15 * ph * ph) + hh * 0.08 * ph;
+        ctx.globalAlpha = a0 * 0.65 * (1 - ph); ctx.fillStyle = i % 3 ? 'rgb(84,112,140)' : 'rgb(255,255,255)';
+        ctx.beginPath(); ctx.arc(x, y, Math.max(0.6, 0.85 * s0), 0, 6.283); ctx.fill();
+      }
+    });
+    (F.glints || []).forEach(function (g, i) {   // блики на воде: короткие белые штрихи мерцают
+      var d = depthAt(f, g[0], g[1]), p = P(g[0], g[1], d), tw = 0.5 + 0.5 * Math.sin(t * (1.2 + (i % 3) * 0.45) + i * 2.1), l = (3 + (i % 3)) * s0;
+      ctx.globalAlpha = a0 * 0.85 * tw * tw; ctx.strokeStyle = 'rgb(255,255,255)'; ctx.lineWidth = Math.max(0.8, 1.3 * s0);
+      ctx.beginPath(); ctx.moveTo(p[0] - l, p[1]); ctx.lineTo(p[0] + l, p[1]); ctx.stroke();
+      ctx.globalAlpha = a0 * 0.3 * tw; ctx.strokeStyle = 'rgb(62,88,112)'; ctx.lineWidth = Math.max(0.5, 0.6 * s0);
+      ctx.beginPath(); ctx.moveTo(p[0] - l * 0.7, p[1] + 1.6 * s0); ctx.lineTo(p[0] + l * 0.9, p[1] + 1.6 * s0); ctx.stroke();
+    });
+    ctx.restore();
+  }
   function drawCloseUp(now, w, f, c) { cu = c; if (c.glints) drawGlints(now, f, w); if (c.perch) drawPerch(now, f, w); if (c.mast) drawRoofFlag(now, w); }
 
   // ---------- ПАРАД: три истребителя плотным строем слева направо, дымные следы 15–20 с: красный, синий, абрикосовый — флаг Армении ----------
@@ -1086,6 +1127,7 @@
     if (fz > 0.02) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; cloudMul = Math.min(1, fz * 1.4); drawClouds(now, w, wx); cloudMul = 1; ctx.restore(); }   // гроза: облака светятся изнутри
     drawAmbientBirds(now, w);
     if (SC(fr).closeUp) drawCloseUp(now, w, f, SC(fr).closeUp);
+    if (SC(fr).fountains) drawFountains(now, w, f, SC(fr).fountains);
     for (var i = active.length - 1; i >= 0; i--) {
       var e = active[i], t = (now - e.t0) / e.dur;
       if (t >= 1) { active.splice(i, 1); continue; }
