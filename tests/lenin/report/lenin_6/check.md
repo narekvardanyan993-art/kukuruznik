@@ -9,10 +9,11 @@ OK        1. основа      подложка: среднее расхожде
 ВНИМАНИЕ  1. основа      нет картинки «ночь» (lenin_6_night) — для беты можно, до рекламы обязательно
 OK        2. слои        пакеты Python и модели на месте (/sessions/rcw-01kfupqfaixsqgen5d7egsuv/models)
 OK        2. слои        layers.json: вырезка по разнице с подложкой, область 32 точек
-OK        2. слои        слои собраны в source/lenin_6/layers/
-OK        3. кадр        замер неба для сверки: {"ref": 0.887, "end": 0.115, "band": [0.02, 0.071], "clouds": 2}; в frame.json: {"ref": 0.886, "end": 0.178, "band": [0.02, 0.11], "clouds": 2}
+OK        2. слои        слои на месте (source/lenin_6/layers/)
+OK        3. кадр        замер неба для сверки: {"ref": 0.887, "end": 0.115, "band": [0.02, 0.071], "clouds": 2}; в frame.json: {"ref": 0.887, "end": 0.115, "band": [0.02, 0.071], "clouds": 2}
 ВНИМАНИЕ  3. кадр        шоу нет ("parade") — цель: шоу на каждом кадре (planes, drones, heli, fireworks, balloons)
 ВНИМАНИЕ  3. кадр        закат процедурный ("sunset": false) — до рекламы нужна картинка
 ВНИМАНИЕ  3. кадр        ночь процедурная ("night": false) — до рекламы нужна картинка
 OK        3. кадр        frame.json проходит проверку настроек здания (building_schema)
+OK        5. в здание    слои в tests/lenin/frames/, кадр в building.json скрытым (hidden: true); снять hidden — решение Нарека
 ```
