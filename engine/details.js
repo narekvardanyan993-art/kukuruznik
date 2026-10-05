@@ -546,6 +546,95 @@
     });
     ctx.restore();
   }
+  // ---------- ЖИЗНЬ НА ЗЕМЛЕ (e1.6; кадр с ambient в настройках здания, у остальных ничего не рисуется) ----------
+  // Постоянные движения, не по кнопке: пешеходы, машины/троллейбусы, голуби. Всё — на глубине земли под точкой (как фонтаны),
+  // карандашом и бледной акварелью, мелко, без мультяшности. Пути — ломаные в долях кадра; size — высота человека (или длина машины)
+  // в долях высоты кадра в начале и в конце пути (перспектива). Ночью людей и машин меньше, у машин фары.
+  //   walkers: [{path, size: [s0, s1], n, speed}]   cars: [{path, size, n, speed, loop, trolley}]   pigeons: [{at: [u, v], size, n}]
+  var COATS = ['125,143,163', '156,107,90', '111,127,98', '138,124,154', '181,154,106', '95,107,122', '150,90,80'];
+  var CARC = ['214,206,178', '160,178,160', '150,168,190', '196,170,150', '228,222,210', '120,130,140'];
+  function pathOf(o) {
+    if (o._L) return o._L;
+    var P0 = o.path.slice(); if (o.loop) P0.push(P0[0]);
+    var L = [0]; for (var i = 1; i < P0.length; i++) L.push(L[i - 1] + Math.hypot(P0[i][0] - P0[i - 1][0], P0[i][1] - P0[i - 1][1]));
+    o._P = P0; o._L = L; return L;
+  }
+  function along(o, s) {   // точка и направление на пути, s 0..1
+    var L = pathOf(o), P0 = o._P, tot = L[L.length - 1], x = clamp(s, 0, 1) * tot, i = 1;
+    while (i < L.length - 1 && L[i] < x) i++;
+    var k = (x - L[i - 1]) / Math.max(1e-6, L[i] - L[i - 1]), a = P0[i - 1], b = P0[i];
+    return { u: a[0] + (b[0] - a[0]) * k, v: a[1] + (b[1] - a[1]) * k, du: b[0] - a[0], dv: b[1] - a[1] };
+  }
+  function ground(f, u, v) { return P(u, v, depthAt(f, clamp(u, 0, 1), clamp(v, 0, 1))); }
+  function sizePx(f, u, v, s) { var a = ground(f, u, v), b = P(u, v - s, depthAt(f, clamp(u, 0, 1), clamp(v, 0, 1))); return Math.abs(a[1] - b[1]); }
+  function person(x, y, h, step, coat, col, a) {   // фигурка: голова, пальто акварелью, ноги шагают — карандаш
+    var lw = Math.max(0.6, h * 0.07);
+    ctx.globalAlpha = a * 0.8; ctx.fillStyle = 'rgb(' + coat + ')';
+    ctx.beginPath(); ctx.moveTo(x - h * 0.13, y - h * 0.36); ctx.lineTo(x - h * 0.09, y - h * 0.8); ctx.lineTo(x + h * 0.09, y - h * 0.8); ctx.lineTo(x + h * 0.14, y - h * 0.36); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = a; ctx.strokeStyle = 'rgb(' + col + ')'; ctx.fillStyle = 'rgb(' + col + ')'; ctx.lineWidth = lw;
+    ctx.beginPath(); ctx.arc(x, y - h * 0.89, h * 0.095, 0, 6.283); ctx.fill();
+    var sw = Math.sin(step) * h * 0.12;
+    ctx.beginPath(); ctx.moveTo(x - h * 0.03, y - h * 0.38); ctx.lineTo(x - h * 0.03 + sw, y); ctx.moveTo(x + h * 0.03, y - h * 0.38); ctx.lineTo(x + h * 0.03 - sw, y); ctx.stroke();
+    ctx.globalAlpha = a * 0.5; ctx.beginPath(); ctx.moveTo(x - h * 0.09, y - h * 0.8); ctx.lineTo(x - h * 0.13 - sw * 0.4, y - h * 0.5); ctx.stroke();   // рука в шаг
+  }
+  function car(x, y, len, ang, body, col, a, trolley, lights) {   // машина сверху-сбоку: кузов акварелью, крыша, окна, контур карандашом
+    ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+    var wd = len * (trolley ? 0.24 : 0.42), r = wd * 0.35;
+    ctx.globalAlpha = a * 0.85; ctx.fillStyle = 'rgb(' + body + ')';
+    ctx.beginPath(); ctx.moveTo(-len / 2 + r, -wd / 2); ctx.lineTo(len / 2 - r, -wd / 2); ctx.quadraticCurveTo(len / 2, -wd / 2, len / 2, -wd / 2 + r); ctx.lineTo(len / 2, wd / 2 - r); ctx.quadraticCurveTo(len / 2, wd / 2, len / 2 - r, wd / 2); ctx.lineTo(-len / 2 + r, wd / 2); ctx.quadraticCurveTo(-len / 2, wd / 2, -len / 2, wd / 2 - r); ctx.lineTo(-len / 2, -wd / 2 + r); ctx.quadraticCurveTo(-len / 2, -wd / 2, -len / 2 + r, -wd / 2); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = a; ctx.strokeStyle = 'rgb(' + col + ')'; ctx.lineWidth = Math.max(0.5, len * 0.045); ctx.stroke();
+    ctx.globalAlpha = a * 0.45; ctx.fillStyle = 'rgb(' + col + ')';   // стёкла / крыша
+    if (trolley) { for (var i = 0; i < 5; i++) ctx.fillRect(-len * 0.42 + i * len * 0.17, -wd * 0.32, len * 0.1, wd * 0.64); }
+    else { ctx.fillRect(-len * 0.18, -wd * 0.36, len * 0.4, wd * 0.72); }
+    if (trolley) { ctx.globalAlpha = a * 0.8; ctx.lineWidth = Math.max(0.5, len * 0.02); ctx.beginPath(); ctx.moveTo(-len * 0.1, -wd * 0.1); ctx.lineTo(-len * 0.45, -wd * 1.4); ctx.moveTo(-len * 0.1, wd * 0.1); ctx.lineTo(-len * 0.45, -wd * 1.0); ctx.stroke(); }   // штанги
+    if (lights > 0.05) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a * lights; ctx.fillStyle = 'rgb(255,214,140)'; ctx.beginPath(); ctx.arc(len / 2, -wd * 0.3, wd * 0.28, 0, 6.283); ctx.arc(len / 2, wd * 0.3, wd * 0.28, 0, 6.283); ctx.fill(); ctx.globalCompositeOperation = 'source-over'; }
+    ctx.restore();
+  }
+  function drawAmbientLife(now, w, f, A) {
+    var t = now / 1000, col = ink(), night = w.n, a0 = 1 - 0.35 * night;
+    ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    (A.walkers || []).forEach(function (o, gi) {
+      var n = Math.max(1, Math.round((o.n || 4) * (1 - 0.65 * night)));
+      for (var i = 0; i < n; i++) {
+        var dir = (i + gi) % 3 === 2 ? -1 : 1, ph = ((i * 0.618 + gi * 0.31) % 1), sp = (o.speed || 0.02) * (0.8 + 0.4 * ((i * 7) % 5) / 5);
+        var s = ((ph + dir * sp * t) % 1 + 1) % 1, q = along(o, s), off = ((i * 3) % 5 - 2) * 0.004;
+        var len = Math.hypot(q.du, q.dv) || 1, u = q.u - q.dv / len * off, v = q.v + q.du / len * off;
+        var e = Math.min(1, s / 0.06, (1 - s) / 0.06), sz = o.size[0] + (o.size[1] - o.size[0]) * s, h = sizePx(f, u, v, sz), p = ground(f, u, v);
+        if (h < 1.2) continue;
+        person(p[0], p[1], h, t * 6.5 * (0.9 + 0.2 * ph) + i, COATS[(i + gi * 2) % COATS.length], col, a0 * e);
+      }
+    });
+    ctx.globalAlpha = 1;
+    (A.cars || []).forEach(function (o, gi) {
+      var n = Math.max(1, Math.round((o.n || 2) * (1 - 0.5 * night)));
+      for (var i = 0; i < n; i++) {
+        var dir = o.loop ? 1 : (i % 2 ? -1 : 1), sp = (o.speed || 0.03) * (0.85 + 0.3 * i / n);
+        var s = (((i + 0.37 * gi) / n + dir * sp * t) % 1 + 1) % 1, q = along(o, s);
+        var e = o.loop ? 1 : Math.min(1, s / 0.05, (1 - s) / 0.05), sz = o.size[0] + (o.size[1] - o.size[0]) * s, d = depthAt(f, clamp(q.u, 0, 1), clamp(q.v, 0, 1));
+        var p = P(q.u, q.v, d), ahead = P(q.u + q.du * 0.01 * dir, q.v + q.dv * 0.01 * dir, d), ang = Math.atan2(ahead[1] - p[1], ahead[0] - p[0]);
+        var len = sizePx(f, q.u, q.v, sz), tr = o.trolley && i === 0;
+        if (len < 2) continue;
+        car(p[0], p[1], tr ? len * 1.9 : len, ang, tr ? '226,206,140' : CARC[(i + gi * 3) % CARC.length], col, a0 * e, tr, night);
+      }
+    });
+    ctx.globalAlpha = 1;
+    (A.pigeons || []).forEach(function (o, gi) {   // стайка клюёт; раз в ~15 с взлетает, делает круг и садится обратно
+      var n = o.n || 6, per = 15 + gi * 2.3, k = ((t + gi * 5.1) % per), base = ground(f, o.at[0], o.at[1]), s = Math.max(0.3, sizePx(f, o.at[0], o.at[1], o.size) / 9);
+      var aa = a0 * (1 - 0.8 * night);
+      for (var i = 0; i < n; i++) {
+        var ox = (((i * 37) % 11) - 5) * 3.2 * s, oy = (((i * 23) % 7) - 3) * 1.3 * s, face = i % 2 ? 1 : -1;
+        if (k < 10.5) {   // на земле: клюют, переступают
+          var peck = Math.max(0, Math.sin(t * 3 + i * 1.7)) > 0.7 ? 1 : 0, walk = Math.sin(t * 0.6 + i) * 2 * s;
+          sitBird(base[0] + ox + walk, base[1] + oy, s, face, peck * 1.5, col, 0.85 * aa);
+        } else {   // взлёт → круг → посадка
+          var q = (k - 10.5) / (per - 10.5), up = Math.sin(Math.PI * q), ang = q * 6.283 + i * 0.4;
+          var x = base[0] + ox + Math.cos(ang) * 40 * s * up, y = base[1] + oy - 55 * s * up + Math.sin(ang) * 10 * s * up;
+          if (up < 0.08) sitBird(x, y, s, face, 0, col, 0.85 * aa); else bird(x, y, 3.4 * s, flapOf(now, 1.6, i), col, 0.7 * aa, 1);
+        }
+      }
+    });
+    ctx.restore();
+  }
   function drawCloseUp(now, w, f, c) { cu = c; if (c.glints) drawGlints(now, f, w); if (c.perch) drawPerch(now, f, w); if (c.mast) drawRoofFlag(now, w); }
 
   // ---------- ПАРАД: три истребителя плотным строем слева направо, дымные следы 15–20 с: красный, синий, абрикосовый — флаг Армении ----------
@@ -1128,6 +1217,7 @@
     drawAmbientBirds(now, w);
     if (SC(fr).closeUp) drawCloseUp(now, w, f, SC(fr).closeUp);
     if (SC(fr).fountains) drawFountains(now, w, f, SC(fr).fountains);
+    if (SC(fr).ambient) drawAmbientLife(now, w, f, SC(fr).ambient);
     for (var i = active.length - 1; i >= 0; i--) {
       var e = active[i], t = (now - e.t0) / e.dur;
       if (t >= 1) { active.splice(i, 1); continue; }
