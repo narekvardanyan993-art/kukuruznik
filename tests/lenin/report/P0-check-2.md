@@ -1,0 +1,46 @@
+# Ленин, П0 — `new_frame.py lenin <кадр> --check`, второй прогон 05.10.2026
+
+Стадия 0: lenin_2..5 — OK (одобрены), lenin_6 (G) — ждёт «ок». Стадии 1–2 «НЕТ» ожидаемо: рисования не было, в VM Cowork нет scipy и моделей.
+
+```
+== lenin_2
+OK        0. источник    паспорт: Ереван, 1977–1991, источников 3 (эпохи 3, с ракурса 2)
+НЕТ       1. основа      нет рисунка source/lenin_2/lenin_2.png (Gemini, 9:16, вход — ориентиры из паспорта + кадр Кукурузника как сти�
+НЕТ       2. слои        не хватает пакетов Python: scipy — поставить: pip3 install scipy (и записать в «мои-инструменты.md»)
+НЕТ       2. слои        нет моделей в ~/Documents/chka-kitchen/models: depth_anything_v2_vits.onnx, isnet-general-use.onnx — скачать: curl -L -o ~/Documents/chka-kitchen/mo
+НЕТ       2. слои        нет source/lenin_2/layers.json (создаёт скрипт без --check)
+НЕТ       2. слои        нет слоёв (source/lenin_2/layers/): lenin_2.webp, lenin_2_depth.webp, lenin_2_bg.webp, lenin_2_bg_depth.webp, lenin_2_building.webp, lenin_2_env.webp, lenin_2_w
+ИТОГ: ошибок нет
+== lenin_3
+OK        0. источник    паспорт: Ереван, 1977–1991, источников 1 (эпохи 1, с ракурса 1)
+НЕТ       1. основа      нет рисунка source/lenin_3/lenin_3.png (Gemini, 9:16, вход — ориентиры из паспорта + кадр Кукурузника как сти�
+НЕТ       2. слои        не хватает пакетов Python: scipy — поставить: pip3 install scipy (и записать в «мои-инструменты.md»)
+НЕТ       2. слои        нет моделей в ~/Documents/chka-kitchen/models: depth_anything_v2_vits.onnx, isnet-general-use.onnx — скачать: curl -L -o ~/Documents/chka-kitchen/mo
+НЕТ       2. слои        нет source/lenin_3/layers.json (создаёт скрипт без --check)
+НЕТ       2. слои        нет слоёв (source/lenin_3/layers/): lenin_3.webp, lenin_3_depth.webp, lenin_3_bg.webp, lenin_3_bg_depth.webp, lenin_3_building.webp, lenin_3_env.webp, lenin_3_w
+ИТОГ: ошибок нет
+== lenin_4
+OK        0. источник    паспорт: Ереван, 1977–1991, источников 2 (эпохи 1, с ракурса 2)
+НЕТ       1. основа      нет рисунка source/lenin_4/lenin_4.png (Gemini, 9:16, вход — ориентиры из паспорта + кадр Кукурузника как сти�
+НЕТ       2. слои        не хватает пакетов Python: scipy — поставить: pip3 install scipy (и записать в «мои-инструменты.md»)
+НЕТ       2. слои        нет моделей в ~/Documents/chka-kitchen/models: depth_anything_v2_vits.onnx, isnet-general-use.onnx — скачать: curl -L -o ~/Documents/chka-kitchen/mo
+НЕТ       2. слои        нет source/lenin_4/layers.json (создаёт скрипт без --check)
+НЕТ       2. слои        нет слоёв (source/lenin_4/layers/): lenin_4.webp, lenin_4_depth.webp, lenin_4_bg.webp, lenin_4_bg_depth.webp, lenin_4_building.webp, lenin_4_env.webp, lenin_4_w
+ИТОГ: ошибок нет
+== lenin_5
+OK        0. источник    паспорт: Ереван, 1977–1991, источников 1 (эпохи 1, с ракурса 1)
+НЕТ       1. основа      нет рисунка source/lenin_5/lenin_5.png (Gemini, 9:16, вход — ориентиры из паспорта + кадр Кукурузника как сти�
+НЕТ       2. слои        не хватает пакетов Python: scipy — поставить: pip3 install scipy (и записать в «мои-инструменты.md»)
+НЕТ       2. слои        нет моделей в ~/Documents/chka-kitchen/models: depth_anything_v2_vits.onnx, isnet-general-use.onnx — скачать: curl -L -o ~/Documents/chka-kitchen/mo
+НЕТ       2. слои        нет source/lenin_5/layers.json (создаёт скрипт без --check)
+НЕТ       2. слои        нет слоёв (source/lenin_5/layers/): lenin_5.webp, lenin_5_depth.webp, lenin_5_bg.webp, lenin_5_bg_depth.webp, lenin_5_building.webp, lenin_5_env.webp, lenin_5_w
+ИТОГ: ошибок нет
+== lenin_6
+НЕТ       0. источник    паспорт ждёт «ок» Нарека ("approved": true) — до этого не рисовать
+НЕТ       1. основа      нет рисунка source/lenin_6/lenin_6.png (Gemini, 9:16, вход — ориентиры из паспорта + кадр Кукурузника как сти�
+НЕТ       2. слои        не хватает пакетов Python: scipy — поставить: pip3 install scipy (и записать в «мои-инструменты.md»)
+НЕТ       2. слои        нет моделей в ~/Documents/chka-kitchen/models: depth_anything_v2_vits.onnx, isnet-general-use.onnx — скачать: curl -L -o ~/Documents/chka-kitchen/mo
+НЕТ       2. слои        нет source/lenin_6/layers.json (создаёт скрипт без --check)
+НЕТ       2. слои        нет слоёв (source/lenin_6/layers/): lenin_6.webp, lenin_6_depth.webp, lenin_6_bg.webp, lenin_6_bg_depth.webp, lenin_6_building.webp, lenin_6_env.webp, lenin_6_w
+ИТОГ: ошибок нет
+```
