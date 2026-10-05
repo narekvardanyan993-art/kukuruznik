@@ -203,7 +203,7 @@ def validate(bdir, b, site):
         nm = f.get('name') if isinstance(f, dict) else None
         w = 'кадр %d%s' % (i + 1, ' (%s)' % nm if isinstance(nm, str) else '')
         fr = c.obj(f, w, required=('name', 'crop', 'flag', 'cloudShadow', 'wind', 'sky', 'sun', 'life', 'hotspots', 'nightLamps', 'nightHalo', 'lamps'),
-                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp'))
+                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains'))
         if not fr:
             continue
         if not (isinstance(nm, str) and re.fullmatch(r'[A-Za-z0-9_\-]+', nm)):
@@ -234,6 +234,24 @@ def validate(bdir, b, site):
         if fr['flag'] is not None:
             if c.numbers(fr['flag'], '%s: flag' % w, 4, 0, 1) and (fr['flag'][0] + fr['flag'][2] > 1.0001 or fr['flag'][1] + fr['flag'][3] > 1.0001):
                 c.err('%s: flag' % w, 'флаг [x, y, ширина, высота] выходит за кадр')
+        if 'bldDepth' in fr:      # e1.5: здание кадра жёстко на этой глубине (0 — далеко, 1 — близко)
+            c.number(fr['bldDepth'], '%s: bldDepth' % w, 0, 1)
+        if 'showBand' in fr:      # e1.5: полоса парада [v верх, v низ] вместо sky.band
+            sb = fr['showBand']
+            if c.numbers(sb, '%s: showBand' % w, 2, 0, 1) and not sb[0] < sb[1]:
+                c.err('%s: showBand' % w, '[верх, низ]: верх должен быть меньше низа')
+        if 'fountains' in fr:     # e1.5: фонтаны (details.js): jets [[u, v, высота, полуширина]…], glints [[u, v]…], squash
+            fo = c.obj(fr['fountains'], '%s: fountains' % w, required=('jets',), optional=('glints', 'squash'))
+            if fo:
+                if not isinstance(fo['jets'], list) or not fo['jets']:
+                    c.err('%s: fountains.jets' % w, 'непустой список [u, v, высота, полуширина]')
+                else:
+                    for q in fo['jets']:
+                        c.numbers(q, '%s: fountains.jets' % w, 4, 0, 1)
+                for q in fo.get('glints', []):
+                    c.numbers(q, '%s: fountains.glints' % w, 2, 0, 1)
+                if 'squash' in fo:
+                    c.number(fo['squash'], '%s: fountains.squash' % w, 0.05, 1)
         c.number(fr['cloudShadow'], '%s: cloudShadow' % w, 0, 1)
         c.number(fr['wind'], '%s: wind' % w, 0, 10)
         sk = c.obj(fr['sky'], '%s: sky' % w, required=('ref', 'end', 'band', 'clouds'), optional=('cloudScale',))

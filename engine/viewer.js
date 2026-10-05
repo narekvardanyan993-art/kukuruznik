@@ -829,6 +829,8 @@
         flag: new Float32Array(CONFIG.FLAGS[i] || [0, 0, 0, 0]),
         crop: (function (c) { return new Float32Array([c[0], c[1], c[2] - c[0], c[3] - c[1]]); })(CONFIG.CROP[i] || [0, 0, 1, 1])
       };
+      var scI = (CONFIG.SCENE && CONFIG.SCENE[i]) || {};
+      if (scI.bldDepth != null) { entry.dB = scI.bldDepth; entry.kB = scI.bldDepth * 2 - 1; entry.bldD = null; }   // e1.5: здание кадра — жёстко на этой глубине (крупный план: статуя не «плывёт» отдельно от постамента и фона)
       var up = useGL ? uploadDay(entry, r) : Promise.resolve(makeLayers(entry, r));
       return up.then(function () { store[i] = entry; if (window.__fillThumb) window.__fillThumb(i); return entry; });
     });
