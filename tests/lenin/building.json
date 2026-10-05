@@ -85,6 +85,7 @@
       "sunset": false,
       "crop": [0, 0, 1, 1],
       "flag": null,
+      "parade": true,
       "cloudShadow": 0.12,
       "wind": 1,
       "sky": {"ref": 0.89, "end": 0.5, "band": [0.04, 0.19], "clouds": 3},
@@ -109,6 +110,7 @@
       "sunset": false,
       "crop": [0, 0, 1, 1],
       "flag": null,
+      "parade": "drones",
       "cloudShadow": 0.12,
       "wind": 1,
       "sky": {
@@ -163,8 +165,7 @@
           "winlight",
           "lantern"
         ]
-      },
-      "hidden": true
+      }
     },
     {
       "name": "lenin_3",
@@ -172,6 +173,7 @@
       "sunset": false,
       "crop": [0, 0, 1, 1],
       "flag": null,
+      "parade": "heli",
       "cloudShadow": 0.12,
       "wind": 1,
       "sky": {
@@ -226,8 +228,7 @@
           "winlight",
           "lantern"
         ]
-      },
-      "hidden": true
+      }
     },
     {
       "name": "lenin_4",
@@ -235,6 +236,7 @@
       "sunset": false,
       "crop": [0, 0, 1, 1],
       "flag": null,
+      "parade": "fireworks",
       "cloudShadow": 0.12,
       "wind": 1,
       "sky": {
@@ -303,8 +305,7 @@
           [0.61, 0.232],
           [0.66, 0.246]
         ]
-      },
-      "hidden": true
+      }
     },
     {
       "name": "lenin_6",
@@ -312,6 +313,7 @@
       "sunset": false,
       "crop": [0, 0, 1, 1],
       "flag": null,
+      "parade": false,
       "cloudShadow": 0.12,
       "wind": 1,
       "sky": {
@@ -366,8 +368,7 @@
           "winlight",
           "lantern"
         ]
-      },
-      "hidden": true
+      }
     }
   ]
 }
