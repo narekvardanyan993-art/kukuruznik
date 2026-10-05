@@ -1,0 +1,120 @@
+{
+  "name": "lenin_4",
+  "night": false,
+  "sunset": false,
+  "crop": [
+    0,
+    0,
+    1,
+    1
+  ],
+  "flag": null,
+  "cloudShadow": 0.12,
+  "wind": 1,
+  "sky": {
+    "ref": 0.772,
+    "end": 0.634,
+    "band": [
+      0.051,
+      0.122
+    ],
+    "clouds": 3
+  },
+  "hotspots": [
+    {
+      "key": "sculptor",
+      "layer": "building",
+      "u": 0.5,
+      "v": 0.25
+    },
+    {
+      "key": "removed",
+      "layer": "building",
+      "u": 0.45,
+      "v": 0.705
+    },
+    {
+      "key": "opened",
+      "layer": "building",
+      "u": 0.5,
+      "v": 0.83
+    }
+  ],
+  "nightLamps": [],
+  "nightHalo": 1,
+  "lamps": [],
+  "sun": {
+    "day": [
+      0.8,
+      0.11
+    ],
+    "sunset": [
+      0.82,
+      0.52
+    ],
+    "moon": [
+      0.8,
+      0.12
+    ]
+  },
+  "life": {
+    "day": [
+      "birds",
+      "plane",
+      "cranes",
+      "kite"
+    ],
+    "sunset": [
+      "birds",
+      "plane",
+      "cranes",
+      "lantern"
+    ],
+    "night": [
+      "plane",
+      "winlight",
+      "lantern"
+    ]
+  },
+  "closeUp": {
+    "glints": false,
+    "perch": [
+      [
+        0.33,
+        0.25
+      ],
+      [
+        0.4,
+        0.228
+      ],
+      [
+        0.45,
+        0.2
+      ],
+      [
+        0.47,
+        0.152
+      ],
+      [
+        0.5,
+        0.143
+      ],
+      [
+        0.53,
+        0.152
+      ],
+      [
+        0.56,
+        0.21
+      ],
+      [
+        0.61,
+        0.232
+      ],
+      [
+        0.66,
+        0.246
+      ]
+    ]
+  }
+}

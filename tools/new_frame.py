@@ -338,7 +338,7 @@ def build_layers(fd, fid, size, models, run=subprocess.run):
 
 
 # ---------------------------------------------------------------- стадия 3: кадр
-def measure_sky(env_path, color_path):
+def measure_sky(env_path, color_path, building_path=None):
     """Числа неба по маске окружения (R — небо): end — где небо кончается (доля высоты), ref — яркость неба на рисунке,
     band — полоса для облаков и шоу. Сверено на Кукурузнике: кадр 1 end 0.543 / ref 0.863 (в файле 0.55 / 0.866), кадр 5 0.265 / 0.93 (0.28 / 0.932)."""
     import numpy as np
@@ -352,7 +352,15 @@ def measure_sky(env_path, color_path):
     lum = np.asarray(Image.open(color_path).convert('L'), dtype=np.float32) / 255
     ref = float(lum[sky].mean()) if sky.any() else 0.85
     end = round(min(max(end, 0.05), 0.95), 3)
-    return {'ref': round(ref, 3), 'end': end, 'band': [round(max(0.02, 0.08 * end), 3), round(0.62 * end, 3)], 'clouds': 3 if end > 0.4 else 2}
+    lo, hi = max(0.02, 0.08 * end), 0.62 * end
+    if building_path is not None and Path(building_path).is_file():
+        # полоса облаков и птиц — только над объектом: движок рисует их поверх всего кадра, без заслонения (урок lenin_4, 05.10.2026)
+        a = np.asarray(Image.open(building_path).convert('RGBA'), dtype=np.float32)[..., 3] / 255
+        rows = np.nonzero((a > 0.5).any(1))[0]
+        if len(rows):
+            hi = min(hi, float(rows[0]) / H - 0.025)
+            lo = min(lo, max(0.02, hi - 0.06))
+    return {'ref': round(ref, 3), 'end': end, 'band': [round(float(lo), 3), round(float(max(hi, lo)), 3)], 'clouds': 3 if end > 0.4 else 2}
 
 
 def frame_template(b, fid, sky, has_sunset, has_night):
@@ -559,7 +567,7 @@ def run(slug, fid, check=False, add=False, models=None, online=False, shots=True
     if not [i for i in rep.items if i[0] == '2. слои' and i[2].startswith('слои собраны')]:
         rep.add('2. слои', 'ok', 'слои на месте (source/%s/layers/)' % fid)
     # 3. кадр
-    sky = measure_sky(fd / 'layers' / (fid + '_env.webp'), fd / 'layers' / (fid + '.webp'))
+    sky = measure_sky(fd / 'layers' / (fid + '_env.webp'), fd / 'layers' / (fid + '.webp'), fd / 'layers' / (fid + '_building.webp'))
     if fr is None:
         if check:
             rep.add('3. кадр', 'todo', 'нет frame.json; замер неба: %s' % json.dumps(sky))
