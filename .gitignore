@@ -21,3 +21,6 @@ __pycache__/
 
 # Личные фото Нарека для сверки (не для сайта)
 tests/*/refs/
+
+# Станок (tools/new_frame.py): собранные слои кадра до --add — в git не идут (в frames/ их кладёт --add)
+tests/*/source/*/layers/
