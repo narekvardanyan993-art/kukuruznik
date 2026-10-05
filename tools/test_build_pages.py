@@ -195,7 +195,9 @@ def main():
             pg = (site / slug / 'index.html').read_text(encoding='utf-8')
             subs = [(site / slug / n).read_text(encoding='utf-8') for n in bp.OWN_PAGES if (site / slug / n).is_file()]
             b2 = bp.load_live(slug)[1]
-            card_ok = bp.render_card(slug) in (ROOT / 'index.html').read_text(encoding='utf-8')
+            hub_src = (ROOT / 'index.html').read_text(encoding='utf-8')
+            st = bp.render_stack(slug)
+            card_ok = bp.render_card(slug) in hub_src and (st is None or st in hub_src)   # карточка и (если задано card.stack) картинка в стопке — как из building.json
             good = ('noindex' not in pg and all('noindex' not in s for s in subs) and 'tests/' not in pg and all('tests/' not in s for s in subs)
                     and ('<link rel="canonical" href="%s">' % b2['meta']['url']) in pg
                     and (not b2['meta']['ogImage'] or ('og:image" content="%s%s"' % (b2['meta']['url'], b2['meta']['ogImage'])) in pg)
@@ -214,6 +216,23 @@ def main():
         ok_all &= not stale
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
+    # стопка главной: картинка здания встаёт на место силуэта, повтор ничего не меняет, чужое место и вне-диффы ловятся
+    hub0 = (ROOT / 'index.html').read_text(encoding='utf-8')
+    base = re.sub(r'\s*<!-- stack:lenin .*?<!-- /stack:lenin -->', '\n      <div class="stack-card sc-c"><div class="sc-pic"><svg class="ghost" viewBox="0 0 200 200"><use href="#ghost-statue"/></svg></div></div>', hub0, flags=re.S)
+    cardh, stackh = bp.render_card('lenin'), bp.render_stack('lenin')
+    h1 = bp.hub_with_card(base, 'lenin', cardh, stackh)
+    h2 = bp.hub_with_card(h1, 'lenin', cardh, stackh)
+    kuk = [l for l in hub0.splitlines() if 'stack-card sc-d' in l]
+    try:
+        bp.hub_with_card(h1.replace('<!-- stack:lenin', '<!-- x:lenin').replace('<!-- /stack:lenin', '<!-- /x:lenin'), 'lenin', cardh, stackh)
+        busy = False
+    except SystemExit:
+        busy = True   # место sc-c уже занято картинкой, а не силуэтом, и меток нет — СТОП, чужую картинку не затираем
+    ok_s = (h1 == hub0 and h2 == h1 and stackh and 'lenin/card.webp' in stackh and '#ghost-statue"/></svg></div></div>' not in h1.split('<main')[1]
+            and not bp.hub_outside_diff(base, h1, 'lenin') and [l for l in h1.splitlines() if 'stack-card sc-d' in l] == kuk and busy
+            and bp.hub_outside_diff(base, h1.replace('<h1>', '<h1 class="x">', 1), 'lenin'))
+    print('%s  стопка главной: картинка Ленина из card.stack/card.image на месте силуэта, повтор без изменений, Кукурузник и остальное не тронуты, правка вне карточки/стопки ловится' % ('OK   ' if ok_s else 'ОШИБКА'))
+    ok_all &= bool(ok_s)
     # переопределение чисел движка настройками здания (tuning): Тест-1 переопределяет два числа, остальное остаётся как у движка; Тест-2 не переопределяет
     e = json.loads((bp.ENGINE / 'config.json').read_text(encoding='utf-8'))
     c1, c2 = bp.make_config(bp.load_building('tests/test-1'), 'x/'), bp.make_config(bp.load_building('tests/test-2'), 'x/')

@@ -52,7 +52,7 @@ def main():
     if slug in ('beta', 'engine', 'assets', 'tests', 'docs', 'tools', 'kukuruznik'):
         raise SystemExit('СТОП: адрес %s занят' % slug)
     src_hub = (ROOT / 'index.html').read_text(encoding='utf-8')
-    new_hub = bp.hub_with_card(src_hub, slug, bp.render_card(slug))   # метки обязаны быть — до любых действий с git
+    new_hub = bp.hub_with_card(src_hub, slug, bp.render_card(slug), bp.render_stack(slug))   # метки обязаны быть — до любых действий с git
     message = args.message or '%s: живое здание из %s (движок %s) — %s' % (slug, tl[slug], bp.engine_version(), time.strftime('%Y-%m-%d %H:%M'))
 
     pb.git(ROOT, 'fetch', pb.REMOTE, pb.BRANCH)
