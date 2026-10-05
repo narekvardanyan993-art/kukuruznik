@@ -1,0 +1,30 @@
+{
+  "name": "Ленин",
+  "short_name": "Ленин",
+  "description": "Լենինի արձանը (1940–1991) Երևանի կենտրոնական հրապարակում՝ 1970-ականների վերջի – 1980-ականների տեսքով, գծանկար։",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5ecda",
+  "theme_color": "#f5ecda",
+  "icons": [
+    {
+      "src": "../assets/icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "../assets/icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "../assets/favicon-32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    }
+  ]
+}

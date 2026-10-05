@@ -11,7 +11,7 @@
   var base = /\.github\.io$/.test(location.hostname) ? '/kukuruznik/' : '/';
   var rest = p.indexOf(base) === 0 ? p.slice(base.length) : p.replace(/^\//, '');
   var first = rest.split('/')[0].toLowerCase();
-  var known = { kukuruznik: 'kukuruznik/', 'index.html': '' };
+  var known = { kukuruznik: 'kukuruznik/', lenin: 'lenin/', 'index.html': '' };
   var target = base + (known.hasOwnProperty(first) ? known[first] : '');
   if (target !== p) location.replace(target + location.hash);
   document.addEventListener('DOMContentLoaded', function () { document.getElementById('home').href = base; });
