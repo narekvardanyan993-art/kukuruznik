@@ -341,7 +341,7 @@ def validate(bdir, b, site):
             elif 'url' in lv.get('meta', {}) and not str(lv['meta']['url']).startswith('https://'):
                 c.err('live.meta.url', 'адрес должен начинаться с https://')
     if 'card' in b:
-        cd = c.obj(b['card'], 'card', required=('eyebrow', 'meta', 'image'), optional=('title', 'history'))
+        cd = c.obj(b['card'], 'card', required=('eyebrow', 'meta', 'image'), optional=('title', 'history', 'stack'))
         if cd:
             c.i18n(cd['eyebrow'], 'card.eyebrow')
             c.i18n(cd['meta'], 'card.meta')
@@ -350,6 +350,8 @@ def validate(bdir, b, site):
             c.string(cd['image'], 'card.image')
             if 'history' in cd:
                 c.string(cd['history'], 'card.history', allow_none=True)
+            if 'stack' in cd and cd['stack'] not in ('a', 'b', 'c', 'd'):
+                c.err('card.stack', 'место в стопке главной: a, b, c или d (sc-a … sc-d в hub.css)')
     return c.errors
 
 

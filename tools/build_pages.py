@@ -709,40 +709,85 @@ def render_card(slug, root=None):
     return '\n'.join(lines)
 
 
-def _card_span(text, slug):
-    a = text.find('      <!-- card:%s ' % slug)
+STACK_SLOTS = ('a', 'b', 'c', 'd')   # sc-a … sc-d в assets/hub.css: четыре места стопки в шапке главной
+
+
+def render_stack(slug, root=None):
+    """Картинка здания в верхней «стопке» главной — из card.stack (место a–d) и card.image в building.json.
+    Между метками <!-- stack:<slug> --> и <!-- /stack:<slug> -->; руками не править. Нет card.stack — None."""
+    src = test_live_slugs(root).get(slug, slug)
+    cd = (load_building(src, root).get('card') or {})
+    slot = cd.get('stack')
+    if not slot:
+        return None
+    e = lambda s: html.escape(s, quote=True)
+    return '\n'.join([
+        '      <!-- stack:%s — собирается из %s/building.json (card.stack, card.image), руками не править -->' % (slug, src),
+        '      <div class="stack-card sc-%s"><div class="sc-pic"><img src="%s/%s" width="480" height="480" alt="" decoding="async"></div></div>' % (slot, e(slug), e(cd['image'])),
+        '      <!-- /stack:%s -->' % slug])
+
+
+def _marks_span(text, kind, slug):
+    a = text.find('      <!-- %s:%s ' % (kind, slug))
     if a < 0:
-        a = text.find('<!-- card:%s -->' % slug)
-    endm = '<!-- /card:%s -->' % slug
+        a = text.find('<!-- %s:%s -->' % (kind, slug))
+    endm = '<!-- /%s:%s -->' % (kind, slug)
     z = text.find(endm)
     if a < 0 or z < 0 or z < a:
         return None
     return a, z + len(endm)
 
 
-def hub_with_card(hub, slug, card_html):
-    """Главная с карточкой здания slug на месте меток card:<slug> (метки обязаны быть в исходной главной)."""
+def _card_span(text, slug):
+    return _marks_span(text, 'card', slug)
+
+
+def _stack_span(text, slug):
+    return _marks_span(text, 'stack', slug)
+
+
+def _stack_with(hub, slug, stack_html):
+    """Стопка: метки stack:<slug> уже есть — заменить между ними. Нет — первая публикация: на место картинки-силуэта
+    (<div class="stack-card sc-X"> с <svg class="ghost">) того же места, что в card.stack. Место занято чужой картинкой — СТОП."""
+    sp = _stack_span(hub, slug)
+    if sp:
+        return hub[:sp[0]] + stack_html + hub[sp[1]:]
+    slot = re.search(r'class="stack-card sc-(\w)"', stack_html).group(1)
+    if slot not in STACK_SLOTS:
+        raise SystemExit('СТОП: card.stack = %r — допустимо одно из %s' % (slot, ', '.join(STACK_SLOTS)))
+    m = re.search(r'^[ \t]*<div class="stack-card sc-%s"><div class="sc-pic"><svg class="ghost"[^\n]*</svg></div></div>[ \t]*$' % slot, hub, re.M)
+    if not m:
+        raise SystemExit('СТОП: в index.html место стопки sc-%s занято не силуэтом (<svg class="ghost">) — выбери другое card.stack или освободи место' % slot)
+    return hub[:m.start()] + stack_html + hub[m.end():]
+
+
+def hub_with_card(hub, slug, card_html, stack_html=None):
+    """Главная с карточкой здания slug на месте меток card:<slug> (метки обязаны быть в исходной главной) и, если есть
+    stack_html, с его картинкой в стопке (метки stack:<slug> или силуэт того же места)."""
     sp = _card_span(hub, slug)
     if not sp:
         raise SystemExit('СТОП: в index.html нет меток <!-- card:%s --> … <!-- /card:%s --> — некуда ставить карточку' % (slug, slug))
-    return hub[:sp[0]] + card_html + hub[sp[1]:]
+    hub = hub[:sp[0]] + card_html + hub[sp[1]:]
+    return _stack_with(hub, slug, stack_html) if stack_html else hub
 
 
 def hub_outside_diff(old, new, slug):
-    """Главная на сайте (old) -> новая (new): все отличия обязаны лежать внутри карточки slug (между метками в new).
-    Иначе публикация здания унесла бы на сайт чужие, непроверенные правки главной. Возвращает список проблем."""
+    """Главная на сайте (old) -> новая (new): все отличия обязаны лежать внутри карточки slug или её картинки в стопке
+    (между метками в new). Иначе публикация здания унесла бы на сайт чужие, непроверенные правки главной. Возвращает список проблем."""
     import difflib
     sp = _card_span(new, slug)
     if not sp:
         return ['в новой главной нет меток карточки %s' % slug]
+    ranges = [(new[:sp[0]].count('\n'), new[:sp[1]].count('\n'))]
+    st = _stack_span(new, slug)
+    if st:
+        ranges.append((new[:st[0]].count('\n'), new[:st[1]].count('\n')))
     nl = new.splitlines()
-    first = new[:sp[0]].count('\n')
-    last = new[:sp[1]].count('\n')
     bad = []
     for op, i1, i2, j1, j2 in difflib.SequenceMatcher(None, old.splitlines(), nl, autojunk=False).get_opcodes():
         if op == 'equal':
             continue
-        if not (j1 >= first and j2 <= last + 1 and (j2 > j1 or first <= j1 <= last + 1)):
+        if not any(j1 >= first and j2 <= last + 1 and (j2 > j1 or first <= j1 <= last + 1) for first, last in ranges):
             bad.append('главная: отличие вне карточки %s — строки сайта %d–%d: %s' % (slug, i1 + 1, i2, (old.splitlines()[i1:i2] or nl[j1:j2] or [''])[0].strip()[:90]))
     return bad
 

@@ -77,7 +77,7 @@
     "links": {"home": "../"},
     "text": {"plaque": {"hy": "Լենինի արձանը (1940–1991) · Լենինի հրապարակը 1970-ականների վերջին – 1980-ականներին · գեղարվեստական վերակառուցում արխիվային լուսանկարներից", "ru": "Памятник Ленину (1940–1991) · площадь Ленина в конце 1970-х — 1980-х · художественная реконструкция по архивным фото", "en": "Lenin Monument (1940–1991) · Lenin Square in the late 1970s–1980s · artistic reconstruction after archive photos"}}
   },
-  "card": {"eyebrow": {"hy": "3D · 1977–1991", "ru": "3D · 1977–1991", "en": "3D · 1977–1991"}, "meta": {"hy": "Լենինի հրապարակ · Երևան", "ru": "Площадь Ленина · Ереван", "en": "Lenin Square · Yerevan"}, "image": "card.webp", "history": "history.html"},
+  "card": {"eyebrow": {"hy": "3D · 1977–1991", "ru": "3D · 1977–1991", "en": "3D · 1977–1991"}, "meta": {"hy": "Լենինի հրապարակ · Երևան", "ru": "Площадь Ленина · Ереван", "en": "Lenin Square · Yerevan"}, "image": "card.webp", "history": "history.html", "stack": "c"},
   "frames": [
     {
       "name": "lenin_1",
