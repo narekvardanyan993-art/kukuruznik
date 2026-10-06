@@ -235,12 +235,47 @@ def validate(bdir, b, site):
             if c.numbers(fr['flag'], '%s: flag' % w, 4, 0, 1) and (fr['flag'][0] + fr['flag'][2] > 1.0001 or fr['flag'][1] + fr['flag'][3] > 1.0001):
                 c.err('%s: flag' % w, 'флаг [x, y, ширина, высота] выходит за кадр')
         if 'ambient' in fr:       # e1.6: жизнь на земле (details.js): walkers / cars / pigeons
-            am = c.obj(fr['ambient'], '%s: ambient' % w, optional=('walkers', 'cars', 'pigeons'))
+            am = c.obj(fr['ambient'], '%s: ambient' % w, optional=('walkers', 'cars', 'pigeons', 'crowd', 'sitters', 'props', 'events', 'minPx'))
             if am:
+                if 'minPx' in am:
+                    c.number(am['minPx'], '%s: ambient.minPx' % w, 0, 60)
+                for j, o in enumerate(am.get('crowd', [])):
+                    wo = '%s: ambient.crowd[%d]' % (w, j + 1)
+                    oo = c.obj(o, wo, required=('quad', 'size'), optional=('n',))
+                    if oo:
+                        if not isinstance(oo['quad'], list) or len(oo['quad']) != 4:
+                            c.err(wo, 'quad — 4 точки [u, v] по кругу')
+                        else:
+                            for q in oo['quad']:
+                                c.numbers(q, wo + '.quad', 2, -0.2, 1.2)
+                        c.numbers(oo['size'], wo + '.size', 2, 0.001, 0.3)
+                        if 'n' in oo:
+                            c.number(oo['n'], wo + '.n', 1, 40)
+                for j, o in enumerate(am.get('sitters', [])):
+                    wo = '%s: ambient.sitters[%d]' % (w, j + 1)
+                    oo = c.obj(o, wo, required=('at', 'size'))
+                    if oo:
+                        for q in oo['at']:
+                            c.numbers(q, wo + '.at', 2, 0, 1)
+                        c.number(oo['size'], wo + '.size', 0.001, 0.3)
+                for j, o in enumerate(am.get('props', [])):
+                    wo = '%s: ambient.props[%d]' % (w, j + 1)
+                    oo = c.obj(o, wo, required=('kind', 'at', 'size'))
+                    if oo:
+                        if oo['kind'] not in ('soda', 'icecream', 'balloons', 'sweeper', 'photo'):
+                            c.err(wo, 'kind: soda / icecream / balloons / sweeper / photo')
+                        c.numbers(oo['at'], wo + '.at', 2, 0, 1)
+                        c.number(oo['size'], wo + '.size', 0.001, 0.3)
+                if 'events' in am:
+                    ev = c.obj(am['events'], '%s: ambient.events' % w, optional=('every', 'flockBand'))
+                    if ev:
+                        for k2 in ('every', 'flockBand'):
+                            if k2 in ev:
+                                c.numbers(ev[k2], '%s: ambient.events.%s' % (w, k2), 2, 0, 60)
                 for kind in ('walkers', 'cars'):
                     for j, o in enumerate(am.get(kind, [])):
                         wo = '%s: ambient.%s[%d]' % (w, kind, j + 1)
-                        oo = c.obj(o, wo, required=('path', 'size'), optional=('n', 'speed', 'loop', 'trolley'))
+                        oo = c.obj(o, wo, required=('path', 'size'), optional=('n', 'speed', 'loop', 'trolley', 'taxi', 'kinds'))
                         if oo:
                             if not isinstance(oo['path'], list) or len(oo['path']) < 2:
                                 c.err(wo, 'path — список из 2+ точек [u, v]')
@@ -249,7 +284,10 @@ def validate(bdir, b, site):
                                     c.numbers(q, wo + '.path', 2, -0.2, 1.2)
                             c.numbers(oo['size'], wo + '.size', 2, 0.001, 0.3)
                             if 'n' in oo:
-                                c.number(oo['n'], wo + '.n', 1, 12)
+                                c.number(oo['n'], wo + '.n', 1, 40)
+                            for kd in oo.get('kinds', []):
+                                if kd not in ('adult', 'bag', 'pair', 'child', 'bike'):
+                                    c.err(wo + '.kinds', 'вид: adult / bag / pair / child / bike, а не %r' % (kd,))
                             if 'speed' in oo:
                                 c.number(oo['speed'], wo + '.speed', 0.001, 0.5)
                 for j, o in enumerate(am.get('pigeons', [])):
@@ -259,7 +297,7 @@ def validate(bdir, b, site):
                         c.numbers(oo['at'], wo + '.at', 2, 0, 1)
                         c.number(oo['size'], wo + '.size', 0.001, 0.2)
                         if 'n' in oo:
-                            c.number(oo['n'], wo + '.n', 1, 12)
+                            c.number(oo['n'], wo + '.n', 1, 40)
         if 'depthRaw' in fr:      # e1.5: карта глубины кадра без растяжки контраста (значения файла = глубина в шейдере)
             c.boolean(fr['depthRaw'], '%s: depthRaw' % w)
         if 'bldDepth' in fr:      # e1.5: здание кадра жёстко на этой глубине (0 — далеко, 1 — близко)
@@ -269,7 +307,7 @@ def validate(bdir, b, site):
             if c.numbers(sb, '%s: showBand' % w, 2, 0, 1) and not sb[0] < sb[1]:
                 c.err('%s: showBand' % w, '[верх, низ]: верх должен быть меньше низа')
         if 'fountains' in fr:     # e1.5: фонтаны (details.js): jets [[u, v, высота, полуширина]…], glints [[u, v]…], squash
-            fo = c.obj(fr['fountains'], '%s: fountains' % w, required=('jets',), optional=('glints', 'squash'))
+            fo = c.obj(fr['fountains'], '%s: fountains' % w, required=('jets',), optional=('glints', 'squash', 'pool', 'blue'))
             if fo:
                 if not isinstance(fo['jets'], list) or not fo['jets']:
                     c.err('%s: fountains.jets' % w, 'непустой список [u, v, высота, полуширина]')
