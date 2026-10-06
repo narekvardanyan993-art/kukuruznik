@@ -512,6 +512,15 @@
   function drawFountains(now, w, f, F) {
     var t = now / 1000, s0 = sf(), a0 = 1 - 0.6 * w.n, sq = F.squash || 0.38;
     ctx.save(); ctx.lineCap = 'round';
+    if (F.pool) {   // e1.7: вода бассейна — акварельная синева поверх рисунка (умножением: карандаш остаётся), лёгкие волны-штрихи
+      var pp = F.pool.map(function (q) { return P(q[0], q[1], depthAt(f, q[0], q[1])); });
+      ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = (F.blue || 0.6) * (1 - 0.4 * w.n); ctx.fillStyle = 'rgb(105,165,225)';
+      ctx.beginPath(); pp.forEach(function (q, i) { if (i) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]); }); ctx.closePath(); ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+      var c0 = pp.reduce(function (s, q) { return [s[0] + q[0] / pp.length, s[1] + q[1] / pp.length]; }, [0, 0]), wx0 = Math.abs(pp[1][0] - pp[0][0]) * 0.4;
+      ctx.strokeStyle = 'rgb(255,255,255)'; ctx.lineWidth = Math.max(0.8, 1.1 * s0);
+      for (var wv = 0; wv < 7; wv++) { var ph2 = (t * 0.25 + wv / 7) % 1, wy = c0[1] + (wv - 3) * 4 * s0, wxs = c0[0] + Math.sin(wv * 2.1 + t * 0.4) * wx0; ctx.globalAlpha = a0 * 0.5 * Math.sin(Math.PI * ph2); ln(wxs - 6 * s0, wy, wxs + 6 * s0, wy); }
+    }
     (F.jets || []).forEach(function (j, k) {
       var d = depthAt(f, j[0], j[1]), b = P(j[0], j[1], d), tp = P(j[0], j[1] - j[2], d), h = b[1] - tp[1], hw = Math.max(1.5, P(j[0] + j[3], j[1], d)[0] - b[0]);
       var hh = h * (0.93 + 0.06 * Math.sin(t * 2.3 + k * 1.7) + 0.025 * Math.sin(t * 7.1 + k));
@@ -521,7 +530,7 @@
         ctx.globalAlpha = a0 * 0.6 * (1 - p) * (1 - p); ctx.strokeStyle = 'rgb(62,88,112)';
         ctx.beginPath(); ctx.ellipse(b[0], b[1], rx, rx * sq, 0, 0, 6.283); ctx.stroke();
       }
-      ctx.globalAlpha = a0 * 0.7; ctx.fillStyle = 'rgb(238,247,252)';   // тело струи — бледная акварель
+      ctx.globalAlpha = a0 * (F.pool ? 0.92 : 0.7); ctx.fillStyle = F.pool ? 'rgb(225,240,255)' : 'rgb(238,247,252)';   // тело струи — бледная акварель
       ctx.beginPath(); ctx.moveTo(b[0] - hw * 0.5, b[1]);
       ctx.quadraticCurveTo(b[0] - hw * 0.22, b[1] - hh * 0.6, b[0] - hw * 0.14, b[1] - hh);
       ctx.quadraticCurveTo(b[0], b[1] - hh * 1.08, b[0] + hw * 0.14, b[1] - hh);
@@ -546,91 +555,251 @@
     });
     ctx.restore();
   }
-  // ---------- ЖИЗНЬ НА ЗЕМЛЕ (e1.6; кадр с ambient в настройках здания, у остальных ничего не рисуется) ----------
-  // Постоянные движения, не по кнопке: пешеходы, машины/троллейбусы, голуби. Всё — на глубине земли под точкой (как фонтаны),
-  // карандашом и бледной акварелью, мелко, без мультяшности. Пути — ломаные в долях кадра; size — высота человека (или длина машины)
-  // в долях высоты кадра в начале и в конце пути (перспектива). Ночью людей и машин меньше, у машин фары.
-  //   walkers: [{path, size: [s0, s1], n, speed}]   cars: [{path, size, n, speed, loop, trolley}]   pigeons: [{at: [u, v], size, n}]
-  var COATS = ['125,143,163', '156,107,90', '111,127,98', '138,124,154', '181,154,106', '95,107,122', '150,90,80'];
-  var CARC = ['214,206,178', '160,178,160', '150,168,190', '196,170,150', '228,222,210', '120,130,140'];
+  // ---------- ЖИЗНЬ НА ЗЕМЛЕ (e1.6, расширено в e1.7; кадр с ambient в настройках здания, у остальных ничего не рисуется) ----------
+  // Постоянные движения, не по кнопке: люди (взрослые, пары, дети, с сумками, велосипедисты), толпа, гуляющая по площади, сидящие,
+  // «точки» эпохи (автомат газировки с очередью, тележка мороженщика, продавщица шаров, дворник, фотограф с треногой), машины
+  // («Волги», такси с шашечками, троллейбус с искрой на штангах), голуби, события раз в 5–10 с (дети пробегают, стая голубей,
+  // троллейбус). Всё — на глубине земли под точкой (при наклоне на месте), карандашом и бледной акварелью; дальние — раньше ближних.
+  //   minPx — человек не меньше N css px (на телефоне читается как человек, не точка)
+  //   walkers: [{path, size: [s0, s1], n, speed, kinds: [adult|bag|pair|child|bike…]}]   crowd: [{quad: [[u,v]×4], size: [верх, низ], n}]
+  //   sitters: [{at: [[u,v]…], size}]   props: [{kind: soda|icecream|balloons|sweeper|photo, at: [u,v], size}]
+  //   cars: [{path, size, n, speed, loop, trolley, taxi}]   pigeons: [{at, size, n}]   events: {every: [5, 10], flockBand: [v0, v1]}
+  var COATS = ['125,143,163', '156,107,90', '111,127,98', '138,124,154', '181,154,106', '95,107,122', '150,90,80', '170,120,150', '90,120,150'];
+  var CARC = ['214,206,178', '160,178,160', '150,168,190', '196,170,150', '228,222,210', '120,130,140', '140,160,150'];
+  var BALC = ['217,40,40', '40,90,200', '240,180,20', '60,160,80', '230,110,40', '150,60,160'];
+  function hsh(a, b) { var x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); }
   function pathOf(o) {
     if (o._L) return o._L;
     var P0 = o.path.slice(); if (o.loop) P0.push(P0[0]);
     var L = [0]; for (var i = 1; i < P0.length; i++) L.push(L[i - 1] + Math.hypot(P0[i][0] - P0[i - 1][0], P0[i][1] - P0[i - 1][1]));
     o._P = P0; o._L = L; return L;
   }
-  function along(o, s) {   // точка и направление на пути, s 0..1
+  function along(o, s) {
     var L = pathOf(o), P0 = o._P, tot = L[L.length - 1], x = clamp(s, 0, 1) * tot, i = 1;
     while (i < L.length - 1 && L[i] < x) i++;
     var k = (x - L[i - 1]) / Math.max(1e-6, L[i] - L[i - 1]), a = P0[i - 1], b = P0[i];
     return { u: a[0] + (b[0] - a[0]) * k, v: a[1] + (b[1] - a[1]) * k, du: b[0] - a[0], dv: b[1] - a[1] };
   }
-  function ground(f, u, v) { return P(u, v, depthAt(f, clamp(u, 0, 1), clamp(v, 0, 1))); }
-  function sizePx(f, u, v, s) { var a = ground(f, u, v), b = P(u, v - s, depthAt(f, clamp(u, 0, 1), clamp(v, 0, 1))); return Math.abs(a[1] - b[1]); }
-  function person(x, y, h, step, coat, col, a) {   // фигурка: голова, пальто акварелью, ноги шагают — карандаш
-    var lw = Math.max(0.6, h * 0.07);
-    ctx.globalAlpha = a * 0.8; ctx.fillStyle = 'rgb(' + coat + ')';
-    ctx.beginPath(); ctx.moveTo(x - h * 0.13, y - h * 0.36); ctx.lineTo(x - h * 0.09, y - h * 0.8); ctx.lineTo(x + h * 0.09, y - h * 0.8); ctx.lineTo(x + h * 0.14, y - h * 0.36); ctx.closePath(); ctx.fill();
-    ctx.globalAlpha = a; ctx.strokeStyle = 'rgb(' + col + ')'; ctx.fillStyle = 'rgb(' + col + ')'; ctx.lineWidth = lw;
-    ctx.beginPath(); ctx.arc(x, y - h * 0.89, h * 0.095, 0, 6.283); ctx.fill();
-    var sw = Math.sin(step) * h * 0.12;
-    ctx.beginPath(); ctx.moveTo(x - h * 0.03, y - h * 0.38); ctx.lineTo(x - h * 0.03 + sw, y); ctx.moveTo(x + h * 0.03, y - h * 0.38); ctx.lineTo(x + h * 0.03 - sw, y); ctx.stroke();
-    ctx.globalAlpha = a * 0.5; ctx.beginPath(); ctx.moveTo(x - h * 0.09, y - h * 0.8); ctx.lineTo(x - h * 0.13 - sw * 0.4, y - h * 0.5); ctx.stroke();   // рука в шаг
+  function quadAt(q, a, b) {
+    var x0 = q[0][0] + (q[1][0] - q[0][0]) * a, y0 = q[0][1] + (q[1][1] - q[0][1]) * a, x1 = q[3][0] + (q[2][0] - q[3][0]) * a, y1 = q[3][1] + (q[2][1] - q[3][1]) * a;
+    return [x0 + (x1 - x0) * b, y0 + (y1 - y0) * b];
   }
-  function car(x, y, len, ang, body, col, a, trolley, lights) {   // машина сверху-сбоку: кузов акварелью, крыша, окна, контур карандашом
-    ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
-    var wd = len * (trolley ? 0.24 : 0.42), r = wd * 0.35;
-    ctx.globalAlpha = a * 0.85; ctx.fillStyle = 'rgb(' + body + ')';
-    ctx.beginPath(); ctx.moveTo(-len / 2 + r, -wd / 2); ctx.lineTo(len / 2 - r, -wd / 2); ctx.quadraticCurveTo(len / 2, -wd / 2, len / 2, -wd / 2 + r); ctx.lineTo(len / 2, wd / 2 - r); ctx.quadraticCurveTo(len / 2, wd / 2, len / 2 - r, wd / 2); ctx.lineTo(-len / 2 + r, wd / 2); ctx.quadraticCurveTo(-len / 2, wd / 2, -len / 2, wd / 2 - r); ctx.lineTo(-len / 2, -wd / 2 + r); ctx.quadraticCurveTo(-len / 2, -wd / 2, -len / 2 + r, -wd / 2); ctx.closePath(); ctx.fill();
-    ctx.globalAlpha = a; ctx.strokeStyle = 'rgb(' + col + ')'; ctx.lineWidth = Math.max(0.5, len * 0.045); ctx.stroke();
-    ctx.globalAlpha = a * 0.45; ctx.fillStyle = 'rgb(' + col + ')';   // стёкла / крыша
-    if (trolley) { for (var i = 0; i < 5; i++) ctx.fillRect(-len * 0.42 + i * len * 0.17, -wd * 0.32, len * 0.1, wd * 0.64); }
-    else { ctx.fillRect(-len * 0.18, -wd * 0.36, len * 0.4, wd * 0.72); }
-    if (trolley) { ctx.globalAlpha = a * 0.8; ctx.lineWidth = Math.max(0.5, len * 0.02); ctx.beginPath(); ctx.moveTo(-len * 0.1, -wd * 0.1); ctx.lineTo(-len * 0.45, -wd * 1.4); ctx.moveTo(-len * 0.1, wd * 0.1); ctx.lineTo(-len * 0.45, -wd * 1.0); ctx.stroke(); }   // штанги
-    if (lights > 0.05) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a * lights; ctx.fillStyle = 'rgb(255,214,140)'; ctx.beginPath(); ctx.arc(len / 2, -wd * 0.3, wd * 0.28, 0, 6.283); ctx.arc(len / 2, wd * 0.3, wd * 0.28, 0, 6.283); ctx.fill(); ctx.globalCompositeOperation = 'source-over'; }
+  function gd(f, u, v) { return depthAt(f, clamp(u, 0, 1), clamp(v, 0, 1)); }
+  function ground(f, u, v) { return P(u, v, gd(f, u, v)); }
+  function sizePx(f, u, v, s) { var d = gd(f, u, v), a = P(u, v, d), b = P(u, v - s, d); return Math.abs(a[1] - b[1]); }
+  function ln(x0, y0, x1, y1) { ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); }
+  function person(x, y, h, step, coat, col, a, o) {   // фигурка: голова, пальто акварелью, ноги шагают; o: {bag, sit, arm, child}
+    o = o || {}; var lw = Math.max(0.7, h * 0.075), sw = o.sit ? 0 : Math.sin(step) * h * 0.13, bob = o.sit ? 0 : Math.abs(Math.cos(step)) * h * 0.025;
+    y -= bob;
+    var top = o.sit ? 0.62 : 0.8, hip = o.sit ? 0.3 : 0.38;
+    ctx.globalAlpha = a * 0.85; ctx.fillStyle = 'rgb(' + coat + ')';
+    ctx.beginPath(); ctx.moveTo(x - h * 0.14, y - h * hip); ctx.lineTo(x - h * 0.09, y - h * top); ctx.lineTo(x + h * 0.09, y - h * top); ctx.lineTo(x + h * 0.15, y - h * hip); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = a; ctx.strokeStyle = 'rgb(' + col + ')'; ctx.fillStyle = 'rgb(' + col + ')'; ctx.lineWidth = lw;
+    ctx.beginPath(); ctx.moveTo(x - h * 0.14, y - h * hip); ctx.lineTo(x - h * 0.09, y - h * top); ctx.lineTo(x + h * 0.09, y - h * top); ctx.lineTo(x + h * 0.15, y - h * hip); ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y - h * (top + 0.09), h * 0.095, 0, 6.283); ctx.fill();
+    if (o.sit) { ln(x - h * 0.05, y - h * hip, x + h * 0.22, y - h * hip); ln(x + h * 0.22, y - h * hip, x + h * 0.24, y); }
+    else { ln(x - h * 0.03, y - h * hip, x - h * 0.03 + sw, y); ln(x + h * 0.03, y - h * hip, x + h * 0.03 - sw, y); }
+    var arm = o.arm != null ? o.arm : -sw * 0.5;
+    ln(x - h * 0.09, y - h * (top - 0.02), x - h * 0.15 + arm, y - h * (hip + 0.12));
+    if (o.bag) { ctx.globalAlpha = a * 0.9; ctx.fillStyle = 'rgb(120,80,50)'; ctx.fillRect(x - h * 0.24 + arm, y - h * (hip + 0.1), h * 0.13, h * 0.11); }
+  }
+  function bike(x, y, h, step, coat, col, a, dir) {   // велосипедист: два колеса, рама, педали крутятся
+    var r = h * 0.24, lw = Math.max(0.7, h * 0.06);
+    ctx.save(); ctx.translate(x, y); ctx.scale(dir, 1);
+    ctx.globalAlpha = a; ctx.strokeStyle = 'rgb(' + col + ')'; ctx.lineWidth = lw;
+    ctx.beginPath(); ctx.arc(-h * 0.32, -r, r, 0, 6.283); ctx.stroke(); ctx.beginPath(); ctx.arc(h * 0.32, -r, r, 0, 6.283); ctx.stroke();
+    ln(-h * 0.32, -r, -h * 0.02, -r); ln(-h * 0.02, -r, h * 0.12, -h * 0.62); ln(-h * 0.32, -r, -h * 0.12, -h * 0.6); ln(-h * 0.12, -h * 0.6, h * 0.12, -h * 0.6); ln(h * 0.12, -h * 0.62, h * 0.32, -r);
+    var pc = Math.cos(step) * r * 0.5, ps = Math.sin(step) * r * 0.5;
+    ln(-h * 0.02 + pc, -r + ps, -h * 0.02 - pc, -r - ps);
+    ctx.globalAlpha = a * 0.85; ctx.fillStyle = 'rgb(' + coat + ')';
+    ctx.beginPath(); ctx.moveTo(-h * 0.14, -h * 0.66); ctx.lineTo(-h * 0.02, -h * 1.02); ctx.lineTo(h * 0.12, -h * 0.98); ctx.lineTo(h * 0.04, -h * 0.64); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = a; ctx.fillStyle = 'rgb(' + col + ')'; ctx.beginPath(); ctx.arc(h * 0.05, -h * 1.1, h * 0.09, 0, 6.283); ctx.fill();
+    ln(h * 0.08, -h * 0.98, h * 0.14, -h * 0.66); ln(-h * 0.12, -h * 0.64, -h * 0.02 + pc, -r + ps);
     ctx.restore();
   }
+  function car(x, y, len, ang, body, col, a, kind, lights, now, i) {   // машина сверху-сбоку; kind: '' | taxi | trolley
+    var trolley = kind === 'trolley';
+    ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+    var wd = len * (trolley ? 0.26 : 0.42), r = wd * 0.35;
+    ctx.globalAlpha = a * 0.9; ctx.fillStyle = 'rgb(' + body + ')';
+    ctx.beginPath(); ctx.moveTo(-len / 2 + r, -wd / 2); ctx.lineTo(len / 2 - r, -wd / 2); ctx.quadraticCurveTo(len / 2, -wd / 2, len / 2, -wd / 2 + r); ctx.lineTo(len / 2, wd / 2 - r); ctx.quadraticCurveTo(len / 2, wd / 2, len / 2 - r, wd / 2); ctx.lineTo(-len / 2 + r, wd / 2); ctx.quadraticCurveTo(-len / 2, wd / 2, -len / 2, wd / 2 - r); ctx.lineTo(-len / 2, -wd / 2 + r); ctx.quadraticCurveTo(-len / 2, -wd / 2, -len / 2 + r, -wd / 2); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = a; ctx.strokeStyle = 'rgb(' + col + ')'; ctx.lineWidth = Math.max(0.6, len * 0.045); ctx.stroke();
+    ctx.globalAlpha = a * 0.5; ctx.fillStyle = 'rgb(' + col + ')';
+    if (trolley) { for (var k = 0; k < 5; k++) ctx.fillRect(-len * 0.42 + k * len * 0.17, -wd * 0.32, len * 0.1, wd * 0.64); }
+    else ctx.fillRect(-len * 0.18, -wd * 0.36, len * 0.4, wd * 0.72);
+    if (kind === 'taxi') { ctx.globalAlpha = a; for (var q = 0; q < 6; q++) { ctx.fillStyle = q % 2 ? 'rgb(250,240,200)' : 'rgb(' + col + ')'; ctx.fillRect(-len * 0.3 + q * len * 0.1, wd * 0.36, len * 0.1, wd * 0.14); } }
+    if (trolley) {
+      ctx.globalAlpha = a * 0.85; ctx.lineWidth = Math.max(0.6, len * 0.02); ln(-len * 0.1, -wd * 0.1, -len * 0.45, -wd * 1.5); ln(-len * 0.1, wd * 0.1, -len * 0.45, -wd * 1.1);
+      if (Math.sin(now * 0.0047 + i * 2.3) > 0.93) {   // искра на проводах
+        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a; ctx.fillStyle = 'rgb(160,200,255)';
+        ctx.beginPath(); ctx.arc(-len * 0.45, -wd * 1.5, wd * 0.35, 0, 6.283); ctx.fill(); ctx.fillStyle = 'rgb(255,255,255)'; ctx.beginPath(); ctx.arc(-len * 0.45, -wd * 1.5, wd * 0.15, 0, 6.283); ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
+      }
+    }
+    if (lights > 0.05) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a * lights; ctx.fillStyle = 'rgb(255,214,140)'; ctx.beginPath(); ctx.arc(len / 2, -wd * 0.3, wd * 0.3, 0, 6.283); ctx.arc(len / 2, wd * 0.3, wd * 0.3, 0, 6.283); ctx.fill(); ctx.globalCompositeOperation = 'source-over'; }
+    ctx.restore();
+  }
+  function prop(o, p, h, t, col, a, night, i) {   // «точки» эпохи
+    var x = p[0], y = p[1], k = o.kind;
+    ctx.lineWidth = Math.max(0.7, h * 0.06); ctx.strokeStyle = 'rgb(' + col + ')';
+    if (k === 'soda') {   // автомат газированной воды и очередь
+      ctx.globalAlpha = a * 0.9; ctx.fillStyle = 'rgb(200,70,60)'; ctx.fillRect(x - h * 0.28, y - h * 1.0, h * 0.56, h); ctx.globalAlpha = a; ctx.strokeRect(x - h * 0.28, y - h * 1.0, h * 0.56, h);
+      ctx.fillStyle = 'rgb(235,230,215)'; ctx.fillRect(x - h * 0.18, y - h * 0.82, h * 0.36, h * 0.3);
+      for (var q = 0; q < 3; q++) {
+        var cyc = (t / 7 + i) % 1, shift = q === 0 && cyc > 0.8 ? (cyc - 0.8) * 5 * h * 0.6 : 0;
+        person(x + h * 0.45 + q * h * 0.32 + shift, y + h * 0.05 + q * h * 0.03, h * (q === 2 ? 0.7 : 1), 0, COATS[(i + q * 3) % COATS.length], col, a * (q === 0 && cyc > 0.95 ? (1 - cyc) * 20 : 1), { arm: q === 0 ? -h * 0.1 * Math.max(0, Math.sin(t * 2)) : 0 });
+      }
+    } else if (k === 'icecream') {   // тележка мороженщика с зонтиком
+      ctx.globalAlpha = a * 0.9; ctx.fillStyle = 'rgb(240,240,235)'; ctx.fillRect(x - h * 0.45, y - h * 0.55, h * 0.9, h * 0.42); ctx.globalAlpha = a; ctx.strokeRect(x - h * 0.45, y - h * 0.55, h * 0.9, h * 0.42);
+      ctx.fillStyle = 'rgb(60,110,180)'; ctx.fillRect(x - h * 0.45, y - h * 0.42, h * 0.9, h * 0.08);
+      ctx.beginPath(); ctx.arc(x - h * 0.28, y - h * 0.1, h * 0.1, 0, 6.283); ctx.stroke(); ctx.beginPath(); ctx.arc(x + h * 0.28, y - h * 0.1, h * 0.1, 0, 6.283); ctx.stroke();
+      ln(x, y - h * 0.55, x, y - h * 1.35);
+      for (var s2 = 0; s2 < 6; s2++) { ctx.globalAlpha = a * 0.85; ctx.fillStyle = s2 % 2 ? 'rgb(250,250,245)' : 'rgb(210,60,60)'; ctx.beginPath(); ctx.moveTo(x, y - h * 1.38); ctx.arc(x, y - h * 1.12, h * 0.55, Math.PI + s2 * Math.PI / 6, Math.PI + (s2 + 1) * Math.PI / 6); ctx.closePath(); ctx.fill(); }
+      ctx.globalAlpha = a; ctx.beginPath(); ctx.arc(x, y - h * 1.12, h * 0.55, Math.PI, 0); ctx.stroke();
+      person(x + h * 0.62, y, h, 0, '235,235,230', col, a, { arm: -h * 0.05 * Math.sin(t * 1.5) });
+      person(x - h * 0.7 + Math.sin(t * 0.8) * h * 0.08, y + h * 0.04, h * 0.6, t * 3, COATS[(i + 2) % COATS.length], col, a, {});
+    } else if (k === 'balloons') {   // продавщица воздушных шаров
+      person(x, y, h, 0, '170,120,150', col, a, { arm: -h * 0.02 });
+      for (var b = 0; b < 7; b++) {
+        var bx = x - h * 0.15 + (b - 3) * h * 0.13 + Math.sin(t * 1.3 + b) * h * 0.04, by = y - h * (1.45 + (b % 3) * 0.16) + Math.cos(t * 1.1 + b * 1.7) * h * 0.04;
+        ctx.globalAlpha = a * 0.5; ln(x - h * 0.15, y - h * 0.62, bx, by + h * 0.1);
+        ctx.globalAlpha = a * 0.9; ctx.fillStyle = 'rgb(' + BALC[b % BALC.length] + ')'; ctx.beginPath(); ctx.ellipse(bx, by, h * 0.09, h * 0.11, 0, 0, 6.283); ctx.fill();
+        ctx.globalAlpha = a * 0.7; ctx.stroke();
+      }
+    } else if (k === 'sweeper') {   // дворник с метлой: ходит туда-сюда, метла машет, пыль
+      var sx = x + Math.sin(t * 0.35 + i) * h * 0.9, sw = Math.sin(t * 3.2) * h * 0.25;
+      person(sx, y, h, t * 1.5, '110,110,100', col, a, { arm: sw * 0.4 });
+      ctx.globalAlpha = a; ln(sx - h * 0.1, y - h * 0.5, sx - h * 0.25 + sw, y);
+      ctx.lineWidth = Math.max(0.6, h * 0.04); for (var bb = -2; bb <= 2; bb++) ln(sx - h * 0.25 + sw, y, sx - h * 0.25 + sw + bb * h * 0.04, y + h * 0.05);
+      for (var d = 0; d < 3; d++) { var dp = (t * 0.8 + d / 3) % 1; ctx.globalAlpha = a * 0.25 * (1 - dp); ctx.fillStyle = 'rgb(200,190,170)'; ctx.beginPath(); ctx.arc(sx - h * 0.3 + sw - dp * h * 0.3, y - dp * h * 0.25, h * (0.05 + 0.1 * dp), 0, 6.283); ctx.fill(); }
+    } else if (k === 'photo') {   // фотограф с треногой и пара, которую он снимает; вспышка раз в ~7 с
+      ctx.globalAlpha = a; ln(x, y - h * 0.62, x - h * 0.15, y); ln(x, y - h * 0.62, x + h * 0.12, y); ln(x, y - h * 0.62, x + h * 0.02, y + h * 0.02);
+      ctx.fillStyle = 'rgb(' + col + ')'; ctx.fillRect(x - h * 0.1, y - h * 0.78, h * 0.2, h * 0.15);
+      person(x - h * 0.32, y, h, 0, '90,90,95', col, a, { arm: h * 0.12 });
+      person(x + h * 1.1, y - h * 0.08, h * 0.95, 0, COATS[(i + 4) % COATS.length], col, a, {}); person(x + h * 1.32, y - h * 0.08, h * 0.88, 0, COATS[(i + 7) % COATS.length], col, a, { bag: true });
+      var fl = (t + i * 1.3) % 7; if (fl < 0.18 && night < 0.9) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a * (1 - fl / 0.18); ctx.fillStyle = 'rgb(255,255,240)'; ctx.beginPath(); ctx.arc(x, y - h * 0.72, h * 0.45, 0, 6.283); ctx.fill(); ctx.globalCompositeOperation = 'source-over'; }
+    }
+  }
+  function evState(A, now) {   // события раз в 5–10 с: дети пробегают, стая голубей, троллейбус
+    if (!A._ev) A._ev = { next: now + 1500, list: [], k: 0 };
+    var E = A._ev, ev = A.events || {}, every = ev.every || [5, 10];
+    if (now >= E.next) {
+      var kinds = [];
+      if (A.walkers && A.walkers.length) kinds.push('kids');
+      kinds.push('flock');
+      if ((A.cars || []).some(function (c) { return c.trolley; })) kinds.push('trolley');
+      var kind = kinds[E.k++ % kinds.length];
+      E.list.push({ kind: kind, t0: now, dur: kind === 'flock' ? 6000 : kind === 'kids' ? 7000 : 9000, seed: Math.random(), dir: Math.random() < 0.5 ? 1 : -1 });
+      E.next = now + rnd(every[0], every[1]) * 1000;
+    }
+    E.list = E.list.filter(function (e) { return now - e.t0 < e.dur; });
+    return E.list;
+  }
   function drawAmbientLife(now, w, f, A) {
-    var t = now / 1000, col = ink(), night = w.n, a0 = 1 - 0.35 * night;
+    var t = now / 1000, col = ink(), night = w.n, a0 = 1 - 0.35 * night, minPx = A.minPx || 0, Q = [];
+    var H = function (u, v, s) { return Math.max(minPx * (s < 0.5 ? 1 : 1), sizePx(f, u, v, s)); };
     ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     (A.walkers || []).forEach(function (o, gi) {
-      var n = Math.max(1, Math.round((o.n || 4) * (1 - 0.65 * night)));
+      var n = Math.max(1, Math.round((o.n || 4) * (1 - 0.65 * night))), kinds = o.kinds || ['adult'];
       for (var i = 0; i < n; i++) {
-        var dir = (i + gi) % 3 === 2 ? -1 : 1, ph = ((i * 0.618 + gi * 0.31) % 1), sp = (o.speed || 0.02) * (0.8 + 0.4 * ((i * 7) % 5) / 5);
+        var kind = kinds[(i + gi) % kinds.length], dir = (i + gi) % 3 === 2 ? -1 : 1, ph = ((i * 0.618 + gi * 0.31) % 1);
+        var sp = (o.speed || 0.02) * (0.8 + 0.4 * ((i * 7) % 5) / 5) * (kind === 'child' ? 1.7 : kind === 'bike' ? 3.2 : 1);
         var s = ((ph + dir * sp * t) % 1 + 1) % 1, q = along(o, s), off = ((i * 3) % 5 - 2) * 0.004;
         var len = Math.hypot(q.du, q.dv) || 1, u = q.u - q.dv / len * off, v = q.v + q.du / len * off;
-        var e = Math.min(1, s / 0.06, (1 - s) / 0.06), sz = o.size[0] + (o.size[1] - o.size[0]) * s, h = sizePx(f, u, v, sz), p = ground(f, u, v);
-        if (h < 1.2) continue;
-        person(p[0], p[1], h, t * 6.5 * (0.9 + 0.2 * ph) + i, COATS[(i + gi * 2) % COATS.length], col, a0 * e);
+        var e = Math.min(1, s / 0.06, (1 - s) / 0.06), sz = o.size[0] + (o.size[1] - o.size[0]) * s;
+        var bdir = dir * (q.du >= 0 ? 1 : -1);
+        (function (u, v, sz, e, i, kind, bdir, gi, ph) {
+          Q.push({ v: v, d: function () {
+            var h = H(u, v, sz), p = ground(f, u, v), coat = COATS[(i + gi * 2) % COATS.length], st = t * 6.5 * (0.9 + 0.2 * ph) + i;
+            if (kind === 'bike') { bike(p[0], p[1], h, t * 9 + i, coat, col, a0 * e, bdir); return; }
+            if (kind === 'child') { person(p[0], p[1], h * 0.62, st * 1.6, BALC[i % BALC.length], col, a0 * e); return; }
+            person(p[0], p[1], h, st, coat, col, a0 * e, { bag: kind === 'bag' });
+            if (kind === 'pair') person(p[0] + h * 0.3, p[1] + h * 0.02, h * 0.92, st + 0.4, COATS[(i + gi * 2 + 3) % COATS.length], col, a0 * e);
+          } });
+        })(u, v, sz, e, i, kind, bdir, gi, ph);
       }
     });
-    ctx.globalAlpha = 1;
+    (A.crowd || []).forEach(function (o, gi) {   // гуляющие по площади: идут к случайной точке, стоят, идут дальше
+      var n = Math.max(2, Math.round((o.n || 10) * (1 - 0.65 * night)));
+      for (var i = 0; i < n; i++) {
+        var T = 9 + 6 * hsh(i, gi), tt = t / T + hsh(gi, i), k = Math.floor(tt), fr2 = tt - k, mv = clamp((fr2 - 0.25) / 0.75, 0, 1), me = mv * mv * (3 - 2 * mv);
+        var a1 = hsh(i * 3 + k, gi + 1), b1 = hsh(i * 5 + k, gi + 7), a2 = hsh(i * 3 + k + 1, gi + 1), b2 = hsh(i * 5 + k + 1, gi + 7);
+        var pa = quadAt(o.quad, a1 + (a2 - a1) * me, b1 + (b2 - b1) * me), sz = o.size[0] + (o.size[1] - o.size[0]) * (b1 + (b2 - b1) * me);
+        var kind = i % 7 === 3 ? 'pair' : i % 5 === 1 ? 'child' : i % 4 === 2 ? 'bag' : 'adult', step = mv > 0 && mv < 1 ? t * 6 + i : 0;
+        (function (pa, sz, kind, step, i, gi, face) {
+          Q.push({ v: pa[1], d: function () {
+            var h = H(pa[0], pa[1], sz), p = ground(f, pa[0], pa[1]), coat = COATS[(i * 2 + gi) % COATS.length];
+            if (kind === 'child') { person(p[0], p[1], h * 0.6, step * 1.5 || t * 3 + i, BALC[i % BALC.length], col, a0); return; }
+            person(p[0], p[1], h, step, coat, col, a0, { bag: kind === 'bag' });
+            if (kind === 'pair') person(p[0] + h * 0.28 * face, p[1] + h * 0.02, h * 0.9, step + 0.5, COATS[(i * 2 + gi + 4) % COATS.length], col, a0);
+          } });
+        })(pa, sz, kind, step, i, gi, a2 > a1 ? 1 : -1);
+      }
+    });
+    (A.sitters || []).forEach(function (o, gi) {
+      o.at.forEach(function (pt, i) {
+        if (night > 0.5 && i % 2) return;
+        Q.push({ v: pt[1], d: function () { var h = H(pt[0], pt[1], o.size), p = ground(f, pt[0], pt[1]); person(p[0], p[1], h, 0, COATS[(i + gi * 3) % COATS.length], col, a0, { sit: true, arm: Math.sin(t * 0.7 + i * 2) * h * 0.06 }); } });
+      });
+    });
+    (A.props || []).forEach(function (o, i) {
+      if (night > 0.6 && o.kind !== 'sweeper') return;
+      Q.push({ v: o.at[1], d: function () { var h = H(o.at[0], o.at[1], o.size), p = ground(f, o.at[0], o.at[1]); prop(o, p, h, t, col, a0, night, i); } });
+    });
+    var evs = evState(A, now);
+    evs.forEach(function (e) {   // события на земле: дети пробегают по одному из путей; троллейбус по пути с троллейбусом
+      var k = (now - e.t0) / e.dur;
+      if (e.kind === 'kids') {
+        var o = A.walkers[Math.floor(e.seed * A.walkers.length)], s0 = e.dir > 0 ? k : 1 - k;
+        for (var c = 0; c < 3; c++) {
+          var q = along(o, clamp(s0 - c * 0.04 * e.dir, 0, 1)), sz = o.size[0] + (o.size[1] - o.size[0]) * s0, ee = Math.min(1, k / 0.08, (1 - k) / 0.08);
+          (function (q, sz, c, ee) { Q.push({ v: q.v, d: function () { var h = H(q.u, q.v, sz), p = ground(f, q.u, q.v); person(p[0] + c * h * 0.15, p[1] + c * h * 0.03, h * 0.6, t * 11 + c, BALC[(c + 1) % BALC.length], col, a0 * ee); } }); })(q, sz, c, ee);
+        }
+      } else if (e.kind === 'trolley') {
+        var co = (A.cars || []).filter(function (c2) { return c2.trolley; })[0], s1 = e.dir > 0 ? k : 1 - k, q2 = along(co, s1), d2 = gd(f, q2.u, q2.v);
+        (function (q2, d2, s1) { Q.push({ v: q2.v, d: function () {
+          var p = P(q2.u, q2.v, d2), ah = P(q2.u + q2.du * 0.01 * e.dir, q2.v + q2.dv * 0.01 * e.dir, d2), sz = co.size[0] + (co.size[1] - co.size[0]) * s1;
+          car(p[0], p[1], sizePx(f, q2.u, q2.v, sz) * 1.9, Math.atan2(ah[1] - p[1], ah[0] - p[0]), '226,206,140', col, a0 * Math.min(1, k / 0.05, (1 - k) / 0.05), 'trolley', night, now, 7);
+        } }); })(q2, d2, s1);
+      }
+    });
     (A.cars || []).forEach(function (o, gi) {
       var n = Math.max(1, Math.round((o.n || 2) * (1 - 0.5 * night)));
       for (var i = 0; i < n; i++) {
         var dir = o.loop ? 1 : (i % 2 ? -1 : 1), sp = (o.speed || 0.03) * (0.85 + 0.3 * i / n);
         var s = (((i + 0.37 * gi) / n + dir * sp * t) % 1 + 1) % 1, q = along(o, s);
-        var e = o.loop ? 1 : Math.min(1, s / 0.05, (1 - s) / 0.05), sz = o.size[0] + (o.size[1] - o.size[0]) * s, d = depthAt(f, clamp(q.u, 0, 1), clamp(q.v, 0, 1));
-        var p = P(q.u, q.v, d), ahead = P(q.u + q.du * 0.01 * dir, q.v + q.dv * 0.01 * dir, d), ang = Math.atan2(ahead[1] - p[1], ahead[0] - p[0]);
-        var len = sizePx(f, q.u, q.v, sz), tr = o.trolley && i === 0;
-        if (len < 2) continue;
-        car(p[0], p[1], tr ? len * 1.9 : len, ang, tr ? '226,206,140' : CARC[(i + gi * 3) % CARC.length], col, a0 * e, tr, night);
+        var e = o.loop ? 1 : Math.min(1, s / 0.05, (1 - s) / 0.05), sz = o.size[0] + (o.size[1] - o.size[0]) * s;
+        var kind = o.trolley && i === 0 ? 'trolley' : (o.taxi && i % 2 === 1 ? 'taxi' : '');
+        (function (q, e, sz, kind, dir, i, gi) { Q.push({ v: q.v, d: function () {
+          var d = gd(f, q.u, q.v), p = P(q.u, q.v, d), ah = P(q.u + q.du * 0.01 * dir, q.v + q.dv * 0.01 * dir, d), len = sizePx(f, q.u, q.v, sz);
+          if (len < 2) return;
+          car(p[0], p[1], kind === 'trolley' ? len * 1.9 : len, Math.atan2(ah[1] - p[1], ah[0] - p[0]), kind === 'trolley' ? '226,206,140' : kind === 'taxi' ? '230,214,160' : CARC[(i + gi * 3) % CARC.length], col, a0 * e, kind, night, now, i);
+        } }); })(q, e, sz, kind, dir, i, gi);
       }
     });
-    ctx.globalAlpha = 1;
-    (A.pigeons || []).forEach(function (o, gi) {   // стайка клюёт; раз в ~15 с взлетает, делает круг и садится обратно
-      var n = o.n || 6, per = 15 + gi * 2.3, k = ((t + gi * 5.1) % per), base = ground(f, o.at[0], o.at[1]), s = Math.max(0.3, sizePx(f, o.at[0], o.at[1], o.size) / 9);
-      var aa = a0 * (1 - 0.8 * night);
+    Q.sort(function (x, y) { return x.v - y.v; });
+    Q.forEach(function (q) { q.d(); ctx.globalAlpha = 1; });
+    (A.pigeons || []).forEach(function (o, gi) {   // большие стаи: клюют; раз в 6–10 с взлетают, делают круг и садятся
+      var n = o.n || 6, per = 6 + 4 * hsh(gi, 3), k = ((t + gi * 2.7) % per), base = ground(f, o.at[0], o.at[1]), s = Math.max(0.3, sizePx(f, o.at[0], o.at[1], o.size) / 9), fly = 3.2;
+      var aa = a0 * (1 - 0.8 * night) * clamp(s / 0.8, 0.55, 1);   // мелкие (вид сверху) — светлее, не чёрное пятно
       for (var i = 0; i < n; i++) {
-        var ox = (((i * 37) % 11) - 5) * 3.2 * s, oy = (((i * 23) % 7) - 3) * 1.3 * s, face = i % 2 ? 1 : -1;
-        if (k < 10.5) {   // на земле: клюют, переступают
+        var ox = (((i * 37) % 13) - 6) * 3.4 * s, oy = (((i * 23) % 7) - 3) * 1.4 * s, face = i % 2 ? 1 : -1;
+        if (k < per - fly) {
           var peck = Math.max(0, Math.sin(t * 3 + i * 1.7)) > 0.7 ? 1 : 0, walk = Math.sin(t * 0.6 + i) * 2 * s;
           sitBird(base[0] + ox + walk, base[1] + oy, s, face, peck * 1.5, col, 0.85 * aa);
-        } else {   // взлёт → круг → посадка
-          var q = (k - 10.5) / (per - 10.5), up = Math.sin(Math.PI * q), ang = q * 6.283 + i * 0.4;
-          var x = base[0] + ox + Math.cos(ang) * 40 * s * up, y = base[1] + oy - 55 * s * up + Math.sin(ang) * 10 * s * up;
-          if (up < 0.08) sitBird(x, y, s, face, 0, col, 0.85 * aa); else bird(x, y, 3.4 * s, flapOf(now, 1.6, i), col, 0.7 * aa, 1);
+        } else {
+          var qf = (k - (per - fly)) / fly, up = Math.sin(Math.PI * qf), ang = qf * 6.283 + i * 0.4;
+          var x = base[0] + ox * (1 + 1.8 * up) + Math.cos(ang) * 50 * s * up, y = base[1] + oy * (1 + 2.5 * up) - 70 * s * up + Math.sin(ang) * 12 * s * up;   // в полёте стая расходится
+          if (up < 0.08) sitBird(x, y, s, face, 0, col, 0.85 * aa); else bird(x, y, 3.4 * s, flapOf(now, 1.6, i), col, 0.75 * aa, 1);
         }
+      }
+    });
+    evs.forEach(function (e) {   // стая голубей пролетает над площадью
+      if (e.kind !== 'flock') return;
+      var k = (now - e.t0) / e.dur, band = (A.events && A.events.flockBand) || SC(V.frame()).skyBand, v0 = band[0] + (band[1] - band[0]) * e.seed;
+      for (var b = 0; b < 12; b++) {
+        var u = (e.dir > 0 ? -0.15 + 1.3 * k : 1.15 - 1.3 * k) - (b % 4) * 0.025 * e.dir, v = v0 + Math.floor(b / 4) * 0.012 + Math.sin(k * 9 + b) * 0.004;
+        var p = P(u, v, 0.35); bird(p[0], p[1], (2.6 + (b % 3) * 0.5) * sf(), flapOf(now, 1.8, b), col, 0.75 * a0 * (1 - 0.8 * night), 1);
       }
     });
     ctx.restore();
