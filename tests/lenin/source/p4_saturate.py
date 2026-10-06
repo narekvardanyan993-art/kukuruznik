@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Ленин, круг 2 (07.10.2026): акварель насыщеннее во всех кадрах — слои цвет / подложка / вырезка (tests/lenin/frames/).
+"""Ленин, круг 2–3 (07.10.2026): акварель насыщеннее во всех кадрах — слои цвет / подложка / вырезка (tests/lenin/frames/).
 
 Lab: цветность × K там, где цвет уже есть (C > 10), плавно до ×1 у серого (C < 3) — карандаш, штриховка и белая бумага
 не трогаются; яркость L не меняется (у G — чуть темнее бумага, gamma 1.05: кадр был самым бледным, L 85 против 72–77).
-Запускать ОДИН раз от слоёв станка: слои берутся из tests/lenin/source/<кадр>/layers/ (для lenin_1 — из git: frames до 07.10),
+Порядок сборки кадров: p4_saturate.py → p5_water_g.py → p6_static_props.py. Запускать от слоёв станка: слои берутся из tests/lenin/source/<кадр>/layers/ (для lenin_1 — из git: frames до 07.10),
 так что повторный запуск не усиливает дважды.
 """
 import io, subprocess, sys
@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np, cv2
 from PIL import Image
 S = Path(__file__).resolve().parent; F = S.parent / 'frames'; ROOT = S.parents[2]
-K = {'lenin_1': (1.3, 1.0), 'lenin_2': (1.28, 1.0), 'lenin_3': (1.32, 1.0), 'lenin_4': (1.28, 1.0), 'lenin_6': (1.4, 1.05)}
+K = {'lenin_1': (1.55, 1.0), 'lenin_2': (1.5, 1.0), 'lenin_3': (1.55, 1.0), 'lenin_4': (1.45, 1.0), 'lenin_6': (1.6, 1.07)}   # круг 3 (07.10): было 1,28–1,4 — на iPhone всё ещё бледно
 BASE_COMMIT = '43992c1'   # кадры до круга 2
 def src(fid, suf):
     p = S / fid / 'layers' / (fid + suf + '.webp')
