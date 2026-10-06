@@ -13,7 +13,7 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#f5ecda">
 <meta name="viewer-version" content="test">
-<meta name="engine-version" content="e1.7">
+<meta name="engine-version" content="e1.9">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Չկա">
 <meta property="og:url" content="https://chka.am/beta/tests/test-2/">
@@ -29,20 +29,20 @@
 <title>Թեստ-2 — փորձնական շենք | Չկա</title>
 <script>/* ?motion=1 — показать всё движение, даже если в системе включено «Уменьшить движение» (для проверки) */
 (function () { if (/[?&]motion=1/.test(location.search)) document.documentElement.setAttribute('data-motion', 'on'); })();</script>
-<link rel="preload" href="../../engine/welcome-loader.js?v=e1.7" as="script">
-<link rel="preload" href="../../engine/welcome-letters.js?v=e1.7" as="script">
-<link rel="preload" href="../../engine/fonts/NotoSerif-latin.woff2?v=e1.7" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.7" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.7" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../../engine/welcome-loader.js?v=e1.9" as="script">
+<link rel="preload" href="../../engine/welcome-letters.js?v=e1.9" as="script">
+<link rel="preload" href="../../engine/fonts/NotoSerif-latin.woff2?v=e1.9" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.9" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.9" as="font" type="font/woff2" crossorigin>
 <style>
   /* Один шрифт для hy/ru/en — Noto Serif: латиница и кириллица (Noto Serif) и армянский (Noto Serif Armenian)
      из одной системы дизайна, лицензия OFL (fonts/LICENSE.txt). Подключён локально, один вес 400–700. */
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../../engine/fonts/NotoSerif-latin.woff2?v=e1.7) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    src: url(../../engine/fonts/NotoSerif-latin.woff2?v=e1.9) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.7) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+    src: url(../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.9) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.7) format("woff2"); unicode-range: U+0308, U+0530-058F, U+2010, U+2024, U+25CC, U+FB13-FB17; }
+    src: url(../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.9) format("woff2"); unicode-range: U+0308, U+0530-058F, U+2010, U+2024, U+25CC, U+FB13-FB17; }
   :root {
     --font: "Chka Serif", "Noto Serif", serif;
     --paper: #f5ecda; --paper-2: #ede0c2; --ink: #2f2a25;
@@ -756,13 +756,42 @@
   @keyframes pbDraw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
   @keyframes pbFade { 0% { opacity: 0; } 8% { opacity: 1; } 78% { opacity: 1; } 100% { opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { #panelBtn.pb-hint { animation: none; } #panelBtn.pb-hint .pb-arrow path { animation: none; stroke-dashoffset: 0; } }
+  /* e1.9: кнопки телефона — понятные значки (люди не узнавали флаг как «шоу» и точку как «нажми»; отзыв Нарека 07.10.2026).
+     Меню — бирка ≡ + «Меню»; шоу — такая же бирка ▶ + «Шоу», во время показа ■ + «Стоп», под словом полоска прогресса цветами флага;
+     точки-подсказки — бумажный кружок с «i»; зона нажатия любой кнопки ≥ 44×44. ПК не тронут (всё внутри max-width 1023.98px). */
+  @media (max-width: 1023.98px) {
+    #bottomBar { grid-template-columns: 76px minmax(0, 1fr) 76px; }
+    #bottomBar #flagBtnB { width: auto; min-width: 66px; height: 58px; bottom: calc(100% + 4px); padding: 0; border: 0; border-radius: 0; background: none !important; color: var(--fg); pointer-events: auto; cursor: pointer; }
+    #bottomBar #flagBtnB .pb-bg { width: 100%; height: 100%; }
+    #bottomBar #flagBtnB:active { transform: scale(0.94); }
+    #bottomBar #flagBtnB.off-frame { transform: scale(0.8); }
+    .sh-tag { pointer-events: none; padding-bottom: 7px; }
+    .sh-tag .pb-bg { width: 100%; height: 100%; }
+    #bottomBar #flagBtnB .sh-ic { position: relative; width: 24px; height: 18px; display: block; }
+    .sh-btn .sh-stop, .sh-btn .sh-w-stop { display: none; }
+    .sh-btn.busy .sh-stop, .sh-btn.busy .sh-w-stop { display: inline; }
+    .sh-btn.busy .sh-play, .sh-btn.busy .sh-w-play { display: none; }
+    #bottomBar #flagBtnB .sh-bar { position: absolute; left: 0; right: 0; bottom: 5px; width: 100%; height: 8px; opacity: 0; transition: opacity 320ms var(--out); overflow: visible; }
+    .sh-bar path { fill: none; stroke-width: 2.6; stroke-linecap: round; }
+    #bottomBar #flagBtnB.busy .sh-bar { opacity: 1; }
+    #bottomBar #homeBtn { justify-self: end; }
+    .sh-btn.busy.wait .sh-bar { animation: shWait 900ms ease-in-out infinite alternate; }
+    .hs-dot { width: 44px; height: 44px; margin: -22px; }
+    .hs-dot::before { content: 'i'; width: 19px; height: 19px; box-sizing: border-box; display: grid; place-items: center;
+      background: rgba(255,252,244,0.96); border: 1.6px solid #2f2a25; color: #2f2a25; font: italic 700 13px/1 Georgia, 'Times New Roman', serif; padding-top: 1px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+    .hs-dot::after { width: 19px; height: 19px; }
+    #sheetClose, body.immersive #immExit { width: 44px; height: 44px; }
+  }
+  @keyframes shWait { from { opacity: 0.35; } to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { html:not([data-motion="on"]) .sh-btn.busy.wait .sh-bar { animation: none; } }
 </style>
 </head>
 <body>
 <script>try { if (localStorage.getItem('chka-panel') === 'collapsed') document.body.classList.add('panel-collapsed'); } catch (e) {}   /* панель, свёрнутая в прошлый раз, — сразу свёрнутой, без анимации закрытия */</script>
 
-<script src="../../engine/welcome-letters.js?v=e1.7"></script>
-<script src="../../engine/welcome-loader.js?v=e1.7"></script>
+<script src="../../engine/welcome-letters.js?v=e1.9"></script>
+<script src="../../engine/welcome-loader.js?v=e1.9"></script>
 <script>
 /* ===================== CONFIG =====================
    Все параметры эффекта «3D-фото» собраны здесь, ничего похожего
@@ -1959,10 +1988,10 @@ document.querySelectorAll('.chips').forEach(function (g) { g.querySelectorAll('.
   window.__penFit = fit;
 })();
 </script>
-<button type="button" id="panelBtn" aria-label="Menu"><svg class="ic-wheel" viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="20" cy="20" r="16.5" stroke-width="2.2"/><circle cx="20" cy="20" r="14.2" stroke-width="0.8" opacity=".55"/><g class="arms"><g transform="rotate(0 20 20)"><path class="arm" style="--i:0" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(45 20 20)"><path class="arm" style="--i:1" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(90 20 20)"><path class="arm" style="--i:2" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(135 20 20)"><path class="arm" style="--i:3" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(180 20 20)"><path class="arm" style="--i:4" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(225 20 20)"><path class="arm" style="--i:5" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(270 20 20)"><path class="arm" style="--i:6" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(315 20 20)"><path class="arm" style="--i:7" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g></g><circle cx="20" cy="20" r="2.7" stroke-width="1.7"/></g></svg><span class="pb-tag" aria-hidden="true"><svg class="pb-bg" viewBox="0 0 66 58" preserveAspectRatio="none"><path class="pb-fill" d="M7.5 6.2 Q33 3.4 58.6 5.4 Q61.2 29 59.6 52.4 Q33 55.2 6.4 52.9 Q4.4 29 7.5 6.2Z"/><path class="pb-line" d="M7.5 6.2 Q33 3.4 58.6 5.4 Q61.2 29 59.6 52.4 Q33 55.2 6.4 52.9 Q4.4 29 7.5 6.2Z"/><path class="pb-line2" d="M8.6 7.6 Q33 5.2 57.2 6.8 M58.4 8 Q59.6 30 58.2 50.6 M7.6 51.2 Q33 53.8 57.6 51.4"/><circle class="pb-hole" cx="13.5" cy="12.5" r="2.3"/></svg><svg class="pb-ic" viewBox="0 0 26 18"><g fill="none" stroke="currentColor" stroke-linecap="round"><path d="M2.6 3.4 l0.4 0.3" stroke-width="2.6"/><path d="M7.4 3.6 Q13.8 2.6 23.2 3.9" stroke-width="1.9"/><path d="M2.8 9.2 l0.4 0.2" stroke-width="2.6"/><path d="M7.2 9.3 Q12.6 8.6 20.4 9.6" stroke-width="1.9"/><path d="M2.7 15 l0.4 0.2" stroke-width="2.6"/><path d="M7.4 15 Q14.6 14.2 22.2 15.3" stroke-width="1.9"/><path d="M7.8 4.4 Q14 3.6 22.6 4.7 M7.6 10 Q12.8 9.4 20 10.3" stroke-width="0.7" opacity=".5"/></g></svg><span class="pb-txt">Меню</span><svg class="pb-arrow" viewBox="0 0 60 60"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path class="pa1" pathLength="1" d="M44 6 Q50 26 30 38 Q22 43 14 46" stroke-width="2.2"/><path class="pa2" pathLength="1" d="M20.5 40.5 L13.5 46.2 L22.4 49" stroke-width="2.2"/></g></svg></span></button>
+<button type="button" id="panelBtn" aria-label="Menu"><svg class="ic-wheel" viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="20" cy="20" r="16.5" stroke-width="2.2"/><circle cx="20" cy="20" r="14.2" stroke-width="0.8" opacity=".55"/><g class="arms"><g transform="rotate(0 20 20)"><path class="arm" style="--i:0" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(45 20 20)"><path class="arm" style="--i:1" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(90 20 20)"><path class="arm" style="--i:2" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(135 20 20)"><path class="arm" style="--i:3" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(180 20 20)"><path class="arm" style="--i:4" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(225 20 20)"><path class="arm" style="--i:5" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(270 20 20)"><path class="arm" style="--i:6" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(315 20 20)"><path class="arm" style="--i:7" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g></g><circle cx="20" cy="20" r="2.7" stroke-width="1.7"/></g></svg><span class="pb-tag" aria-hidden="true"><svg class="pb-bg" viewBox="0 0 66 58" preserveAspectRatio="none"><path class="pb-fill" d="M7.5 6.2 Q33 3.4 58.6 5.4 Q61.2 29 59.6 52.4 Q33 55.2 6.4 52.9 Q4.4 29 7.5 6.2Z"/><path class="pb-line" d="M7.5 6.2 Q33 3.4 58.6 5.4 Q61.2 29 59.6 52.4 Q33 55.2 6.4 52.9 Q4.4 29 7.5 6.2Z"/><path class="pb-line2" d="M8.6 7.6 Q33 5.2 57.2 6.8 M58.4 8 Q59.6 30 58.2 50.6 M7.6 51.2 Q33 53.8 57.6 51.4"/><circle class="pb-hole" cx="13.5" cy="12.5" r="2.3"/></svg><svg class="pb-ic" viewBox="0 0 26 18"><g fill="none" stroke="currentColor" stroke-linecap="round"><path d="M3.2 3.6 Q12.6 2.6 22.8 3.8" stroke-width="2.1"/><path d="M3 9.2 Q12.4 8.4 23 9.4" stroke-width="2.1"/><path d="M3.3 14.9 Q12.8 14.1 22.6 15.2" stroke-width="2.1"/><path d="M4 4.5 Q12.8 3.6 22 4.6 M3.8 10 Q12.6 9.3 22.2 10.2 M4.2 15.7 Q13 15 21.8 15.9" stroke-width="0.7" opacity=".5"/></g></svg><span class="pb-txt">Меню</span><svg class="pb-arrow" viewBox="0 0 60 60"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path class="pa1" pathLength="1" d="M44 6 Q50 26 30 38 Q22 43 14 46" stroke-width="2.2"/><path class="pa2" pathLength="1" d="M20.5 40.5 L13.5 46.2 L22.4 49" stroke-width="2.2"/></g></svg></span></button>
 <div id="scrim"></div>
 <button type="button" id="immExit" aria-label="Выйти" data-i18n-title="close"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M11 5H5v6M21 5h6v6M11 27H5v-6M21 27h6v-6"/></svg></button>
-<div id="bottomBar"><button type="button" id="flagBtnB" class="arrow-btn flag-btn" aria-label="Парад" data-i18n-title="flag"><svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g class="ring"><circle class="rt" cx="20" cy="20" r="18.4" pathLength="3"/><circle class="rs rs0" cx="20" cy="20" r="18.4" pathLength="3"/><circle class="rs rs1" cx="20" cy="20" r="18.4" pathLength="3"/><circle class="rs rs2" cx="20" cy="20" r="18.4" pathLength="3"/></g><g class="fg" stroke-linecap="round" stroke-linejoin="round"><path class="fb fb1" d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 13 Q29 16 23 13 Q17 10 11 13 Z" fill="#d90012"/><path class="fb fb2" d="M11 13 Q17 10 23 13 Q29 16 35 13 L35 19 Q29 22 23 19 Q17 16 11 19 Z" fill="#1c4cc0"/><path class="fb fb3" d="M11 19 Q17 16 23 19 Q29 22 35 19 L35 25 Q29 28 23 25 Q17 22 11 25 Z" fill="#f2a800"/><g fill="none" stroke="currentColor"><path d="M9.2 5.5 L9.6 35.5" stroke-width="2.6"/><path d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 25 Q29 28 23 25 Q17 22 11 25 Z" stroke-width="2"/><path d="M11.6 7.8 Q17 5 23 8 Q29 11 34.6 8.2 M11.4 24.4 Q17 21.6 23 24.6 Q29 27.6 34.6 24.4" stroke-width="0.9" opacity=".55"/></g></g></svg></button><div id="barTitle"></div><a id="homeBtn" class="arrow-btn" href="../../../" aria-label="На главную"><svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 20.5L20 8.5l13.5 12" stroke-width="2.8"/><path d="M11 18.5V32h18V18.5" stroke-width="2.8"/><path d="M17 32v-8.5h6V32" stroke-width="2.4"/><path d="M7.4 21.2L20.4 9.5l12.9 11.4M12 19.4V32.8h17.4" stroke-width="1.1" opacity=".55"/></g></svg></a></div>
+<div id="bottomBar"><button type="button" id="flagBtnB" class="flag-btn sh-btn" aria-label="Парад" data-i18n-title="flag"><span class="pb-tag sh-tag" aria-hidden="true"><svg class="pb-bg" viewBox="0 0 66 58" preserveAspectRatio="none"><path class="pb-fill" d="M7.5 6.2 Q33 3.4 58.6 5.4 Q61.2 29 59.6 52.4 Q33 55.2 6.4 52.9 Q4.4 29 7.5 6.2Z"/><path class="pb-line" d="M7.5 6.2 Q33 3.4 58.6 5.4 Q61.2 29 59.6 52.4 Q33 55.2 6.4 52.9 Q4.4 29 7.5 6.2Z"/><path class="pb-line2" d="M8.6 7.6 Q33 5.2 57.2 6.8 M58.4 8 Q59.6 30 58.2 50.6 M7.6 51.2 Q33 53.8 57.6 51.4"/></svg><svg class="sh-ic" viewBox="0 0 24 18"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><g class="sh-play"><path d="M7.4 2.6 Q14.6 5.8 19.6 9 Q14.4 12.4 7.6 15.4 Q6.9 9 7.4 2.6Z" fill="currentColor" fill-opacity=".16" stroke-width="2"/><path d="M8.4 4.2 Q14 6.8 17.8 9.1 M8.5 13.7 Q7.9 9 8.3 4.6" stroke-width="0.7" opacity=".5"/></g><g class="sh-stop"><path d="M6.6 3.6 Q12 3.1 17.4 3.5 Q17.9 9 17.3 14.5 Q12 14.9 6.7 14.4 Q6.2 9 6.6 3.6Z" fill="currentColor" fill-opacity=".16" stroke-width="2"/><path d="M7.6 4.6 Q12 4.2 16.4 4.5 M16.4 5 Q16.8 9 16.3 13.4" stroke-width="0.7" opacity=".5"/></g></g></svg><span class="pb-txt"><span class="sh-w-play">Шоу</span><span class="sh-w-stop">Стоп</span></span><svg class="sh-bar" viewBox="0 0 66 8" preserveAspectRatio="none"><path class="rt" pathLength="3" d="M12 4 Q33 2.6 54 4"/><path class="rs rs0" pathLength="3" d="M12 4 Q33 2.6 54 4"/><path class="rs rs1" pathLength="3" d="M12 4 Q33 2.6 54 4"/><path class="rs rs2" pathLength="3" d="M12 4 Q33 2.6 54 4"/></svg></span></button><div id="barTitle"></div><a id="homeBtn" class="arrow-btn" href="../../../" aria-label="На главную"><svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 20.5L20 8.5l13.5 12" stroke-width="2.8"/><path d="M11 18.5V32h18V18.5" stroke-width="2.8"/><path d="M17 32v-8.5h6V32" stroke-width="2.4"/><path d="M7.4 21.2L20.4 9.5l12.9 11.4M12 19.4V32.8h17.4" stroke-width="1.1" opacity=".55"/></g></svg></a></div>
 <main id="view">
 <figure id="exhibit"><div id="frame">
 <button type="button" id="prevSide" class="arrow-btn nav-side" aria-label="Предыдущий кадр"><svg viewBox="0 0 40 40" width="42" height="42" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 9.5C20.5 14.5 16.8 18.6 13.5 20.3c3.4 1.9 7.3 5.6 10.6 10.6" stroke-width="3"/><path d="M24.6 10.6C21 15.4 17.4 19 14.6 20.7c3.2 2 6.8 5.4 10.4 9.8" stroke-width="1.2" opacity=".55"/></g></svg></button>
@@ -1981,9 +2010,9 @@ document.querySelectorAll('.chips').forEach(function (g) { g.querySelectorAll('.
 </main>
 </div>
 
-<script src="../../engine/wall-data.js?v=e1.7" defer></script>
-<script src="../../engine/wall.js?v=e1.7" defer></script>
-<script src="../../engine/viewer.js?v=e1.7" defer>
+<script src="../../engine/wall-data.js?v=e1.9" defer></script>
+<script src="../../engine/wall.js?v=e1.9" defer></script>
+<script src="../../engine/viewer.js?v=e1.9" defer>
 </script>
 </body>
 </html>

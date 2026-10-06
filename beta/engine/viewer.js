@@ -86,7 +86,12 @@
     });
     if (wl) wl.setLang(currentLang);
     panelBtn.setAttribute('aria-label', t.menu[currentLang]);
-    var pbTxt = panelBtn.querySelector('.pb-txt'); if (pbTxt) pbTxt.textContent = t.menu[currentLang];   // e1.7: слово на бирке-кнопке (телефон)
+    // e1.9: короткие общепонятные слова на бирках-кнопках телефона (меню, шоу/стоп); aria-label остаётся полным из I18N
+    var BTN_WORD = { menu: { hy: 'Մենյու', ru: 'Меню', en: 'Menu' }, show: { hy: 'Շոու', ru: 'Шоу', en: 'Show' }, stop: { hy: 'Կանգ', ru: 'Стоп', en: 'Stop' } };
+    var bw = function (k) { return BTN_WORD[k][currentLang] || BTN_WORD[k].en; };
+    var pbTxt = panelBtn.querySelector('.pb-txt'); if (pbTxt) pbTxt.textContent = bw('menu');
+    document.querySelectorAll('.sh-w-play').forEach(function (el) { el.textContent = bw('show'); });
+    document.querySelectorAll('.sh-w-stop').forEach(function (el) { el.textContent = bw('stop'); });
     document.title = t.pageTitle[currentLang];
     ['prevSide', 'prevBtn'].forEach(function (id) { document.getElementById(id).setAttribute('aria-label', t.prevFrame[currentLang]); });
     ['nextSide', 'nextBtn'].forEach(function (id) { document.getElementById(id).setAttribute('aria-label', t.nextFrame[currentLang]); });
