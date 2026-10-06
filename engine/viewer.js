@@ -86,6 +86,7 @@
     });
     if (wl) wl.setLang(currentLang);
     panelBtn.setAttribute('aria-label', t.menu[currentLang]);
+    var pbTxt = panelBtn.querySelector('.pb-txt'); if (pbTxt) pbTxt.textContent = t.menu[currentLang];   // e1.7: слово на бирке-кнопке (телефон)
     document.title = t.pageTitle[currentLang];
     ['prevSide', 'prevBtn'].forEach(function (id) { document.getElementById(id).setAttribute('aria-label', t.prevFrame[currentLang]); });
     ['nextSide', 'nextBtn'].forEach(function (id) { document.getElementById(id).setAttribute('aria-label', t.nextFrame[currentLang]); });
@@ -1322,7 +1323,14 @@
     demo = null;
     targetX = gyroActive ? gyroTargetX : 0; targetY = gyroActive ? gyroTargetY : 0;
   }
-  window.__demoTilt = function () { setTimeout(demoStart, 250); };   // после начала растворения приветствия
+  window.__demoTilt = function () { setTimeout(demoStart, 250); setTimeout(menuHint, 2600); };   // после начала растворения приветствия
+  // e1.7: подсказка к бирке «Меню» — только телефон, только при самом первом заходе (потом не повторяется)
+  function menuHint() {
+    if (desktopMQ.matches || lsGet('chka-menu-hint') || bodyEl.classList.contains('sheet-open')) return;
+    lsSet('chka-menu-hint', '1');
+    panelBtn.classList.add('pb-hint');
+    setTimeout(function () { panelBtn.classList.remove('pb-hint'); }, 3800);
+  }
 
   // ---------- кнопка «Парад» (флаг Армении): три истребителя и дымные следы, рисует details.js ----------
   // Нажатие: если открыт не кадр парада (PARADE_FRAME) — плавный переход на него, потом показ. Повторные нажатия во время показа игнорируются.
@@ -1575,6 +1583,7 @@
   var sheetCloseEl = document.getElementById('sheetClose');
   if (sheetCloseEl) sheetCloseEl.addEventListener('click', closeSheet);
   panelBtn.addEventListener('click', function () {
+    lsSet('chka-menu-hint', '1'); panelBtn.classList.remove('pb-hint');
     document.documentElement.classList.add('panel-anim');   // анимации закрытия/иконки включаются только после первого нажатия (не при загрузке)
     if (desktopMQ.matches) lsSet('chka-panel', bodyEl.classList.toggle('panel-collapsed') ? 'collapsed' : 'open');
     else if (bodyEl.classList.contains('sheet-open') && !bodyEl.classList.contains('sheet-closing')) closeSheet(); else openSheet();
