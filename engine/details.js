@@ -26,6 +26,35 @@
   // clouds (сколько облаков), cloudScale (размер облаков, если задан — одинаковый), sunDay / sunSet / moon ([u, v] на кадре),
   // sunDayDrawn (солнце уже нарисовано на картинке — только ореол), lawn ([u0, v0, u1, v1] — бабочки и светлячки; нет — их нет),
   // closeUp (крупный план: glints — блики в окнах, perch — кромка, куда садятся птицы, mast — мачта флага [u низ, v низ, u верх, v верх]; banner — знамя [u середины, v карниза, v низа, полуширина])
+  // e1.10 СПРАЙТЫ библиотеки жизни (engine/sprites/life.png + life.json; tools/make_life_sprites.py, docs/ENGINE-LIFE.md «Спрайты»).
+  // Пока не загрузились или кадра нет — рисуется прежний векторный вариант. Ночью — затемнённая копия атласа (птицы не светятся на тёмном).
+  var SPR = { ok: false, img: null, dark: null, meta: null };
+  (function () {
+    var src = (document.currentScript && document.currentScript.src) || '', base = src.replace(/details\.js.*$/, ''), q = src.indexOf('?') >= 0 ? src.slice(src.indexOf('?')) : '';
+    if (!base || !root.fetch) return;
+    root.fetch(base + 'sprites/life.json' + q).then(function (r) { return r.ok ? r.json() : null; }).then(function (m) {
+      if (!m) return;
+      var im = new Image(); im.onload = function () {
+        var c = document.createElement('canvas'); c.width = im.width; c.height = im.height; var x = c.getContext('2d');
+        x.drawImage(im, 0, 0); x.globalCompositeOperation = 'source-atop'; x.fillStyle = 'rgba(18,24,50,0.72)'; x.fillRect(0, 0, c.width, c.height);
+        SPR.img = im; SPR.dark = c; SPR.meta = m; SPR.ok = true;
+      };
+      im.src = base + 'sprites/life.png' + q;
+    }).catch(function () {});
+  })();
+  function spr(name, x, y, w, flip, rot, a) {   // кадр атласа шириной w px; якорь кадра — в точке (x, y)
+    if (!SPR.ok) return false; var fr = SPR.meta.frames[name]; if (!fr) return false;
+    var h = fr[3] * w / fr[2], n = NIGHT;
+    ctx.save(); ctx.translate(x, y); if (rot) ctx.rotate(rot); if (flip) ctx.scale(-1, 1);
+    if (n < 0.98) { ctx.globalAlpha = a * (1 - n); ctx.drawImage(SPR.img, fr[0], fr[1], fr[2], fr[3], -fr[4] * w, -fr[5] * h, w, h); }
+    if (n > 0.02) { ctx.globalAlpha = a * n; ctx.drawImage(SPR.dark, fr[0], fr[1], fr[2], fr[3], -fr[4] * w, -fr[5] * h, w, h); }
+    ctx.restore(); return true;
+  }
+  function pigeonFly(x, y, s, flap, head, a, land) {   // голубь в полёте: спрайт по фазе крыла; s — как у flyBird (размах)
+    var nm = land ? 'pigeon_land' : flap > 0.6 ? 'pigeon_fly_0' : flap > 0.22 ? 'pigeon_fly_1' : flap > 0.08 ? 'pigeon_glide' : flap > -0.45 ? 'pigeon_fly_2' : 'pigeon_fly_3';
+    var c = Math.cos(head);
+    if (!spr(nm, x, y, s * 1.3, c < 0, (c < 0 ? -1 : 1) * Math.sin(head) * 0.35, a)) flyBird(x, y, s, flap, head, '108,114,128', a);
+  }
   function SC(fr) { return (root.CONFIG && root.CONFIG.SCENE && root.CONFIG.SCENE[fr]) || {}; }
   // e1.5: showBand — своя полоса для парада (доли высоты), если у кадра задана; иначе парад идёт в полосе неба skyBand, как раньше
   function PB(fr) { var S = SC(fr); return S.showBand || S.skyBand; }
@@ -601,7 +630,9 @@
     });
     ctx.clip('evenodd'); return true;
   }
-  function tinyPerson(x, y, h, step, coat, col, a) {   // далёкий человек: голова, пальто пятном, ноги — два штриха; без деталей
+  function tinyPerson(x, y, h, step, coat, col, a, dir) {   // далёкий человек: голова, пальто пятном, ноги — два штриха; без деталей
+    if (SPR.ok && SPR.meta.coats) { var ci = Math.max(0, COATS.indexOf(coat)) % SPR.meta.coats.length, ph = ((Math.floor(step / 1.5708) % 4) + 4) % 4, fr = SPR.meta.frames['walk_' + SPR.meta.coats[ci] + '_' + ph];
+      if (fr && spr('walk_' + SPR.meta.coats[ci] + '_' + ph, x, y, h * fr[2] / fr[3], dir < 0, 0, a)) return; }   // спрайт из Gemini, если он есть в атласе
     var lw = Math.max(0.55, h * 0.09), sw = Math.sin(step) * h * 0.1;
     ctx.globalAlpha = a * 0.8; ctx.fillStyle = 'rgb(' + coat + ')';
     ctx.beginPath(); ctx.ellipse(x, y - h * 0.58, h * 0.13, h * 0.24, 0, 0, 6.283); ctx.fill();
@@ -613,6 +644,16 @@
     var shape = { volga: [0.43, 0.42, 0.34], moskvich: [0.44, 0.3, 0.36], zaz: [0.5, 0.5, 0.4], taxi: [0.43, 0.42, 0.34], trolley: [0.27, 0.1, 0.0] }[kind] || [0.43, 0.4, 0.34];
     var wd = len * shape[0], r = wd * shape[1];
     ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+    var sn = SPR.ok && ('car_' + kind + '_' + Math.max(0, (CARS[kind] || []).indexOf(body))), sf2 = sn && SPR.meta.frames[sn];
+    if (sf2) {   // спрайт из Gemini, если он есть в атласе: видимый борт всегда к зрителю (внизу)
+      if (Math.cos(ang) < 0) ctx.scale(1, -1);
+      var sh = sf2[3] * len / sf2[2], n = NIGHT;
+      if (n < 0.98) { ctx.globalAlpha = a * (1 - n); ctx.drawImage(SPR.img, sf2[0], sf2[1], sf2[2], sf2[3], -sf2[4] * len, -sf2[5] * sh, len, sh); }
+      if (n > 0.02) { ctx.globalAlpha = a * n; ctx.drawImage(SPR.dark, sf2[0], sf2[1], sf2[2], sf2[3], -sf2[4] * len, -sf2[5] * sh, len, sh); }
+      if (kind === 'trolley') { ctx.globalAlpha = a * 0.8; ctx.strokeStyle = 'rgb(' + col + ')'; ctx.lineWidth = Math.max(0.5, len * 0.018); ln(-len * 0.1, -wd * 0.12, -len * 0.48, -wd * 1.6); ln(-len * 0.1, wd * 0.12, -len * 0.48, -wd * 1.2); }
+      if (lights > 0.05) carLights(len, wd, kind, a, lights);
+      ctx.restore(); return;
+    }
     ctx.globalAlpha = a * 0.22; ctx.fillStyle = 'rgb(40,35,30)'; ctx.beginPath(); ctx.ellipse(len * 0.04, wd * 0.18, len * 0.52, wd * 0.62, 0, 0, 6.283); ctx.fill();   // тень
     ctx.globalAlpha = a * 0.92; ctx.fillStyle = 'rgb(' + body + ')';
     ctx.beginPath(); ctx.moveTo(-len / 2 + r, -wd / 2); ctx.lineTo(len / 2 - r, -wd / 2); ctx.quadraticCurveTo(len / 2, -wd / 2, len / 2, -wd / 2 + r); ctx.lineTo(len / 2, wd / 2 - r); ctx.quadraticCurveTo(len / 2, wd / 2, len / 2 - r, wd / 2); ctx.lineTo(-len / 2 + r, wd / 2); ctx.quadraticCurveTo(-len / 2, wd / 2, -len / 2, wd / 2 - r); ctx.lineTo(-len / 2, -wd / 2 + r); ctx.quadraticCurveTo(-len / 2, -wd / 2, -len / 2 + r, -wd / 2); ctx.closePath(); ctx.fill();
@@ -655,6 +696,7 @@
     ctx.restore();
   }
   function pigeon(x, y, s, face, peck, col, a) {   // голубь на земле: сизое тело акварелью, тёмное крыло и голова, тонкий карандашный контур
+    if (spr(peck ? 'pigeon_peck' : 'pigeon_sit', x, y, s * 10.6, face < 0, 0, a)) return;
     var hy = peck ? s * 0.9 : 0;
     ctx.save(); ctx.translate(x, y); ctx.scale(face, 1); ctx.lineWidth = Math.max(0.45, s * 0.35); ctx.strokeStyle = 'rgb(' + col + ')';
     ctx.globalAlpha = a * 0.9; ctx.fillStyle = 'rgb(150,156,168)';
@@ -696,7 +738,7 @@
       var x = cx + (b.ox * spread + 0.2 * Math.sin(t * b.fx + b.ph)) * unit * 6 * up, y = cy + (b.oy * spread + 0.2 * Math.cos(t * b.fy + b.ph)) * unit * 3.5 * up;
       if (k > 1) { var l = clamp((k - 1) / 0.25, 0, 1); x = x + (gx - x) * l; y = y + (gy - y) * l; }   // посадка на новое место
       var landing = k > 0.85, fl = landing ? 0.3 + 0.7 * Math.sin(t * 24 + b.ph) : wingOf(b, t);
-      flyBird(x, y, unit * 0.9 * b.size, fl, S.dir * (ang + Math.PI / 2), bc, inkA * a0);
+      pigeonFly(x, y, unit * 0.9 * b.size, fl, S.dir * (ang + Math.PI / 2), inkA * a0 * 1.15, landing && k > 0.95);
     });
   }
   function drawSkyFlock(f, o, t, col, a0, light) {   // стая пролетает через небо: форма меняется, птицы машут каждая в своём ритме
@@ -712,6 +754,141 @@
       var p = P(u, v, 0.3); flyBird(p[0], p[1], s0 * b.size, wingOf(b, t), r.dir > 0 ? 0 : Math.PI, bc, inkA * a0);
     });
   }
+  // ---------- e1.10 МЕЛОЧИ ДЛЯ КРУПНЫХ ПЛАНОВ (ambient.details; docs/ENGINE-LIFE.md): голубь садится на статую, воробьи на карнизах,
+  // листья срываются с крон, ласточки, блик солнца по бронзе. Ночью птиц нет (спят), листья тусклее. ----------
+  function DP(f, q, bld) { return bld && V.projectB ? V.projectB(f, q[0], q[1]) : P(q[0], q[1], gd(f, q[0], q[1])); }
+  function DS(f, q, sz, bld) { var a = DP(f, q, bld), b = DP(f, [q[0], q[1] - sz], bld); return Math.max(1, Math.abs(a[1] - b[1])); }
+  function sparrow(x, y, s, face, peck, col, a) {   // воробей: бурое тело, светлое брюшко, тёмная шапочка, хвостик торчком
+    if (spr(peck ? 'sparrow_peck' : 'sparrow_sit', x, y, s * 10.5, face < 0, 0, a)) return;
+    ctx.save(); ctx.translate(x, y); ctx.scale(face, 1); ctx.globalAlpha = a;
+    ctx.fillStyle = 'rgb(140,108,78)'; ctx.beginPath(); ctx.ellipse(0, -2.3 * s, 3.1 * s, 2.0 * s, -0.25, 0, 6.283); ctx.fill();
+    ctx.fillStyle = 'rgb(214,198,168)'; ctx.beginPath(); ctx.ellipse(0.6 * s, -1.6 * s, 2.0 * s, 1.1 * s, -0.2, 0, 6.283); ctx.fill();
+    ctx.fillStyle = 'rgb(96,74,56)'; ctx.beginPath(); ctx.ellipse(-0.8 * s, -2.9 * s, 1.9 * s, 0.9 * s, -0.35, 0, 6.283); ctx.fill();   // крыло
+    ctx.beginPath(); ctx.moveTo(-2.6 * s, -2.6 * s); ctx.lineTo(-5.2 * s, -3.9 * s); ctx.lineTo(-4.6 * s, -2.7 * s); ctx.closePath(); ctx.fill();   // хвост
+    ctx.fillStyle = 'rgb(120,94,70)'; ctx.beginPath(); ctx.arc(2.5 * s, -3.9 * s + peck * s, 1.35 * s, 0, 6.283); ctx.fill();
+    ctx.fillStyle = 'rgb(118,116,116)'; ctx.beginPath(); ctx.arc(2.4 * s, -4.5 * s + peck * s, 0.8 * s, 3.3, 6.1); ctx.fill();   // серая шапочка
+    ctx.fillStyle = 'rgb(40,34,30)'; ctx.beginPath(); ctx.moveTo(3.7 * s, -4.0 * s + peck * s); ctx.lineTo(4.6 * s, -3.7 * s + peck * s); ctx.lineTo(3.6 * s, -3.5 * s + peck * s); ctx.fill();
+    ctx.globalAlpha = a * 0.5; ctx.strokeStyle = 'rgb(' + col + ')'; ctx.lineWidth = Math.max(0.4, s * 0.3);
+    ctx.beginPath(); ctx.ellipse(0, -2.3 * s, 3.1 * s, 2.0 * s, -0.25, 0, 6.283); ctx.stroke();
+    ln(-0.3 * s, -0.4 * s, -0.4 * s, 0.2 * s); ln(0.8 * s, -0.4 * s, 0.8 * s, 0.2 * s);
+    ctx.restore();
+  }
+  function swallow(x, y, s, flap, dir, a) {   // ласточка: тёмно-синяя птица с острыми крыльями и раздвоенным хвостом (крылья всегда раскрыты)
+    flyBird(x, y, s, 0.35 + 0.65 * flap, dir > 0 ? 0 : Math.PI, '30,36,64', a);
+    ctx.save(); ctx.translate(x, y); ctx.scale(dir, 1); ctx.globalAlpha = a; ctx.strokeStyle = 'rgb(30,36,64)'; ctx.lineWidth = Math.max(0.6, s * 0.06);
+    ctx.beginPath(); ctx.moveTo(-s * 0.5, -s * 0.02); ctx.lineTo(-s * 0.9, -s * 0.16); ctx.moveTo(-s * 0.5, s * 0.02); ctx.lineTo(-s * 0.88, s * 0.12); ctx.stroke();
+    ctx.restore();
+  }
+  function leaf(x, y, s, rot, flip, green, a) {   // лист: заострённый, с жилкой; переворачивается в полёте (flip — сжатие по ширине)
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(1, Math.max(0.15, Math.abs(flip))); ctx.globalAlpha = a;
+    ctx.fillStyle = green ? 'rgb(112,146,72)' : 'rgb(196,160,70)';
+    ctx.beginPath(); ctx.moveTo(-s, 0); ctx.quadraticCurveTo(0, -s * 0.62, s, 0); ctx.quadraticCurveTo(0, s * 0.62, -s, 0); ctx.fill();
+    ctx.globalAlpha = a * 0.55; ctx.strokeStyle = 'rgb(70,64,40)'; ctx.lineWidth = Math.max(0.4, s * 0.1); ln(-s, 0, s * 0.9, 0);
+    ctx.restore();
+  }
+  function drawDetails(now, w, f, D) {
+    var t = now / 1000, col = ink(), day = 1 - sstep(0.45, 0.8, w.n), S = D._st || (D._st = { birds: [], sp: [], lv: [], sw: null, swNext: t + rnd(2, 6), gl: null, glNext: t + rnd(2, 5), lvNext: t });
+    ctx.save(); ctx.lineCap = 'round';
+    // листья: раз в 1–3 с с кроны срывается лист, кружит по ветру и опускается
+    (function () {
+      var L = D.leaves; if (!L) return;
+      var wind = wxNow().wind;
+      if (t > S.lvNext && S.lv.length < (L.n || 6)) { var ar = L.areas[(Math.random() * L.areas.length) | 0]; S.lv.push({ u: rnd(ar[0], ar[2]), v: rnd(ar[1], ar[3]), t0: t, dur: rnd(4.5, 7.5), fall: (L.fall || 0.1) * rnd(0.7, 1.2), dx: rnd(0.02, 0.06) * (Math.random() < 0.3 ? -1 : 1), ph: rnd(0, 6.28), sp: rnd(2.2, 3.6), g: Math.random() < 0.65, sz: (L.size || 0.006) * rnd(0.8, 1.2) }); S.lvNext = t + rnd(0.8, 2.6) / Math.max(0.6, wind); }
+      for (var i = S.lv.length - 1; i >= 0; i--) {
+        var q = S.lv[i], k = (t - q.t0) / q.dur; if (k >= 1) { S.lv.splice(i, 1); continue; }
+        var u = q.u + q.dx * k * wind + 0.012 * Math.sin(k * 7 + q.ph), v = q.v + q.fall * k;
+        var p = P(u, v, gd(f, clamp(u, 0, 1), clamp(q.v, 0, 1))), sz = DS(f, [q.u, q.v], q.sz, false);
+        leaf(p[0], p[1], sz, Math.sin(t * q.sp + q.ph) * 0.9 + q.ph, Math.cos(t * q.sp * 1.3 + q.ph), q.g, (0.4 + 0.5 * day) * Math.min(1, k * 6, (1 - k) * 4));
+      }
+    })();
+    if (day < 0.03) { ctx.restore(); return; }
+    // блик солнца скользит по бронзе (раз в 7–13 с), только днём
+    if (D.glint && w.n < 0.4) {
+      var G = D.glint;
+      if (!S.gl && t > S.glNext) S.gl = { t0: t, dur: rnd(1.6, 2.4) };
+      if (S.gl) {
+        var kg = (t - S.gl.t0) / S.gl.dur;
+        if (kg >= 1) { S.gl = null; S.glNext = t + rnd((G.every || [7, 13])[0], (G.every || [7, 13])[1]); }
+        else {
+          var pts = G.poly.map(function (q) { return DP(f, q, G.bld !== false); }), x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+          pts.forEach(function (p) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); });
+          ctx.save(); ctx.beginPath(); pts.forEach(function (p, j) { if (j) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); }); ctx.closePath(); ctx.clip();
+          var cx = x0 - (x1 - x0) * 0.3 + (x1 - x0) * 1.6 * kg, bw = Math.max(6, (x1 - x0) * 0.13), e = Math.sin(Math.PI * kg), hh = (y1 - y0);
+          ctx.translate(cx, (y0 + y1) / 2); ctx.rotate(0.38);   // наклонная полоса света
+          var gg = ctx.createLinearGradient(-bw, 0, bw, 0); gg.addColorStop(0, 'rgba(255,240,200,0)'); gg.addColorStop(0.5, 'rgba(255,240,200,' + (G.k || 0.3) * e * day + ')'); gg.addColorStop(1, 'rgba(255,240,200,0)');
+          ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = gg; ctx.fillRect(-bw, -hh, 2 * bw, 2 * hh);
+          ctx.restore();
+        }
+      }
+    }
+    // ласточки: 2–4 проносятся дугой с нырком, раз в 5–12 с
+    if (D.swallows) {
+      var SW = D.swallows;
+      if (!S.sw && t > S.swNext && w.n < 0.4) { var n = Math.round(rnd(2, SW.n || 4)), dir = Math.random() < 0.5 ? 1 : -1, b0 = SW.band[0] + (SW.band[1] - SW.band[0]) * Math.random(); S.sw = { t0: t, dur: rnd(2.4, 3.6), dir: dir, v: b0, b: [] }; for (var j = 0; j < n; j++) S.sw.b.push({ d: rnd(0, 0.35), dv: rnd(-0.03, 0.03), ph: rnd(0, 6.28), dip: rnd(0.03, 0.08), wf: rnd(18, 26) }); }
+      if (S.sw) {
+        var r = S.sw, kk = (t - r.t0) / r.dur;
+        if (kk > 1.4) { S.sw = null; S.swNext = t + rnd((SW.every || [5, 12])[0], (SW.every || [5, 12])[1]); }
+        else r.b.forEach(function (b) {
+          var k = kk - b.d; if (k < 0 || k > 1) return;
+          var u = r.dir > 0 ? -0.1 + 1.2 * k : 1.1 - 1.2 * k, v = r.v + b.dv + b.dip * Math.sin(Math.PI * k) - 0.02 * Math.sin(k * 9 + b.ph);
+          var p = P(u, v, 0.3), fl = Math.sin(t * b.wf + b.ph) * (Math.sin(t * 2 + b.ph) > 0.2 ? 1 : 0.15);
+          swallow(p[0], p[1], (SW.size || 0.014) * H, fl, r.dir, 0.9 * day);
+        });
+      }
+    }
+    // воробьи прыгают по карнизу/постаменту, клюют, иногда перелетают
+    if (D.sparrows) {
+      var SP = D.sparrows, Lg = SP.ledges;
+      while (S.sp.length < (SP.n || 4)) S.sp.push({ L: (Math.random() * Lg.length) | 0, k: Math.random(), face: Math.random() < 0.5 ? 1 : -1, hop: null, next: t + rnd(0.3, 2), peck: 0, fly: null });
+      S.sp.forEach(function (b) {
+        var g = Lg[b.L], lb = function (q) { return q.length > 4 ? !!q[4] : !!SP.bld; }, pos = function (L, k) { var q = Lg[L]; return DP(f, [q[0] + (q[2] - q[0]) * k, q[1] + (q[3] - q[1]) * k], lb(q)); };
+        var sz = DS(f, [g[0], g[1]], SP.size || 0.008, lb(g)) / 5;
+        if (b.fly) {   // перелёт на другой карниз
+          var kf = (t - b.fly.t0) / b.fly.dur;
+          if (kf >= 1) { b.L = b.fly.L; b.k = b.fly.k; b.fly = null; b.next = t + rnd(0.5, 2); }
+          else { var A0 = pos(b.fly.L0, b.fly.k0), A1 = pos(b.fly.L, b.fly.k), e = kf * kf * (3 - 2 * kf); flyBird(A0[0] + (A1[0] - A0[0]) * e, A0[1] + (A1[1] - A0[1]) * e - Math.sin(Math.PI * kf) * sz * 14, sz * 7, Math.sin(t * 30), A1[0] > A0[0] ? 0 : Math.PI, '120,94,70', 0.9 * day); return; }
+        }
+        if (!b.hop && t > b.next) {
+          if (Math.random() < 0.08 && Lg.length) { var L2 = (Math.random() * Lg.length) | 0; b.fly = { t0: t, dur: rnd(0.8, 1.4), L0: b.L, k0: b.k, L: L2, k: Math.random() }; return; }
+          if (Math.random() < 0.55) { var nk = clamp(b.k + rnd(-0.08, 0.08), 0.02, 0.98); b.face = nk > b.k ? 1 : -1; b.hop = { t0: t, k0: b.k, k1: nk }; }
+          else b.peck = t + rnd(0.4, 1.2);
+          b.next = t + rnd(0.4, 1.8);
+        }
+        var p, lift = 0;
+        if (b.hop) { var kh = (t - b.hop.t0) / 0.22; if (kh >= 1) { b.k = b.hop.k1; b.hop = null; } else { b.k = b.hop.k0 + (b.hop.k1 - b.hop.k0) * kh; lift = Math.sin(Math.PI * kh) * sz * 3; } }
+        p = pos(b.L, b.k);
+        sparrow(p[0], p[1] - lift, sz, b.face, t < b.peck && Math.sin(t * 18) > 0 ? 1.2 : 0, col, 0.95 * day);
+      });
+    }
+    // голуби садятся на голову/плечо/руку статуи: прилёт, посадка с поднятыми крыльями, сидит (вертит головой), взлёт
+    if (D.perches) {
+      var PR = D.perches, spots = PR.spots;
+      while (S.birds.length < (PR.n || 1)) S.birds.push({ st: 'wait', t0: t, wait: rnd(1, 5) + S.birds.length * 4 });
+      S.birds.forEach(function (b) {
+        if (b.st === 'wait') { if (t - b.t0 < b.wait) return; var used = S.birds.map(function (o) { return o.spot; }), sp; do { sp = (Math.random() * spots.length) | 0; } while (used.indexOf(sp) >= 0 && spots.length > S.birds.length); b.spot = sp; b.st = 'in'; b.t0 = t; b.dur = rnd(2.2, 3.0); b.left = Math.random() < 0.5; b.sit = rnd(6, 14); b.ph = rnd(0, 6.28); }
+        var q = spots[b.spot], tgt = DP(f, q, PR.bld !== false), sz = DS(f, q, PR.size || 0.012, PR.bld !== false) / 4.6, k = (t - b.t0) / b.dur;
+        if (b.st === 'in') {
+          if (k >= 1) { b.st = 'sit'; b.t0 = t; }
+          else {
+            var from = DP(f, [b.left ? -0.15 : 1.15, q[1] - 0.18], PR.bld !== false), e = 1 - Math.pow(1 - k, 2.4);
+            var x = from[0] + (tgt[0] - from[0]) * e, y = from[1] + (tgt[1] - from[1]) * e - Math.sin(Math.PI * k) * sz * 18;
+            var landing = k > 0.82, fl = landing ? 0.9 + 0.1 * Math.sin(t * 30) : Math.sin(t * (14 + 6 * k) + b.ph);
+            pigeonFly(x, y - (landing ? sz * 2 : 0), sz * 9, fl, b.left ? 0 : Math.PI, 0.95 * day, landing);
+          }
+        }
+        if (b.st === 'sit') {
+          var ks = t - b.t0;
+          if (ks > b.sit) { b.st = 'out'; b.t0 = t; b.dur = rnd(1.8, 2.4); }
+          else { var look = Math.sin(ks * 1.3 + b.ph) > 0.4 ? (b.left ? 1 : -1) : (b.left ? -1 : 1), bob = Math.sin(ks * 2.2 + b.ph) > 0.85 ? 0.8 : 0; pigeon(tgt[0], tgt[1], sz, look, bob, col, 0.95 * day); }
+        }
+        if (b.st === 'out') {
+          if (k >= 1) { b.st = 'wait'; b.t0 = t; b.wait = rnd(3, 10); b.spot = -1; }
+          else { var e2 = k * k, dx = (b.left ? 1 : -1) * 0.4 * e2; var pt = DP(f, [q[0] + dx, q[1] - 0.22 * e2], PR.bld !== false); pigeonFly(pt[0], pt[1], sz * 9, Math.sin(t * 26 + b.ph), b.left ? 0 : Math.PI, 0.95 * day * (1 - sstep(0.75, 1, k))); }
+        }
+      });
+    }
+    ctx.restore();
+  }
   function drawAmbientLife(now, w, f, A) {
     var t = now / 1000, col = ink(), night = w.n, a0 = 1 - 0.35 * night, ar = aspect(), Q = []; NIGHT = night;
     var dt = A._t != null ? clamp(t - A._t, 0, 0.1) : 0; A._t = t;
@@ -725,7 +902,7 @@
         m.s += m.dir * o.bps * m.sp * sz * dt / Math.max(1e-6, tot);
         if (m.s > 1 || m.s < 0) { m.dir = Math.random() < 0.5 ? 1 : -1; m.s = m.dir > 0 ? 0 : 1; m.wait = rnd(o.gap[0], o.gap[1]); continue; }
         var q = along(o0, m.s), e = Math.min(1, m.s / 0.04, (1 - m.s) / 0.04);
-        (function (q, sz, e, m) { Q.push({ v: q.v, d: function () { var h = sizePx(f, q.u, q.v, sz), p = ground(f, q.u, q.v); if (h < 1.5) return; tinyPerson(p[0], p[1], h, t * 7 * m.sp + m.s * 40, m.coat, col, a0 * e); } }); })(q, sz, e, m);
+        (function (q, sz, e, m) { Q.push({ v: q.v, d: function () { var h = sizePx(f, q.u, q.v, sz), p = ground(f, q.u, q.v); if (h < 1.5) return; tinyPerson(p[0], p[1], h, t * 7 * m.sp + m.s * 40, m.coat, col, a0 * e, m.dir); } }); })(q, sz, e, m);
       }
     });
     (A.cars || []).forEach(function (o0, gi) {   // машины: по дорогам, с перерывами; скорость — в длинах машины в секунду
@@ -748,6 +925,7 @@
     Q.sort(function (x, y) { return x.v - y.v; });
     Q.forEach(function (q) { var c = occClip(f, A, q.v); q.d(); if (c) ctx.restore(); ctx.globalAlpha = 1; });
     var light = !!A.lightBirds;
+    if (A.details) drawDetails(now, w, f, A.details);
     (A.flocks || []).forEach(function (o0) {
       var o = lp('flocks', o0);
       if (o.preset === 'sky' || o.band) drawSkyFlock(f, o0._p ? o : o, t, col, a0 * (1 - 0.8 * night), light);
@@ -755,7 +933,7 @@
     });
     ctx.restore();
   }
-  function drawCloseUp(now, w, f, c) { cu = c; if (c.glints) drawGlints(now, f, w); if (c.perch) drawPerch(now, f, w); if (c.mast) drawRoofFlag(now, w); }
+  function drawCloseUp(now, w, f, c) { cu = c; var am = SC(V.frame()).ambient; if (c.glints) drawGlints(now, f, w); if (c.perch && !(am && am.details && am.details.perches)) drawPerch(now, f, w); if (c.mast) drawRoofFlag(now, w); }
 
   // ---------- ПАРАД: три истребителя плотным строем слева направо, дымные следы 15–20 с: красный, синий, абрикосовый — флаг Армении ----------
   var PC = [{ day: '214,20,36', night: '255,84,96' }, { day: '32,72,196', night: '104,150,255' }, { day: '242,168,0', night: '255,196,64' }];   // сверху вниз
