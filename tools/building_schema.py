@@ -40,6 +40,9 @@ class Checker:
     def err(self, where, msg):
         self.errors.append('%s: %s: %s' % (self.head, where, msg))
 
+    def errors_since(self, n):
+        return len(self.errors) > n
+
     # --- примитивы ---
     def obj(self, v, where, required=(), optional=()):
         if not isinstance(v, dict):
@@ -104,6 +107,41 @@ class Checker:
         p = self.site / posixpath.normpath(posixpath.join(self.bdir, rel_path))
         if not p.exists():
             self.err(where, 'нет %s %s' % (what, posixpath.normpath(posixpath.join(self.bdir, rel_path))))
+
+
+ROAD_MIN = 0.98   # доля точек пути машины внутри маски дорог (или за перекрытием)
+
+
+def in_poly(u, v, poly):
+    """Точка в многоугольнике (чёт-нечет): кольцо дороги задаётся «замочной скважиной» — внешний контур и внутренний обратным ходом."""
+    ins = False
+    n = len(poly)
+    for i in range(n):
+        x1, y1 = poly[i]; x2, y2 = poly[(i + 1) % n]
+        if (y1 > v) != (y2 > v) and u < x1 + (v - y1) * (x2 - x1) / (y2 - y1):
+            ins = not ins
+    return ins
+
+
+def path_samples(path, loop=False, step=0.002, aspect=768 / 1365):
+    pts = list(path) + ([path[0]] if loop else [])
+    out = []
+    for (u1, v1), (u2, v2) in zip(pts, pts[1:]):
+        L = ((u2 - u1) * aspect) ** 2 + (v2 - v1) ** 2
+        k = max(1, int(L ** 0.5 / step))
+        out += [(u1 + (u2 - u1) * t / k, v1 + (v2 - v1) * t / k) for t in range(k)]
+    return out
+
+
+def road_coverage(am):
+    """[(доля точек внутри дорог или за перекрытием, число точек)] по каждой машине кадра."""
+    roads, occ = am.get('roads', []), [o['poly'] for o in am.get('occluders', [])]
+    res = []
+    for o in am.get('cars', []):
+        pts = path_samples(o['path'], o.get('loop', False))
+        ok = sum(1 for u, v in pts if (0 <= u <= 1 and 0 <= v <= 1 and any(in_poly(u, v, r) for r in roads)) or not (0 <= u <= 1 and 0 <= v <= 1) or any(in_poly(u, v, q) for q in occ))
+        res.append((ok / max(1, len(pts)), len(pts)))
+    return res
 
 
 def validate(bdir, b, site):
@@ -234,8 +272,9 @@ def validate(bdir, b, site):
         if fr['flag'] is not None:
             if c.numbers(fr['flag'], '%s: flag' % w, 4, 0, 1) and (fr['flag'][0] + fr['flag'][2] > 1.0001 or fr['flag'][1] + fr['flag'][3] > 1.0001):
                 c.err('%s: flag' % w, 'флаг [x, y, ширина, высота] выходит за кадр')
+        nerr0 = len(c.errors)
         if 'ambient' in fr:       # e1.8: библиотека жизни (details.js, docs/ENGINE-LIFE.md): walkers / cars / flocks / occluders
-            am = c.obj(fr['ambient'], '%s: ambient' % w, optional=('walkers', 'cars', 'flocks', 'occluders', 'lightBirds'))
+            am = c.obj(fr['ambient'], '%s: ambient' % w, optional=('walkers', 'cars', 'flocks', 'occluders', 'lightBirds', 'roads', 'details'))
             if am:
                 presets = {'walkers': ('far-pedestrians',), 'cars': ('soviet-street', 'trolley-line'), 'flocks': ('pigeons', 'sky')}
                 for kind in ('walkers', 'cars'):
@@ -279,6 +318,19 @@ def validate(bdir, b, site):
                         for q in oo['poly']:
                             c.numbers(q, wo + '.poly', 2, -0.2, 1.2)
                         c.number(oo['base'], wo + '.base', 0, 1.2)
+                for j, q in enumerate(am.get('roads', [])):   # e1.10: маска проезжей части — многоугольники по нарисованной дороге
+                    if not isinstance(q, list) or len(q) < 3:
+                        c.err('%s: ambient.roads[%d]' % (w, j + 1), 'многоугольник [[u, v], …] из 3+ точек')
+                    else:
+                        for pt in q:
+                            c.numbers(pt, '%s: ambient.roads[%d]' % (w, j + 1), 2, -0.3, 1.3)
+                if am.get('cars') and not c.errors_since(nerr0):
+                    if not am.get('roads'):
+                        c.err('%s: ambient.cars' % w, 'машины без маски дорог: нужна ambient.roads (нет честной дороги в кадре — машин нет; правило Нарека)')
+                    else:
+                        for j, (frac, n) in enumerate(road_coverage(am)):
+                            if frac < ROAD_MIN:
+                                c.err('%s: ambient.cars[%d].path' % (w, j + 1), 'путь машины вне дороги: внутри маски ambient.roads (или за перекрытием) %.1f%% точек, нужно ≥ %d%% (tools/check_roads.py рисует оверлей)' % (frac * 100, ROAD_MIN * 100))
         if 'skyBirds' in fr:      # e1.8: false — без трёх одиночных птиц движка (у кадра свои стаи)
             c.boolean(fr['skyBirds'], '%s: skyBirds' % w)
         if 'depthRaw' in fr:      # e1.5: карта глубины кадра без растяжки контраста (значения файла = глубина в шейдере)
