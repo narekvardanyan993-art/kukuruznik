@@ -565,6 +565,7 @@
   // Скорости — в ростах (длинах) в секунду, поэтому дальние идут медленнее сами. Всё — на глубине земли под точкой (при наклоне на месте).
   // Правила Нарека (07.10.2026): никаких крупных людей; на крупном плане людей нет; пути только по нарисованным дорогам и тротуарам;
   // ларьки и стоящие машины рисуются в саму картинку, не движком.
+  var NIGHT = 0;   // e1.10: ночь для модулей жизни (голуби спят, стаи не летают)
   var LIFE_PRESETS = {
     walkers: { 'far-pedestrians': { bps: 0.62, n: 3, gap: [2, 9] } },
     cars: { 'soviet-street': { bps: 1.7, n: 2, gap: [1.5, 6], kinds: ['volga', 'moskvich', 'volga', 'zaz', 'taxi'] },
@@ -615,7 +616,7 @@
     ctx.globalAlpha = a * 0.22; ctx.fillStyle = 'rgb(40,35,30)'; ctx.beginPath(); ctx.ellipse(len * 0.04, wd * 0.18, len * 0.52, wd * 0.62, 0, 0, 6.283); ctx.fill();   // тень
     ctx.globalAlpha = a * 0.92; ctx.fillStyle = 'rgb(' + body + ')';
     ctx.beginPath(); ctx.moveTo(-len / 2 + r, -wd / 2); ctx.lineTo(len / 2 - r, -wd / 2); ctx.quadraticCurveTo(len / 2, -wd / 2, len / 2, -wd / 2 + r); ctx.lineTo(len / 2, wd / 2 - r); ctx.quadraticCurveTo(len / 2, wd / 2, len / 2 - r, wd / 2); ctx.lineTo(-len / 2 + r, wd / 2); ctx.quadraticCurveTo(-len / 2, wd / 2, -len / 2, wd / 2 - r); ctx.lineTo(-len / 2, -wd / 2 + r); ctx.quadraticCurveTo(-len / 2, -wd / 2, -len / 2 + r, -wd / 2); ctx.closePath(); ctx.fill();
-    ctx.globalAlpha = a; ctx.strokeStyle = 'rgb(' + col + ')'; ctx.lineWidth = Math.max(0.5, len * 0.04); ctx.stroke();
+    ctx.globalAlpha = a * (1 - 0.7 * lights); ctx.strokeStyle = 'rgb(' + col + ')'; ctx.lineWidth = Math.max(0.5, len * 0.04); ctx.stroke();   // ночью светлый карандаш почти не виден — машина тёмная
     if (kind === 'trolley') {
       ctx.globalAlpha = a * 0.45; ctx.fillStyle = 'rgb(' + col + ')'; for (var k = 0; k < 6; k++) ctx.fillRect(-len * 0.44 + k * len * 0.15, -wd * 0.3, len * 0.09, wd * 0.6);
       ctx.globalAlpha = a * 0.8; ctx.lineWidth = Math.max(0.5, len * 0.018); ln(-len * 0.1, -wd * 0.12, -len * 0.48, -wd * 1.6); ln(-len * 0.1, wd * 0.12, -len * 0.48, -wd * 1.2);
@@ -625,8 +626,20 @@
       ctx.globalAlpha = a * 0.85; ctx.fillStyle = 'rgb(' + body + ')'; ctx.fillRect(-len * 0.12, -wd * 0.3, len * 0.26, wd * 0.6);       // крыша
       if (kind === 'taxi') { for (var q = 0; q < 4; q++) { ctx.fillStyle = q % 2 ? 'rgb(250,244,220)' : 'rgb(' + col + ')'; ctx.fillRect(-len * 0.24 + q * len * 0.1, wd * 0.38, len * 0.1, wd * 0.12); } }
     }
-    if (lights > 0.05) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a * lights; ctx.fillStyle = 'rgb(255,214,140)'; ctx.beginPath(); ctx.arc(len / 2, -wd * 0.28, wd * 0.26, 0, 6.283); ctx.arc(len / 2, wd * 0.28, wd * 0.26, 0, 6.283); ctx.fill(); ctx.globalCompositeOperation = 'source-over'; }
+    if (lights > 0.05) carLights(len, wd, kind, a, lights);
     ctx.restore();
+  }
+  function carLights(len, wd, kind, a, L) {   // e1.10 ночь: кузов в темноте, лучи фар ложатся на дорогу, красные задние огни; троллейбус — тёплый салон
+    ctx.globalAlpha = a * 0.6 * L; ctx.fillStyle = 'rgb(16,20,40)'; ctx.fillRect(-len / 2, -wd / 2, len, wd);
+    ctx.globalCompositeOperation = 'lighter';
+    var g = ctx.createLinearGradient(len / 2, 0, len / 2 + len * 2.4, 0);
+    g.addColorStop(0, 'rgba(255,228,170,' + 0.34 * L * a + ')'); g.addColorStop(1, 'rgba(255,228,170,0)');
+    ctx.globalAlpha = 1; ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(len / 2, -wd * 0.36); ctx.lineTo(len / 2 + len * 2.4, -wd * 1.25); ctx.lineTo(len / 2 + len * 2.4, wd * 1.25); ctx.lineTo(len / 2, wd * 0.36); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = a * L; ctx.fillStyle = 'rgb(255,244,210)'; ctx.beginPath(); ctx.arc(len / 2, -wd * 0.3, wd * 0.12, 0, 6.283); ctx.arc(len / 2, wd * 0.3, wd * 0.12, 0, 6.283); ctx.fill();
+    ctx.fillStyle = 'rgb(255,46,34)'; ctx.globalAlpha = a * 0.95 * L; ctx.beginPath(); ctx.arc(-len / 2, -wd * 0.32, wd * 0.11, 0, 6.283); ctx.arc(-len / 2, wd * 0.32, wd * 0.11, 0, 6.283); ctx.fill();
+    ctx.globalAlpha = a * 0.3 * L; ctx.beginPath(); ctx.arc(-len / 2, -wd * 0.32, wd * 0.3, 0, 6.283); ctx.arc(-len / 2, wd * 0.32, wd * 0.3, 0, 6.283); ctx.fill();
+    if (kind === 'trolley') { ctx.globalAlpha = a * 0.5 * L; ctx.fillStyle = 'rgb(255,214,140)'; for (var k = 0; k < 6; k++) ctx.fillRect(-len * 0.44 + k * len * 0.15, -wd * 0.3, len * 0.09, wd * 0.6); }
+    ctx.globalCompositeOperation = 'source-over';
   }
   function flyBird(x, y, s, flap, head, col, a) {   // птица в полёте: тело, голова, хвост, крылья — заливкой с карандашным краем
     var c = Math.cos(head), sn = Math.sin(head), wy = -flap * s * 0.75, mid = -flap * s * 0.25 - s * 0.08;
@@ -666,13 +679,14 @@
     var S = o._st || (o._st = { mode: 'ground', t0: t, next: t + rnd(o.rest[0] * 0.4, o.rest[1] * 0.6), birds: [] });
     while (S.birds.length < o.n) S.birds.push(newBird(S.birds.length));
     var base = ground(f, o.at[0], o.at[1]), unit = Math.max(2.2, sizePx(f, o.at[0], o.at[1], o.size));
+    if (NIGHT > 0.5 && S.mode === 'ground') S.next = Math.max(S.next, t + 2);   // ночью голуби спят на земле
     if (S.mode === 'ground' && t > S.next) { S.mode = 'fly'; S.t0 = t; S.dur = rnd(o.fly[0], o.fly[1]); S.cx = rnd(-1, 1); S.dir = Math.random() < 0.5 ? 1 : -1; S.birds.forEach(function (b) { b.delay = rnd(0, 0.7); }); }
     if (S.mode === 'fly' && t > S.t0 + S.dur + 1.6) { S.mode = 'ground'; S.next = t + rnd(o.rest[0], o.rest[1]); S.birds.forEach(function (b) { b.gx = rnd(-1, 1); b.gy = rnd(-0.4, 0.4); }); }
     var R = o.radius * W, inkA = light ? 0.55 : 0.62, bc = '92,98,112';   // голуби всегда сизые, не чёрные кляксы
     S.birds.forEach(function (b, i) {
       var gx = base[0] + b.gx * unit * 4.5, gy = base[1] + b.gy * unit * 2;
       if (S.mode === 'ground' || t < S.t0 + b.delay) {
-        var peck = Math.sin(t * (2.2 + b.fx) + b.ph) > 0.75 ? 1.4 : 0, walk = Math.sin(t * 0.35 * b.fx + b.ph) * unit * 0.6;
+        var awake = NIGHT < 0.5, peck = awake && Math.sin(t * (2.2 + b.fx) + b.ph) > 0.75 ? 1.4 : 0, walk = awake ? Math.sin(t * 0.35 * b.fx + b.ph) * unit * 0.6 : 0;
         pigeon(gx + walk, gy, unit / 9, b.face, peck, bc, (light ? 0.75 : 1) * a0);
         return;
       }
@@ -687,6 +701,7 @@
   }
   function drawSkyFlock(f, o, t, col, a0, light) {   // стая пролетает через небо: форма меняется, птицы машут каждая в своём ритме
     var S = o._st || (o._st = { next: t + rnd(2, o.every[0]), run: null, birds: [] });
+    if (!S.run && t > S.next && NIGHT > 0.5) S.next = t + 3;   // ночью стаи не летают
     if (!S.run && t > S.next) { S.run = { t0: t, dur: rnd(9, 15), dir: Math.random() < 0.5 ? 1 : -1, v: o.band[0] + (o.band[1] - o.band[0]) * Math.random(), n: Math.round(o.n * rnd(0.6, 1.2)), wob: rnd(0.4, 1) }; S.birds = []; for (var i = 0; i < S.run.n; i++) S.birds.push(newBird(i)); }
     if (!S.run) return;
     var r = S.run, k = (t - r.t0) / r.dur; if (k > 1) { S.run = null; S.next = t + rnd(o.every[0], o.every[1]); return; }
@@ -698,11 +713,11 @@
     });
   }
   function drawAmbientLife(now, w, f, A) {
-    var t = now / 1000, col = ink(), night = w.n, a0 = 1 - 0.35 * night, ar = aspect(), Q = [];
+    var t = now / 1000, col = ink(), night = w.n, a0 = 1 - 0.35 * night, ar = aspect(), Q = []; NIGHT = night;
     var dt = A._t != null ? clamp(t - A._t, 0, 0.1) : 0; A._t = t;
     ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     (A.walkers || []).forEach(function (o0, gi) {   // мелкие люди: идут по пути с перерывами, скорость — в ростах в секунду
-      var o = lp('walkers', o0), n = Math.max(1, Math.round(o.n * (1 - 0.6 * night))), st = o0._st || (o0._st = []);
+      var o = lp('walkers', o0), n = Math.round(o.n * (1 - 0.85 * night)), st = o0._st || (o0._st = []);   // ночью людей почти нет
       for (var i = 0; i < n; i++) {
         var m = st[i] || (st[i] = { s: Math.random(), dir: Math.random() < 0.5 ? 1 : -1, wait: 0, sp: rnd(0.85, 1.15), coat: COATS[(i * 3 + gi) % COATS.length] });
         if (m.wait > 0) { m.wait -= dt; continue; }

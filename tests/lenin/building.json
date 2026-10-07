@@ -81,7 +81,6 @@
   "frames": [
     {
       "name": "lenin_1",
-      "night": false,
       "sunset": false,
       "crop": [0, 0, 1, 1],
       "flag": null,
@@ -104,12 +103,11 @@
       "life": {
         "day": ["birds", "plane", "cranes", "kite"],
         "sunset": ["birds", "plane", "cranes", "lantern"],
-        "night": ["plane", "winlight", "lantern"]
+        "night": ["plane", "lantern"]
       }
     },
     {
       "name": "lenin_2",
-      "night": false,
       "sunset": false,
       "crop": [0, 0, 1, 1],
       "flag": null,
@@ -175,7 +173,6 @@
     },
     {
       "name": "lenin_3",
-      "night": false,
       "sunset": false,
       "crop": [0, 0, 1, 1],
       "flag": null,
@@ -234,14 +231,12 @@
         ],
         "night": [
           "plane",
-          "winlight",
           "lantern"
         ]
       }
     },
     {
       "name": "lenin_4",
-      "night": false,
       "sunset": false,
       "crop": [0, 0, 1, 1],
       "flag": null,
@@ -302,7 +297,6 @@
         ],
         "night": [
           "plane",
-          "winlight",
           "lantern"
         ]
       },
@@ -323,7 +317,6 @@
     },
     {
       "name": "lenin_6",
-      "night": false,
       "sunset": false,
       "crop": [0, 0, 1, 1],
       "flag": null,
