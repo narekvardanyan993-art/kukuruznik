@@ -123,24 +123,57 @@ def in_poly(u, v, poly):
     return ins
 
 
-def path_samples(path, loop=False, step=0.002, aspect=768 / 1365):
-    pts = list(path) + ([path[0]] if loop else [])
-    out = []
+def chaikin(pts, loop=False):
+    """Как в details.js: 2 прохода сглаживания Чайкина (плавные повороты)."""
+    pts = [list(p) for p in pts]
+    for _ in range(2):
+        n = len(pts); out = [] if loop else [pts[0]]
+        for i in range(n if loop else n - 1):
+            a, b = pts[i], pts[(i + 1) % n]
+            out += [[a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]]
+        if not loop:
+            out.append(pts[-1])
+        pts = out
+    return pts
+
+
+def path_samples(path, loop=False, step=0.002, aspect=768 / 1365, smooth=True, lane=0.0, size=(0.0, 0.0)):
+    """Точки пути через каждые step (в долях высоты кадра); lane — сдвиг вправо по ходу (правостороннее движение), в длинах машины."""
+    src = chaikin(path, loop) if smooth else [list(p) for p in path]
+    pts = src + ([src[0]] if loop else [])
+    seg = []
     for (u1, v1), (u2, v2) in zip(pts, pts[1:]):
         L = ((u2 - u1) * aspect) ** 2 + (v2 - v1) ** 2
         k = max(1, int(L ** 0.5 / step))
-        out += [(u1 + (u2 - u1) * t / k, v1 + (v2 - v1) * t / k) for t in range(k)]
+        seg += [(u1 + (u2 - u1) * t / k, v1 + (v2 - v1) * t / k, u2 - u1, v2 - v1) for t in range(k)]
+    out = []
+    for n, (u, v, du, dv) in enumerate(seg):
+        if lane:
+            s = n / max(1, len(seg) - 1); sz = size[0] + (size[1] - size[0]) * s
+            for d in ((1, -1) if not loop else (1,)):
+                dx, dy = du * aspect * d, dv * d; L = (dx * dx + dy * dy) ** 0.5 or 1
+                out.append((u - dy / L * lane * sz / aspect, v + dx / L * lane * sz))
+        else:
+            out.append((u, v))
     return out
 
 
-def road_coverage(am):
-    """[(доля точек внутри дорог или за перекрытием, число точек)] по каждой машине кадра."""
+def road_coverage(am, presets_lane=None):
+    """[(доля точек в маске дорог, доля «не на дороге и не за перекрытием» внутри кадра, число точек)] по каждой машине кадра.
+    Точки — по сглаженному пути, с полосами в обе стороны (правостороннее движение)."""
     roads, occ = am.get('roads', []), [o['poly'] for o in am.get('occluders', [])]
+    lanes = {'soviet-1950s': 0.3, 'trolley-line': 0.3, 'watering': 0.3}
     res = []
     for o in am.get('cars', []):
-        pts = path_samples(o['path'], o.get('loop', False))
-        ok = sum(1 for u, v in pts if (0 <= u <= 1 and 0 <= v <= 1 and any(in_poly(u, v, r) for r in roads)) or not (0 <= u <= 1 and 0 <= v <= 1) or any(in_poly(u, v, q) for q in occ))
-        res.append((ok / max(1, len(pts)), len(pts)))
+        pts = path_samples(o['path'], o.get('loop', False), smooth=o.get('smooth', True), lane=o.get('lane', lanes.get(o['preset'], 0.0)), size=o['size'])
+        inside = [0 <= u <= 1 and 0 <= v <= 1 for u, v in pts]
+        on = [any(in_poly(u, v, r) for r in roads) for u, v in pts]
+        hid = [any(in_poly(u, v, q) for q in occ) for u, v in pts]
+        hid_off = sum(1 for i in range(len(pts)) if inside[i] and hid[i] and not on[i])   # за домом вне маски — не считаем (перекрытые участки допустимы)
+        n_in = max(1, sum(inside) - hid_off)
+        on_road = sum(1 for i in range(len(pts)) if inside[i] and on[i]) / n_in
+        off = sum(1 for i in range(len(pts)) if inside[i] and not on[i] and not hid[i]) / n_in
+        res.append((on_road, off, len(pts)))
     return res
 
 
@@ -274,13 +307,13 @@ def validate(bdir, b, site):
                 c.err('%s: flag' % w, 'флаг [x, y, ширина, высота] выходит за кадр')
         nerr0 = len(c.errors)
         if 'ambient' in fr:       # e1.8: библиотека жизни (details.js, docs/ENGINE-LIFE.md): walkers / cars / flocks / occluders
-            am = c.obj(fr['ambient'], '%s: ambient' % w, optional=('walkers', 'cars', 'flocks', 'occluders', 'lightBirds', 'roads', 'details'))
+            am = c.obj(fr['ambient'], '%s: ambient' % w, optional=('walkers', 'cars', 'flocks', 'occluders', 'lightBirds', 'roads', 'details', 'standers', 'scenes'))
             if am:
-                presets = {'walkers': ('far-pedestrians',), 'cars': ('soviet-street', 'trolley-line'), 'flocks': ('pigeons', 'sky')}
+                presets = {'walkers': ('far-pedestrians',), 'cars': ('soviet-street', 'trolley-line', 'soviet-1950s', 'watering'), 'flocks': ('pigeons', 'sky')}
                 for kind in ('walkers', 'cars'):
                     for j, o in enumerate(am.get(kind, [])):
                         wo = '%s: ambient.%s[%d]' % (w, kind, j + 1)
-                        oo = c.obj(o, wo, required=('preset', 'path', 'size'), optional=('n', 'bps', 'gap', 'loop', 'kinds'))
+                        oo = c.obj(o, wo, required=('preset', 'path', 'size'), optional=('n', 'bps', 'gap', 'loop', 'kinds', 'lane', 'smooth'))
                         if oo:
                             if oo['preset'] not in presets[kind]:
                                 c.err(wo, 'preset: %s' % ' / '.join(presets[kind]))
@@ -324,12 +357,43 @@ def validate(bdir, b, site):
                     else:
                         for pt in q:
                             c.numbers(pt, '%s: ambient.roads[%d]' % (w, j + 1), 2, -0.3, 1.3)
+                for key, sub in (('standers', 'spots'), ('scenes', 'items')):   # e1.11: стоящие люди и сценки (спрайты из Gemini)
+                    if key in am:
+                        o = c.obj(am[key], '%s: ambient.%s' % (w, key), required=(sub,), optional=('size',))
+                        if o:
+                            for q in o[sub]:
+                                if not (isinstance(q, list) and len(q) >= 2 and is_num(q[0]) and is_num(q[1])):
+                                    c.err('%s: ambient.%s.%s' % (w, key, sub), '[u, v, вид, ±1 — куда смотрит]')
+                            if 'size' in o:
+                                c.number(o['size'], '%s: ambient.%s.size' % (w, key), 0.001, 0.03)
+                if 'details' in am:   # e1.10: мелочи для крупных планов (details.js drawDetails)
+                    wd = '%s: ambient.details' % w
+                    dd = c.obj(am['details'], wd, optional=('perches', 'sparrows', 'leaves', 'swallows', 'glint'))
+                    if dd:
+                        spec = {'perches': (('spots',), ('n', 'size', 'bld')), 'sparrows': (('ledges',), ('n', 'size', 'bld')),
+                                'leaves': (('areas',), ('n', 'fall', 'size')), 'swallows': (('band',), ('n', 'size', 'every')), 'glint': (('poly',), ('every', 'k', 'bld'))}
+                        for k, (req, opt) in spec.items():
+                            if k in dd:
+                                o = c.obj(dd[k], '%s.%s' % (wd, k), required=req, optional=opt)
+                                if o:
+                                    lst = o[req[0]]
+                                    if not isinstance(lst, list) or not lst:
+                                        c.err('%s.%s.%s' % (wd, k, req[0]), 'непустой список')
+                        if 'perches' in dd and isinstance(dd['perches'], dict):
+                            for q in dd['perches'].get('spots', []):
+                                c.numbers(q, wd + '.perches.spots', 2, 0, 1)
+                        if 'sparrows' in dd and isinstance(dd['sparrows'], dict):
+                            for q in dd['sparrows'].get('ledges', []):
+                                if not (isinstance(q, list) and len(q) in (4, 5) and all(is_num(x) for x in q)):
+                                    c.err(wd + '.sparrows.ledges', 'карниз [u1, v1, u2, v2] или [u1, v1, u2, v2, 1] (1 — на слое здания)')
                 if am.get('cars') and not c.errors_since(nerr0):
                     if not am.get('roads'):
                         c.err('%s: ambient.cars' % w, 'машины без маски дорог: нужна ambient.roads (нет честной дороги в кадре — машин нет; правило Нарека)')
                     else:
-                        for j, (frac, n) in enumerate(road_coverage(am)):
-                            if frac < ROAD_MIN:
+                        for j, (frac, off, n) in enumerate(road_coverage(am)):
+                            if off > 0:
+                                c.err('%s: ambient.cars[%d].path' % (w, j + 1), 'путь машины заходит на тротуар: %.1f%% точек вне дороги и не за перекрытием (нужно 0; tools/check_roads.py --overlay)' % (off * 100))
+                            elif frac < ROAD_MIN:
                                 c.err('%s: ambient.cars[%d].path' % (w, j + 1), 'путь машины вне дороги: внутри маски ambient.roads (или за перекрытием) %.1f%% точек, нужно ≥ %d%% (tools/check_roads.py рисует оверлей)' % (frac * 100, ROAD_MIN * 100))
         if 'skyBirds' in fr:      # e1.8: false — без трёх одиночных птиц движка (у кадра свои стаи)
             c.boolean(fr['skyBirds'], '%s: skyBirds' % w)

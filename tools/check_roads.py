@@ -4,7 +4,8 @@
   python3 tools/check_roads.py tests/lenin                 # доля точек каждого пути машины внутри ambient.roads (или за перекрытием)
   python3 tools/check_roads.py tests/lenin --overlay DIR   # + картинки roads_<кадр>.jpg: маска (голубым), пути машин, перекрытия
 
-Порог — building_schema.ROAD_MIN (98 %). Ошибка (код 1), если хоть один путь ниже порога или у кадра машины без маски.
+Путь сглаживается как в движке и проверяется по обеим полосам (правостороннее движение, сдвиг lane). Ошибка (код 1): < 98 % точек
+на дороге (building_schema.ROAD_MIN), хоть одна точка на тротуаре (вне маски и не за перекрытием) или машины без маски.
 """
 import json, sys
 from pathlib import Path
@@ -20,9 +21,9 @@ def main():
         if am.get('cars') and not am.get('roads'):
             print('%s: МАШИНЫ БЕЗ МАСКИ ДОРОГ' % fr['name']); bad += 1
         cov = road_coverage(am) if am.get('roads') else []
-        for j, (f, n) in enumerate(cov):
-            ok = f >= ROAD_MIN; bad += not ok
-            print('%s: машина %d (%s): %.1f%% из %d точек на дороге %s' % (fr['name'], j + 1, am['cars'][j]['preset'], f * 100, n, 'OK' if ok else '— МАЛО'))
+        for j, (f, off, n) in enumerate(cov):
+            ok = f >= ROAD_MIN and off == 0; bad += not ok
+            print('%s: машина %d (%s): %.1f%% из %d точек на дороге, на тротуаре %.1f%% %s' % (fr['name'], j + 1, am['cars'][j]['preset'], f * 100, n, off * 100, 'OK' if ok else '— ОШИБКА'))
         if not am.get('cars'):
             print('%s: машин нет%s' % (fr['name'], ' (маска есть)' if am.get('roads') else ''))
         if out:
@@ -34,13 +35,14 @@ def main():
                 d.polygon([P(q) for q in r], fill=(0, 150, 255, 70), outline=(0, 90, 220, 255))
             for o in am.get('occluders', []):
                 d.polygon([P(q) for q in o['poly']], fill=(255, 0, 0, 45), outline=(200, 0, 0, 200))
+            lanes = {'soviet-1950s': 0.3, 'trolley-line': 0.3, 'watering': 0.3}
             for o in am.get('cars', []):
-                for u, v in path_samples(o['path'], o.get('loop', False), 0.004):
+                for u, v in path_samples(o['path'], o.get('loop', False), 0.004, smooth=o.get('smooth', True), lane=o.get('lane', lanes.get(o['preset'], 0.0)), size=o['size']):
                     inside = any(in_poly(u, v, r) for r in am.get('roads', [])) or any(in_poly(u, v, q['poly']) for q in am.get('occluders', [])) or not (0 <= u <= 1 and 0 <= v <= 1)
                     x, y = P((u, v)); rr = 2.2
                     d.ellipse([x - rr, y - rr, x + rr, y + rr], fill=(255, 140, 0, 255) if inside else (255, 0, 0, 255))
             img = Image.alpha_composite(im, ov).convert('RGB'); dd = ImageDraw.Draw(img)
-            dd.rectangle([0, 0, W, 22], fill=(255, 255, 255)); dd.text((6, 5), '%s  roads (blue) | car paths (orange = on road, red = off) | occluders (red)  %s' % (fr['name'], ' '.join('%.0f%%' % (f * 100) for f, n in cov)), fill=(0, 0, 0))
+            dd.rectangle([0, 0, W, 22], fill=(255, 255, 255)); dd.text((6, 5), '%s  roads (blue) | car paths (orange = on road, red = off) | occluders (red)  %s' % (fr['name'], ' '.join('%.0f%%' % (f * 100) for f, off, n in cov)), fill=(0, 0, 0))
             out.mkdir(parents=True, exist_ok=True); img.save(out / ('roads_%s.jpg' % fr['name']), quality=85)
     print('ИТОГ: %s' % ('всё на дорогах' if not bad else 'ОШИБКА: %d путей вне дорог' % bad))
     sys.exit(1 if bad else 0)
