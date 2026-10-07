@@ -1,4 +1,4 @@
-# Библиотека жизни движка (e1.8, дополнено e1.10)
+# Библиотека жизни движка (e1.8, дополнено e1.10–e1.11)
 
 Переиспользуемые модули «живости» для любого здания. Код — `engine/details.js` (блок «БИБЛИОТЕКА ЖИЗНИ»),
 проверка настроек — `tools/building_schema.py`, пример — `tests/lenin/building.json`, доказательства — `tests/lenin/report/live3/`.
@@ -78,7 +78,7 @@
 3. Сборка беты, снимки `?perf=0`, оверлей путей + gif → `report/live*/`. Глазами: никто не идёт сквозь стену, машины на дорогах.
 4. Стоящие машины и ларьки — дорисовать в слой картинки (пример: `tests/lenin/source/p6_static_props.py`), не движком.
 
-## Маска дорог — `ambient.roads` (e1.10)
+## Маска дорог — `ambient.roads` (e1.10; с e1.11 — из Gemini, см. «Рецепт»)
 Список многоугольников [[u, v], …] по нарисованной проезжей части (кольцо — «замочной скважиной»: внешний контур + внутренний обратным ходом).
 Проверка в сборке (`building_schema.road_coverage`, порог `ROAD_MIN` = 98 %): точка пути засчитывается, если она в маске, за перекрытием
 (`occluders`) или за краем кадра. `python3 tools/check_roads.py tests/<здание> --overlay DIR` — проценты и картинки `roads_<кадр>.jpg`
@@ -104,18 +104,61 @@
 | `glint` — наклонная полоса солнечного блика скользит по бронзе раз в 7–13 с, только днём | `poly` (контур статуи), `every`, `k` (яркость) | k 0,3 / 0,26 |
 Флаги на дальних зданиях — только если они есть в рисунке (у C и D нет). На кадре с `details.perches` старый `closeUp.perch` не рисуется.
 
-## Спрайты (e1.10)
-- Атлас `engine/sprites/life.png` + `life.json` (`frames`: имя → [x, y, w, h, якорь x, якорь y]); грузится details.js, ночью рисуется затемнённая копия;
-  нет кадра — прежний векторный рисунок.
-- Сейчас в атласе только птицы (рисунок кодом в стиле сайта, `tools/make_life_sprites.py`): `pigeon_sit/peck`, `pigeon_fly_0..3`, `pigeon_glide`,
-  `pigeon_land`, `sparrow_sit/peck`. Машины и люди кодом вышли игрушечными (лист `tests/lenin/report/live4/sprites-all-rejected.png`) — не включены.
-- Движок уже ждёт: `car_<volga|moskvich|zaz|taxi|trolley>_<номер цвета>` (вид сверху-сбоку, нос вправо, видимый борт внизу; номер цвета — как в CARS
-  details.js) и `walk_<пальто>_<фаза 0..3>` (сбоку, идёт вправо; список пальто — `coats` в life.json). Появятся в атласе — машины и люди станут спрайтами сами.
-- Gemini (только pro.gemini.one1), лист на чисто белом фоне, объекты не касаются, один масштаб. Подсказка (машины):
-  «sprite sheet on plain white background, pencil sketch with cross-hatching and light watercolor wash, Soviet cars of the 1960–80s: GAZ-21 Volga,
-  Moskvich-408, ZAZ-965, Volga taxi with checker stripe, ZiU-9 trolleybus, each seen from above at 45 degrees, nose pointing right, same scale, no shadows».
-  Люди: «… small pedestrians of 1970s Yerevan in coats, side view walking right, 4 walk phases each». Птицы: «… grey city pigeon side view: sitting,
-  pecking, flying wings up/mid/down, gliding, landing».
-- Приёмка: `python3 tools/sprites_intake.py лист.png имя1 имя2 …` (порядок — ряды сверху вниз, слева направо; `--dry` — только показать).
-  Белый фон убирается, кадр приводится к размеру вида, якорь — по виду; одноимённые кадры заменяются.
+## Спрайты (e1.11, Gemini)
+- Атлас `engine/sprites/life.webp` + `life.json` (`frames`: имя → [x, y, w, h, якорь x, якорь y]; `groups`: опорный размер группы —
+  у машины длина бока, у людей рост; все виды группы рисуются в одном масштабе). Ночью — затемнённая копия атласа. Нет кадра — векторный запасной рисунок.
+- Источники — листы Gemini на белом фоне в `library/sprites-src/` (+ образцы стиля `ref_style_*.jpg`); сборка атласа целиком — `bash tools/build_life_atlas.sh`
+  (птицы — `tools/make_life_sprites.py`, остальное — `tools/sprites_intake.py --grid RxC --scale k имена…`).
+- Что есть (эпоха 1950–60-х):
 
+| Группа | Кадры | Где в движке |
+|---|---|---|
+| `car_pobeda`, `car_volga`, `car_trolley`, `car_water` | `_side_r/_l` (бок), `_front_r/_l` (3/4 спереди — едет к зрителю, вниз), `_rear_r/_l` (3/4 сзади — от зрителя, вверх) | `ambient.cars`: вид по направлению на экране, машина стоит ровно (бок чуть наклоняется по дороге, ±0,3 рад) |
+| `walk_mancoat/woman/mansuit` | `_0…_3` фазы шага, идёт вправо (влево — зеркально) | `ambient.walkers` |
+| `stand_manhat/reader/woman` | `_0…_3`: вес на одну ногу, на другую, поворот головы, жест / газета (читает, листает, опускает) / слушает, жест, смеётся | `ambient.standers` |
+| `sit_bench2/shine/feeder` | `_0/_1`: двое на скамье, чистильщик обуви с клиентом, старик кормит голубей | `ambient.scenes` |
+| `pigeon_*`, `sparrow_*` | птицы (кодом, e1.10) | голуби, воробьи |
+
+- Проверка качества: каждый спрайт — на кадре в размере телефона 390×844 (`tests/lenin/report/s2/sprites_on_frame_390x844.jpg`). Выглядит наклеенным
+  или дешевле рисунка — переделать лист или не использовать. Машины и люди кодом (`tests/lenin/report/live4/sprites-all-rejected.png`) — не использовать.
+
+## Пресеты машин и люди (e1.11)
+
+| Пресет | Что | По умолчанию |
+|---|---|---|
+| `soviet-1950s` | «Победа» ×3 к «Волге» ×1 — эпоха, машин мало | bps 1,5, n 2 (у Ленина 1–2), gap 3–9 с, lane 0,3 |
+| `trolley-line` | троллейбус МТБ-82 | bps 1,1, n 1, gap 6–14 с, lane 0,3 |
+| `watering` | поливальная машина (для центра площади) | bps 0,8, n 1, gap 12–30 с, lane 0,3 |
+| `soviet-street` | старый пресет 1970–80-х (Волга/Москвич/ЗАЗ) — для 1950–60-х не брать | |
+
+- `lane` — правостороннее движение: машина едет справа от оси пути на lane × длину машины; кольцо в одну сторону — `"lane": 0` (по оси);
+  узкая дорога — меньше (верхняя дорога B — 0,14). Путь сглаживается (2 прохода Чайкина; `"smooth": false` — выключить).
+- `ambient.standers`: `{"spots": [[u, v, "manhat"|"reader"|"woman", ±1 — куда смотрит]…], "size": рост в долях высоты кадра}` — кадры стойки меняются
+  каждые 1,2–4,5 с в своём порядке, не по кругу. Ночью стоящих нет.
+- `ambient.scenes`: `{"items": [[u, v, "bench2"|"shine"|"feeder", ±1]…], "size": рост человека}` — два кадра, свой темп (чистильщик — быстро).
+- Людей на кадре 2–6 всего (ходят + стоят), на крупном плане ноль — по-прежнему.
+
+## Рецепт: жизнь для нового здания (по шагам)
+1. **Gemini у агента** — Claude in Chrome, только pro.gemini.one1. Картинка в Gemini — из папки вывода сессии в поле загрузки (нажатие «Загрузить файлы»
+   перехватывается, системного окна нет); результат — превью 1024 px из ответа в ~/Downloads (полноразмерная кнопка Gemini иногда молчит; в Chrome
+   разрешить gemini.google.com «скачивание нескольких файлов»).
+2. **Спрайты** (если нужных нет в атласе): в чат — кроп кадра как образец стиля, потом лист на каждый объект/группу. Промпт машины (сработал):
+   «Create an image: a game sprite sheet in EXACTLY the drawing style of the attached picture (pencil lines, cross-hatching, light watercolor wash, same line
+   weight and colors). Subject: <машина>. Seen from a HIGH angle, about 45 degrees from above, like the cars would look in the attached aerial view. Show 6
+   separate drawings of the same car, same scale, 3x2 grid with lots of empty space: top row side view facing right, facing left; middle row three-quarter
+   front view heading down-right, down-left; bottom row three-quarter rear view heading up-right, up-left. Pure flat white background, no ground, no road,
+   no cast shadows, no text, no labels». Люди: «… full figure, seen slightly from above (about 30 degrees), side view walking to the right, 4 walking
+   phases … same height and scale, feet on the same baseline, wide empty gaps». Ответ текстом «не могу» — включить инструмент «Создание изображений»
+   и повторить. Сверить виды с подписью (у троллейбуса 3/4 вышли зеркально — имена в build_life_atlas.sh переставлены).
+   Лист → `library/sprites-src/`, строка в `tools/build_life_atlas.sh`, `bash tools/build_life_atlas.sh`.
+3. **Маска дорог**: новый чат, копия кадра + «Edit this exact image: paint ONLY the roadway — the asphalt carriageway where cars and trolleybuses drive —
+   in pure solid flat red (#FF0000). Do NOT paint sidewalks, the paved square in the middle, courtyards, lawns, trees, roofs or buildings. Keep everything
+   else exactly unchanged: same size, same framing, same drawing». Затем
+   `python3 tools/gemini_road_mask.py tests/<здание> <кадр> ответ.jpg --own --grow 20..34 --overlay DIR --write` — совмещение с рисунком по контурам,
+   красное самого рисунка (венки, флаги) — не дорога, пересечение со своими полигонами по путям (расширенными на --grow), дырки от нарисованных машин
+   закрываются; стоянку можно добавить полигоном вручную. Сырьё и итог — `tests/<здание>/source/roads/`.
+4. **Пути машин**: грубо по сетке 0,025, потом `python3 tools/fit_paths_to_roads.py tests/<здание> <кадр> --write` — ось дороги, концы на дороге;
+   `python3 tools/check_roads.py tests/<здание> --overlay DIR` — 0 точек на тротуаре и ≥ 98 % на дороге по обеим полосам (сборка проверяет то же).
+5. **Стоящие машины** — спрайт «Победы» вклеивается в картинку у бордюра с мягкой тенью и цветностью кадра (`tests/lenin/source/p6_static_props.py`, PARKED).
+6. **Люди**: ходят 1–2 пути по тротуарам, стоят 1–3 (`standers`), сценки — у центра площади (`scenes`); всего 2–6, мелко.
+7. **Глазами**: снимки 390×844 и gif; наклеенное — убрать.
