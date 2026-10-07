@@ -26,7 +26,7 @@
   // clouds (сколько облаков), cloudScale (размер облаков, если задан — одинаковый), sunDay / sunSet / moon ([u, v] на кадре),
   // sunDayDrawn (солнце уже нарисовано на картинке — только ореол), lawn ([u0, v0, u1, v1] — бабочки и светлячки; нет — их нет),
   // closeUp (крупный план: glints — блики в окнах, perch — кромка, куда садятся птицы, mast — мачта флага [u низ, v низ, u верх, v верх]; banner — знамя [u середины, v карниза, v низа, полуширина])
-  // e1.10 СПРАЙТЫ библиотеки жизни (engine/sprites/life.png + life.json; tools/make_life_sprites.py, docs/ENGINE-LIFE.md «Спрайты»).
+  // e1.10–e1.11 СПРАЙТЫ библиотеки жизни (engine/sprites/life.webp + life.json; машины и люди — из Gemini (tools/sprites_intake.py), птицы — tools/make_life_sprites.py, docs/ENGINE-LIFE.md «Спрайты»).
   // Пока не загрузились или кадра нет — рисуется прежний векторный вариант. Ночью — затемнённая копия атласа (птицы не светятся на тёмном).
   var SPR = { ok: false, img: null, dark: null, meta: null };
   (function () {
@@ -39,7 +39,8 @@
         x.drawImage(im, 0, 0); x.globalCompositeOperation = 'source-atop'; x.fillStyle = 'rgba(18,24,50,0.72)'; x.fillRect(0, 0, c.width, c.height);
         SPR.img = im; SPR.dark = c; SPR.meta = m; SPR.ok = true;
       };
-      im.src = base + 'sprites/life.png' + q;
+      im.onerror = function () { if (!/png/.test(im.src)) im.src = base + 'sprites/life.png' + q; };
+      im.src = base + 'sprites/life.webp' + q;
     }).catch(function () {});
   })();
   function spr(name, x, y, w, flip, rot, a) {   // кадр атласа шириной w px; якорь кадра — в точке (x, y)
@@ -49,6 +50,11 @@
     if (n < 0.98) { ctx.globalAlpha = a * (1 - n); ctx.drawImage(SPR.img, fr[0], fr[1], fr[2], fr[3], -fr[4] * w, -fr[5] * h, w, h); }
     if (n > 0.02) { ctx.globalAlpha = a * n; ctx.drawImage(SPR.dark, fr[0], fr[1], fr[2], fr[3], -fr[4] * w, -fr[5] * h, w, h); }
     ctx.restore(); return true;
+  }
+  function sprH(name, x, y, h, flip, a) {   // e1.11: кадр высотой h × (свой рост / рост группы) — все кадры группы в одном масштабе
+    if (!SPR.ok) return false; var fr = SPR.meta.frames[name]; if (!fr) return false;
+    var g = SPR.meta.groups && SPR.meta.groups[name.split('_').slice(0, 2).join('_')], hh = h * fr[3] / (g ? g[1] : fr[3]);
+    return spr(name, x, y, hh * fr[2] / fr[3], flip, 0, a);
   }
   function pigeonFly(x, y, s, flap, head, a, land) {   // голубь в полёте: спрайт по фазе крыла; s — как у flyBird (размах)
     var nm = land ? 'pigeon_land' : flap > 0.6 ? 'pigeon_fly_0' : flap > 0.22 ? 'pigeon_fly_1' : flap > 0.08 ? 'pigeon_glide' : flap > -0.45 ? 'pigeon_fly_2' : 'pigeon_fly_3';
@@ -598,16 +604,30 @@
   var LIFE_PRESETS = {
     walkers: { 'far-pedestrians': { bps: 0.62, n: 3, gap: [2, 9] } },
     cars: { 'soviet-street': { bps: 1.7, n: 2, gap: [1.5, 6], kinds: ['volga', 'moskvich', 'volga', 'zaz', 'taxi'] },
-            'trolley-line': { bps: 1.1, n: 1, gap: [6, 14], kinds: ['trolley'] } },
+            'trolley-line': { bps: 1.1, n: 1, gap: [6, 14], kinds: ['trolley'], lane: 0.3 },
+            'soviet-1950s': { bps: 1.5, n: 2, gap: [3, 9], kinds: ['pobeda', 'pobeda', 'pobeda', 'volga'], lane: 0.3 },   // e1.11: эпоха 1950–60-х, машин мало
+            'watering': { bps: 0.8, n: 1, gap: [12, 30], kinds: ['water'], lane: 0.3 } },
     flocks: { pigeons: { n: 9, rest: [7, 18], fly: [4, 8], radius: 0.06 }, sky: { n: 11, every: [9, 22], size: 0.012 } }
   };
   function lp(kind, o) { if (o._p) return o._p; var b = (LIFE_PRESETS[kind] || {})[o.preset] || {}, r = {}, k; for (k in b) r[k] = b[k]; for (k in o) r[k] = o[k]; o._p = r; return r; }
+  var STAND_SEQ = { manhat: [0, 1, 0, 1, 2, 3], reader: [0, 0, 1, 0, 2, 3], woman: [0, 1, 2, 3, 1] };   // e1.11: какие кадры стойки и как часто
+  var WALKERS = ['mancoat', 'woman', 'mansuit'];   // e1.11: пешеходы-спрайты из Gemini (walk_<кто>_<фаза>)
   var COATS = ['105,115,128', '128,98,84', '96,108,90', '120,112,130', '146,128,96', '84,92,104', '130,86,80'];
-  var CARS = { volga: ['214,206,184', '162,176,160', '146,160,178', '120,128,138', '190,168,150'], moskvich: ['176,64,56', '96,128,150', '200,190,150', '110,140,110'], zaz: ['226,214,170', '150,170,200', '196,96,70'], taxi: ['232,214,150'], trolley: ['224,204,140'] };
+  var CARS = { volga: ['214,206,184', '162,176,160', '146,160,178', '120,128,138', '190,168,150'], moskvich: ['176,64,56', '96,128,150', '200,190,150', '110,140,110'], zaz: ['226,214,170', '150,170,200', '196,96,70'], taxi: ['232,214,150'], trolley: ['224,204,140'], pobeda: ['176,190,176'], water: ['96,120,90'] };
   function aspect() { var FS = root.CONFIG.FRAME_SIZE || [768, 1365]; return FS[0] / FS[1]; }
+  function chaikin(pts, loop) {   // e1.11: плавные повороты — путь сглаживается (2 прохода Чайкина); tools/check_roads.py проверяет тот же сглаженный путь
+    for (var it = 0; it < 2; it++) {
+      var out = [], n = pts.length, i;
+      if (!loop) out.push(pts[0]);
+      for (i = 0; i < (loop ? n : n - 1); i++) { var A = pts[i], B = pts[(i + 1) % n]; out.push([A[0] * 0.75 + B[0] * 0.25, A[1] * 0.75 + B[1] * 0.25], [A[0] * 0.25 + B[0] * 0.75, A[1] * 0.25 + B[1] * 0.75]); }
+      if (!loop) out.push(pts[n - 1]);
+      pts = out;
+    }
+    return pts;
+  }
   function pathOf(o) {   // ломаная; длина — в долях высоты кадра (u переводится по пропорции кадра)
     if (o._L) return o._L;
-    var P0 = o.path.slice(), ar = aspect(); if (o.loop) P0.push(P0[0]);
+    var P0 = o.smooth === false ? o.path.slice() : chaikin(o.path, o.loop), ar = aspect(); if (o.loop) P0.push(P0[0]);
     var L = [0]; for (var i = 1; i < P0.length; i++) L.push(L[i - 1] + Math.hypot((P0[i][0] - P0[i - 1][0]) * ar, P0[i][1] - P0[i - 1][1]));
     o._P = P0; o._L = L; return L;
   }
@@ -641,6 +661,17 @@
     ln(x - h * 0.04, y - h * 0.38, x - h * 0.04 + sw, y); ln(x + h * 0.04, y - h * 0.38, x + h * 0.04 - sw, y);
   }
   function car(x, y, len, ang, kind, body, col, a, lights, now, i) {   // машина эпохи сверху-сбоку: кузов акварелью, крыша, стёкла, контур карандашом
+    var SM = { pobeda: 'pobeda', volga: 'volga', taxi: 'volga', trolley: 'trolley', water: 'water' }[kind], gr = SM && SPR.ok && SPR.meta.groups && SPR.meta.groups['car_' + SM];
+    if (gr) {   // e1.11: спрайт из Gemini — вид по направлению на экране: бок / 3/4 спереди (едет к зрителю) / 3/4 сзади; машина стоит ровно, не крутится
+      var cs = Math.cos(ang), sn0 = Math.sin(ang), view = Math.abs(sn0) < 0.42 ? 'side' : (sn0 > 0 ? 'front' : 'rear'), nm = 'car_' + SM + '_' + view + '_' + (cs >= 0 ? 'r' : 'l'), fr = SPR.meta.frames[nm];
+      if (fr) {
+        var sw = len * fr[2] / gr[0], sh = fr[3] * sw / fr[2];
+        ctx.save(); ctx.globalAlpha = a * 0.2 * (1 - 0.6 * lights); ctx.fillStyle = 'rgb(40,35,30)'; ctx.beginPath(); ctx.ellipse(x, y - sh * 0.02, sw * 0.45, Math.max(1, sh * 0.13), 0, 0, 6.283); ctx.fill(); ctx.restore();
+        spr(nm, x, y, sw, false, view === 'side' ? clamp(Math.atan(Math.tan(ang)), -0.3, 0.3) : 0, a);
+        if (lights > 0.05) { ctx.save(); ctx.translate(x, y - sh * 0.3); ctx.rotate(ang); carLights(len * (view === 'side' ? 1 : 0.7), len * 0.43, kind, a, lights, true); ctx.restore(); }
+        return;
+      }
+    }
     var shape = { volga: [0.43, 0.42, 0.34], moskvich: [0.44, 0.3, 0.36], zaz: [0.5, 0.5, 0.4], taxi: [0.43, 0.42, 0.34], trolley: [0.27, 0.1, 0.0] }[kind] || [0.43, 0.4, 0.34];
     var wd = len * shape[0], r = wd * shape[1];
     ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
@@ -670,8 +701,8 @@
     if (lights > 0.05) carLights(len, wd, kind, a, lights);
     ctx.restore();
   }
-  function carLights(len, wd, kind, a, L) {   // e1.10 ночь: кузов в темноте, лучи фар ложатся на дорогу, красные задние огни; троллейбус — тёплый салон
-    ctx.globalAlpha = a * 0.6 * L; ctx.fillStyle = 'rgb(16,20,40)'; ctx.fillRect(-len / 2, -wd / 2, len, wd);
+  function carLights(len, wd, kind, a, L, noBody) {   // e1.10 ночь: кузов в темноте, лучи фар ложатся на дорогу, красные задние огни; троллейбус — тёплый салон
+    if (!noBody) { ctx.globalAlpha = a * 0.6 * L; ctx.fillStyle = 'rgb(16,20,40)'; ctx.fillRect(-len / 2, -wd / 2, len, wd); }
     ctx.globalCompositeOperation = 'lighter';
     var g = ctx.createLinearGradient(len / 2, 0, len / 2 + len * 2.4, 0);
     g.addColorStop(0, 'rgba(255,228,170,' + 0.34 * L * a + ')'); g.addColorStop(1, 'rgba(255,228,170,0)');
@@ -679,7 +710,7 @@
     ctx.globalAlpha = a * L; ctx.fillStyle = 'rgb(255,244,210)'; ctx.beginPath(); ctx.arc(len / 2, -wd * 0.3, wd * 0.12, 0, 6.283); ctx.arc(len / 2, wd * 0.3, wd * 0.12, 0, 6.283); ctx.fill();
     ctx.fillStyle = 'rgb(255,46,34)'; ctx.globalAlpha = a * 0.95 * L; ctx.beginPath(); ctx.arc(-len / 2, -wd * 0.32, wd * 0.11, 0, 6.283); ctx.arc(-len / 2, wd * 0.32, wd * 0.11, 0, 6.283); ctx.fill();
     ctx.globalAlpha = a * 0.3 * L; ctx.beginPath(); ctx.arc(-len / 2, -wd * 0.32, wd * 0.3, 0, 6.283); ctx.arc(-len / 2, wd * 0.32, wd * 0.3, 0, 6.283); ctx.fill();
-    if (kind === 'trolley') { ctx.globalAlpha = a * 0.5 * L; ctx.fillStyle = 'rgb(255,214,140)'; for (var k = 0; k < 6; k++) ctx.fillRect(-len * 0.44 + k * len * 0.15, -wd * 0.3, len * 0.09, wd * 0.6); }
+    if (kind === 'trolley' && !noBody) { ctx.globalAlpha = a * 0.5 * L; ctx.fillStyle = 'rgb(255,214,140)'; for (var k = 0; k < 6; k++) ctx.fillRect(-len * 0.44 + k * len * 0.15, -wd * 0.3, len * 0.09, wd * 0.6); }
     ctx.globalCompositeOperation = 'source-over';
   }
   function flyBird(x, y, s, flap, head, col, a) {   // птица в полёте: тело, голова, хвост, крылья — заливкой с карандашным краем
@@ -896,13 +927,13 @@
     (A.walkers || []).forEach(function (o0, gi) {   // мелкие люди: идут по пути с перерывами, скорость — в ростах в секунду
       var o = lp('walkers', o0), n = Math.round(o.n * (1 - 0.85 * night)), st = o0._st || (o0._st = []);   // ночью людей почти нет
       for (var i = 0; i < n; i++) {
-        var m = st[i] || (st[i] = { s: Math.random(), dir: Math.random() < 0.5 ? 1 : -1, wait: 0, sp: rnd(0.85, 1.15), coat: COATS[(i * 3 + gi) % COATS.length] });
+        var m = st[i] || (st[i] = { s: Math.random(), dir: Math.random() < 0.5 ? 1 : -1, wait: 0, sp: rnd(0.85, 1.15), coat: COATS[(i * 3 + gi) % COATS.length], who: WALKERS[(i + gi) % WALKERS.length] });
         if (m.wait > 0) { m.wait -= dt; continue; }
         var L = pathOf(o0), tot = L[L.length - 1], sz = o.size[0] + (o.size[1] - o.size[0]) * m.s;
         m.s += m.dir * o.bps * m.sp * sz * dt / Math.max(1e-6, tot);
         if (m.s > 1 || m.s < 0) { m.dir = Math.random() < 0.5 ? 1 : -1; m.s = m.dir > 0 ? 0 : 1; m.wait = rnd(o.gap[0], o.gap[1]); continue; }
         var q = along(o0, m.s), e = Math.min(1, m.s / 0.04, (1 - m.s) / 0.04);
-        (function (q, sz, e, m) { Q.push({ v: q.v, d: function () { var h = sizePx(f, q.u, q.v, sz), p = ground(f, q.u, q.v); if (h < 1.5) return; tinyPerson(p[0], p[1], h, t * 7 * m.sp + m.s * 40, m.coat, col, a0 * e, m.dir); } }); })(q, sz, e, m);
+        (function (q, sz, e, m) { Q.push({ v: q.v, d: function () { var h = sizePx(f, q.u, q.v, sz), p = ground(f, q.u, q.v); if (h < 1.5) return; var ph = Math.floor(t * 4.4 * m.sp + m.s * 30) % 4; if (!sprH('walk_' + m.who + '_' + ph, p[0], p[1], h, m.dir < 0, a0 * e)) tinyPerson(p[0], p[1], h, t * 7 * m.sp + m.s * 40, m.coat, col, a0 * e, m.dir); } }); })(q, sz, e, m);
       }
     });
     (A.cars || []).forEach(function (o0, gi) {   // машины: по дорогам, с перерывами; скорость — в длинах машины в секунду
@@ -916,11 +947,31 @@
         if (o.loop) m.s = (m.s % 1 + 1) % 1;
         else if (m.s > 1 || m.s < 0) { m.s = m.dir > 0 ? 0 : 1; m.wait = rnd(o.gap[0], o.gap[1]); m.kind = kinds[Math.floor(Math.random() * kinds.length)]; m.body = CARS[m.kind][Math.floor(Math.random() * CARS[m.kind].length)]; continue; }
         var q = along(o0, m.s), e = o.loop ? 1 : Math.min(1, m.s / 0.03, (1 - m.s) / 0.03);
+        if (o.lane) {   // e1.11: правостороннее движение — машина держится своей полосы, справа от середины дороги
+          var dxl = q.du * ar * m.dir, dyl = q.dv * m.dir, Ll = Math.hypot(dxl, dyl) || 1, off = o.lane * sz;
+          q = { u: q.u - dyl / Ll * off / ar, v: q.v + dxl / Ll * off, du: q.du, dv: q.dv };
+        }
         (function (q, sz, e, m, i) { Q.push({ v: q.v, d: function () {
-          var d = gd(f, q.u, q.v), p = P(q.u, q.v, d), ah = P(q.u + q.du * 0.01 * m.dir, q.v + q.dv * 0.01 * m.dir, d), len = sizePx(f, q.u, q.v, sz) * (m.kind === 'trolley' ? 2.6 : m.kind === 'zaz' ? 0.8 : 1);
+          var d = gd(f, q.u, q.v), p = P(q.u, q.v, d), ah = P(q.u + q.du * 0.01 * m.dir, q.v + q.dv * 0.01 * m.dir, d), len = sizePx(f, q.u, q.v, sz) * (m.kind === 'trolley' ? 2.6 : m.kind === 'zaz' ? 0.8 : m.kind === 'water' ? 1.3 : 1);
           if (len < 2) return; car(p[0], p[1], len, Math.atan2(ah[1] - p[1], ah[0] - p[0]), m.kind, m.body, col, a0 * e, night, now, i);
         } }); })(q, sz, e, m, i);
       }
+    });
+    // e1.11 стоящие люди: живая стойка из 4 кадров (вес с ноги на ногу, поворот головы, жест, газета) — кадры меняются в своём ритме, не по кругу
+    (A.standers && A.standers.spots || []).forEach(function (sp0, j) {
+      var S = A.standers, st = S._st || (S._st = []), m = st[j] || (st[j] = { fr: 0, next: t + rnd(0.5, 3) });
+      if (t > m.next) { var who = sp0[2] || 'manhat', seq = STAND_SEQ[who] || STAND_SEQ.manhat; m.fr = seq[(Math.random() * seq.length) | 0]; m.next = t + rnd(1.2, 4.5); }
+      var q = { u: sp0[0], v: sp0[1] }, a1 = a0 * (1 - night);
+      if (a1 < 0.03) return;
+      Q.push({ v: q.v, d: function () { var h = sizePx(f, q.u, q.v, S.size || 0.012), p = ground(f, q.u, q.v); if (h >= 2) sprH('stand_' + (sp0[2] || 'manhat') + '_' + m.fr, p[0], p[1], h, (sp0[3] || 1) < 0, a1); } });
+    });
+    // e1.11 сценки: двое на скамье, чистильщик обуви, старик кормит голубей — два кадра, свой темп
+    (A.scenes && A.scenes.items || []).forEach(function (it, j) {
+      var S = A.scenes, st = S._st || (S._st = []), m = st[j] || (st[j] = { fr: 0, next: t + rnd(0.3, 2) }), kind = it[2] || 'bench2';
+      if (t > m.next) { m.fr = 1 - m.fr; m.next = t + (kind === 'shine' ? rnd(0.3, 0.45) : kind === 'feeder' ? rnd(0.8, 1.8) : rnd(1.4, 3.5)); }
+      var q = { u: it[0], v: it[1] }, a1 = a0 * (1 - night);
+      if (a1 < 0.03) return;
+      Q.push({ v: q.v, d: function () { var h = sizePx(f, q.u, q.v, S.size || 0.012), p = ground(f, q.u, q.v); if (h >= 2) sprH('sit_' + kind + '_' + m.fr, p[0], p[1], h, (it[3] || 1) < 0, a1); } });
     });
     Q.sort(function (x, y) { return x.v - y.v; });
     Q.forEach(function (q) { var c = occClip(f, A, q.v); q.d(); if (c) ctx.restore(); ctx.globalAlpha = 1; });
