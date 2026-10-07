@@ -39,7 +39,7 @@ Gemini: файл прикреплять заново каждый раз и см
 | 3.2 Точки | 3–4 точки: `key` из `facts`, `layer` building/bg, `u`,`v` по скриншоту | `--check`: точек 3–4, ключи есть в facts |
 | 3.3 Фонари | По ночной картинке: `nightLamps` [u лампы, v, u основания, v] | на ночном скриншоте ореолы на фонарях |
 | 3.4 Шоу | `"parade": "<вид>"` (planes, drones, heli, fireworks, balloons; banner — только с closeUp) | кнопка-флаг на кадре горит, шоу доходит до конца |
-| 3.4б Живость | ≥ 3 постоянных движения, заметных за 3 с: `cloudShadow`, `wind`, `life`, по рисунку — `ambient` (`walkers`/`cars`/`flocks`/`occluders`, пресеты и правила — `docs/ENGINE-LIFE.md`), `fountains`, `closeUp.perch`, `lawn`, `flag`. Люди только мелкие, на крупном плане ноль; пути вручную по дорогам; статика — в картинку | gif 390×844 и `paths_<кадр>.jpg` в `report/live*/`: никто не идёт сквозь стену, машины на дорогах |
+| 3.4б Живость | ≥ 3 постоянных движения, заметных за 3 с: `cloudShadow`, `wind`, `life`, по рисунку — `ambient` (`walkers`/`cars`/`flocks`/`occluders`, пресеты и правила — `docs/ENGINE-LIFE.md`), `fountains`, `closeUp.perch`, `lawn`, `flag`. Люди только мелкие, на крупном плане ноль; пути вручную по дорогам + маска `ambient.roads` (`tools/check_roads.py`); статика — в картинку; крупный план — `ambient.details` | gif 390×844 и `paths_<кадр>.jpg` в `report/live*/`: никто не идёт сквозь стену, машины на дорогах |
 | 3.5 В здание | `python3 tools/new_frame.py <здание> <кадр> --add` — слои в `frames/`, кадр в building.json **скрытым** (`hidden: true`) | `test_build_pages.py` зелёный; снять `hidden` — отдельным решением Нарека перед публикацией беты |
 
 ## 4. Проверка
