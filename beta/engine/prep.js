@@ -329,10 +329,10 @@
         if (y < h - 1 && !lab[p + w] && mask[p + w] > thr) { lab[p + w] = nl; stack[sp++] = p + w; }
       }
       var bw = x1 - x0 + 1, bh = y1 - y0 + 1, aspect = bw / bh, fill = list.length / (bw * bh);
-      if (list.length < 6 || bw * bh > 3000 || aspect > opt.amax || aspect < opt.amin || fill < opt.fill) continue;
+      if (list.length < (opt.min || 6) || bw * bh > 3000 || aspect > opt.amax || aspect < opt.amin || fill < opt.fill) continue;
       // Овал по рамке найденного пятна: свет строго внутри эллипса (мягкий край внутрь), ничего за контуром.
       // Пятно должно быть похоже на овал (заполнение ~0.6–0.95 рамки), иначе считаем распознавание неуверенным.
-      if (fill > 0.97) continue;
+      if (fill > 0.97 && !opt.rect) continue;   // e1.12: окна из маски Gemini (nightWins) — прямоугольники, их берём
       var cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, rx = bw / 2 + 0.3, ry = bh / 2 + 0.3;
       var idx = [], val = [], yr, xr;
       for (yr = y0; yr <= y1; yr++) for (xr = x0; xr <= x1; xr++) {
@@ -376,7 +376,8 @@
     var areas = winsT.map(function (q) { return q.bw * q.bh; }).sort(function (a, b) { return a - b; });
     var a85 = areas.length ? areas[Math.floor(areas.length * 0.85)] : 0;
     winsT = winsT.filter(function (q) { var a = q.bw * q.bh; return q.bw >= 0.55 * med && a >= 0.4 * a85 && a <= 1.9 * a85; });
-    var winsO = labelWindows(maskO, ew, eh, 100, { amin: 0.6, amax: 2.6, fill: 0.7 });
+    var gw = CONFIG.NIGHT_WINS && CONFIG.NIGHT_WINS[frameIdx];   // e1.12: окна других зданий из маски Gemini — мелкие и прямоугольные
+    var winsO = labelWindows(maskO, ew, eh, 100, gw ? { amin: 0.25, amax: 4, fill: 0.45, min: 2, rect: true } : { amin: 0.6, amax: 2.6, fill: 0.7 });
     var wins = [];
     [[winsT, 0, CONFIG.NIGHT_MAIN_LIT], [winsO, 1, CONFIG.NIGHT_OTHER_LIT]].forEach(function (g) {
       var frac = g[2][0] + (g[2][1] - g[2][0]) * hsh(seed, 1000 + g[1]);
