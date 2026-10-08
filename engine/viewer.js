@@ -1330,13 +1330,35 @@
     demo = null;
     targetX = gyroActive ? gyroTargetX : 0; targetY = gyroActive ? gyroTargetY : 0;
   }
-  window.__demoTilt = function () { setTimeout(demoStart, 250); setTimeout(menuHint, 2600); };   // после начала растворения приветствия
-  // e1.7: подсказка к бирке «Меню» — только телефон, только при самом первом заходе (потом не повторяется)
-  function menuHint() {
-    if (desktopMQ.matches || lsGet('chka-menu-hint') || bodyEl.classList.contains('sheet-open')) return;
-    lsSet('chka-menu-hint', '1');
-    panelBtn.classList.add('pb-hint');
-    setTimeout(function () { panelBtn.classList.remove('pb-hint'); }, 3800);
+  window.__demoTilt = function () { setTimeout(demoStart, 250); setTimeout(showHint, 2600); };   // после начала растворения приветствия
+  // e1.12 (s4): подсказка при первом заходе — карандашная стрелка к кнопке шоу (не к меню): телефон, один раз
+  function showHint() {
+    var b = document.getElementById('flagBtnB');
+    if (desktopMQ.matches || !b || b.hidden || b.classList.contains('off-frame') || lsGet('chka-show-hint') || bodyEl.classList.contains('sheet-open')) return;
+    lsSet('chka-show-hint', '1');
+    b.classList.add('sh-hint');
+    setTimeout(function () { b.classList.remove('sh-hint'); }, 4400);
+  }
+  // e1.12 (s4): нажали шоу — из кнопки в кадр разлетаются искры (цвета флага и тёплое золото), ~0,9 с
+  function magicSparks(b) {
+    if (reduced() || !b.getBoundingClientRect || !document.body.animate) return;
+    var r = b.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    var COL = ['#d90012', '#1c4cc0', '#f2a800', '#f6d27a', '#fff3c4'];
+    for (var k = 0; k < 16; k++) {
+      var el = document.createElement('div'), star = k % 3 !== 2, c = COL[k % COL.length], sz = star ? 12 + Math.random() * 12 : 5 + Math.random() * 5;
+      el.className = 'mg-spark'; el.setAttribute('aria-hidden', 'true');
+      el.style.width = el.style.height = sz + 'px'; el.style.margin = (-sz / 2) + 'px 0 0 ' + (-sz / 2) + 'px';
+      el.innerHTML = star ? '<svg viewBox="0 0 20 20"><path d="M10 1 Q11 8.6 19 10 Q11 11.4 10 19 Q9 11.4 1 10 Q9 8.6 10 1Z" fill="' + c + '" stroke="#2f2a25" stroke-width="1.2" stroke-linejoin="round"/></svg>'
+        : '<svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" fill="' + c + '"/></svg>';
+      document.body.appendChild(el);
+      var ang = -Math.PI * (0.18 + 0.82 * Math.random()), dist = 110 + Math.random() * 230, dx = Math.cos(ang) * dist, dy = Math.sin(ang) * dist * 1.25, rot = (Math.random() - 0.5) * 540;
+      var an = el.animate([
+        { transform: 'translate(' + cx + 'px,' + cy + 'px) scale(0.3) rotate(0deg)', opacity: 0 },
+        { transform: 'translate(' + (cx + dx * 0.35) + 'px,' + (cy + dy * 0.35) + 'px) scale(1.15) rotate(' + rot * 0.4 + 'deg)', opacity: 1, offset: 0.25 },
+        { transform: 'translate(' + (cx + dx) + 'px,' + (cy + dy + 30) + 'px) scale(0.5) rotate(' + rot + 'deg)', opacity: 0 }
+      ], { duration: 700 + Math.random() * 450, delay: Math.random() * 120, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'both' });
+      (function (e) { an.onfinish = function () { if (e.parentNode) e.parentNode.removeChild(e); }; setTimeout(function () { if (e.parentNode) e.parentNode.removeChild(e); }, 2000); })(el);
+    }
   }
 
   // ---------- кнопка «Парад» (флаг Армении): три истребителя и дымные следы, рисует details.js ----------
@@ -1399,9 +1421,11 @@
   }
   flagBtns.forEach(function (b) {
     b.addEventListener('click', function () {
+      lsSet('chka-show-hint', '1'); b.classList.remove('sh-hint');
       if (paradeBusy) { stopParade(); return; }
       if (!hasParade(frameIndex) || fade) return;
       closePopup(); closeSheet();
+      magicSparks(b);
       setParadeBusy(true);
       paradeWant = { since: performance.now(), shown: null };
     });

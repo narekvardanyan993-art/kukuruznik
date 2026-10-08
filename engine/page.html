@@ -135,7 +135,7 @@
     display: grid; place-items: center; padding: 0; flex: none;
     border: 2px solid var(--ink); border-radius: 50% 44% 50% 44%; background: var(--paper); color: var(--ink);
     box-shadow: 0 6px 16px rgba(60,45,20,0.26), 2px 3px 0 rgba(47,42,37,0.14);
-    cursor: pointer; text-decoration: none;
+    cursor: var(--cp); text-decoration: none;
     transition: filter 200ms var(--spring), transform 200ms var(--spring), background-color 200ms var(--spring);
   }
   .arrow-btn svg { display: block; }
@@ -349,7 +349,7 @@
   .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0; border: 2px solid var(--ink); border-radius: 12px 6px 12px 6px / 6px 12px 6px 12px; overflow: hidden; }
   .seg button {
     min-height: 48px; padding: var(--s1) 4px; border: none; border-right: 1px solid rgba(47,42,37,0.5);
-    background: transparent; color: var(--ink); cursor: pointer;
+    background: transparent; color: var(--ink); cursor: var(--cp);
     font: 600 var(--fs-small)/1.15 var(--font);
   }
   .seg button:last-child { border-right: none; }
@@ -362,7 +362,7 @@
   .chips-one { padding: 4px; border-radius: 16px; background: rgba(47,42,37,0.07); box-shadow: inset 0 1px 2px rgba(47,42,37,0.12); }
   .chip { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 60px; padding: 7px 3px 6px;
     border: 1.5px solid rgba(47,42,37,0.22); border-radius: 13px; background: rgba(255,252,244,0.75); color: var(--ink);
-    font: 600 12px/1.3 var(--font); cursor: pointer; box-shadow: 0 1px 0 rgba(47,42,37,0.10);
+    font: 600 12px/1.3 var(--font); cursor: var(--cp); box-shadow: 0 1px 0 rgba(47,42,37,0.10);
     transition: background-color 220ms var(--spring), color 220ms var(--spring), border-color 220ms var(--spring), transform 160ms var(--spring), box-shadow 220ms var(--spring); }
   .chips-one .chip { border-color: transparent; background: transparent; box-shadow: none; }
   .chip:active { transform: scale(0.94); }
@@ -441,7 +441,7 @@
   #thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s1); }
   #thumbs button {
     position: relative; padding: 0; border: 1.5px solid rgba(47,42,37,0.25); border-radius: 12px;
-    overflow: hidden; cursor: pointer; background: #000; aspect-ratio: 4 / 5; box-shadow: 0 1px 0 rgba(47,42,37,0.12);
+    overflow: hidden; cursor: var(--cp); background: #000; aspect-ratio: 4 / 5; box-shadow: 0 1px 0 rgba(47,42,37,0.12);
     transition: border-color 260ms var(--spring), transform 320ms var(--spring), box-shadow 320ms var(--spring);
   }
   #thumbs button img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 58%; transition: transform 600ms var(--spring), filter 400ms; filter: saturate(0.85); }
@@ -460,7 +460,7 @@
   .p-row { display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: var(--s1); }
   .switch {
     flex: none; width: 54px; height: 30px; border-radius: 15px; border: 2px solid var(--ink);
-    background: transparent; position: relative; cursor: pointer;
+    background: transparent; position: relative; cursor: var(--cp);
     transition: background var(--dur) var(--spring);
   }
   .switch::after {
@@ -470,7 +470,7 @@
   .switch.on { background: var(--ink); }
   .switch.on::after { transform: translateX(24px); background: var(--paper); }
   .p-btn {
-    display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; padding: var(--s1) var(--s2); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; padding: var(--s1) var(--s2); cursor: var(--cp);
     border: 2px solid var(--ink); border-radius: 12px 6px 12px 6px / 6px 12px 6px 12px;
     background: transparent; color: var(--ink); text-align: center;
     font: 700 var(--fs-body)/1.15 var(--font);
@@ -487,7 +487,7 @@
   /* Наведение мышью: подсвечивается только элемент прямо под курсором и еле заметно —
      фон на 4% темнее; без подъёма и теней, группой ничего не подсвечивается. */
   @media (hover: hover) and (pointer: fine) {
-    .seg button, .p-btn, .switch, #thumbs button, #panelBtn, .arrow-btn { cursor: pointer; }
+    .seg button, .p-btn, .switch, #thumbs button, #panelBtn, .arrow-btn { cursor: var(--cp); }
     .seg button, .p-btn { transition: background-color 200ms var(--spring); }
     .switch, #thumbs button { transition: filter 200ms var(--spring); }
     #panelBtn { transition: left var(--dur) var(--spring), filter 200ms var(--spring); }
@@ -499,7 +499,7 @@
      открыть/закрыть шторку. При переключении колесо поворачивается на пружине, а лучи по очереди прорисовываются заново. */
   #panelBtn {
     position: fixed; z-index: 60; border: 2px solid var(--ink); background: var(--paper); color: var(--ink);
-    cursor: pointer; padding: 0;
+    cursor: var(--cp); padding: 0;
     box-shadow: 0 6px 16px rgba(60,45,20,0.3), 2px 3px 0 rgba(47,42,37,0.14);
     display: flex; align-items: center; justify-content: center;
     transition: left var(--dur) var(--spring), transform var(--dur) var(--spring), background var(--dur) var(--spring);
@@ -535,7 +535,7 @@
     html.panel-anim body.sheet-open .panel-scroll > * { animation: itemIn 520ms var(--ease) both; animation-delay: calc(650ms + var(--n, 0) * 70ms); }
     html.panel-anim body.sheet-open .chips > .chip, html.panel-anim body.sheet-open #thumbs button { animation: chipIn 460ms var(--spring) both; animation-delay: calc(760ms + var(--n, 0) * 70ms + var(--c, 0) * 60ms); }
     #sheetClose { display: grid; place-items: center; position: absolute; top: 10px; right: 10px; z-index: 4; width: 40px; height: 40px; border-radius: 50%;
-      border: 1.5px solid rgba(47,42,37,0.3); background: rgba(255,252,244,0.85); color: var(--ink); cursor: pointer; }
+      border: 1.5px solid rgba(47,42,37,0.3); background: rgba(255,252,244,0.85); color: var(--ink); cursor: var(--cp); }
     #sheetClose svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 1; }
     html.panel-anim body.sheet-open #sheetClose { animation: chipIn 420ms var(--spring) 900ms both; }
     html.panel-anim body.sheet-open #sheetClose path { animation: penDraw 380ms ease 1050ms both; }
@@ -599,7 +599,7 @@
     position: absolute; top: 0; left: 0;
     width: 22px; height: 22px; margin: -11px;
     border: none; padding: 0; background: none;
-    pointer-events: auto; cursor: pointer;
+    pointer-events: auto; cursor: var(--cp);
     opacity: 0; transition: opacity var(--dur) var(--spring);
   }
   .hs-dot.show { opacity: 1; }
@@ -707,7 +707,7 @@
   }
 
   /* e1.7: на телефоне кнопка панели — бумажная бирка карандашом: значок-список и слово «Меню» на языке страницы (люди не узнавали
-     колесо как меню). Первый заход: бирка один раз качнётся, рядом прорисуется стрелка (viewer.js menuHint, localStorage chka-menu-hint). */
+     колесо как меню). С e1.12 стрелка первого захода — у кнопки шоу (viewer.js showHint), не у меню. */
   .pb-tag { display: none; }
   @media (max-width: 1023.98px) {
     #panelBtn { width: auto; min-width: 66px; height: 58px; border-radius: 0; background: none !important; transform-origin: 50% 8%; }
@@ -740,17 +740,17 @@
      точки-подсказки — бумажный кружок с «i»; зона нажатия любой кнопки ≥ 44×44. ПК не тронут (всё внутри max-width 1023.98px). */
   @media (max-width: 1023.98px) {
     #bottomBar { grid-template-columns: 76px minmax(0, 1fr) 76px; }
-    #bottomBar #flagBtnB { width: auto; min-width: 66px; height: 58px; bottom: calc(100% + 4px); padding: 0; border: 0; border-radius: 0; background: none !important; color: var(--fg); pointer-events: auto; cursor: pointer; }
+    #bottomBar #flagBtnB { width: 60px; min-width: 60px; height: 60px; overflow: visible; bottom: calc(100% + 4px); padding: 0; border: 0; border-radius: 0; background: none !important; color: var(--fg); pointer-events: auto; cursor: var(--cp); }
     #bottomBar #flagBtnB .pb-bg { width: 100%; height: 100%; }
     #bottomBar #flagBtnB:active { transform: scale(0.94); }
     #bottomBar #flagBtnB.off-frame { transform: scale(0.8); }
     .sh-tag { pointer-events: none; padding-bottom: 7px; }
     .sh-tag .pb-bg { width: 100%; height: 100%; }
-    #bottomBar #flagBtnB .sh-ic { position: relative; width: 24px; height: 18px; display: block; }
+    #bottomBar #flagBtnB .sh-ic { position: relative; width: 31px; height: 31px; display: block; }
     .sh-btn .sh-stop, .sh-btn .sh-w-stop { display: none; }
     .sh-btn.busy .sh-stop, .sh-btn.busy .sh-w-stop { display: inline; }
     .sh-btn.busy .sh-play, .sh-btn.busy .sh-w-play { display: none; }
-    #bottomBar #flagBtnB .sh-bar { position: absolute; left: 0; right: 0; bottom: 5px; width: 100%; height: 8px; opacity: 0; transition: opacity 320ms var(--out); overflow: visible; }
+    #bottomBar #flagBtnB .sh-bar { position: absolute; left: 6px; right: 6px; bottom: 7px; width: calc(100% - 12px); height: 8px; opacity: 0; transition: opacity 320ms var(--out); overflow: visible; }
     .sh-bar path { fill: none; stroke-width: 2.6; stroke-linecap: round; }
     #bottomBar #flagBtnB.busy .sh-bar { opacity: 1; }
     #bottomBar #homeBtn { justify-self: end; }
@@ -764,6 +764,42 @@
   }
   @keyframes shWait { from { opacity: 0.35; } to { opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { html:not([data-motion="on"]) .sh-btn.busy.wait .sh-bar { animation: none; } }
+
+  /* e1.12 (s4): кнопка шоу — только значок (волшебная палочка со звездой) в бумажном медальоне, без слова; звезда изредка
+     мерцает. Нажатие — искры разлетаются из кнопки в кадр (viewer.js magicSparks). Первый заход — карандашная стрелка к кнопке,
+     один раз (viewer.js showHint, localStorage chka-show-hint). Зона нажатия 60×60. */
+  @media (max-width: 1023.98px) {
+    .sh-tag { width: 60px; min-width: 60px; height: 60px; padding: 0; }
+    .sh-star { transform-box: fill-box; transform-origin: 50% 50%; animation: shTwinkle 5200ms var(--spring) infinite; }
+    .sh-sp1, .sh-sp2 { transform-box: fill-box; transform-origin: 50% 50%; animation: shTwinkle 5200ms var(--spring) 260ms infinite; }
+    .sh-btn.busy .sh-star, .sh-btn.busy .sh-sp1, .sh-btn.busy .sh-sp2 { animation: none; }
+    #bottomBar #flagBtnB .sh-arrow { position: absolute; left: -64px; top: -50px; width: 70px; height: 60px; color: var(--fg); opacity: 0; pointer-events: none; overflow: visible;
+      filter: drop-shadow(0 0 2px rgba(var(--bk),0.9)); }
+    .sh-arrow path { stroke-dasharray: 1; stroke-dashoffset: 1; }
+    #flagBtnB.sh-hint .sh-tag { animation: pbWobble 1100ms var(--spring) 1 both; }
+    #flagBtnB.sh-hint .sh-arrow { animation: pbFade 4200ms var(--out) 1 both; }
+    #flagBtnB.sh-hint .sh-arrow .pa1 { animation: pbDraw 800ms var(--out) 200ms both; }
+    #flagBtnB.sh-hint .sh-arrow .pa3 { animation: pbDraw 800ms var(--out) 320ms both; }
+    #flagBtnB.sh-hint .sh-arrow .pa2 { animation: pbDraw 300ms var(--out) 980ms both; }
+  }
+  @keyframes shTwinkle { 0%, 84%, 100% { transform: scale(1) rotate(0); } 89% { transform: scale(1.32) rotate(18deg); } 94% { transform: scale(0.9) rotate(-6deg); } }
+  .mg-spark { position: fixed; z-index: 70; left: 0; top: 0; pointer-events: none; width: 14px; height: 14px; margin: -7px 0 0 -7px; will-change: transform, opacity; }
+  .mg-spark svg { display: block; width: 100%; height: 100%; overflow: visible; }
+  @media (prefers-reduced-motion: reduce) { html:not([data-motion="on"]) .sh-star, html:not([data-motion="on"]) .sh-sp1, html:not([data-motion="on"]) .sh-sp2 { animation: none; }
+    #flagBtnB.sh-hint .sh-tag { animation: none; } #flagBtnB.sh-hint .sh-arrow path { animation: none; stroke-dashoffset: 0; } }
+
+  /* e1.12 (s4): курсоры ПК в стиле сайта — карандашная стрелка, карандаш над кликабельным, кружок-набросок при загрузке.
+     Точка срабатывания — кончик (числа после url); не загрузились — системный курсор (второе значение). Телефон не трогается. */
+  :root { --cp: pointer; }
+  @media (hover: hover) and (pointer: fine) {
+    :root {
+      --cn: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M3 2.4 L4.2 21.6 L9 17.2 L12.6 25.2 L16 23.6 L12.4 15.8 L19.2 15.2 Z' fill='%23fffcf4' stroke='%232f2a25' stroke-width='1.7' stroke-linejoin='round'/%3E%3Cpath d='M4.4 4.6 L5.4 18.8 M10.4 17.8 L13.4 24' stroke='%232f2a25' stroke-width='.6' opacity='.5' fill='none'/%3E%3C/svg%3E") 3 2, auto;
+      --cp: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 30 30'%3E%3Cpath d='M2.6 2.6 L8.4 5.2 L26.4 23.2 L23.2 26.4 L5.2 8.4 Z' fill='%23f2c24a' stroke='%232f2a25' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M2.6 2.6 L8.4 5.2 L5.2 8.4 Z' fill='%23f3e6c8' stroke='%232f2a25' stroke-width='1.4' stroke-linejoin='round'/%3E%3Cpath d='M2.6 2.6 L4.4 3.4 L3.4 4.4 Z' fill='%232f2a25'/%3E%3Cpath d='M22.2 19 L19 22.2' stroke='%232f2a25' stroke-width='1.2'/%3E%3Cpath d='M23.6 20.6 L26.4 23.2 L23.2 26.4 L20.6 23.6 Z' fill='%23d9776a' stroke='%232f2a25' stroke-width='1.3'/%3E%3C/svg%3E") 3 3, pointer;
+      --cw: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 30 30'%3E%3Cpath d='M15 4.2 C21.6 4 26 8.6 25.8 15.2 C25.6 21.6 21 26 14.6 25.8 C8.4 25.6 4 21 4.2 14.8 C4.4 9 8.6 4.6 13.6 4.3' fill='%23fffcf4' fill-opacity='.85' stroke='%232f2a25' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M15 15 L15 8.6 M15 15 L19.6 17.4' stroke='%232f2a25' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M6 12 C6.8 8.6 9.4 6 12.6 5.4' stroke='%232f2a25' stroke-width='.7' opacity='.5' fill='none'/%3E%3C/svg%3E") 15 15, progress;
+    }
+    html, body { cursor: var(--cn); }
+    #stage.loading, #stage.loading * { cursor: var(--cw); }
+  }
 </style>
 </head>
 <body>
@@ -810,7 +846,7 @@ window.__wl = WelcomeLoader.create({
     <span class="p-title" data-i18n="panelTitle">{{TEXT:panelTitle}}</span>
     <div class="p-top">
       <div class="p-top-row">
-        <a class="arrow-btn p-home" id="homeBtnP" href="{{HOME}}" aria-label="На главную" data-i18n-title="home"><svg viewBox="0 0 40 40" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 20.5L20 8.5l13.5 12" stroke-width="2.8"/><path d="M11 18.5V32h18V18.5" stroke-width="2.8"/><path d="M17 32v-8.5h6V32" stroke-width="2.4"/><path d="M7.4 21.2L20.4 9.5l12.9 11.4M12 19.4V32.8h17.4" stroke-width="1.1" opacity=".55"/></g></svg></a>
+        <a class="arrow-btn p-home" id="homeBtnP" href="{{HOME}}" aria-label="На главную" data-i18n-title="home"><svg viewBox="0 0 40 40" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6.2 20.8 Q13 14.4 20 8.4 Q27 14.6 33.8 20.6" stroke-width="2.8"/><path d="M26.4 13.6 V8.2 h3.4 V16.6" stroke-width="2.2"/><path d="M28.6 5.6 q-1.6 -1.6 0.2 -3.2" stroke-width="1.1" opacity=".6"/><path d="M11 18.6 Q10.8 25.6 11.1 32.2 H29 Q29.3 25.4 29 18.4" stroke-width="2.8"/><path d="M17.2 32 V24.4 Q20 23.6 22.8 24.4 V32" stroke-width="2.3"/><path d="M13.6 21 h2.6 v2.6 h-2.6z" stroke-width="1.4"/><path d="M7.3 21.6 Q13.6 15.6 20.4 9.6 M12 19.6 Q11.9 26 12.1 32.9 H29.6" stroke-width="1.05" opacity=".5"/></g></svg></a>
       </div>
       <span class="p-name" data-i18n="title">{{TEXT:title}}</span>
     </div>
@@ -895,23 +931,23 @@ document.querySelectorAll('.chips').forEach(function (g) { g.querySelectorAll('.
   window.__penFit = fit;
 })();
 </script>
-<button type="button" id="panelBtn" aria-label="Menu"><svg class="ic-wheel" viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="20" cy="20" r="16.5" stroke-width="2.2"/><circle cx="20" cy="20" r="14.2" stroke-width="0.8" opacity=".55"/><g class="arms"><g transform="rotate(0 20 20)"><path class="arm" style="--i:0" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(45 20 20)"><path class="arm" style="--i:1" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(90 20 20)"><path class="arm" style="--i:2" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(135 20 20)"><path class="arm" style="--i:3" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(180 20 20)"><path class="arm" style="--i:4" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(225 20 20)"><path class="arm" style="--i:5" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(270 20 20)"><path class="arm" style="--i:6" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(315 20 20)"><path class="arm" style="--i:7" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g></g><circle cx="20" cy="20" r="2.7" stroke-width="1.7"/></g></svg><span class="pb-tag" aria-hidden="true"><svg class="pb-bg" viewBox="0 0 66 58" preserveAspectRatio="none"><path class="pb-fill" d="M7.5 6.2 Q33 3.4 58.6 5.4 Q61.2 29 59.6 52.4 Q33 55.2 6.4 52.9 Q4.4 29 7.5 6.2Z"/><path class="pb-line" d="M7.5 6.2 Q33 3.4 58.6 5.4 Q61.2 29 59.6 52.4 Q33 55.2 6.4 52.9 Q4.4 29 7.5 6.2Z"/><path class="pb-line2" d="M8.6 7.6 Q33 5.2 57.2 6.8 M58.4 8 Q59.6 30 58.2 50.6 M7.6 51.2 Q33 53.8 57.6 51.4"/><circle class="pb-hole" cx="13.5" cy="12.5" r="2.3"/></svg><svg class="pb-ic" viewBox="0 0 26 18"><g fill="none" stroke="currentColor" stroke-linecap="round"><path d="M3.2 3.6 Q12.6 2.6 22.8 3.8" stroke-width="2.1"/><path d="M3 9.2 Q12.4 8.4 23 9.4" stroke-width="2.1"/><path d="M3.3 14.9 Q12.8 14.1 22.6 15.2" stroke-width="2.1"/><path d="M4 4.5 Q12.8 3.6 22 4.6 M3.8 10 Q12.6 9.3 22.2 10.2 M4.2 15.7 Q13 15 21.8 15.9" stroke-width="0.7" opacity=".5"/></g></svg><span class="pb-txt">Меню</span><svg class="pb-arrow" viewBox="0 0 60 60"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path class="pa1" pathLength="1" d="M44 6 Q50 26 30 38 Q22 43 14 46" stroke-width="2.2"/><path class="pa2" pathLength="1" d="M20.5 40.5 L13.5 46.2 L22.4 49" stroke-width="2.2"/></g></svg></span></button>
+<button type="button" id="panelBtn" aria-label="Menu"><svg class="ic-wheel" viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="20" cy="20" r="16.5" stroke-width="2.2"/><circle cx="20" cy="20" r="14.2" stroke-width="0.8" opacity=".55"/><g class="arms"><g transform="rotate(0 20 20)"><path class="arm" style="--i:0" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(45 20 20)"><path class="arm" style="--i:1" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(90 20 20)"><path class="arm" style="--i:2" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(135 20 20)"><path class="arm" style="--i:3" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(180 20 20)"><path class="arm" style="--i:4" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(225 20 20)"><path class="arm" style="--i:5" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(270 20 20)"><path class="arm" style="--i:6" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(315 20 20)"><path class="arm" style="--i:7" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g></g><circle cx="20" cy="20" r="2.7" stroke-width="1.7"/></g></svg><span class="pb-tag" aria-hidden="true"><svg class="pb-bg" viewBox="0 0 66 58" preserveAspectRatio="none"><path class="pb-fill" d="M7.5 6.2 Q33 3.4 58.6 5.4 Q61.2 29 59.6 52.4 Q33 55.2 6.4 52.9 Q4.4 29 7.5 6.2Z"/><path class="pb-line" d="M7.5 6.2 Q33 3.4 58.6 5.4 Q61.2 29 59.6 52.4 Q33 55.2 6.4 52.9 Q4.4 29 7.5 6.2Z"/><path class="pb-line2" d="M8.6 7.6 Q33 5.2 57.2 6.8 M58.4 8 Q59.6 30 58.2 50.6 M7.6 51.2 Q33 53.8 57.6 51.4"/><circle class="pb-hole" cx="13.5" cy="12.5" r="2.3"/></svg><svg class="pb-ic" viewBox="0 0 26 18"><g fill="none" stroke="currentColor" stroke-linecap="round"><path d="M3.4 3.6 h.01 M3.2 9.2 h.01 M3.5 14.9 h.01" stroke-width="3.2"/><path d="M8.2 3.4 Q15.4 2.7 23.2 3.8" stroke-width="2.1"/><path d="M8 9 Q15.2 8.4 23.4 9.4" stroke-width="2.1"/><path d="M8.3 14.8 Q15.6 14.1 22.8 15.2" stroke-width="2.1"/><path d="M8.9 4.3 Q15.6 3.7 22.4 4.6 M8.7 9.9 Q15.4 9.3 22.6 10.2 M9 15.6 Q15.8 15 22 15.9" stroke-width="0.7" opacity=".5"/></g></svg><span class="pb-txt">Меню</span><svg class="pb-arrow" viewBox="0 0 60 60"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path class="pa1" pathLength="1" d="M44 6 Q50 26 30 38 Q22 43 14 46" stroke-width="2.2"/><path class="pa2" pathLength="1" d="M20.5 40.5 L13.5 46.2 L22.4 49" stroke-width="2.2"/></g></svg></span></button>
 <div id="scrim"></div>
 <button type="button" id="immExit" aria-label="Выйти" data-i18n-title="close"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M11 5H5v6M21 5h6v6M11 27H5v-6M21 27h6v-6"/></svg></button>
-<div id="bottomBar"><button type="button" id="flagBtnB" class="flag-btn sh-btn" aria-label="Парад" data-i18n-title="flag"><span class="pb-tag sh-tag" aria-hidden="true"><svg class="pb-bg" viewBox="0 0 66 58" preserveAspectRatio="none"><path class="pb-fill" d="M7.5 6.2 Q33 3.4 58.6 5.4 Q61.2 29 59.6 52.4 Q33 55.2 6.4 52.9 Q4.4 29 7.5 6.2Z"/><path class="pb-line" d="M7.5 6.2 Q33 3.4 58.6 5.4 Q61.2 29 59.6 52.4 Q33 55.2 6.4 52.9 Q4.4 29 7.5 6.2Z"/><path class="pb-line2" d="M8.6 7.6 Q33 5.2 57.2 6.8 M58.4 8 Q59.6 30 58.2 50.6 M7.6 51.2 Q33 53.8 57.6 51.4"/></svg><svg class="sh-ic" viewBox="0 0 24 18"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><g class="sh-play"><path d="M12 1.4 Q12.9 7.4 18.8 9 Q12.9 10.6 12 16.6 Q11.1 10.6 5.2 9 Q11.1 7.4 12 1.4Z" fill="currentColor" fill-opacity=".16" stroke-width="1.9"/><path d="M12.6 3.6 Q13.4 7.9 17 8.8 M11.4 14.4 Q10.7 10.4 7.2 9.4" stroke-width="0.7" opacity=".5"/><path d="M19.6 1.8 Q19.9 3.4 21.4 3.7 Q19.9 4 19.6 5.6 Q19.3 4 17.8 3.7 Q19.3 3.4 19.6 1.8Z" stroke-width="1.1"/><path d="M4.4 13.2 Q4.6 14.3 5.6 14.5 Q4.6 14.7 4.4 15.8 Q4.2 14.7 3.2 14.5 Q4.2 14.3 4.4 13.2Z" stroke-width="1"/></g><g class="sh-stop"><path d="M6.6 3.6 Q12 3.1 17.4 3.5 Q17.9 9 17.3 14.5 Q12 14.9 6.7 14.4 Q6.2 9 6.6 3.6Z" fill="currentColor" fill-opacity=".16" stroke-width="2"/><path d="M7.6 4.6 Q12 4.2 16.4 4.5 M16.4 5 Q16.8 9 16.3 13.4" stroke-width="0.7" opacity=".5"/></g></g></svg><span class="pb-txt"><span class="sh-w-play">Чудо</span><span class="sh-w-stop">Стоп</span></span><svg class="sh-bar" viewBox="0 0 66 8" preserveAspectRatio="none"><path class="rt" pathLength="3" d="M12 4 Q33 2.6 54 4"/><path class="rs rs0" pathLength="3" d="M12 4 Q33 2.6 54 4"/><path class="rs rs1" pathLength="3" d="M12 4 Q33 2.6 54 4"/><path class="rs rs2" pathLength="3" d="M12 4 Q33 2.6 54 4"/></svg></span></button><div id="barTitle"></div><a id="homeBtn" class="arrow-btn" href="{{HOME}}" aria-label="На главную"><svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 20.5L20 8.5l13.5 12" stroke-width="2.8"/><path d="M11 18.5V32h18V18.5" stroke-width="2.8"/><path d="M17 32v-8.5h6V32" stroke-width="2.4"/><path d="M7.4 21.2L20.4 9.5l12.9 11.4M12 19.4V32.8h17.4" stroke-width="1.1" opacity=".55"/></g></svg></a></div>
+<div id="bottomBar"><button type="button" id="flagBtnB" class="flag-btn sh-btn" aria-label="Парад" data-i18n-title="flag"><span class="pb-tag sh-tag" aria-hidden="true"><svg class="pb-bg" viewBox="0 0 58 58" preserveAspectRatio="none"><path class="pb-fill" d="M29 4.6 C43.4 3.9 53.9 14.3 53.6 28.8 C53.3 43.6 43 53.7 28.6 53.4 C14.1 53.1 4.3 42.8 4.6 28.6 C4.9 14.5 15 5.3 29 4.6Z"/><path class="pb-line" d="M29 4.6 C43.4 3.9 53.9 14.3 53.6 28.8 C53.3 43.6 43 53.7 28.6 53.4 C14.1 53.1 4.3 42.8 4.6 28.6 C4.9 14.5 15 5.3 29 4.6Z"/><path class="pb-line2" d="M30.4 6.4 C42.6 6.6 51.4 15.4 51.6 27.6 M50.8 33 C48.6 44 40 51.2 29.4 51.6 M8.2 21.6 C10.6 13.4 17.6 7.8 25.4 6.9"/></svg><svg class="sh-ic" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><g class="sh-play"><path d="M5.6 27 L18.9 13.4" stroke-width="3.3"/><path d="M6.9 27.9 L19.9 14.6" stroke-width="0.8" opacity=".5"/><path d="M15.2 15.5 L17.7 18" stroke-width="1.3" opacity=".7"/><path class="sh-star" d="M23.4 3 Q24.2 7.6 28.8 8.6 Q24.2 9.6 23.4 14.2 Q22.6 9.6 18 8.6 Q22.6 7.6 23.4 3Z" fill="currentColor" fill-opacity=".2" stroke-width="1.8"/><path class="sh-sp1" d="M27.6 17 Q27.9 18.5 29.4 18.8 Q27.9 19.1 27.6 20.6 Q27.3 19.1 25.8 18.8 Q27.3 18.5 27.6 17Z" stroke-width="1.1"/><path class="sh-sp2" d="M10.6 5.4 Q10.8 6.6 12 6.8 Q10.8 7 10.6 8.2 Q10.4 7 9.2 6.8 Q10.4 6.6 10.6 5.4Z" stroke-width="1"/><path d="M15.4 3.6 h.01 M29.6 12.8 h.01" stroke-width="2"/></g><g class="sh-stop"><path d="M9 9 Q16 8.4 23 9 Q23.6 16 23 23 Q16 23.6 9 23 Q8.4 16 9 9Z" fill="currentColor" fill-opacity=".16" stroke-width="2.2"/><path d="M10.2 10.3 Q16 9.8 21.8 10.2 M21.9 10.8 Q22.3 16 21.8 21.4" stroke-width="0.8" opacity=".5"/></g></g></svg><svg class="sh-bar" viewBox="0 0 66 8" preserveAspectRatio="none"><path class="rt" pathLength="3" d="M12 4 Q33 2.6 54 4"/><path class="rs rs0" pathLength="3" d="M12 4 Q33 2.6 54 4"/><path class="rs rs1" pathLength="3" d="M12 4 Q33 2.6 54 4"/><path class="rs rs2" pathLength="3" d="M12 4 Q33 2.6 54 4"/></svg><svg class="sh-arrow" viewBox="0 0 70 60"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path class="pa1" pathLength="1" d="M6 6 Q8 30 30 40 Q40 44 52 46" stroke-width="2.6"/><path class="pa2" pathLength="1" d="M44 40.4 L52.6 46.2 L43.6 50.6" stroke-width="2.6"/><path class="pa3" pathLength="1" d="M7.4 9.6 Q10 30 30.8 38.6" stroke-width="0.8" opacity=".5"/></g></svg></span></button><div id="barTitle"></div><a id="homeBtn" class="arrow-btn" href="{{HOME}}" aria-label="На главную"><svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6.2 20.8 Q13 14.4 20 8.4 Q27 14.6 33.8 20.6" stroke-width="2.8"/><path d="M26.4 13.6 V8.2 h3.4 V16.6" stroke-width="2.2"/><path d="M28.6 5.6 q-1.6 -1.6 0.2 -3.2" stroke-width="1.1" opacity=".6"/><path d="M11 18.6 Q10.8 25.6 11.1 32.2 H29 Q29.3 25.4 29 18.4" stroke-width="2.8"/><path d="M17.2 32 V24.4 Q20 23.6 22.8 24.4 V32" stroke-width="2.3"/><path d="M13.6 21 h2.6 v2.6 h-2.6z" stroke-width="1.4"/><path d="M7.3 21.6 Q13.6 15.6 20.4 9.6 M12 19.6 Q11.9 26 12.1 32.9 H29.6" stroke-width="1.05" opacity=".5"/></g></svg></a></div>
 <main id="view">
 <figure id="exhibit"><div id="frame">
-<button type="button" id="prevSide" class="arrow-btn nav-side" aria-label="Предыдущий кадр"><svg viewBox="0 0 40 40" width="42" height="42" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 9.5C20.5 14.5 16.8 18.6 13.5 20.3c3.4 1.9 7.3 5.6 10.6 10.6" stroke-width="3"/><path d="M24.6 10.6C21 15.4 17.4 19 14.6 20.7c3.2 2 6.8 5.4 10.4 9.8" stroke-width="1.2" opacity=".55"/></g></svg></button>
+<button type="button" id="prevSide" class="arrow-btn nav-side" aria-label="Предыдущий кадр"><svg viewBox="0 0 40 40" width="42" height="42" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21.6 10.4C18.8 14.8 15.6 18.4 12.6 20.2c3.1 1.8 6.6 5.2 9.6 9.6" stroke-width="3"/><path d="M13.4 20.3 Q20.6 19.6 28.4 20.4" stroke-width="2.6"/><path d="M22.7 11.5C19.4 15.7 16.4 18.9 13.8 20.6c2.9 1.9 6.1 5 8.9 8.8 M14.6 21.4 Q21.2 20.9 27.4 21.6" stroke-width="1.1" opacity=".5"/><path d="M29.6 18.6 q1.6 1.7 0 3.6" stroke-width="1.2" opacity=".6"/></g></svg></button>
 <div id="stage" class="loading">
   <canvas id="gl"></canvas>
   <div id="fallback" hidden></div>
-  <button id="prevBtn" class="arrow-btn nav-btn" type="button" aria-label="Предыдущий кадр"><svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 9.5C20.5 14.5 16.8 18.6 13.5 20.3c3.4 1.9 7.3 5.6 10.6 10.6" stroke-width="3"/><path d="M24.6 10.6C21 15.4 17.4 19 14.6 20.7c3.2 2 6.8 5.4 10.4 9.8" stroke-width="1.2" opacity=".55"/></g></svg></button>
-  <button id="nextBtn" class="arrow-btn nav-btn nav-next" type="button" aria-label="Следующий кадр"><svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 9.5C20.5 14.5 16.8 18.6 13.5 20.3c3.4 1.9 7.3 5.6 10.6 10.6" stroke-width="3"/><path d="M24.6 10.6C21 15.4 17.4 19 14.6 20.7c3.2 2 6.8 5.4 10.4 9.8" stroke-width="1.2" opacity=".55"/></g></svg></button>
+  <button id="prevBtn" class="arrow-btn nav-btn" type="button" aria-label="Предыдущий кадр"><svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21.6 10.4C18.8 14.8 15.6 18.4 12.6 20.2c3.1 1.8 6.6 5.2 9.6 9.6" stroke-width="3"/><path d="M13.4 20.3 Q20.6 19.6 28.4 20.4" stroke-width="2.6"/><path d="M22.7 11.5C19.4 15.7 16.4 18.9 13.8 20.6c2.9 1.9 6.1 5 8.9 8.8 M14.6 21.4 Q21.2 20.9 27.4 21.6" stroke-width="1.1" opacity=".5"/><path d="M29.6 18.6 q1.6 1.7 0 3.6" stroke-width="1.2" opacity=".6"/></g></svg></button>
+  <button id="nextBtn" class="arrow-btn nav-btn nav-next" type="button" aria-label="Следующий кадр"><svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21.6 10.4C18.8 14.8 15.6 18.4 12.6 20.2c3.1 1.8 6.6 5.2 9.6 9.6" stroke-width="3"/><path d="M13.4 20.3 Q20.6 19.6 28.4 20.4" stroke-width="2.6"/><path d="M22.7 11.5C19.4 15.7 16.4 18.9 13.8 20.6c2.9 1.9 6.1 5 8.9 8.8 M14.6 21.4 Q21.2 20.9 27.4 21.6" stroke-width="1.1" opacity=".5"/><path d="M29.6 18.6 q1.6 1.7 0 3.6" stroke-width="1.2" opacity=".6"/></g></svg></button>
   <div id="dots"></div>
   <div id="hotspots"></div>
   <div id="hsPopup" class="sketch"><div id="hsText"></div><button type="button" id="hsBack" class="p-btn"><span class="lbl-pc" data-i18n="hsBack">‹ назад</span><span class="lbl-phone" data-i18n="hsClose">× закрыть</span></button></div>
 </div>
-<button type="button" id="nextSide" class="arrow-btn nav-side nav-next" aria-label="Следующий кадр"><svg viewBox="0 0 40 40" width="42" height="42" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23.5 9.5C20.5 14.5 16.8 18.6 13.5 20.3c3.4 1.9 7.3 5.6 10.6 10.6" stroke-width="3"/><path d="M24.6 10.6C21 15.4 17.4 19 14.6 20.7c3.2 2 6.8 5.4 10.4 9.8" stroke-width="1.2" opacity=".55"/></g></svg></button>
+<button type="button" id="nextSide" class="arrow-btn nav-side nav-next" aria-label="Следующий кадр"><svg viewBox="0 0 40 40" width="42" height="42" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21.6 10.4C18.8 14.8 15.6 18.4 12.6 20.2c3.1 1.8 6.6 5.2 9.6 9.6" stroke-width="3"/><path d="M13.4 20.3 Q20.6 19.6 28.4 20.4" stroke-width="2.6"/><path d="M22.7 11.5C19.4 15.7 16.4 18.9 13.8 20.6c2.9 1.9 6.1 5 8.9 8.8 M14.6 21.4 Q21.2 20.9 27.4 21.6" stroke-width="1.1" opacity=".5"/><path d="M29.6 18.6 q1.6 1.7 0 3.6" stroke-width="1.2" opacity=".6"/></g></svg></button>
 <button type="button" id="flagBtnP" class="arrow-btn flag-btn" aria-label="Парад" data-i18n-title="flag"><svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g class="ring"><circle class="rt" cx="20" cy="20" r="18.4" pathLength="3"/><circle class="rs rs0" cx="20" cy="20" r="18.4" pathLength="3"/><circle class="rs rs1" cx="20" cy="20" r="18.4" pathLength="3"/><circle class="rs rs2" cx="20" cy="20" r="18.4" pathLength="3"/></g><g class="fg" stroke-linecap="round" stroke-linejoin="round"><path class="fb fb1" d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 13 Q29 16 23 13 Q17 10 11 13 Z" fill="#d90012"/><path class="fb fb2" d="M11 13 Q17 10 23 13 Q29 16 35 13 L35 19 Q29 22 23 19 Q17 16 11 19 Z" fill="#1c4cc0"/><path class="fb fb3" d="M11 19 Q17 16 23 19 Q29 22 35 19 L35 25 Q29 28 23 25 Q17 22 11 25 Z" fill="#f2a800"/><g fill="none" stroke="currentColor"><path d="M9.2 5.5 L9.6 35.5" stroke-width="2.6"/><path d="M11 7 Q17 4 23 7 Q29 10 35 7 L35 25 Q29 28 23 25 Q17 22 11 25 Z" stroke-width="2"/><path d="M11.6 7.8 Q17 5 23 8 Q29 11 34.6 8.2 M11.4 24.4 Q17 21.6 23 24.6 Q29 27.6 34.6 24.4" stroke-width="0.9" opacity=".55"/></g></g></svg></button>
 </div><figcaption id="plaque" data-i18n="plaque"></figcaption></figure>
 </main>
