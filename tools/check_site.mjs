@@ -335,7 +335,10 @@ async function captureViewer(browser, origin, target, vpName, outDir) {
       if (tod !== 'day') {
         await seed('tod-' + tod);
         await page.evaluate((t) => document.querySelector('#todSeg [data-tod=' + t + ']').click(), tod);
-        await adv(tod === 'sunset' ? 3400 : 4200);
+        if (tod === 'night') {   // e1.13: кадры перехода в ночь (закат → ночь) — регрессия «комиксной» ночи видна именно в переходе
+          for (const ms of [700, 1400, 2100, 2800]) { await adv(700); await snap(`night-trans-${ms}`); }
+          await adv(1400);
+        } else await adv(3400);
       }
       const order = tod === 'sunset' ? [...frames].reverse() : frames;
       for (const f of order) {
@@ -350,6 +353,12 @@ async function captureViewer(browser, origin, target, vpName, outDir) {
         }
       }
       first = false;
+    }
+    if (todNames.includes('day') && todNames.includes('night')) {   // e1.13: переход день → ночь на первом кадре
+      await goto_(frames[0]);
+      await seed('d2n'); await page.evaluate(() => document.querySelector('#todSeg [data-tod=day]').click()); await adv(4500);
+      await page.evaluate(() => document.querySelector('#todSeg [data-tod=night]').click());
+      for (const ms of [500, 1000, 1500, 2000, 3000, 4500]) { await adv(ms === 3000 ? 1000 : ms === 4500 ? 1500 : 500); await snap(`day2night-${ms}`); }
     }
   } catch (e) {
     problems.push({ type: 'сбой проверки', msg: e.message.slice(0, 300) });
