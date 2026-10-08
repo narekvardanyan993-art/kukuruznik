@@ -707,6 +707,12 @@
     var g = ctx.createLinearGradient(len / 2, 0, len / 2 + len * 2.4, 0);
     g.addColorStop(0, 'rgba(255,228,170,' + 0.34 * L * a + ')'); g.addColorStop(1, 'rgba(255,228,170,0)');
     ctx.globalAlpha = 1; ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(len / 2, -wd * 0.36); ctx.lineTo(len / 2 + len * 2.4, -wd * 1.25); ctx.lineTo(len / 2 + len * 2.4, wd * 1.25); ctx.lineTo(len / 2, wd * 0.36); ctx.closePath(); ctx.fill();
+    var rg = ctx.createRadialGradient(len * 1.1, 0, 0, len * 1.1, 0, len * 0.9);   // e1.12: отблеск фар на асфальте — тёплое пятно перед машиной
+    rg.addColorStop(0, 'rgba(255,214,150,' + 0.22 * L * a + ')'); rg.addColorStop(1, 'rgba(255,214,150,0)');
+    ctx.globalAlpha = 1; ctx.fillStyle = rg; ctx.save(); ctx.scale(1, 0.55); ctx.beginPath(); ctx.arc(len * 1.1, 0, len * 0.9, 0, 6.283); ctx.fill(); ctx.restore();
+    var tg = ctx.createRadialGradient(-len * 0.75, 0, 0, -len * 0.75, 0, len * 0.4);   // и красный отблеск задних огней
+    tg.addColorStop(0, 'rgba(255,40,30,' + 0.2 * L * a + ')'); tg.addColorStop(1, 'rgba(255,40,30,0)');
+    ctx.fillStyle = tg; ctx.save(); ctx.scale(1, 0.55); ctx.beginPath(); ctx.arc(-len * 0.75, 0, len * 0.4, 0, 6.283); ctx.fill(); ctx.restore();
     ctx.globalAlpha = a * L; ctx.fillStyle = 'rgb(255,244,210)'; ctx.beginPath(); ctx.arc(len / 2, -wd * 0.3, wd * 0.12, 0, 6.283); ctx.arc(len / 2, wd * 0.3, wd * 0.12, 0, 6.283); ctx.fill();
     ctx.fillStyle = 'rgb(255,46,34)'; ctx.globalAlpha = a * 0.95 * L; ctx.beginPath(); ctx.arc(-len / 2, -wd * 0.32, wd * 0.11, 0, 6.283); ctx.arc(-len / 2, wd * 0.32, wd * 0.11, 0, 6.283); ctx.fill();
     ctx.globalAlpha = a * 0.3 * L; ctx.beginPath(); ctx.arc(-len / 2, -wd * 0.32, wd * 0.3, 0, 6.283); ctx.arc(-len / 2, wd * 0.32, wd * 0.3, 0, 6.283); ctx.fill();

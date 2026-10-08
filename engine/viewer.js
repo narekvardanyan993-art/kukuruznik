@@ -759,7 +759,8 @@
     var worker = null, pend = {}, seq = 0, mainReadyP = null;
     var cfg = {
       MAX_TEX_SIZE: CONFIG.MAX_TEX_SIZE, DEPTH_BLUR_PX: CONFIG.DEPTH_BLUR_PX, STARS: CONFIG.STARS, BUILDING_DEPTH_PIXEL: !!CONFIG.BUILDING_DEPTH_PIXEL,
-      NIGHT_MAIN_LIT: CONFIG.NIGHT_MAIN_LIT, FRAME_SIZE: CONFIG.FRAME_SIZE, STAR_CELLS: STAR_CELLS, NIGHT_OTHER_LIT: CONFIG.NIGHT_OTHER_LIT, WINDOW_BRIGHT: CONFIG.WINDOW_BRIGHT, DAY: CONFIG.DAY
+      NIGHT_MAIN_LIT: CONFIG.NIGHT_MAIN_LIT, FRAME_SIZE: CONFIG.FRAME_SIZE, STAR_CELLS: STAR_CELLS, NIGHT_OTHER_LIT: CONFIG.NIGHT_OTHER_LIT, WINDOW_BRIGHT: CONFIG.WINDOW_BRIGHT, DAY: CONFIG.DAY,
+      NIGHT_WINS: (CONFIG.SCENE || []).map(function (q) { return !!(q && q.nightWins); })
     };
     function viaMain(method, args) {
       if (!mainReadyP) {
@@ -853,7 +854,8 @@
         chain = chain.then(function () { return prep.call('state', [i, kind, f[kind]]); }).then(function (r) {
           return uploadState(entry, kind === 'sunset' ? 's' : 'n', r).then(function () {
             if (kind === 'night') {   // ночь-картинка: свои окна и фонари, без процедурных
-              entry.wins = []; entry.nightLit = r.lit;
+              var scN = (CONFIG.SCENE && CONFIG.SCENE[i]) || {};
+              if (!scN.nightWins) { entry.wins = []; entry.nightLit = r.lit; }   // e1.12: nightWins — окна в ночной картинке тёмные, зажигает движок по одному
               var nl = lampsFor(CONFIG.NIGHT_LAMPS[i], i, entry.depth);
               if (nl.length) { entry.lamps = nl; entry.haloK = CONFIG.NIGHT_HALO[i] == null ? 1 : CONFIG.NIGHT_HALO[i]; }
             }

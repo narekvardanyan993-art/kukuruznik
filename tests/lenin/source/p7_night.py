@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# s4 (08.10.2026): заменён tools/night_from_gemini.py (ночь Gemini как карта света поверх дня, окна и фонари зажигает движок); оставлен как запасной путь истории.
 """Ночные картинки Ленина (как у Кукурузника: отдельный <кадр>_night.webp того же размера, контуры дня на месте).
 
   python3 tests/lenin/source/p7_night.py [lenin_2 ...]     # пишет tests/lenin/frames/<кадр>_night.webp

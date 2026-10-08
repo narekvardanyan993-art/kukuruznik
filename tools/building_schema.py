@@ -274,7 +274,7 @@ def validate(bdir, b, site):
         nm = f.get('name') if isinstance(f, dict) else None
         w = 'кадр %d%s' % (i + 1, ' (%s)' % nm if isinstance(nm, str) else '')
         fr = c.obj(f, w, required=('name', 'crop', 'flag', 'cloudShadow', 'wind', 'sky', 'sun', 'life', 'hotspots', 'nightLamps', 'nightHalo', 'lamps'),
-                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds'))
+                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins'))
         if not fr:
             continue
         if not (isinstance(nm, str) and re.fullmatch(r'[A-Za-z0-9_\-]+', nm)):
@@ -397,6 +397,8 @@ def validate(bdir, b, site):
                                 c.err('%s: ambient.cars[%d].path' % (w, j + 1), 'путь машины вне дороги: внутри маски ambient.roads (или за перекрытием) %.1f%% точек, нужно ≥ %d%% (tools/check_roads.py рисует оверлей)' % (frac * 100, ROAD_MIN * 100))
         if 'skyBirds' in fr:      # e1.8: false — без трёх одиночных птиц движка (у кадра свои стаи)
             c.boolean(fr['skyBirds'], '%s: skyBirds' % w)
+        if 'nightWins' in fr:     # e1.12: true — окна других зданий (win2 из маски Gemini) горят и ночью с ночной картинкой
+            c.boolean(fr['nightWins'], '%s: nightWins' % w)
         if 'depthRaw' in fr:      # e1.5: карта глубины кадра без растяжки контраста (значения файла = глубина в шейдере)
             c.boolean(fr['depthRaw'], '%s: depthRaw' % w)
         if 'bldDepth' in fr:      # e1.5: здание кадра жёстко на этой глубине (0 — далеко, 1 — близко)

@@ -96,3 +96,47 @@ for fid, items in PARKED.items():
             base.alpha_composite(spr, (round(u * W - ax * spr.size[0]), round(v * H - ay * spr.size[1])))
         base.convert('RGB').save(F / (fid + suf + '.webp'), quality=90, method=6)
     print(fid, len(items), 'стоящих «Побед» (спрайт)')
+
+# s4 (08.10.2026): фонарные столбы — в сам рисунок (день и подложка), карандашом, как ларьки. Места и высота — из маски Gemini
+# (tests/lenin/source/night/<кадр>_lamps.json, tools/night_from_gemini.py): [голова u, v, основание u, v, [[u, v, ширина головы]...]].
+# Ночью движок зажигает их по одному (nightLamps = первые четыре числа) — ореол на голове, пятно света у основания.
+LAMP_SKIP = {}   # кадр: [номера фонарей из _lamps.json, которые не рисовать]
+def lamp_post(dr, hx, hy, bx, by, heads, s):
+    """Чугунный столб 1950-х: цоколь, тонкий ствол, у многорожкового — поперечина, плафоны-шары с колпачком."""
+    L = by - hy; pw = max(1.15 * s, L * 0.045); r = max(1.6 * s, L * 0.085)
+    dr.polygon([(bx - pw * 1.6, by), (bx + pw * 1.6, by), (bx + pw * 1.1, by - L * 0.1), (bx - pw * 1.1, by - L * 0.1)], fill=INK + (235,))   # цоколь
+    top = hy + (r * 1.1 if len(heads) == 1 else -r * 0.2)
+    dr.polygon([(bx - pw * 0.65, by - L * 0.1), (bx + pw * 0.65, by - L * 0.1), (hx + pw * 0.4, top), (hx - pw * 0.4, top)], fill=INK + (240,))   # ствол, сужается
+    globes = [(hx, hy)] if len(heads) == 1 else [(hx + (q[0] - hx) * 0.55, hy + r * 0.9) for q in heads]
+    if len(heads) > 1:
+        xs = [g[0] for g in globes]
+        dr.line([(min(xs), hy - r * 0.2), (max(xs), hy - r * 0.2)], fill=INK + (235,), width=max(1, int(pw * 0.7)))   # поперечина
+        for gx, gy in globes:
+            dr.line([(gx, hy - r * 0.2), (gx, gy - r)], fill=INK + (220,), width=max(1, int(pw * 0.5)))
+    for gx, gy in globes:
+        dr.ellipse([gx - r, gy - r, gx + r, gy + r], fill=(240, 234, 214, 255), outline=INK + (240,), width=max(1, int(s * 0.7)))   # плафон
+        dr.arc([gx - r * 0.55, gy - r * 0.6, gx + r * 0.2, gy + r * 0.1], 200, 290, fill=(255, 255, 250, 200), width=max(1, int(s * 0.5)))   # блик
+        dr.polygon([(gx - r * 0.55, gy - r * 0.85), (gx + r * 0.55, gy - r * 0.85), (gx, gy - r * 1.45)], fill=INK + (240,))   # колпачок
+def draw_lamps(F, fids):
+    import json
+    ND = F.parent / 'source' / 'night'
+    for fid in fids:
+        lf = ND / (fid + '_lamps.json')
+        if not lf.exists():
+            continue
+        lamps = [l for k, l in enumerate(json.loads(lf.read_text())) if k not in LAMP_SKIP.get(fid, [])]
+        if not lamps:
+            continue
+        for suf in ('', '_bg'):
+            base = Image.open(F / (fid + suf + '.webp')).convert('RGB'); W, H = base.size
+            layer = Image.new('RGBA', (W * SS, H * SS), (0, 0, 0, 0)); dr = ImageDraw.Draw(layer)
+            for hu, hv, bu, bv, heads in lamps:
+                dr.ellipse([bu * W * SS - 4 * SS, bv * H * SS - 1.2 * SS, bu * W * SS + 7 * SS, bv * H * SS + 1.6 * SS], fill=(60, 50, 40, 70))   # тень у основания
+                lamp_post(dr, hu * W * SS, hv * H * SS, bu * W * SS, bv * H * SS, [(q[0] * W * SS, q[1] * H * SS) for q in heads], SS)
+            small = np.asarray(layer.resize((W, H), Image.LANCZOS)).astype(np.float32) / 255
+            bg = np.asarray(base).astype(np.float32) / 255
+            a = small[..., 3:4]
+            out = bg * (1 - a) + (0.8 * small[..., :3] + 0.2 * bg * small[..., :3]) * a
+            Image.fromarray(np.clip(out * 255 + 0.5, 0, 255).astype(np.uint8)).save(F / (fid + suf + '.webp'), quality=90, method=6)
+        print(fid, len(lamps), 'фонарных столбов')
+draw_lamps(F, ['lenin_1', 'lenin_2', 'lenin_3', 'lenin_4', 'lenin_6'])

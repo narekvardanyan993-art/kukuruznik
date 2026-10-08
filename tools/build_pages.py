@@ -157,7 +157,7 @@ def scene(f):
           'moon': sun['moon'], 'lawn': f.get('lawn'), 'closeUp': f.get('closeUp')}
     if 'cloudScale' in sky:
         sc['cloudScale'] = sky['cloudScale']
-    for k in ('bldDepth', 'showBand', 'fountains', 'ambient', 'skyBirds'):   # e1.5: только если заданы у кадра — у остальных зданий настройки страницы не меняются
+    for k in ('bldDepth', 'showBand', 'fountains', 'ambient', 'skyBirds', 'nightWins'):   # e1.5: только если заданы у кадра — у остальных зданий настройки страницы не меняются
         if k in f:
             sc[k] = f[k]
     if sun.get('dayDrawn'):

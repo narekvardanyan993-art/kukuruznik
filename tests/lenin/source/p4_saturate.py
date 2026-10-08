@@ -3,7 +3,7 @@
 
 Lab: цветность × K там, где цвет уже есть (C > 10), плавно до ×1 у серого (C < 3) — карандаш, штриховка и белая бумага
 не трогаются; яркость L не меняется (у G — чуть темнее бумага, gamma 1.05: кадр был самым бледным, L 85 против 72–77).
-Порядок сборки кадров: p4_saturate.py → p5_water_g.py → p6_static_props.py. Запускать от слоёв станка: слои берутся из tests/lenin/source/<кадр>/layers/ (для lenin_1 — из git: frames до 07.10),
+Порядок сборки кадров: p4_saturate.py → p5_water_g.py → p6_static_props.py → tools/night_from_gemini.py (s4). Запускать от слоёв станка: слои берутся из tests/lenin/source/<кадр>/layers/ (для lenin_1 — из git: frames до 07.10),
 так что повторный запуск не усиливает дважды.
 """
 import io, subprocess, sys
