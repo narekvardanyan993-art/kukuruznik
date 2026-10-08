@@ -238,7 +238,11 @@ def validate(bdir, b, site):
                 c.err('aboutFacts', 'факта «%s» нет в facts' % k)
 
     # --- look ---
-    look = c.obj(b['look'], 'look', required=('day', 'night', 'frameSize', 'sunSide'))
+    look = c.obj(b['look'], 'look', required=('day', 'night', 'frameSize', 'sunSide'), optional=('hotspots', 'showNight'))
+    if look and 'hotspots' in look and look['hotspots'] not in ('dot', 'outline'):
+        c.err('look.hotspots', 'вид точек-подсказок: "dot" или "outline"')
+    if look and 'showNight' in look and look['showNight'] != 'bright':
+        c.err('look.showNight', 'шоу ночью: "bright" или поле не задавать')
     if look:
         d = c.obj(look['day'], 'look.day', required=('skyTop', 'skyHor', 'mix', 'greenHue', 'greenPull', 'greenSat'))
         if d:
@@ -274,7 +278,7 @@ def validate(bdir, b, site):
         nm = f.get('name') if isinstance(f, dict) else None
         w = 'кадр %d%s' % (i + 1, ' (%s)' % nm if isinstance(nm, str) else '')
         fr = c.obj(f, w, required=('name', 'crop', 'flag', 'cloudShadow', 'wind', 'sky', 'sun', 'life', 'hotspots', 'nightLamps', 'nightHalo', 'lamps'),
-                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins'))
+                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins', 'motionVideo'))
         if not fr:
             continue
         if not (isinstance(nm, str) and re.fullmatch(r'[A-Za-z0-9_\-]+', nm)):
@@ -307,7 +311,7 @@ def validate(bdir, b, site):
                 c.err('%s: flag' % w, 'флаг [x, y, ширина, высота] выходит за кадр')
         nerr0 = len(c.errors)
         if 'ambient' in fr:       # e1.8: библиотека жизни (details.js, docs/ENGINE-LIFE.md): walkers / cars / flocks / occluders
-            am = c.obj(fr['ambient'], '%s: ambient' % w, optional=('walkers', 'cars', 'flocks', 'occluders', 'lightBirds', 'roads', 'details', 'standers', 'scenes'))
+            am = c.obj(fr['ambient'], '%s: ambient' % w, optional=('walkers', 'cars', 'flocks', 'occluders', 'lightBirds', 'roads', 'details', 'standers', 'scenes', 'persp'))
             if am:
                 presets = {'walkers': ('far-pedestrians',), 'cars': ('soviet-street', 'trolley-line', 'soviet-1950s', 'watering'), 'flocks': ('pigeons', 'sky')}
                 for kind in ('walkers', 'cars'):
@@ -366,12 +370,22 @@ def validate(bdir, b, site):
                                     c.err('%s: ambient.%s.%s' % (w, key, sub), '[u, v, вид, ±1 — куда смотрит]')
                             if 'size' in o:
                                 c.number(o['size'], '%s: ambient.%s.size' % (w, key), 0.001, 0.03)
+                            for q in o[sub]:   # e1.13: люди и сценки — не на проезжей части (на G сценка стояла на пути машин)
+                                if isinstance(q, list) and len(q) >= 2 and is_num(q[0]) and is_num(q[1]) and any(in_poly(q[0], q[1], r) for r in am.get('roads', [])):
+                                    c.err('%s: ambient.%s' % (w, key), 'точка [%.3f, %.3f] — на проезжей части (маска ambient.roads): поставьте на тротуар' % (q[0], q[1]))
+                if 'persp' in am:   # e1.13: [[v, длина машины в долях высоты кадра], …] по возрастанию v — машины крупнее ближе к зрителю
+                    if not (isinstance(am['persp'], list) and len(am['persp']) >= 2):
+                        c.err('%s: ambient.persp' % w, 'список [[v, длина], …] из 2+ точек')
+                    else:
+                        for q in am['persp']:
+                            c.numbers(q, '%s: ambient.persp' % w, 2, 0, 1)
                 if 'details' in am:   # e1.10: мелочи для крупных планов (details.js drawDetails)
                     wd = '%s: ambient.details' % w
-                    dd = c.obj(am['details'], wd, optional=('perches', 'sparrows', 'leaves', 'swallows', 'glint'))
+                    dd = c.obj(am['details'], wd, optional=('perches', 'sparrows', 'leaves', 'swallows', 'glint', 'dapple', 'motes'))
                     if dd:
                         spec = {'perches': (('spots',), ('n', 'size', 'bld')), 'sparrows': (('ledges',), ('n', 'size', 'bld')),
-                                'leaves': (('areas',), ('n', 'fall', 'size')), 'swallows': (('band',), ('n', 'size', 'every')), 'glint': (('poly',), ('every', 'k', 'bld'))}
+                                'leaves': (('areas',), ('n', 'fall', 'size')), 'swallows': (('band',), ('n', 'size', 'every')), 'glint': (('poly',), ('every', 'k', 'bld')),
+                                'dapple': (('areas',), ('n', 'size')), 'motes': (('beam',), ('width', 'n'))}
                         for k, (req, opt) in spec.items():
                             if k in dd:
                                 o = c.obj(dd[k], '%s.%s' % (wd, k), required=req, optional=opt)
@@ -397,6 +411,8 @@ def validate(bdir, b, site):
                                 c.err('%s: ambient.cars[%d].path' % (w, j + 1), 'путь машины вне дороги: внутри маски ambient.roads (или за перекрытием) %.1f%% точек, нужно ≥ %d%% (tools/check_roads.py рисует оверлей)' % (frac * 100, ROAD_MIN * 100))
         if 'skyBirds' in fr:      # e1.8: false — без трёх одиночных птиц движка (у кадра свои стаи)
             c.boolean(fr['skyBirds'], '%s: skyBirds' % w)
+        if 'motionVideo' in fr:   # e1.13: синемаграф (tools/cinemagraph.py): {src, mask, on, hideLife}
+            c.obj(fr['motionVideo'], '%s: motionVideo' % w, required=('src', 'mask'), optional=('on', 'hideLife', 'depth'))
         if 'nightWins' in fr:     # e1.12: true — окна других зданий (win2 из маски Gemini) горят и ночью с ночной картинкой
             c.boolean(fr['nightWins'], '%s: nightWins' % w)
         if 'depthRaw' in fr:      # e1.5: карта глубины кадра без растяжки контраста (значения файла = глубина в шейдере)
@@ -473,7 +489,7 @@ def validate(bdir, b, site):
         else:
             for j, h in enumerate(hs):
                 hw = '%s: точка-подсказка %d' % (w, j + 1)
-                h = c.obj(h, hw, required=('key', 'layer', 'u', 'v'), optional=('depth',))
+                h = c.obj(h, hw, required=('key', 'layer', 'u', 'v'), optional=('depth', 'r'))
                 if not h:
                     continue
                 if h['key'] not in facts:
@@ -482,6 +498,8 @@ def validate(bdir, b, site):
                     c.err(hw, 'layer должен быть "building" или "bg", а не %r' % (h['layer'],))
                 c.number(h['u'], hw + ': u', 0, 1)
                 c.number(h['v'], hw + ': v', 0, 1)
+                if 'r' in h:   # e1.13: полуоси обводки (доли ширины и высоты кадра)
+                    c.numbers(h['r'], hw + ': r', 2, 0.005, 0.5)
                 if 'depth' in h:
                     c.number(h['depth'], hw + ': depth', 0, 1)
         for key in ('nightLamps', 'lamps'):

@@ -118,6 +118,10 @@ def make_config(b, frames_url):
     day['SKY_REF'] = [f['sky']['ref'] for f in fr]
     day['SKY_END'] = [f['sky']['end'] for f in fr]
     parade = [i for i, f in enumerate(fr) if f.get('parade')]
+    if look.get('showNight'):   # e1.13: шоу ночью ярче (только если задано у здания)
+        C['SHOW_NIGHT'] = look['showNight']
+    if look.get('hotspots'):   # e1.13: вид точек-подсказок (только если задан у здания — у остальных CONFIG не меняется)
+        C['HOTSPOT_STYLE'] = look['hotspots']
     C.update({
         'NIGHT_MAIN_LIT': look['night']['mainLit'],
         'NIGHT_OTHER_LIT': look['night']['otherLit'],
@@ -157,7 +161,7 @@ def scene(f):
           'moon': sun['moon'], 'lawn': f.get('lawn'), 'closeUp': f.get('closeUp')}
     if 'cloudScale' in sky:
         sc['cloudScale'] = sky['cloudScale']
-    for k in ('bldDepth', 'showBand', 'fountains', 'ambient', 'skyBirds', 'nightWins'):   # e1.5: только если заданы у кадра — у остальных зданий настройки страницы не меняются
+    for k in ('bldDepth', 'showBand', 'fountains', 'ambient', 'skyBirds', 'nightWins', 'motionVideo'):   # e1.5: только если заданы у кадра — у остальных зданий настройки страницы не меняются
         if k in f:
             sc[k] = f[k]
     if sun.get('dayDrawn'):
@@ -374,7 +378,8 @@ def build_beta(site, bdirs=None, root=None, with_local=False):
         out.write_text(render(b, bd, page_dir, 'beta/engine/', beta=True, own_frames=bd in own), encoding='utf-8')
         written.append(str(out.relative_to(site)))
         if bd in own:   # кадры здания — рядом со страницей: beta/tests/<имя>/frames/*.webp
-            for src in sorted((Path(root or ROOT) / bd / 'frames').glob('*.webp')):
+            fdir = Path(root or ROOT) / bd / 'frames'   # + синемаграф (e1.13): <кадр>_motion.mp4 и маска
+            for src in sorted(list(fdir.glob('*.webp')) + list(fdir.glob('*_motion.mp4')) + list(fdir.glob('*_motion.webm')) + list(fdir.glob('*_motion_mask.png'))):
                 dst = out.parent / 'frames' / src.name
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(src, dst)

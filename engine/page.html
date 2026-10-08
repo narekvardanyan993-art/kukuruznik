@@ -789,18 +789,50 @@
   @media (prefers-reduced-motion: reduce) { html:not([data-motion="on"]) .sh-star, html:not([data-motion="on"]) .sh-sp1, html:not([data-motion="on"]) .sh-sp2 { animation: none; }
     #flagBtnB.sh-hint .sh-tag { animation: none; } #flagBtnB.sh-hint .sh-arrow path { animation: none; stroke-dashoffset: 0; } }
 
-  /* e1.12 (s4): курсоры ПК в стиле сайта — карандашная стрелка, карандаш над кликабельным, кружок-набросок при загрузке.
-     Точка срабатывания — кончик (числа после url); не загрузились — системный курсор (второе значение). Телефон не трогается. */
+  /* e1.13 (s7): курсоры ПК — классическая стрелка (чернильный контур чуть «от руки», кремовая заливка, лёгкая тень), наведение — та же
+     стрелка + чернильный кружок у острия (с JS кружок плавно растёт: .cur-ring), загрузка — чернильный круг (с JS рисует себя: .cur-load).
+     Точка нажатия — острие (числа после url); не загрузились — системный курсор. Телефон не трогается. */
   :root { --cp: pointer; }
   @media (hover: hover) and (pointer: fine) {
     :root {
-      --cn: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M3 2.4 L4.2 21.6 L9 17.2 L12.6 25.2 L16 23.6 L12.4 15.8 L19.2 15.2 Z' fill='%23fffcf4' stroke='%232f2a25' stroke-width='1.7' stroke-linejoin='round'/%3E%3Cpath d='M4.4 4.6 L5.4 18.8 M10.4 17.8 L13.4 24' stroke='%232f2a25' stroke-width='.6' opacity='.5' fill='none'/%3E%3C/svg%3E") 3 2, auto;
-      --cp: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 30 30'%3E%3Cpath d='M2.6 2.6 L8.4 5.2 L26.4 23.2 L23.2 26.4 L5.2 8.4 Z' fill='%23f2c24a' stroke='%232f2a25' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M2.6 2.6 L8.4 5.2 L5.2 8.4 Z' fill='%23f3e6c8' stroke='%232f2a25' stroke-width='1.4' stroke-linejoin='round'/%3E%3Cpath d='M2.6 2.6 L4.4 3.4 L3.4 4.4 Z' fill='%232f2a25'/%3E%3Cpath d='M22.2 19 L19 22.2' stroke='%232f2a25' stroke-width='1.2'/%3E%3Cpath d='M23.6 20.6 L26.4 23.2 L23.2 26.4 L20.6 23.6 Z' fill='%23d9776a' stroke='%232f2a25' stroke-width='1.3'/%3E%3C/svg%3E") 3 3, pointer;
-      --cw: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 30 30'%3E%3Cpath d='M15 4.2 C21.6 4 26 8.6 25.8 15.2 C25.6 21.6 21 26 14.6 25.8 C8.4 25.6 4 21 4.2 14.8 C4.4 9 8.6 4.6 13.6 4.3' fill='%23fffcf4' fill-opacity='.85' stroke='%232f2a25' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M15 15 L15 8.6 M15 15 L19.6 17.4' stroke='%232f2a25' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M6 12 C6.8 8.6 9.4 6 12.6 5.4' stroke='%232f2a25' stroke-width='.7' opacity='.5' fill='none'/%3E%3C/svg%3E") 15 15, progress;
+      --cn: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath d='M4.2 3.1 L4.0 24.6 L9.3 19.4 L13.1 27.6 L17.0 25.9 L13.3 17.9 L20.6 17.6 Z' fill='%23000' fill-opacity='.16' transform='translate%281.2 1.6%29'/%3E%3Cpath d='M4.2 3.1 L4.0 24.6 L9.3 19.4 L13.1 27.6 L17.0 25.9 L13.3 17.9 L20.6 17.6 Z' fill='%23fffcf4' stroke='%232f2a25' stroke-width='1.7' stroke-linejoin='round' stroke-linecap='round'/%3E%3Cpath d='M5.3 6.2 L5.2 20.6' stroke='%232f2a25' stroke-width='.6' stroke-opacity='.35' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") 4 3, auto;
+      --cp: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='-3 -3 32 32'%3E%3Ccircle cx='4.2' cy='3.2' r='5.6' fill='none' stroke='%23fffcf4' stroke-width='3.4' stroke-opacity='.9'/%3E%3Ccircle cx='4.2' cy='3.2' r='5.6' fill='none' stroke='%232f2a25' stroke-width='1.6'/%3E%3Cpath d='M4.2 3.1 L4.0 24.6 L9.3 19.4 L13.1 27.6 L17.0 25.9 L13.3 17.9 L20.6 17.6 Z' fill='%23000' fill-opacity='.16' transform='translate%281.2 1.6%29'/%3E%3Cpath d='M4.2 3.1 L4.0 24.6 L9.3 19.4 L13.1 27.6 L17.0 25.9 L13.3 17.9 L20.6 17.6 Z' fill='%23fffcf4' stroke='%232f2a25' stroke-width='1.7' stroke-linejoin='round' stroke-linecap='round'/%3E%3Cpath d='M5.3 6.2 L5.2 20.6' stroke='%232f2a25' stroke-width='.6' stroke-opacity='.35' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") 7 6, pointer;
+      --cw: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='10.5' fill='%23fffcf4' fill-opacity='.92'/%3E%3Cpath d='M16 5.6 C22.2 5.4 26.6 10 26.5 16.2 C26.3 22.3 21.8 26.6 15.6 26.4 C9.6 26.2 5.4 21.6 5.6 15.6 C5.8 10.6 9.2 6.8 13.6 5.9' fill='none' stroke='%23fffcf4' stroke-width='4' stroke-opacity='.85' stroke-linecap='round'/%3E%3Cpath d='M16 5.6 C22.2 5.4 26.6 10 26.5 16.2 C26.3 22.3 21.8 26.6 15.6 26.4 C9.6 26.2 5.4 21.6 5.6 15.6 C5.8 10.6 9.2 6.8 13.6 5.9' fill='none' stroke='%232f2a25' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M8.2 11.4 C9.4 8.6 12 6.8 14.8 6.4' fill='none' stroke='%232f2a25' stroke-width='.7' stroke-opacity='.45' stroke-linecap='round'/%3E%3C/svg%3E") 16 16, progress;
     }
     html, body { cursor: var(--cn); }
     #stage.loading, #stage.loading * { cursor: var(--cw); }
   }
+
+  /* e1.13: точки-подсказки «обводка» (CONFIG.HOTSPOT_STYLE = 'outline', building.json look.hotspots): деталь раз в ~10 с
+     обводится карандашной линией, которая рисует себя, и гаснет; номер-ярлык виден всегда; тап по области или ярлыку — инфо. */
+  .hs-ring { position: absolute; top: 0; left: 0; width: 44px; height: 44px; margin: -22px; border: 0; padding: 0; background: none;
+    pointer-events: auto; cursor: var(--cp); opacity: 0; transition: opacity var(--dur) var(--spring); -webkit-tap-highlight-color: transparent; }
+  .hs-ring.show { opacity: 1; }
+  .hr-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  .hr-path { fill: none; stroke: #2f2a25; stroke-width: 2.2; stroke-linecap: round; vector-effect: non-scaling-stroke;
+    stroke-dasharray: 1; stroke-dashoffset: 1; opacity: 0; filter: drop-shadow(0 0 1.5px rgba(255,252,244,0.9));
+    animation: hrDraw 10s var(--ease) infinite; animation-delay: calc(var(--i) * 3.3s + 1.2s); }
+  html[data-night="1"] .hr-path { stroke: #ffe2a8; filter: drop-shadow(0 0 2px rgba(10,14,30,0.9)); }
+  .hs-ring:focus-visible .hr-path, .hs-ring:hover .hr-path { animation: none; stroke-dashoffset: 0; opacity: 0.95; transition: stroke-dashoffset 600ms var(--out); }
+  .hr-tag { position: absolute; right: -4px; top: -6px; min-width: 18px; height: 18px; padding: 0 4px; box-sizing: border-box; display: grid; place-items: center;
+    border-radius: 9px 8px 9px 7px; background: rgba(255,252,244,0.94); border: 1.4px solid #2f2a25; color: #2f2a25;
+    font: 700 11px/1 var(--font); box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+  html[data-night="1"] .hr-tag { background: rgba(28,32,52,0.9); border-color: #ffe2a8; color: #ffe2a8; }
+  @keyframes hrDraw { 0% { stroke-dashoffset: 1; opacity: 0.95; } 14% { stroke-dashoffset: 0; opacity: 0.95; } 36% { stroke-dashoffset: 0; opacity: 0.95; }
+    46% { stroke-dashoffset: 0; opacity: 0; } 100% { stroke-dashoffset: 1; opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { html:not([data-motion="on"]) .hr-path { animation: none; stroke-dashoffset: 0; opacity: 0.6; } }
+
+  /* e1.13: живые части курсора ПК (скрипт внизу страницы; только мышь) */
+  html.cur-js { --cp: var(--cn); }
+  html.cur-js #stage.loading, html.cur-js #stage.loading * { cursor: var(--cn); }
+  .cur-ring, .cur-load { position: fixed; left: 0; top: 0; z-index: 9999; pointer-events: none; opacity: 0; }
+  .cur-ring { width: 13px; height: 13px; margin: -6.5px 0 0 -6.5px; border-radius: 50%; border: 1.6px solid #2f2a25;
+    box-shadow: 0 0 0 1.3px rgba(255,252,244,0.85); transform: scale(0.2); transition: transform 220ms var(--out), opacity 160ms var(--out); }
+  .cur-ring.on { opacity: 1; transform: scale(1); }
+  .cur-load { width: 26px; height: 26px; margin: 4px 0 0 8px; }
+  .cur-load.on { opacity: 1; }
+  .cur-load path { fill: none; stroke: #2f2a25; stroke-width: 2.2; stroke-linecap: round; stroke-dasharray: 1; animation: curDraw 1.3s var(--ease) infinite; filter: drop-shadow(0 0 1.2px rgba(255,252,244,0.95)); }
+  @keyframes curDraw { 0% { stroke-dashoffset: 1; } 60% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -1; } }
 </style>
 </head>
 <body>
@@ -957,6 +989,27 @@ document.querySelectorAll('.chips').forEach(function (g) { g.querySelectorAll('.
 <script src="{{E}}wall-data.js?v={{V}}" defer></script>
 <script src="{{E}}wall.js?v={{V}}" defer></script>
 <script src="{{E}}viewer.js?v={{V}}" defer>
+</script>
+<script>
+// e1.13: курсор ПК — чернильный кружок у острия плавно растёт над кликабельным, при загрузке рядом рисует себя чернильный круг
+(function () {
+  if (!window.matchMedia || !matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+  var html = document.documentElement, ring = document.createElement('div'), ld = document.createElement('div');
+  ring.className = 'cur-ring'; ld.className = 'cur-load';
+  ld.innerHTML = '<svg viewBox="0 0 26 26" width="26" height="26"><path pathLength="1" d="M13 3.2 C18.6 3 23 7 22.9 12.8 C22.8 18.4 18.6 22.8 12.8 22.7 C7.4 22.6 3.2 18.4 3.3 13 C3.4 8.6 6.4 4.8 10.6 3.6"/></svg>';
+  document.body.appendChild(ring); document.body.appendChild(ld); html.classList.add('cur-js');
+  var CL = 'a, button, [role="button"], .hs-dot, .hs-ring, .chip, label, select, summary, input[type="checkbox"], input[type="radio"]';
+  var stage = document.getElementById('stage');
+  document.addEventListener('pointermove', function (e) {
+    if (e.pointerType !== 'mouse') return;
+    var tf = 'translate(' + e.clientX + 'px,' + e.clientY + 'px)';
+    ring.style.left = e.clientX + 'px'; ring.style.top = e.clientY + 'px'; ld.style.transform = tf;
+    var t = e.target && e.target.closest ? e.target.closest(CL) : null;
+    ring.classList.toggle('on', !!t && !(t.disabled || t.getAttribute('aria-disabled') === 'true'));
+    ld.classList.toggle('on', !!(stage && stage.classList.contains('loading') && stage.contains(e.target)));
+  }, { passive: true });
+  document.addEventListener('pointerleave', function () { ring.classList.remove('on'); ld.classList.remove('on'); });
+})();
 </script>
 </body>
 </html>

@@ -7,8 +7,9 @@
 
 Gemini отдаёт только превью (~1024 px по длинной стороне), поэтому ночная картинка Gemini — не замена кадра, а КАРТА света и цвета:
   1. совмещается с дневным рисунком (сдвиг/масштаб по контурам, как маска дорог);
-  2. ночь = дневной рисунок × (размытая ночь Gemini / размытый день) — карандашные линии дня остаются резкими, апскейла нет;
-  3. памятник (слой здания) — музейная подсветка: тёплый свет снизу с мягким спадом вверх + блики на выпуклом металле,
+  2. ночь = дневной рисунок × (сильно размытая ночь Gemini / размытый день, σ 9 px) — карандашные линии дня остаются резкими,
+     ни одного пикселя Gemini (s7: на C статуя и деревья были «пиксельными»);
+  3. памятник (слой здания) — дневной рисунок, затемнённый общим тоном ночи, + мягкий тёплый свет снизу со спадом вверх,
      только внутри силуэта (без ореола вокруг и без перекраски всей статуи);
   4. --wmask: та же копия кадра, где Gemini закрасил окна чистым синим, фонари — чистым зелёным:
      окна → <кадр>_win2.webp (движок зажигает их по одному, ночью: "nightWins": true у кадра);
@@ -177,14 +178,16 @@ def main():
     H, W = day.shape[:2]
     bld = np.asarray(Image.open(fr / (name + '_building.webp')))[..., 3].astype(np.float32) / 255
     d = day.astype(np.float32) / 255
-    s = 2.2
+    s = 9.0                                                                          # s7: карта ночи только размытая — ни пикселя Gemini на статуе и деревьях
     if opt('--night'):
         gem = load_fit(opt('--night'), W, H)
         M, score, par = align(day, gem, np.zeros((H, W), bool))
         gem = cv2.warpAffine(gem, M, (W, H), borderMode=cv2.BORDER_REPLICATE)
         print('%s: ночь Gemini совмещена sx=%.2f sy=%.2f dx=%d dy=%d (corr %.3f)' % (name, *par, score))
         g = gem.astype(np.float32) / 255
-        R = (gblur(g, s) + 0.02) / (gblur(d, s) + 0.02)
+        envp = fr / (name + '_env.webp')
+        mg = (np.asarray(Image.open(envp).convert('RGB'))[..., 0] < 128).astype(np.float32)[..., None] if envp.exists() else np.ones((H, W, 1), np.float32)
+        R = (gblur(g * mg, s) + 0.02 * gblur(mg, s)[..., None]) / (gblur(d * mg, s) + 0.02 * gblur(mg, s)[..., None] + 1e-6)   # земля отдельно от неба: без светлого ореола по кромке крон
     else:                                                                            # --like <кадр>: ночи Gemini нет — тон ночи соседнего кадра того же здания
         ref = opt('--like')
         rd = np.asarray(Image.open(fr / (ref + '.webp')).convert('RGB')).astype(np.float32) / 255
@@ -209,7 +212,19 @@ def main():
             row = np.where(den > 20, num / np.maximum(den, 1), np.nan)
             ok = ~np.isnan(row); row = np.interp(np.arange(H), np.nonzero(ok)[0], row[ok]) if ok.any() else np.full(H, R[..., c].mean())
             Rs[..., c] = np.convolve(np.pad(row, 30, mode='edge'), np.ones(61) / 61, 'valid')[:, None]
+        # s7: небо — ночная синева как у Кукурузника (сверху тёмно-синее, у горизонта светлее), а не чёрная дыра: цель по строкам / день по строкам
+        rows = np.nonzero(sm.mean(1) > 0.05)[0]
+        if len(rows):
+            y_end = rows.max() + 1; tt = np.clip(np.arange(H) / max(1, y_end), 0, 1)[:, None]
+            tgt = np.array([0.15, 0.18, 0.27], np.float32) * (1 - tt) + np.array([0.29, 0.31, 0.39], np.float32) * tt
+            dm = np.array([(d[y][sm[y]].mean(0) if sm[y].sum() > 40 else np.full(3, np.nan)) for y in range(H)], np.float32)
+            for c in range(3):   # строки, где неба мало, — по соседним (иначе полосы поперёк неба)
+                ok = ~np.isnan(dm[:, c]); dm[:, c] = np.interp(np.arange(H), np.nonzero(ok)[0], dm[ok, c]) if ok.any() else 0.8
+                dm[:, c] = np.convolve(np.pad(dm[:, c], 25, mode='edge'), np.ones(51) / 51, 'valid')
+            Rs = np.clip(tgt / np.maximum(dm, 0.05), 0.05, 1.2)[:, None, :] * np.ones((1, W, 1), np.float32)
         R = R * (1 - sky) + Rs * sky
+        gm = R.mean(-1, keepdims=True) * np.array([1.03, 1.0, 0.97], np.float32)   # s7: земля — нейтральнее, как ночь Кукурузника (без синего «фильтра»)
+        R = R * sky + (R * 0.45 + gm * 0.55) * (1 - sky)
     out = d * R
     # памятник: музейная подсветка снизу
     flood = float(opt('--flood', '0.8'))
@@ -219,14 +234,29 @@ def main():
         ys = np.nonzero(bld.max(1) > 0.5)[0]; y0, y1 = ys.min(), ys.max(); hgt = max(1, y1 - y0)
         yy = np.arange(H, dtype=np.float32)[:, None]
         k = np.exp(-np.clip(y1 - yy, 0, None) / (0.5 * hgt)) * 0.5 + 0.5      # свет снизу: постамент ярче, фигура — мягче (не в темноте)
-        L = d @ np.array([0.299, 0.587, 0.114], np.float32)
-        hi = np.clip(gblur(L, 1.2) - gblur(L, 5.0), 0, None) * 1.3                     # выпуклости, блики металла (крупные — не штриховка камня)
         warm = np.array([1.0, 0.86, 0.68], np.float32)
-        mb = bld[..., None]
-        Rm = (gblur(R * mb, 14) + 1e-4) / (gblur(bld, 14)[..., None] + 1e-4)                     # тени Gemini на памятнике — пятнами; свет музея ровный
-        lit = d * (Rm * (1 - k[..., None] * flood) + (k * flood)[..., None] * warm * 0.95) + (hi * (0.6 + k) * flood * 1.8)[..., None] * warm
+        grd = (bld < 0.1) & (sky[..., 0] < 0.3) if env.exists() else (bld < 0.1)
+        T = np.median(R[grd], 0) if grd.any() else np.array([0.32, 0.36, 0.5], np.float32)   # s7: статуя = дневной рисунок, затемнённый общим тоном ночи
+        lit = d * (T * (1 - k[..., None] * flood) + (k * flood)[..., None] * warm * 0.9)     # + мягкий тёплый свет снизу; без бликов и пятен
         m = gblur(cv2.erode(bld, np.ones((3, 3), np.uint8)), 0.8)[..., None]           # строго внутри силуэта, край мягкий
         out = out * (1 - m) + lit * m
+        # s7: светлая бумажная кайма вырезки вокруг фигуры светилась ночью ореолом — закрашивается окружением
+        L0 = d @ np.array([0.299, 0.587, 0.114], np.float32)
+        mon8 = (bld > 0.5).astype(np.uint8)
+        outer = cv2.dilate(mon8, np.ones((11, 11), np.uint8)).astype(bool) & ~cv2.erode(mon8, np.ones((7, 7), np.uint8)).astype(bool)   # внешние 3 px силуэта и 5 px снаружи
+        rim = outer & (L0 > 0.7)
+        if env.exists():   # и кромка неба над кронами: только почти белая бумага
+            sk8 = (sky[..., 0] > 0.5).astype(np.uint8)
+            edge = cv2.dilate(sk8, np.ones((7, 7), np.uint8)).astype(bool) & ~cv2.erode(sk8, np.ones((11, 11), np.uint8)).astype(bool)
+            rim |= edge & (L0 > 0.78)
+        if rim.any():   # кайма — цветом окружающего неба/фона (смазанное среднее только по «чистым» соседям), силуэт остаётся чётким
+            keep = (~rim & ~(bld > 0.5)).astype(np.float32)
+            if env.exists():
+                keep *= (sky[..., 0] > 0.5)
+            fill = gblur(out * keep[..., None], 5) / (gblur(keep, 5)[..., None] + 1e-4)
+            ok = gblur(keep, 5) > 0.02
+            r3 = (rim & ok)[..., None]
+            out = np.where(r3, fill, out)
     Image.fromarray((np.clip(out, 0, 1) * 255 + 0.5).astype(np.uint8)).save(fr / (name + '_night.webp'), quality=90, method=6)
     lamps = []
     if opt('--wmask'):

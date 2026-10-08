@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np, cv2
 from PIL import Image
 S = Path(__file__).resolve().parent; F = S.parent / 'frames'; ROOT = S.parents[2]
-K = {'lenin_1': (1.55, 1.0), 'lenin_2': (1.5, 1.0), 'lenin_3': (1.55, 1.0), 'lenin_4': (1.45, 1.0), 'lenin_6': (1.6, 1.07)}   # круг 3 (07.10): было 1,28–1,4 — на iPhone всё ещё бледно
+K = {'lenin_1': (1.7, 1.03), 'lenin_2': (1.65, 1.03), 'lenin_3': (1.7, 1.03), 'lenin_4': (1.6, 1.03), 'lenin_6': (1.75, 1.12)}   # s7 (09.10): ещё насыщеннее и плотнее (G был бледным); круг 3: 1,45–1,6
 BASE_COMMIT = '43992c1'   # кадры до круга 2
 def src(fid, suf):
     p = S / fid / 'layers' / (fid + suf + '.webp')

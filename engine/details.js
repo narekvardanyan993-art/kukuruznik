@@ -664,10 +664,16 @@
     var SM = { pobeda: 'pobeda', volga: 'volga', taxi: 'volga', trolley: 'trolley', water: 'water' }[kind], gr = SM && SPR.ok && SPR.meta.groups && SPR.meta.groups['car_' + SM];
     if (gr) {   // e1.11: спрайт из Gemini — вид по направлению на экране: бок / 3/4 спереди (едет к зрителю) / 3/4 сзади; машина стоит ровно, не крутится
       var cs = Math.cos(ang), sn0 = Math.sin(ang), view = Math.abs(sn0) < 0.42 ? 'side' : (sn0 > 0 ? 'front' : 'rear'), nm = 'car_' + SM + '_' + view + '_' + (cs >= 0 ? 'r' : 'l'), fr = SPR.meta.frames[nm];
+      // e1.13: ракурс по касательной к дороге — спрайт доворачивается от своего «родного» направления (бок 0°, 3/4 ±40°) к направлению пути на экране;
+      // лёгкое покачивание на ходу
+      var nat = view === 'side' ? (cs >= 0 ? 0 : Math.PI) : (view === 'front' ? (cs >= 0 ? 0.7 : Math.PI - 0.7) : (cs >= 0 ? -0.7 : -Math.PI + 0.7));
+      var dr = Math.atan2(Math.sin(ang - nat), Math.cos(ang - nat)), rot = clamp(dr, view === 'side' ? -0.45 : -0.3, view === 'side' ? 0.45 : 0.3);
+      var bob = Math.sin(now * 0.013 + i * 1.7) * len * 0.012; rot += Math.sin(now * 0.0095 + i * 2.3) * 0.012;
       if (fr) {
         var sw = len * fr[2] / gr[0], sh = fr[3] * sw / fr[2];
-        ctx.save(); ctx.globalAlpha = a * 0.2 * (1 - 0.6 * lights); ctx.fillStyle = 'rgb(40,35,30)'; ctx.beginPath(); ctx.ellipse(x, y - sh * 0.02, sw * 0.45, Math.max(1, sh * 0.13), 0, 0, 6.283); ctx.fill(); ctx.restore();
-        spr(nm, x, y, sw, false, view === 'side' ? clamp(Math.atan(Math.tan(ang)), -0.3, 0.3) : 0, a);
+        var sdx = (root.CONFIG.SUN_SIDE === 'left' ? 1 : -1) * sw * 0.07;   // тень от солнца в сторону
+        ctx.save(); ctx.globalAlpha = a * 0.3 * (1 - 0.6 * lights); ctx.fillStyle = 'rgb(40,35,30)'; ctx.translate(x + sdx, y + sh * 0.02); ctx.rotate(rot); ctx.beginPath(); ctx.ellipse(0, 0, sw * 0.5, Math.max(1, sh * 0.16), 0, 0, 6.283); ctx.fill(); ctx.restore();
+        spr(nm, x, y + bob, sw, false, rot, a);
         if (kind === 'water' && lights < 0.6) waterSpray(x, y - sh * 0.12, len, ang, a * (1 - lights), now, i);
         if (lights > 0.05) { ctx.save(); ctx.translate(x, y - sh * 0.3); ctx.rotate(ang); carLights(len * (view === 'side' ? 1 : 0.7), len * 0.43, kind, a, lights, true); ctx.restore(); }
         return;
@@ -865,6 +871,37 @@
     })();
     if (day < 0.03) { ctx.restore(); return; }
     // блик солнца скользит по бронзе (раз в 7–13 с), только днём
+    // e1.13 пятна света сквозь листву (D.dapple {areas: [[u0, v0, u1, v1]], n, size}): тёплые мягкие пятна дрожат и плывут с ветром; только днём
+    if (D.dapple && day > 0.05) {
+      var DA = D.dapple;
+      if (!S.dp) { S.dp = []; for (var di = 0; di < (DA.n || 14); di++) { var ar = DA.areas[di % DA.areas.length]; S.dp.push({ u: rnd(ar[0], ar[2]), v: rnd(ar[1], ar[3]), r: rnd(0.6, 1.4), ph: rnd(0, 6.28), sp: rnd(0.4, 1.1) }); } }
+      var wd = wxNow().wind || 0.3;
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      S.dp.forEach(function (q) {
+        var sw = Math.sin(t * q.sp * (0.6 + wd) + q.ph), p = DP(f, [q.u + 0.004 * sw, q.v + 0.002 * Math.cos(t * q.sp + q.ph)], false), rr = Math.max(2, DS(f, [q.u, q.v], (DA.size || 0.012) * q.r, false));
+        var al = (0.10 + 0.08 * Math.sin(t * q.sp * 2.1 + q.ph * 3)) * day;
+        var gg = ctx.createRadialGradient(p[0], p[1], 0, p[0], p[1], rr); gg.addColorStop(0, 'rgba(255,236,190,' + al.toFixed(3) + ')'); gg.addColorStop(1, 'rgba(255,236,190,0)');
+        ctx.fillStyle = gg; ctx.beginPath(); ctx.ellipse(p[0], p[1], rr, rr * 0.55, 0, 0, 6.283); ctx.fill();
+      });
+      ctx.restore();
+    }
+    // e1.13 пылинки в луче (D.motes {beam: [u верх, v верх, u низ, v низ], width, n}): едва видный наклонный луч и медленно плывущие искорки; только днём
+    if (D.motes && day > 0.05) {
+      var MO = D.motes, b0 = DP(f, [MO.beam[0], MO.beam[1]], false), b1 = DP(f, [MO.beam[2], MO.beam[3]], false), bw = Math.abs(DP(f, [MO.beam[0] + (MO.width || 0.1), MO.beam[1]], false)[0] - b0[0]);
+      if (!S.mo) { S.mo = []; for (var mi = 0; mi < (MO.n || 26); mi++) S.mo.push({ k: Math.random(), o: rnd(-0.5, 0.5), ph: rnd(0, 6.28), sp: rnd(0.01, 0.03) }); }
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      var bx = b1[0] - b0[0], by = b1[1] - b0[1], bl = Math.hypot(bx, by) || 1, nx = -by / bl, ny = bx / bl;
+      var bg = ctx.createLinearGradient(b0[0], b0[1], b1[0], b1[1]); bg.addColorStop(0, 'rgba(255,240,205,' + (0.07 * day).toFixed(3) + ')'); bg.addColorStop(1, 'rgba(255,240,205,0)');
+      ctx.fillStyle = bg; ctx.beginPath(); ctx.moveTo(b0[0] - nx * bw * 0.4, b0[1] - ny * bw * 0.4); ctx.lineTo(b0[0] + nx * bw * 0.4, b0[1] + ny * bw * 0.4);
+      ctx.lineTo(b1[0] + nx * bw * 0.6, b1[1] + ny * bw * 0.6); ctx.lineTo(b1[0] - nx * bw * 0.6, b1[1] - ny * bw * 0.6); ctx.closePath(); ctx.fill();
+      S.mo.forEach(function (q) {
+        q.k = (q.k + q.sp * 0.016) % 1; var kk = q.k, off = (q.o + 0.12 * Math.sin(t * 0.7 + q.ph)) * bw * (0.4 + 0.2 * kk);
+        var x = b0[0] + bx * kk + nx * off, y = b0[1] + by * kk + ny * off, tw = 0.5 + 0.5 * Math.sin(t * 2.3 + q.ph * 5);
+        ctx.globalAlpha = day * (0.25 + 0.55 * tw) * Math.sin(Math.PI * kk); ctx.fillStyle = 'rgb(255,246,220)';
+        ctx.beginPath(); ctx.arc(x, y, Math.max(0.6, bw * 0.012), 0, 6.283); ctx.fill();
+      });
+      ctx.restore(); ctx.globalAlpha = 1;
+    }
     if (D.glint && w.n < 0.4) {
       var G = D.glint;
       if (!S.gl && t > S.glNext) S.gl = { t0: t, dur: rnd(1.6, 2.4) };
@@ -951,6 +988,50 @@
     }
     ctx.restore();
   }
+  // e1.13 синемаграф (кадр: motionVideo {src, mask, depth, on, hideLife}; выключен, пока не on или ?cine=1): видео Veo, вклеенное в
+  // резкий рисунок только там, где есть движение (tools/cinemagraph.py). Кладётся на глубине фона и двигается с наклоном; ночью гаснет.
+  var MVS = {}; root.__MVS = MVS;   // для проверочных скриптов
+  function drawMotionVideo(now, w, f, fr, M) {
+    var S = MVS[fr];
+    if (!S) {
+      var base = ((root.CONFIG.FRAMES[fr] || {}).color || '').replace(/[^\/]*$/, '');
+      S = MVS[fr] = { v: document.createElement('video'), m: new Image(), c: document.createElement('canvas') };
+      S.v.muted = true; S.v.loop = true; S.v.playsInline = true; S.v.setAttribute('playsinline', ''); S.v.setAttribute('muted', ''); S.v.preload = 'auto';
+      S.v.src = base + (S.v.canPlayType('video/mp4; codecs="avc1.42E01E"') ? M.src : M.src.replace(/\.mp4$/, '.webm')); S.m.src = base + M.mask;   // без H.264 — запасной VP9
+      var pl = S.v.play(); if (pl && pl.catch) pl.catch(function () {});
+    }
+    var a = 1 - sstep(0.15, 0.5, w.n);
+    Object.keys(MVS).forEach(function (k) { if (+k !== fr && !MVS[k].v.paused) MVS[k].v.pause(); });
+    if (a < 0.02) { if (!S.v.paused) S.v.pause(); return; }
+    if (S.v.paused) { var p2 = S.v.play(); if (p2 && p2.catch) p2.catch(function () {}); }
+    if (S.v.readyState < 2 || !S.m.complete || !S.m.naturalWidth) return;
+    var vw = S.v.videoWidth, vh = S.v.videoHeight;
+    if (S.c.width !== vw) { S.c.width = vw; S.c.height = vh; }
+    var x = S.c.getContext('2d');
+    x.globalCompositeOperation = 'copy'; x.drawImage(S.v, 0, 0, vw, vh);
+    x.globalCompositeOperation = 'destination-in'; x.drawImage(S.m, 0, 0, vw, vh); x.globalCompositeOperation = 'source-over';
+    if (!S.bands) {   // полосы по высоте кадра, у каждой своя глубина (медиана глубины фона там, где в маске есть движение) — видео едет с наклоном, как земля
+      var mc = document.createElement('canvas'), NB = 28; mc.width = 96; mc.height = 168;
+      var mx = mc.getContext('2d', { willReadFrequently: true }); mx.drawImage(S.m, 0, 0, 96, 168);
+      var md = mx.getImageData(0, 0, 96, 168).data; S.bands = [];
+      for (var bi = 0; bi < NB; bi++) {
+        var ds = [], y0 = Math.floor(bi * 168 / NB), y1 = Math.floor((bi + 1) * 168 / NB);
+        for (var yy = y0; yy < y1; yy++) for (var xx = 0; xx < 96; xx++) if (md[(yy * 96 + xx) * 4 + 3] > 100) ds.push(depthAt(f, (xx + 0.5) / 96, (yy + 0.5) / 168));
+        if (ds.length) { ds.sort(function (p, q) { return p - q; }); S.bands.push([bi / NB, (bi + 1) / NB, ds[ds.length >> 1]]); }
+      }
+    }
+    ctx.save(); ctx.globalAlpha = a;
+    S.bands.forEach(function (b) {
+      var q0 = P(0, b[0], b[2]), q1 = P(1, b[1], b[2]), sy = b[0] * vh, sh = (b[1] - b[0]) * vh;
+      ctx.drawImage(S.c, 0, sy, vw, sh, q0[0], q0[1] - 0.5, q1[0] - q0[0], q1[1] - q0[1] + 1);   // +1 px — без щелей между полосами
+    });
+    ctx.restore();
+  }
+  function perspAt(P2, v) {   // ambient.persp [[v, длина машины], …] — длина машины по высоте кадра (перспектива рисунка)
+    if (v <= P2[0][0]) return P2[0][1];
+    for (var k = 1; k < P2.length; k++) if (v <= P2[k][0]) return P2[k - 1][1] + (P2[k][1] - P2[k - 1][1]) * (v - P2[k - 1][0]) / (P2[k][0] - P2[k - 1][0]);
+    return P2[P2.length - 1][1];
+  }
   function drawAmbientLife(now, w, f, A) {
     var t = now / 1000, col = ink(), night = w.n, a0 = 1 - 0.35 * night, ar = aspect(), Q = []; NIGHT = night;
     var dt = A._t != null ? clamp(t - A._t, 0, 0.1) : 0; A._t = t;
@@ -973,7 +1054,7 @@
         var kinds = o.kinds, m = st[i] || (st[i] = { s: o.loop ? i / n : Math.random(), dir: o.loop ? 1 : (i % 2 ? -1 : 1), wait: 0, sp: rnd(0.85, 1.2), kind: kinds[Math.floor(Math.random() * kinds.length)] });
         if (!m.body) m.body = CARS[m.kind][Math.floor(Math.random() * CARS[m.kind].length)];
         if (m.wait > 0) { m.wait -= dt; continue; }
-        var L = pathOf(o0), tot = L[L.length - 1], sz = o.size[0] + (o.size[1] - o.size[0]) * m.s;
+        var L = pathOf(o0), tot = L[L.length - 1], sz = A.persp ? perspAt(A.persp, along(o0, m.s).v) : o.size[0] + (o.size[1] - o.size[0]) * m.s;   // e1.13: масштаб по глубине (ambient.persp)
         m.s += m.dir * o.bps * m.sp * sz * dt / Math.max(1e-6, tot);
         if (o.loop) m.s = (m.s % 1 + 1) % 1;
         else if (m.s > 1 || m.s < 0) { m.s = m.dir > 0 ? 0 : 1; m.wait = rnd(o.gap[0], o.gap[1]); m.kind = kinds[Math.floor(Math.random() * kinds.length)]; m.body = CARS[m.kind][Math.floor(Math.random() * CARS[m.kind].length)]; continue; }
@@ -1197,7 +1278,8 @@
       ctx.fillStyle = lg; ctx.fillRect(x0 - 2, y0 - 2, x1 - x0 + 4, y1 - y0 + 4);
       if (lamp) {   // свет источника ложится на ткань пятном и гаснет с расстоянием
         var rg = ctx.createRadialGradient(lamp[0], lamp[1], 0, lamp[0], lamp[1], lamp[2]);
-        rg.addColorStop(0, 'rgba(255,232,190,' + (0.5 * nn * a).toFixed(3) + ')'); rg.addColorStop(0.5, 'rgba(255,220,170,' + (0.2 * nn * a).toFixed(3) + ')'); rg.addColorStop(1, 'rgba(255,220,170,0)');
+        var lk = root.CONFIG.SHOW_NIGHT === 'bright' ? 1.5 : 1;
+        rg.addColorStop(0, 'rgba(255,232,190,' + (0.5 * lk * nn * a).toFixed(3) + ')'); rg.addColorStop(0.5, 'rgba(255,220,170,' + (0.2 * lk * nn * a).toFixed(3) + ')'); rg.addColorStop(1, 'rgba(255,220,170,0)');
         ctx.fillStyle = rg; ctx.fillRect(x0 - 2, y0 - 2, x1 - x0 + 4, y1 - y0 + 4);
       }
     }
@@ -1237,7 +1319,8 @@
   }
   function stepHeli(now, w) {
     var tt = (now - par.t0) / 1000, nn = wts().n, s0 = sf(), kill = par.abort ? clamp((now - par.abort) / 700, 0, 1) : 0;
-    var uv = heliPath(tt), p = P(uv[0], uv[1], 0), S = 5.4 * s0, col = nn > 0.5 ? '170,178,200' : ink();
+    var BRN = root.CONFIG.SHOW_NIGHT === 'bright';   // e1.13: шоу ночью ярче и контрастнее (только у зданий с look.showNight; Кукурузник — как на сайте)
+    var uv = heliPath(tt), p = P(uv[0], uv[1], 0), S = 5.4 * s0, col = nn > 0.5 ? (BRN ? '232,236,250' : '170,178,200') : ink();
     var a = (1 - kill) * clamp(tt / 0.8, 0, 1) * (1 - clamp((tt - 25) / 1, 0, 1));
     // трос отклонён назад набегающим потоком (~29°); порывы слегка качают — маятник с затуханием, от времени кадра
     var gust = 0.06 * Math.sin(tt * 0.35) + 0.025 * Math.sin(tt * 1.1 + 1), thT = -0.5 + gust;
@@ -1256,13 +1339,13 @@
     pt.N = N;
     if (nn > 0.3) {   // ночью прожектор из-под брюха: мягкий конус света в воздухе к флагу
       ctx.globalCompositeOperation = 'lighter'; var tip = pt(N * 0.45, 3), gl = ctx.createRadialGradient(ax0, ay0, 0, ax0, ay0, fw * 0.6);
-      gl.addColorStop(0, 'rgba(255,240,210,' + (0.16 * a * nn).toFixed(3) + ')'); gl.addColorStop(1, 'rgba(255,240,210,0)'); ctx.fillStyle = gl;
+      gl.addColorStop(0, 'rgba(255,240,210,' + ((BRN ? 0.34 : 0.16) * a * nn).toFixed(3) + ')'); gl.addColorStop(1, 'rgba(255,240,210,0)'); ctx.fillStyle = gl;
       ctx.beginPath(); ctx.moveTo(ax0, ay0); ctx.lineTo(tip[0] - S * 2, tip[1] + S * 2); ctx.lineTo(B[0] + S * 2.5, B[1] + S * 2); ctx.closePath(); ctx.fill();
       ctx.globalCompositeOperation = 'source-over';
     }
     ctx.strokeStyle = 'rgba(' + col + ',' + (0.75 * a).toFixed(3) + ')'; ctx.lineWidth = 0.7;
     ctx.beginPath(); ctx.moveTo(ax0, ay0); ctx.lineTo(A[0], A[1]); ctx.stroke();
-    clothFlag(pt, nn, a, nn > 0.3 ? [ax0, ay0 + S, fw * 0.6] : null, 0.82);
+    clothFlag(pt, nn, a, nn > 0.3 ? [ax0, ay0 + S, fw * (BRN ? 0.9 : 0.6)] : null, BRN ? 0.3 : 0.82);   // e1.13 look.showNight 'bright': флаг ночью в луче — цвета флага, а не тёмная тряпка
     ctx.strokeStyle = 'rgba(' + col + ',' + (0.9 * a).toFixed(3) + ')'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke();   // кромка на тросе
     ctx.fillStyle = 'rgba(' + col + ',' + (0.95 * a).toFixed(3) + ')'; ctx.beginPath(); ctx.ellipse(B[0], B[1] + S * 0.25, S * 0.28, S * 0.36, -h.th, 0, 6.283); ctx.fill();   // груз
     ctx.translate(p[0], p[1]); ctx.rotate(tilt); heliBody(S, col, a, tt, nn);
@@ -1597,7 +1680,13 @@
     if (SC(fr).skyBirds !== false) drawAmbientBirds(now, w);   // e1.8: кадр может выключить три одиночные птицы (свои стаи в ambient.flocks)
     if (SC(fr).closeUp) drawCloseUp(now, w, f, SC(fr).closeUp);
     if (SC(fr).fountains) drawFountains(now, w, f, SC(fr).fountains);
-    if (SC(fr).ambient) drawAmbientLife(now, w, f, SC(fr).ambient);
+    var MV = SC(fr).motionVideo, mvOn = MV && (MV.on || /[?&]cine=1/.test(location.search));
+    if (mvOn) drawMotionVideo(now, w, f, fr, MV);
+    if (SC(fr).ambient) {   // синемаграф заменяет машины и прохожих (они уже в видео); сценки, стоящие люди и голуби остаются
+      var AM = SC(fr).ambient;
+      if (mvOn && MV.hideLife !== false) AM = MV._A || (MV._A = { flocks: AM.flocks, scenes: AM.scenes, standers: AM.standers, occluders: AM.occluders });
+      drawAmbientLife(now, w, f, AM);
+    }
     for (var i = active.length - 1; i >= 0; i--) {
       var e = active[i], t = (now - e.t0) / e.dur;
       if (t >= 1) { active.splice(i, 1); continue; }
