@@ -656,7 +656,7 @@ def place_live_files(site, slug, root=None):
     out.mkdir(parents=True)
     written = []
     fsrc = root / src / b['framesDir']
-    for f in sorted(fsrc.glob('*.webp')):
+    for f in sorted(list(fsrc.glob('*.webp')) + list(fsrc.glob('*_motion.mp4')) + list(fsrc.glob('*_motion.webm')) + list(fsrc.glob('*_motion_mask.png'))):   # + синемаграф (e1.13)
         dst = out / b['framesDir'] / f.name
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(f, dst)
