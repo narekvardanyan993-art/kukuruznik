@@ -668,6 +668,7 @@
         var sw = len * fr[2] / gr[0], sh = fr[3] * sw / fr[2];
         ctx.save(); ctx.globalAlpha = a * 0.2 * (1 - 0.6 * lights); ctx.fillStyle = 'rgb(40,35,30)'; ctx.beginPath(); ctx.ellipse(x, y - sh * 0.02, sw * 0.45, Math.max(1, sh * 0.13), 0, 0, 6.283); ctx.fill(); ctx.restore();
         spr(nm, x, y, sw, false, view === 'side' ? clamp(Math.atan(Math.tan(ang)), -0.3, 0.3) : 0, a);
+        if (kind === 'water' && lights < 0.6) waterSpray(x, y - sh * 0.12, len, ang, a * (1 - lights), now, i);
         if (lights > 0.05) { ctx.save(); ctx.translate(x, y - sh * 0.3); ctx.rotate(ang); carLights(len * (view === 'side' ? 1 : 0.7), len * 0.43, kind, a, lights, true); ctx.restore(); }
         return;
       }
@@ -699,6 +700,30 @@
       if (kind === 'taxi') { for (var q = 0; q < 4; q++) { ctx.fillStyle = q % 2 ? 'rgb(250,244,220)' : 'rgb(' + col + ')'; ctx.fillRect(-len * 0.24 + q * len * 0.1, wd * 0.38, len * 0.1, wd * 0.12); } }
     }
     if (lights > 0.05) carLights(len, wd, kind, a, lights);
+    ctx.restore();
+  }
+  // e1.12 поливальная машина: веер воды в обе стороны от задней части, капли летят дугой и гаснут; поливает не всё время
+  function waterSpray(x, y, len, ang, a, now, i) {
+    var t = now * 0.001, on = Math.sin(t * 0.21 + i * 1.7) > -0.35;
+    if (!on || a < 0.05) return;
+    var cs = Math.cos(ang), sn = Math.sin(ang), rx = x - cs * len * 0.3, ry = y - sn * len * 0.3 * 0.6;
+    ctx.save(); ctx.lineCap = 'round';
+    [-1, 1].forEach(function (sd) {
+      var nx = -sn * sd, ny = cs * sd * 0.55;                              // поперёк движения, сжато перспективой
+      var ex = rx + nx * len * 0.95 - cs * len * 0.25, ey = ry + ny * len * 0.95 + len * 0.12;
+      var g = ctx.createLinearGradient(rx, ry, ex, ey);
+      g.addColorStop(0, 'rgba(226,238,246,' + 0.55 * a + ')'); g.addColorStop(1, 'rgba(226,238,246,0)');
+      ctx.globalAlpha = 1; ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(rx, ry);
+      ctx.quadraticCurveTo(rx + nx * len * 0.5, ry + ny * len * 0.5 - len * 0.18, ex - cs * len * 0.12, ey - len * 0.06);
+      ctx.lineTo(ex + cs * len * 0.12, ey + len * 0.06); ctx.closePath(); ctx.fill();
+      for (var k = 0; k < 9; k++) {                                         // капли: по дуге, каждая со своим временем
+        var ph = ((t * 2.2 + k * 0.137 + i * 0.31) % 1), px = rx + nx * len * 0.95 * ph - cs * len * 0.25 * ph, py = ry + ny * len * 0.95 * ph - Math.sin(Math.PI * ph) * len * 0.16 + len * 0.12 * ph;
+        ctx.globalAlpha = a * 0.75 * (1 - ph); ctx.fillStyle = 'rgb(236,244,250)';
+        ctx.beginPath(); ctx.arc(px + Math.sin(k * 7.1) * len * 0.05, py, Math.max(0.5, len * 0.022), 0, 6.283); ctx.fill();
+      }
+    });
+    ctx.globalAlpha = a * 0.16; ctx.fillStyle = 'rgb(70,80,92)';           // мокрый асфальт позади
+    ctx.beginPath(); ctx.ellipse(rx - cs * len * 0.5, ry - sn * len * 0.3 + len * 0.06, len * 0.6, len * 0.16, Math.atan2(sn * 0.6, cs), 0, 6.283); ctx.fill();
     ctx.restore();
   }
   function carLights(len, wd, kind, a, L, noBody) {   // e1.10 ночь: кузов в темноте, лучи фар ложатся на дорогу, красные задние огни; троллейбус — тёплый салон
