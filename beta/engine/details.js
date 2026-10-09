@@ -988,45 +988,7 @@
     }
     ctx.restore();
   }
-  // e1.13 синемаграф (кадр: motionVideo {src, mask, depth, on, hideLife}; выключен, пока не on или ?cine=1): видео Veo, вклеенное в
-  // резкий рисунок только там, где есть движение (tools/cinemagraph.py). Кладётся на глубине фона и двигается с наклоном; ночью гаснет.
-  var MVS = {}; root.__MVS = MVS;   // для проверочных скриптов
-  function drawMotionVideo(now, w, f, fr, M) {
-    var S = MVS[fr];
-    if (!S) {
-      var base = ((root.CONFIG.FRAMES[fr] || {}).color || '').replace(/[^\/]*$/, '');
-      S = MVS[fr] = { v: document.createElement('video'), m: new Image(), c: document.createElement('canvas') };
-      S.v.muted = true; S.v.loop = true; S.v.playsInline = true; S.v.setAttribute('playsinline', ''); S.v.setAttribute('muted', ''); S.v.preload = 'auto';
-      S.v.src = base + (S.v.canPlayType('video/mp4; codecs="avc1.42E01E"') ? M.src : M.src.replace(/\.mp4$/, '.webm')); S.m.src = base + M.mask;   // без H.264 — запасной VP9
-      var pl = S.v.play(); if (pl && pl.catch) pl.catch(function () {});
-    }
-    var a = 1 - sstep(0.15, 0.5, w.n);
-    Object.keys(MVS).forEach(function (k) { if (+k !== fr && !MVS[k].v.paused) MVS[k].v.pause(); });
-    if (a < 0.02) { if (!S.v.paused) S.v.pause(); return; }
-    if (S.v.paused) { var p2 = S.v.play(); if (p2 && p2.catch) p2.catch(function () {}); }
-    if (S.v.readyState < 2 || !S.m.complete || !S.m.naturalWidth) return;
-    var vw = S.v.videoWidth, vh = S.v.videoHeight;
-    if (S.c.width !== vw) { S.c.width = vw; S.c.height = vh; }
-    var x = S.c.getContext('2d');
-    x.globalCompositeOperation = 'copy'; x.drawImage(S.v, 0, 0, vw, vh);
-    x.globalCompositeOperation = 'destination-in'; x.drawImage(S.m, 0, 0, vw, vh); x.globalCompositeOperation = 'source-over';
-    if (!S.bands) {   // полосы по высоте кадра, у каждой своя глубина (медиана глубины фона там, где в маске есть движение) — видео едет с наклоном, как земля
-      var mc = document.createElement('canvas'), NB = 28; mc.width = 96; mc.height = 168;
-      var mx = mc.getContext('2d', { willReadFrequently: true }); mx.drawImage(S.m, 0, 0, 96, 168);
-      var md = mx.getImageData(0, 0, 96, 168).data; S.bands = [];
-      for (var bi = 0; bi < NB; bi++) {
-        var ds = [], y0 = Math.floor(bi * 168 / NB), y1 = Math.floor((bi + 1) * 168 / NB);
-        for (var yy = y0; yy < y1; yy++) for (var xx = 0; xx < 96; xx++) if (md[(yy * 96 + xx) * 4 + 3] > 100) ds.push(depthAt(f, (xx + 0.5) / 96, (yy + 0.5) / 168));
-        if (ds.length) { ds.sort(function (p, q) { return p - q; }); S.bands.push([bi / NB, (bi + 1) / NB, ds[ds.length >> 1]]); }
-      }
-    }
-    ctx.save(); ctx.globalAlpha = a;
-    S.bands.forEach(function (b) {
-      var q0 = P(0, b[0], b[2]), q1 = P(1, b[1], b[2]), sy = b[0] * vh, sh = (b[1] - b[0]) * vh;
-      ctx.drawImage(S.c, 0, sy, vw, sh, q0[0], q0[1] - 0.5, q1[0] - q0[0], q1[1] - q0[1] + 1);   // +1 px — без щелей между полосами
-    });
-    ctx.restore();
-  }
+  // e1.14: синемаграф рисует движок картинки (viewer.js, видео — часть рисунка земли в шейдере, и днём, и ночью); здесь — только выключить спрайты
   function perspAt(P2, v) {   // ambient.persp [[v, длина машины], …] — длина машины по высоте кадра (перспектива рисунка)
     if (v <= P2[0][0]) return P2[0][1];
     for (var k = 1; k < P2.length; k++) if (v <= P2[k][0]) return P2[k - 1][1] + (P2[k][1] - P2[k - 1][1]) * (v - P2[k - 1][0]) / (P2[k][0] - P2[k - 1][0]);
@@ -1680,11 +1642,10 @@
     if (SC(fr).skyBirds !== false) drawAmbientBirds(now, w);   // e1.8: кадр может выключить три одиночные птицы (свои стаи в ambient.flocks)
     if (SC(fr).closeUp) drawCloseUp(now, w, f, SC(fr).closeUp);
     if (SC(fr).fountains) drawFountains(now, w, f, SC(fr).fountains);
-    var MV = SC(fr).motionVideo, mvOn = MV && (MV.on || /[?&]cine=1/.test(location.search));
-    if (mvOn) drawMotionVideo(now, w, f, fr, MV);
-    if (SC(fr).ambient) {   // синемаграф заменяет машины и прохожих (они уже в видео); сценки, стоящие люди и голуби остаются
+    var MV = SC(fr).motionVideo, mvOn = MV && V.motionOn && V.motionOn(fr);
+    if (SC(fr).ambient) {   // e1.14: на кадре с синемаграфом спрайтовых машин, людей и сценок нет (2D-картинки поверх видео); птицы и мелочи остаются
       var AM = SC(fr).ambient;
-      if (mvOn && MV.hideLife !== false) AM = MV._A || (MV._A = { flocks: AM.flocks, scenes: AM.scenes, standers: AM.standers, occluders: AM.occluders });
+      if (mvOn && MV.hideLife !== false) AM = MV._A || (MV._A = { flocks: AM.flocks, details: AM.details, occluders: AM.occluders, lightBirds: AM.lightBirds });
       drawAmbientLife(now, w, f, AM);
     }
     for (var i = active.length - 1; i >= 0; i--) {

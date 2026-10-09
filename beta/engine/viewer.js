@@ -210,7 +210,7 @@
     'uniform sampler2D uBgB; uniform sampler2D uDepthB; uniform sampler2D uBldB; uniform sampler2D uEmB;',
     NI ? 'uniform sampler2D uSGA; uniform sampler2D uSBA; uniform sampler2D uNGA; uniform sampler2D uNBA;' : '',   // кадр A: закат (земля, главное здание), ночь (земля, главное здание)
     NI ? 'uniform sampler2D uSGB; uniform sampler2D uSBB; uniform sampler2D uNGB; uniform sampler2D uNBB;' : '',   // кадр B
-    NI ? 'uniform vec2 uHasA; uniform vec2 uHasB;' : '',         // x — есть картинка заката, y — есть картинка ночи
+    NI ? 'uniform vec3 uHasA; uniform vec3 uHasB;' : '',         // x — есть картинка заката, y — есть картинка ночи, z — в юните заката-земли видео синемаграфа (e1.14)
     NI ? 'uniform float uSunMix; uniform float uNightMix;' : '', // день→закат (2.5 с), закат→ночь (3 с): плавное растворение
     'uniform vec4  uCropA; uniform vec4 uCropB; uniform vec4 uFlagA; uniform vec4 uFlagB;',   // обрезка кадров A/B: x0, y0, ширина, высота (доли)
     'uniform vec3  uKdA;',        // здание кадра A: x = k (-1..1), y = средняя глубина 0..1, z = 1 — глубина здания по точкам (альфа земли)
@@ -276,7 +276,7 @@
     'float wxNoise(vec2 q) { vec2 i = floor(q), f = fract(q); f = f * f * (3.0 - 2.0 * f);',
     '  return mix(mix(wxHash(i), wxHash(i + vec2(1.0, 0.0)), f.x), mix(wxHash(i + vec2(0.0, 1.0)), wxHash(i + vec2(1.0, 1.0)), f.x), f.y); }',
     // Готовый цвет пикселя одного кадра: параллакс, ветер, закат, ночь.
-    'vec4 shadeFrame(sampler2D bg, sampler2D depth, sampler2D bld, sampler2D em, vec3 kd, float starQ, vec2 skyRef, vec4 crop, vec4 flag,' + (NI ? ' sampler2D sg, sampler2D sb, sampler2D ng, sampler2D nb, vec2 has,' : '') + ' vec2 uv, vec2 sc) {',
+    'vec4 shadeFrame(sampler2D bg, sampler2D depth, sampler2D bld, sampler2D em, vec3 kd, float starQ, vec2 skyRef, vec4 crop, vec4 flag,' + (NI ? ' sampler2D sg, sampler2D sb, sampler2D ng, sampler2D nb, vec3 has,' : '') + ' vec2 uv, vec2 sc) {',
     '  uv = crop.xy + uv * crop.zw;',   // обрезка белого края бумаги: показываем только внутренний прямоугольник кадра
     // фон и земля: у каждого пикселя свой сдвиг (3 итерации против «резины» на краях)
     '  vec2 p = uv;',
@@ -298,6 +298,9 @@
     '  }',
     '  vec2 pc = clamp(p, 0.0, 1.0);',
     '  vec3 c = texture2D(bg, pc).rgb;',
+    // e1.14 синемаграф: видео Veo (rgb, в альфе — маска движения) — часть рисунка земли: тот же параллакс по глубине, ветер, дневная обработка,
+    // ночь и погода, что у рисунка; ночью — ночная картинка × (видео / рисунок): неподвижное = ночной рисунок без шва, движущееся темнеет так же
+    NI ? '  vec3 c0 = c; vec4 mv = vec4(0.0); if (has.z > 0.5) { mv = texture2D(sg, pc); c = mix(c, mv.rgb, mv.a); }' : '',
     '  float sky = env.g;',
     '  vec4 eg = texture2D(em, pc);',                         // окна других зданий: g = свет ночью, a = сама маска
     // здание: один общий сдвиг и масштаб на весь предмет — жёсткое тело
@@ -368,7 +371,11 @@
     NI ? '  if (hasSv > 0.5 && uSunMix > 0.001) c = mix(c, texture2D(sb, pb).rgb * b.a + texture2D(sg, pc).rgb * inv, uSunMix);' : '',
     // ночь-картинка: закат (или день) растворяется в ночь; тёмное темнее (CONFIG.NIGHT_DIM), свет окон и фонарей — как нарисован
     NI ? '  if (hasNv > 0.5 && uNightMix > 0.001) {' : '',
-    NI ? '    vec3 cn = texture2D(nb, pb).rgb * b.a + texture2D(ng, pc).rgb * inv;' : '',
+    NI ? '    vec3 ngc = texture2D(ng, pc).rgb; if (mv.a > 0.004) ngc = mix(ngc, ngc * clamp(mv.rgb / max(c0, vec3(0.04)), 0.0, 1.5), mv.a);' : '',
+    // e1.14 look.nightEdge "solid": у мягкого края вырезки ночью — сама ночная картинка (её небо у силуэта), а не подложка под зданием:
+    // подложка × средний тон кольца светлее ночного неба и давала светлую «обводку» вокруг статуи (s8). Без флага — как было.
+    NI ? '    float bn = ' + (CONFIG.NIGHT_EDGE === 'solid' ? 'smoothstep(0.0, 0.3, b.a)' : 'b.a') + ';' : '',
+    NI ? '    vec3 cn = texture2D(nb, pb).rgb * bn + ngc * (1.0 - bn);' : '',
     NI ? '    cn *= mix(' + CONFIG.NIGHT_DIM.toFixed(3) + ', 1.0, smoothstep(0.30, 0.60, dot(cn, vec3(0.299, 0.587, 0.114))));' : '',
     NI ? '    c = mix(c, cn, uNightMix);' : '',
     NI ? '  }' : '',
@@ -608,6 +615,73 @@
     f.emDirty = false;
   }
 
+  // ---------- e1.14 синемаграф (кадр: motionVideo {src, mask, on}) — основной способ оживления ----------
+  // Включён у каждого кадра, где задан (on: false — выключен, ?cine=1 — включить и такой; ?cine=0 — выключить все, для сравнения).
+  // Видео держим только у текущего и соседних кадров (и у того, в который идёт переход); остальные освобождаются.
+  // Кадр видео × маска (альфа) → холст → текстура в юнит заката-земли; шейдер кладёт его в рисунок земли (см. shadeFrame).
+  var MV = {}, mvQ = location.search;
+  function mvConf(i) {
+    if (!NI || /[?&]cine=0/.test(mvQ)) return null;
+    var M = ((CONFIG.SCENE && CONFIG.SCENE[i]) || {}).motionVideo;
+    if (!M || !M.src || !M.mask) return null;
+    if (M.on === false && !/[?&]cine=1/.test(mvQ)) return null;
+    if (FRAMES[i] && FRAMES[i].sunset) return null;   // юнит заката-земли занят картинкой заката — видео не кладём (у кадров с синемаграфом заката-картинки нет)
+    return M;
+  }
+  function mvOpen(i) {
+    var S = MV[i], M = mvConf(i);
+    if (S || !M) return S;
+    var base = (FRAMES[i].color || '').replace(/[^\/]*$/, '');
+    S = MV[i] = { v: document.createElement('video'), m: new Image(), c: document.createElement('canvas'), t: -1, fail: false };
+    S.v.muted = true; S.v.loop = true; S.v.playsInline = true; S.v.setAttribute('playsinline', ''); S.v.setAttribute('muted', ''); S.v.preload = 'auto';
+    S.v.addEventListener('error', function () { S.fail = true; });
+    S.v.src = base + (S.v.canPlayType('video/mp4; codecs="avc1.42E01E"') ? M.src : M.src.replace(/\.mp4$/, '.webm'));   // без H.264 — запасной VP9
+    S.m.src = base + M.mask;
+    return S;
+  }
+  function mvClose(i) {
+    var S = MV[i]; if (!S) return;
+    try { S.v.pause(); S.v.removeAttribute('src'); S.v.load(); } catch (e) {}
+    var f = store[i]; if (f) { if (f.mvTex && useGL && gl) gl.deleteTexture(f.mvTex); f.mvTex = null; f.mvUse = false; }
+    delete MV[i];
+  }
+  function mvPlan(cur, to, rm) {   // какие видео держать и какие играть — раз за кадр отрисовки
+    var n = FRAMES.length, keep = {};
+    [cur, (cur + 1) % n, (cur + n - 1) % n, to].forEach(function (k) { if (k != null && mvConf(k)) keep[k] = 1; });
+    Object.keys(MV).forEach(function (k) { if (!keep[k]) mvClose(+k); });
+    Object.keys(keep).forEach(function (k) {
+      var S = mvOpen(+k); if (!S) return;
+      var play = (+k === cur || +k === to) && !rm && perfLevel < 2 && !window.__mvFreeze && !document.hidden;
+      if (play && S.v.paused) { var pr = S.v.play(); if (pr && pr.catch) pr.catch(function () {}); }
+      else if (!play && !S.v.paused) S.v.pause();
+    });
+  }
+  function mvStep(f) {   // новый кадр видео → текстура (только когда кадр видео сменился)
+    var S = f && MV[f.idx];
+    if (!S || S.fail || S.v.readyState < 2 || !S.m.complete || !S.m.naturalWidth) return;
+    var ct = S.v.currentTime;
+    if (f.mvUse && ct === S.t) return;
+    S.t = ct;
+    var vw = S.v.videoWidth, vh = S.v.videoHeight;
+    if (!vw || !vh) return;
+    if (S.c.width !== vw || S.c.height !== vh) { S.c.width = vw; S.c.height = vh; }
+    var x = S.c.getContext('2d');
+    x.globalCompositeOperation = 'copy'; x.drawImage(S.v, 0, 0, vw, vh);
+    x.globalCompositeOperation = 'destination-in'; x.drawImage(S.m, 0, 0, vw, vh); x.globalCompositeOperation = 'source-over';
+    gl.activeTexture(gl.TEXTURE0);
+    gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);   // как у картинок кадра (prep.js: colorSpaceConversion none)
+    if (!f.mvTex || f.mvW !== vw || f.mvH !== vh) {
+      if (f.mvTex) gl.deleteTexture(f.mvTex);
+      f.mvTex = makeTexture(gl.LINEAR); f.mvW = vw; f.mvH = vh;
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, S.c);
+    } else {
+      gl.bindTexture(gl.TEXTURE_2D, f.mvTex);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, S.c);
+    }
+    gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.BROWSER_DEFAULT_WEBGL);
+    f.mvUse = true;
+  }
+
   function bindFrame(f, unit0) {
     var t = [f.bgTex, f.depthTex, f.bldTex, f.emTex];
     for (var i = 0; i < 4; i++) {
@@ -615,7 +689,7 @@
       gl.bindTexture(gl.TEXTURE_2D, t[i]);
     }
     if (NI) {   // закат и ночь: юниты +4..+7; если картинки ещё нет — заглушка (шейдер её не читает: has = 0)
-      var st = [f.sG || f.bgTex, f.sB || f.bgTex, f.nG || f.bgTex, f.nB || f.bgTex];
+      var st = [f.mvUse ? f.mvTex : (f.sG || f.bgTex), f.sB || f.bgTex, f.nG || f.bgTex, f.nB || f.bgTex];   // e1.14: видео синемаграфа — в юните заката-земли (у кадров с видео картинки заката нет)
       for (i = 0; i < 4; i++) {
         gl.activeTexture(gl.TEXTURE0 + unit0 + 4 + i);
         gl.bindTexture(gl.TEXTURE_2D, st[i]);
@@ -641,6 +715,7 @@
     ensureFbo(canvas.width, canvas.height);
     gl.viewport(0, 0, canvas.width, canvas.height);
     uploadEm(fa); uploadEm(fb);
+    if (NI) { mvStep(fa); if (fb) mvStep(fb); }
     var aspect = canvas.width / canvas.height, visW = coverUvW / CONFIG.BASE_SCALE, visH = coverUvH / CONFIG.BASE_SCALE;
     // --- проход 1: сцена (параллакс, ветер, закат, ночь) -> текстура ---
     gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
@@ -655,7 +730,7 @@
     gl.uniform4f(US.uSkyRef, CONFIG.DAY.SKY_REF[fa.idx] || 0.86, CONFIG.DAY.SKY_END[fa.idx] || 0.55,
       fb ? (CONFIG.DAY.SKY_REF[fb.idx] || 0.86) : 0.86, fb ? (CONFIG.DAY.SKY_END[fb.idx] || 0.55) : 0.55);
     if (NI) {
-      gl.uniform2f(US.uHasA, fa.sG ? 1 : 0, fa.nG ? 1 : 0); gl.uniform2f(US.uHasB, fb && fb.sG ? 1 : 0, fb && fb.nG ? 1 : 0);
+      gl.uniform3f(US.uHasA, fa.sG && !fa.mvUse ? 1 : 0, fa.nG ? 1 : 0, fa.mvUse ? 1 : 0); gl.uniform3f(US.uHasB, fb && fb.sG && !fb.mvUse ? 1 : 0, fb && fb.nG ? 1 : 0, fb && fb.mvUse ? 1 : 0);
       gl.uniform1f(US.uSunMix, tod.sun); gl.uniform1f(US.uNightMix, tod.night);
     }
     gl.uniform2f(US.uShift, shiftX, shiftY);
@@ -890,6 +965,8 @@
     stage: stage, tod: tod, weather: function () { return wx; },
     testBolt: function () { nextFlash = performance.now(); },   // для проверки: следующая молния — сейчас
     frame: function () { return frameIndex; }, fading: function () { return !!fade; }, entry: function (i) { return store[i]; },
+    motionOn: function (i) { return !!mvConf(i) && !(MV[i] && MV[i].fail); },   // e1.14: у кадра синемаграф — спрайтовые машины/люди/сценки не рисуются
+    mvBusy: function () { return Object.keys(MV).some(function (k) { var S = MV[k], f = store[k]; return !S.fail && f && !f.mvUse && (+k === frameIndex); }); },   // для проверки: видео текущего кадра ещё не в текстуре
     projectB: function (f, u, v) {   // точка слоя «здание» -> пиксели сцены (для пролёта «за зданием»)
       var ld = lastDraw || { shiftX: 0, shiftY: 0, zoom: 0 };
       var q = projectImg(u, v, f.dB, f.kB, ld.shiftX, ld.shiftY, ld.zoom, f.crop);
@@ -1553,6 +1630,7 @@
       perfCheck(now, !!(fade || todAnim || (window.Details && window.Details.paradeBusy && window.Details.paradeBusy())));
       lastDraw = { fa: fa, fb: fb, mix: mixState, shiftX: shiftX, shiftY: shiftY, zoom: zoom, t: t, tAmb: tAmb };
       stepWeather(now);
+      if (NI) mvPlan(fade ? fade.from : frameIndex, fade ? fade.to : null, rm);
       if (!glLost) drawGL(fa, fb, mixState, shiftX, shiftY, zoom, t, tAmb);
       drawPrecip(now, dt, rm);
       if (window.Details && window.Details.frame) { if (perfLevel < 1 && !rm) window.Details.frame(now); else window.Details.off(); }   // живые детали: тот же цикл, не свой rAF
