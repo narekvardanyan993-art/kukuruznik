@@ -69,7 +69,6 @@
     "night": {"dim": 0.64, "mainLit": [0, 0], "otherLit": [0.5, 0.65], "mainWindowShare": 0},
     "frameSize": [768, 1365],
     "sunSide": "right",
-    "hotspots": "outline",
     "showNight": "bright"
   },
   "tuning": {"BUILDING_DEPTH_PIXEL": true, "MAX_SHIFT_X": 0.0156, "MAX_SHIFT_Y": 0.0094, "ZOOM_NEAR": 0.0156, "BREATH_AMPLITUDE": 0.0031, "LOOK": {"sunsetSmear": {"strength": 0.0}}},
