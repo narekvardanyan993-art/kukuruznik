@@ -1032,9 +1032,13 @@
     hotspotsEl.innerHTML = '';
     activeHotspots = [];
     (HS[frameIdx] || []).forEach(function (hs) {
-      var btn = document.createElement('button');
+      var btn = document.createElement('button'), ring = CONFIG.HOTSPOT_STYLE === 'outline', ix = activeHotspots.length;
       btn.type = 'button';
-      btn.className = 'hs-dot';
+      btn.className = ring ? 'hs-ring' : 'hs-dot';
+      if (ring) {   // e1.13: деталь периодически обводится карандашной линией, которая рисует себя; номер-ярлык; тап по области — инфо
+        btn.style.setProperty('--i', ix);
+        btn.innerHTML = '<svg class="hr-svg" viewBox="0 0 100 70" preserveAspectRatio="none" aria-hidden="true"><path class="hr-path" pathLength="1" d="M18 44 C9 26 30 8 56 8 C82 8 96 24 92 42 C88 60 64 66 44 64 C24 62 9 54 12 38 C14 30 20 24 30 19"/></svg><span class="hr-tag" aria-hidden="true">' + (ix + 1) + '</span>';
+      }
       btn.setAttribute('aria-label', (CONFIG.I18N[hs.key] && CONFIG.I18N[hs.key][currentLang]) || hs.key);
       btn.addEventListener('pointerdown', function (e) { lastPointerType = e.pointerType; });
       btn.addEventListener('click', function (e) {
@@ -1086,6 +1090,11 @@
       var screenV = (py - coverOffY) / coverUvH;
       a.x = screenU * cssW; a.y = screenV * cssH;
       a.el.style.transform = 'translate(' + a.x + 'px,' + a.y + 'px)';
+      if (a.hs.r) {   // e1.13: размер обводки — доли кадра (ширина, высота) → пиксели экрана
+        var ux = S * z / (coverUvW * (cr ? cr[2] : 1)) * cssW, vy = S * z / (coverUvH * (cr ? cr[3] : 1)) * cssH;
+        var rw = Math.max(22, a.hs.r[0] * ux), rh = Math.max(22, a.hs.r[1] * vy);
+        if (Math.abs((a.rw || 0) - rw) > 0.5 || Math.abs((a.rh || 0) - rh) > 0.5) { a.rw = rw; a.rh = rh; a.el.style.width = (2 * rw) + 'px'; a.el.style.height = (2 * rh) + 'px'; a.el.style.margin = (-rh) + 'px 0 0 ' + (-rw) + 'px'; }
+      }
       if (hsPopup._forDot === a.el && hsPopup.classList.contains('show')) placePopup(a); // карточка едет вместе с точкой
     });
   }
