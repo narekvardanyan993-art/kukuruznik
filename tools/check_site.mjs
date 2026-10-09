@@ -196,6 +196,7 @@ function checkPreviewImages(root, head) {
 // ---------- страница с подменённым временем ----------
 const INIT_SCRIPT = () => {
   let vt = 10000, q = [];
+  window.__mvFreeze = true;   // e1.14: видео синемаграфа стоит на первом кадре — снимки повторяемы
   performance.now = () => vt;
   window.requestAnimationFrame = (cb) => { q.push(cb); return q.length; };
   window.cancelAnimationFrame = () => {};
@@ -289,6 +290,7 @@ async function captureViewer(browser, origin, target, vpName, outDir) {
   // (другая фаза «дыхания» и ветра) — и мелкие детали на резких краях выходят чуть по-разному от прогона к прогону.
   const gpuDone = () => page.evaluate(() => { const c = document.getElementById('gl'); const g = c && (c.getContext('webgl') || c.getContext('experimental-webgl')); if (g) { g.finish(); const px = new Uint8Array(4); g.readPixels(0, 0, 1, 1, g.RGBA, g.UNSIGNED_BYTE, px); } });
   const snap = async (name) => {
+    for (let k = 0; k < 50 && (await page.evaluate(() => !!(window.__viewer && window.__viewer.mvBusy && window.__viewer.mvBusy()))); k++) { await sleep(100); await adv(16); }   // e1.14: видео синемаграфа текущего кадра уже в текстуре
     await settleDom(page); await gpuDone(); await sleep(60);
     const regions = await noiseRegions(page, vpName);
     const buf = await page.screenshot({ type: 'png' });
@@ -380,7 +382,7 @@ async function captureWalk(browser, origin, target, vpName, outDir) {
   const seed = (s) => page.evaluate((v) => window.__seed(v), hashSeed(`${target.id}|walk|${vpName}|${s}`));
   const gpuDone = () => page.evaluate(() => { const c = document.getElementById('gl'); const g = c && (c.getContext('webgl') || c.getContext('experimental-webgl')); if (g) { g.finish(); const px = new Uint8Array(4); g.readPixels(0, 0, 1, 1, g.RGBA, g.UNSIGNED_BYTE, px); } });
   const snap = async (name) => {
-    await seed('snap-' + name); await adv(700); await settleDom(page); await gpuDone(); await sleep(60);
+    await seed('snap-' + name); await adv(700); for (let k = 0; k < 50 && (await page.evaluate(() => !!(window.__viewer && window.__viewer.mvBusy && window.__viewer.mvBusy()))); k++) { await sleep(100); await adv(16); } await settleDom(page); await gpuDone(); await sleep(60);
     const regions = await noiseRegions(page, vpName);
     const buf = await page.screenshot({ type: 'png' });
     fs.writeFileSync(path.join(outDir, name + '.png'), buf);
