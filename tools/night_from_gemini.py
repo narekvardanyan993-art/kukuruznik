@@ -179,6 +179,7 @@ def main():
     bld = np.asarray(Image.open(fr / (name + '_building.webp')))[..., 3].astype(np.float32) / 255
     d = day.astype(np.float32) / 255
     s = 9.0                                                                          # s7: карта ночи только размытая — ни пикселя Gemini на статуе и деревьях
+    mon0 = monument_mask(day, bld, opt('--wmask'), opt('--mmask'), bdir, name, W, H)
     if opt('--night'):
         gem = load_fit(opt('--night'), W, H)
         M, score, par = align(day, gem, np.zeros((H, W), bool))
@@ -187,6 +188,8 @@ def main():
         g = gem.astype(np.float32) / 255
         envp = fr / (name + '_env.webp')
         mg = (np.asarray(Image.open(envp).convert('RGB'))[..., 0] < 128).astype(np.float32)[..., None] if envp.exists() else np.ones((H, W, 1), np.float32)
+        if mon0 is not None:   # s8: подсвеченный Gemini памятник не попадает в карту ночи земли — иначе вокруг статуи тёплый ореол-«обводка»
+            mg = mg * (1 - cv2.dilate((mon0 > 0.5).astype(np.uint8), np.ones((9, 9), np.uint8)).astype(np.float32))[..., None]
         R = (gblur(g * mg, s) + 0.02 * gblur(mg, s)[..., None]) / (gblur(d * mg, s) + 0.02 * gblur(mg, s)[..., None] + 1e-6)   # земля отдельно от неба: без светлого ореола по кромке крон
     else:                                                                            # --like <кадр>: ночи Gemini нет — тон ночи соседнего кадра того же здания
         ref = opt('--like')
@@ -226,20 +229,25 @@ def main():
         gm = R.mean(-1, keepdims=True) * np.array([1.03, 1.0, 0.97], np.float32)   # s7: земля — нейтральнее, как ночь Кукурузника (без синего «фильтра»)
         R = R * sky + (R * 0.45 + gm * 0.55) * (1 - sky)
     out = d * R
-    # памятник: музейная подсветка снизу
-    flood = float(opt('--flood', '0.8'))
-    mon = monument_mask(day, bld, opt('--wmask'), opt('--mmask'), bdir, name, W, H)
-    if flood > 0 and mon is not None and mon.max() > 0.5:
+    # памятник (s8): та же ночная обработка, что у всего кадра (как здание Кукурузника ночью) — дневной рисунок × общий тон ночи земли,
+    # без своего цвета и без обводки; тёплый свет — слабое мягкое пятно у подножия (по кадру, не по силуэту: контура нет). --flood — сила пятна.
+    flood = float(opt('--flood', '0.3'))
+    mon = mon0
+    if mon is not None and mon.max() > 0.5:
         bld = mon
         ys = np.nonzero(bld.max(1) > 0.5)[0]; y0, y1 = ys.min(), ys.max(); hgt = max(1, y1 - y0)
-        yy = np.arange(H, dtype=np.float32)[:, None]
-        k = np.exp(-np.clip(y1 - yy, 0, None) / (0.5 * hgt)) * 0.5 + 0.5      # свет снизу: постамент ярче, фигура — мягче (не в темноте)
-        warm = np.array([1.0, 0.86, 0.68], np.float32)
         grd = (bld < 0.1) & (sky[..., 0] < 0.3) if env.exists() else (bld < 0.1)
-        T = np.median(R[grd], 0) if grd.any() else np.array([0.32, 0.36, 0.5], np.float32)   # s7: статуя = дневной рисунок, затемнённый общим тоном ночи
-        lit = d * (T * (1 - k[..., None] * flood) + (k * flood)[..., None] * warm * 0.9)     # + мягкий тёплый свет снизу; без бликов и пятен
-        m = gblur(cv2.erode(bld, np.ones((3, 3), np.uint8)), 0.8)[..., None]           # строго внутри силуэта, край мягкий
-        out = out * (1 - m) + lit * m
+        T = np.median(R[grd], 0) if grd.any() else np.array([0.32, 0.36, 0.5], np.float32)
+        m = gblur(cv2.dilate((bld > 0.5).astype(np.float32), np.ones((3, 3), np.uint8)), 1.2)[..., None]
+        out = out * (1 - m) + (d * T) * m
+        base = np.nonzero(bld[max(y0, y1 - max(3, hgt // 12)):y1 + 1].max(0) > 0.5)[0]   # ширина подножия
+        cx = (base.min() + base.max()) / 2 if len(base) else W / 2; rx = max(20, (base.max() - base.min()) * 0.75) if len(base) else W * 0.2
+        yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+        ry = 0.22 * hgt
+        glow = np.exp(-((xx - cx) / rx) ** 2 - ((yy - y1) / ry) ** 2)
+        if flood > 0:
+            out = out * (1 + flood * glow[..., None] * np.array([1.0, 0.78, 0.5], np.float32))
+        bld = mon
         # s7: светлая бумажная кайма вырезки вокруг фигуры светилась ночью ореолом — закрашивается окружением
         L0 = d @ np.array([0.299, 0.587, 0.114], np.float32)
         mon8 = (bld > 0.5).astype(np.uint8)
