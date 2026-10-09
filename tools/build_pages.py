@@ -120,6 +120,8 @@ def make_config(b, frames_url):
     parade = [i for i, f in enumerate(fr) if f.get('parade')]
     if look.get('showNight'):   # e1.13: шоу ночью ярче (только если задано у здания)
         C['SHOW_NIGHT'] = look['showNight']
+    if look.get('nightEdge'):   # e1.14: край вырезки здания ночью (только если задан у здания)
+        C['NIGHT_EDGE'] = look['nightEdge']
     if look.get('hotspots'):   # e1.13: вид точек-подсказок (только если задан у здания — у остальных CONFIG не меняется)
         C['HOTSPOT_STYLE'] = look['hotspots']
     C.update({

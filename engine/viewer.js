@@ -372,7 +372,10 @@
     // ночь-картинка: закат (или день) растворяется в ночь; тёмное темнее (CONFIG.NIGHT_DIM), свет окон и фонарей — как нарисован
     NI ? '  if (hasNv > 0.5 && uNightMix > 0.001) {' : '',
     NI ? '    vec3 ngc = texture2D(ng, pc).rgb; if (mv.a > 0.004) ngc = mix(ngc, ngc * clamp(mv.rgb / max(c0, vec3(0.04)), 0.0, 1.5), mv.a);' : '',
-    NI ? '    vec3 cn = texture2D(nb, pb).rgb * b.a + ngc * inv;' : '',
+    // e1.14 look.nightEdge "solid": у мягкого края вырезки ночью — сама ночная картинка (её небо у силуэта), а не подложка под зданием:
+    // подложка × средний тон кольца светлее ночного неба и давала светлую «обводку» вокруг статуи (s8). Без флага — как было.
+    NI ? '    float bn = ' + (CONFIG.NIGHT_EDGE === 'solid' ? 'smoothstep(0.0, 0.3, b.a)' : 'b.a') + ';' : '',
+    NI ? '    vec3 cn = texture2D(nb, pb).rgb * bn + ngc * (1.0 - bn);' : '',
     NI ? '    cn *= mix(' + CONFIG.NIGHT_DIM.toFixed(3) + ', 1.0, smoothstep(0.30, 0.60, dot(cn, vec3(0.299, 0.587, 0.114))));' : '',
     NI ? '    c = mix(c, cn, uNightMix);' : '',
     NI ? '  }' : '',

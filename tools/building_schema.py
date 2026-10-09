@@ -238,7 +238,9 @@ def validate(bdir, b, site):
                 c.err('aboutFacts', 'факта «%s» нет в facts' % k)
 
     # --- look ---
-    look = c.obj(b['look'], 'look', required=('day', 'night', 'frameSize', 'sunSide'), optional=('hotspots', 'showNight'))
+    look = c.obj(b['look'], 'look', required=('day', 'night', 'frameSize', 'sunSide'), optional=('hotspots', 'showNight', 'nightEdge'))
+    if look and 'nightEdge' in look and look['nightEdge'] != 'solid':
+        c.err('look.nightEdge', 'край вырезки ночью: "solid" или поле не задавать')
     if look and 'hotspots' in look and look['hotspots'] not in ('dot', 'outline'):
         c.err('look.hotspots', 'вид точек-подсказок: "dot" или "outline"')
     if look and 'showNight' in look and look['showNight'] != 'bright':
