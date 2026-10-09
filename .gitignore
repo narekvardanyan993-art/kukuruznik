@@ -24,3 +24,5 @@ tests/*/refs/
 
 # Станок (tools/new_frame.py): собранные слои кадра до --add — в git не идут (в frames/ их кладёт --add)
 tests/*/source/*/layers/
+
+STATE.md

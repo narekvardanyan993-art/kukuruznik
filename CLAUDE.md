@@ -88,6 +88,7 @@ prep.js, welcome-*.js, wall*.js, fonts/) больше не используют�
 
 ## End of every session
 - Append to chka-log.md: date, what was done, what broke, next step (3–6 lines).
+- Rewrite STATE.md (not append): short current state, ≤60 lines — where we are, what Narek must do next, open loose ends. This is the file Narek attaches to a new chat.
 - If anything was installed or a subscription changed, update ../мои-инструменты.md.
 - Финальный отчёт для советника ВСЕГДА целиком внутри одного блока кода (```), чтобы копировался одним нажатием.
 
