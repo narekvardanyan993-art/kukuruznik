@@ -732,6 +732,43 @@
     ctx.beginPath(); ctx.ellipse(rx - cs * len * 0.5, ry - sn * len * 0.3 + len * 0.06, len * 0.6, len * 0.16, Math.atan2(sn * 0.6, cs), 0, 6.283); ctx.fill();
     ctx.restore();
   }
+  // e1.15 (s9): ночные фары машин из видео-синемаграфа. Треки машин ролика — <кадр>_motion_cars.json (tools/cinemagraph.py),
+  // время — по самому видео. Две маленькие тёплые круглые фары спереди и слабое пятно света на дороге, сзади — красные точки. Днём выкл.
+  function drawVideoCarLights(w, f, fr) {
+    var L = w.n; if (L < 0.05 || !V.mvCars) return;
+    var cd = V.mvCars(fr); if (!cd || !cd.cars) return;
+    var n = cd.n, k = cd.k || 2, ft = cd.t * cd.fps, ar = cd.ar;
+    ctx.save();
+    for (var c = 0; c < cd.cars.length; c++) {
+      var C = cd.cars[c], P = C.p, j = (((ft - C.s) % n) + n) % n, x = j / k;
+      if (x > P.length - 1) continue;
+      var i0 = Math.floor(x), q = x - i0, p0 = P[i0], p1 = P[Math.min(i0 + 1, P.length - 1)];
+      var u = p0[0] + (p1[0] - p0[0]) * q, v = p0[1] + (p1[1] - p0[1]) * q, dx = p0[2] + (p1[2] - p0[2]) * q, dy = p0[3] + (p1[3] - p0[3]) * q;
+      var ln = p0[4] + (p1[4] - p0[4]) * q, wd = p0[5] + (p1[5] - p0[5]) * q, a = Math.min(1, x / 2, (P.length - 1 - x) / 2);
+      var A = ground(f, u, v), B = ground(f, u + dx * ln * 0.5, v + dy * ln * 0.5 * ar), ex = B[0] - A[0], ey = B[1] - A[1], half = Math.hypot(ex, ey);
+      if (half < 0.8) continue;
+      ctx.save(); ctx.translate(A[0], A[1]); ctx.rotate(Math.atan2(ey, ex));
+      vidCarLights(half * 2, half * 2 * wd / Math.max(1e-4, ln), a, L, Math.abs(ey) / half);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+  function vidCarLights(len, wd, a, L, sv) {   // начало координат — центр машины, x — вперёд; sv — насколько машина едет к зрителю/от него
+    var sep = wd * 0.22 * (0.35 + 0.65 * sv), r = Math.max(0.7, wd * 0.09);
+    ctx.globalCompositeOperation = 'lighter';
+    var rg = ctx.createRadialGradient(len * 0.95, 0, 0, len * 0.95, 0, len * 0.7);   // слабое тёплое пятно на дороге перед машиной
+    rg.addColorStop(0, 'rgba(255,214,150,' + (0.2 * L * a).toFixed(3) + ')'); rg.addColorStop(1, 'rgba(255,214,150,0)');
+    ctx.globalAlpha = 1; ctx.fillStyle = rg; ctx.save(); ctx.scale(1, 0.55); ctx.beginPath(); ctx.arc(len * 0.95, 0, len * 0.7, 0, 6.283); ctx.fill(); ctx.restore();
+    ctx.globalAlpha = 0.35 * a * L; ctx.fillStyle = 'rgb(255,228,170)';           // ореол фар
+    ctx.beginPath(); ctx.arc(len * 0.47, -sep, r * 2.6, 0, 6.283); ctx.arc(len * 0.47, sep, r * 2.6, 0, 6.283); ctx.fill();
+    ctx.globalAlpha = a * L; ctx.fillStyle = 'rgb(255,244,212)';                  // фары
+    ctx.beginPath(); ctx.arc(len * 0.47, -sep, r, 0, 6.283); ctx.arc(len * 0.47, sep, r, 0, 6.283); ctx.fill();
+    ctx.globalAlpha = 0.25 * a * L; ctx.fillStyle = 'rgb(255,40,30)';             // задние огни: красные точки с лёгким ореолом
+    ctx.beginPath(); ctx.arc(-len * 0.47, -sep, r * 2.2, 0, 6.283); ctx.arc(-len * 0.47, sep, r * 2.2, 0, 6.283); ctx.fill();
+    ctx.globalAlpha = 0.9 * a * L; ctx.fillStyle = 'rgb(255,52,40)';
+    ctx.beginPath(); ctx.arc(-len * 0.47, -sep, r * 0.8, 0, 6.283); ctx.arc(-len * 0.47, sep, r * 0.8, 0, 6.283); ctx.fill();
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  }
   function carLights(len, wd, kind, a, L, noBody) {   // e1.10 ночь: кузов в темноте, лучи фар ложатся на дорогу, красные задние огни; троллейбус — тёплый салон
     if (!noBody) { ctx.globalAlpha = a * 0.6 * L; ctx.fillStyle = 'rgb(16,20,40)'; ctx.fillRect(-len / 2, -wd / 2, len, wd); }
     ctx.globalCompositeOperation = 'lighter';
@@ -1240,7 +1277,7 @@
       ctx.fillStyle = lg; ctx.fillRect(x0 - 2, y0 - 2, x1 - x0 + 4, y1 - y0 + 4);
       if (lamp) {   // свет источника ложится на ткань пятном и гаснет с расстоянием
         var rg = ctx.createRadialGradient(lamp[0], lamp[1], 0, lamp[0], lamp[1], lamp[2]);
-        var lk = root.CONFIG.SHOW_NIGHT === 'bright' ? 1.5 : 1;
+        var lk = root.CONFIG.SHOW_NIGHT === 'bright' ? 1.5 : (root.CONFIG.SHOW_NIGHT === 'toned' ? 0.45 : 1);   // e1.15 'toned': свет снизу слабый
         rg.addColorStop(0, 'rgba(255,232,190,' + (0.5 * lk * nn * a).toFixed(3) + ')'); rg.addColorStop(0.5, 'rgba(255,220,170,' + (0.2 * lk * nn * a).toFixed(3) + ')'); rg.addColorStop(1, 'rgba(255,220,170,0)');
         ctx.fillStyle = rg; ctx.fillRect(x0 - 2, y0 - 2, x1 - x0 + 4, y1 - y0 + 4);
       }
@@ -1282,7 +1319,8 @@
   function stepHeli(now, w) {
     var tt = (now - par.t0) / 1000, nn = wts().n, s0 = sf(), kill = par.abort ? clamp((now - par.abort) / 700, 0, 1) : 0;
     var BRN = root.CONFIG.SHOW_NIGHT === 'bright';   // e1.13: шоу ночью ярче и контрастнее (только у зданий с look.showNight; Кукурузник — как на сайте)
-    var uv = heliPath(tt), p = P(uv[0], uv[1], 0), S = 5.4 * s0, col = nn > 0.5 ? (BRN ? '232,236,250' : '170,178,200') : ink();
+    var TON = root.CONFIG.SHOW_NIGHT === 'toned';    // e1.15 (s9, Ленин): флаг ночью в тон ночи (цвета видны, но тёмные), слабый тёплый свет снизу, не белое пятно
+    var uv = heliPath(tt), p = P(uv[0], uv[1], 0), S = 5.4 * s0, col = nn > 0.5 ? (BRN ? '232,236,250' : (TON ? '120,128,152' : '170,178,200')) : ink();
     var a = (1 - kill) * clamp(tt / 0.8, 0, 1) * (1 - clamp((tt - 25) / 1, 0, 1));
     // трос отклонён назад набегающим потоком (~29°); порывы слегка качают — маятник с затуханием, от времени кадра
     var gust = 0.06 * Math.sin(tt * 0.35) + 0.025 * Math.sin(tt * 1.1 + 1), thT = -0.5 + gust;
@@ -1301,13 +1339,14 @@
     pt.N = N;
     if (nn > 0.3) {   // ночью прожектор из-под брюха: мягкий конус света в воздухе к флагу
       ctx.globalCompositeOperation = 'lighter'; var tip = pt(N * 0.45, 3), gl = ctx.createRadialGradient(ax0, ay0, 0, ax0, ay0, fw * 0.6);
-      gl.addColorStop(0, 'rgba(255,240,210,' + ((BRN ? 0.34 : 0.16) * a * nn).toFixed(3) + ')'); gl.addColorStop(1, 'rgba(255,240,210,0)'); ctx.fillStyle = gl;
+      gl.addColorStop(0, 'rgba(255,240,210,' + ((BRN ? 0.34 : (TON ? 0.08 : 0.16)) * a * nn).toFixed(3) + ')'); gl.addColorStop(1, 'rgba(255,240,210,0)'); ctx.fillStyle = gl;
       ctx.beginPath(); ctx.moveTo(ax0, ay0); ctx.lineTo(tip[0] - S * 2, tip[1] + S * 2); ctx.lineTo(B[0] + S * 2.5, B[1] + S * 2); ctx.closePath(); ctx.fill();
       ctx.globalCompositeOperation = 'source-over';
     }
     ctx.strokeStyle = 'rgba(' + col + ',' + (0.75 * a).toFixed(3) + ')'; ctx.lineWidth = 0.7;
     ctx.beginPath(); ctx.moveTo(ax0, ay0); ctx.lineTo(A[0], A[1]); ctx.stroke();
-    clothFlag(pt, nn, a, nn > 0.3 ? [ax0, ay0 + S, fw * (BRN ? 0.9 : 0.6)] : null, BRN ? 0.3 : 0.82);   // e1.13 look.showNight 'bright': флаг ночью в луче — цвета флага, а не тёмная тряпка
+    var fb = pt(N * 0.5, 3);   // TON: тёплый свет города снизу — пятно под нижней кромкой середины полотнища
+    clothFlag(pt, nn, a, nn > 0.3 ? (TON ? [fb[0], fb[1] + S * 2.2, fw * 0.55] : [ax0, ay0 + S, fw * (BRN ? 0.9 : 0.6)]) : null, BRN ? 0.3 : (TON ? 0.7 : 0.82));   // e1.13 look.showNight 'bright': флаг ночью в луче — цвета флага, а не тёмная тряпка
     ctx.strokeStyle = 'rgba(' + col + ',' + (0.9 * a).toFixed(3) + ')'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke();   // кромка на тросе
     ctx.fillStyle = 'rgba(' + col + ',' + (0.95 * a).toFixed(3) + ')'; ctx.beginPath(); ctx.ellipse(B[0], B[1] + S * 0.25, S * 0.28, S * 0.36, -h.th, 0, 6.283); ctx.fill();   // груз
     ctx.translate(p[0], p[1]); ctx.rotate(tilt); heliBody(S, col, a, tt, nn);
@@ -1648,6 +1687,7 @@
       if (mvOn && MV.hideLife !== false) AM = MV._A || (MV._A = { flocks: AM.flocks, details: AM.details, occluders: AM.occluders, lightBirds: AM.lightBirds });
       drawAmbientLife(now, w, f, AM);
     }
+    if (mvOn && MV.cars) drawVideoCarLights(w, f, fr);   // e1.15: ночные фары машин из видео
     for (var i = active.length - 1; i >= 0; i--) {
       var e = active[i], t = (now - e.t0) / e.dur;
       if (t >= 1) { active.splice(i, 1); continue; }

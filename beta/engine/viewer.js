@@ -37,6 +37,28 @@
 
   // ---------- общие функции ----------
   function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+
+  // e1.15 (s9): ошибка в одной подсистеме кадра (видео, детали, шоу, точки…) больше не останавливает цикл отрисовки —
+  // раньше одно исключение навсегда «замораживало» картинку (меню работало, день/ночь — нет: кадр 5 G на iPhone).
+  // Ошибки копятся в журнале; ?debug=1 — журнал и состояние на экране (fps, WebGL, видео).
+  var ERR = [], ERRN = {}, DBG = /[?&]debug=1/.test(location.search), dbgEl = null, dbgT = 0;
+  function logErr(where, e) {
+    var m = where + ': ' + ((e && (e.message || e.reason)) || String(e));
+    ERRN[where] = (ERRN[where] || 0) + 1;
+    if (ERR.length < 40 && (ERRN[where] <= 3)) { ERR.push(new Date().toISOString().slice(11, 19) + ' ' + m); try { console.warn('[chka]', m, e && e.stack); } catch (x) {} }
+    if (DBG) dbgShow(true);
+  }
+  function safe(where, fn) { try { return fn(); } catch (e) { logErr(where, e); } }
+  window.addEventListener('error', function (e) { logErr('window', e.error || e.message); });
+  window.addEventListener('unhandledrejection', function (e) { logErr('promise', e.reason); });
+  function dbgShow(force) {
+    if (!DBG) return;
+    var now = performance.now(); if (!force && now - dbgT < 1000) return; dbgT = now;
+    if (!dbgEl) { dbgEl = document.createElement('pre'); dbgEl.id = 'dbgLog'; dbgEl.style.cssText = 'position:fixed;left:4px;top:4px;z-index:99999;max-width:92vw;max-height:46vh;overflow:hidden;margin:0;padding:4px 6px;font:10px/1.25 ui-monospace,Menlo,monospace;color:#fff;background:rgba(0,0,0,0.62);border-radius:4px;pointer-events:none;white-space:pre-wrap'; document.body.appendChild(dbgEl); }
+    var mv = []; try { Object.keys(MV).forEach(function (k) { var S = MV[k]; mv.push(k + ':' + (S.fail ? 'FAIL' : 'rs' + S.v.readyState + (S.v.paused ? ' pause' : ' play') + ' t' + S.v.currentTime.toFixed(1))); }); } catch (x) {}
+    dbgEl.textContent = (CONFIG.ENGINE_V || '') + ' кадр ' + frameIndex + ' fps ' + (dbgFps || 0) + ' perf ' + perfLevel + (glLost ? ' GL-LOST' : '') + ' gl ' + (useGL ? 'on' : 'off') + '\nвидео ' + (mv.join(' | ') || '—') + (ERR.length ? '\n' + ERR.slice(-12).join('\n') : '\nошибок нет');
+  }
+  var dbgFps = 0, dbgFc = 0, dbgF0 = 0;
   // Пружина как в iOS (response 0.65 с, damping ratio 0.86): ступенчатый отклик, оседание ~0.5%.
   // Время оседания считаем численно; p (0..1) — доля этого времени, поэтому любую длительность
   // (кроссфейд, время суток, возврат в центр) можно прогнать по той же кривой.
@@ -632,9 +654,13 @@
     var S = MV[i], M = mvConf(i);
     if (S || !M) return S;
     var base = (FRAMES[i].color || '').replace(/[^\/]*$/, '');
-    S = MV[i] = { v: document.createElement('video'), m: new Image(), c: document.createElement('canvas'), t: -1, fail: false };
+    S = MV[i] = { v: document.createElement('video'), m: new Image(), t: -1, fail: false, ready: false, errs: 0, cars: null };
     S.v.muted = true; S.v.loop = true; S.v.playsInline = true; S.v.setAttribute('playsinline', ''); S.v.setAttribute('muted', ''); S.v.preload = 'auto';
-    S.v.addEventListener('error', function () { S.fail = true; });
+    S.v.addEventListener('error', function () { S.fail = true; logErr('video ' + i, (S.v.error && ('code ' + S.v.error.code)) || 'error'); });
+    S.v.addEventListener('loadeddata', function () { S.ready = true; });
+    // e1.15: ролик (30+ с, проезды по полосам) стартует с случайного места — у каждого захода свой узор; проверка (__mvFreeze) — с начала
+    S.v.addEventListener('loadedmetadata', function () { if (!window.__mvFreeze && isFinite(S.v.duration) && S.v.duration > 2) { try { S.v.currentTime = Math.random() * (S.v.duration - 0.5); } catch (e) {} } });
+    if (M.cars) fetch(base + M.cars).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) { S.cars = j; }, function () {});   // треки машин для ночных фар
     S.v.src = base + (S.v.canPlayType('video/mp4; codecs="avc1.42E01E"') ? M.src : M.src.replace(/\.mp4$/, '.webm'));   // без H.264 — запасной VP9
     S.m.src = base + M.mask;
     return S;
@@ -656,16 +682,21 @@
       else if (!play && !S.v.paused) S.v.pause();
     });
   }
+  var mvCanvas = null;   // e1.15: один общий холст для всех видео (память iPhone): кадр видео × маска собирается и сразу уходит в текстуру
   function mvStep(f) {   // новый кадр видео → текстура (только когда кадр видео сменился)
     var S = f && MV[f.idx];
-    if (!S || S.fail || S.v.readyState < 2 || !S.m.complete || !S.m.naturalWidth) return;
+    if (!S || S.fail || !S.ready || S.v.readyState < 2 || S.v.seeking || !S.m.complete || !S.m.naturalWidth) return;   // e1.15: только готовый кадр видео
+    try { mvUpload(f, S); } catch (e) { S.errs++; logErr('video→texture ' + f.idx, e); if (S.errs > 5) { S.fail = true; f.mvUse = false; } }
+  }
+  function mvUpload(f, S) {
     var ct = S.v.currentTime;
     if (f.mvUse && ct === S.t) return;
     S.t = ct;
     var vw = S.v.videoWidth, vh = S.v.videoHeight;
     if (!vw || !vh) return;
-    if (S.c.width !== vw || S.c.height !== vh) { S.c.width = vw; S.c.height = vh; }
-    var x = S.c.getContext('2d');
+    var cv = mvCanvas || (mvCanvas = document.createElement('canvas'));
+    if (cv.width !== vw || cv.height !== vh) { cv.width = vw; cv.height = vh; }
+    var x = cv.getContext('2d');
     x.globalCompositeOperation = 'copy'; x.drawImage(S.v, 0, 0, vw, vh);
     x.globalCompositeOperation = 'destination-in'; x.drawImage(S.m, 0, 0, vw, vh); x.globalCompositeOperation = 'source-over';
     gl.activeTexture(gl.TEXTURE0);
@@ -673,10 +704,10 @@
     if (!f.mvTex || f.mvW !== vw || f.mvH !== vh) {
       if (f.mvTex) gl.deleteTexture(f.mvTex);
       f.mvTex = makeTexture(gl.LINEAR); f.mvW = vw; f.mvH = vh;
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, S.c);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cv);
     } else {
       gl.bindTexture(gl.TEXTURE_2D, f.mvTex);
-      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, S.c);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, cv);
     }
     gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.BROWSER_DEFAULT_WEBGL);
     f.mvUse = true;
@@ -773,8 +804,15 @@
   if (useGL) {
     glReadyP = initGLProgram();
     glReadyP.catch(function (err) { console.warn('WebGL shader failed, fallback:', err); });
-    canvas.addEventListener('webglcontextlost', function (e) { e.preventDefault(); glLost = true; });
+    var loseExt = gl.getExtension('WEBGL_lose_context');
+    canvas.addEventListener('webglcontextlost', function (e) {
+      e.preventDefault(); glLost = true; logErr('webgl', 'context lost');
+      Object.keys(MV).forEach(function (k) { try { MV[k].v.pause(); } catch (x) {} var f = store[k]; if (f) { f.mvTex = null; f.mvUse = false; } });   // текстуры потеряны вместе с контекстом
+      // e1.15: iOS часто сам контекст не возвращает — просим вернуть через 1,5 с (WEBGL_lose_context)
+      setTimeout(function () { if (glLost && loseExt && gl.isContextLost()) { try { loseExt.restoreContext(); } catch (x) { logErr('webgl restore', x); } } }, 1500);
+    });
     canvas.addEventListener('webglcontextrestored', function () {
+      logErr('webgl', 'context restored');
       try {
         glReadyP = initGLProgram();
         // текстуры заново: CPU-копии картинок мы не держим (память iPhone) — прогоняем конвейер заново, начиная с видимого кадра
@@ -965,7 +1003,12 @@
     stage: stage, tod: tod, weather: function () { return wx; },
     testBolt: function () { nextFlash = performance.now(); },   // для проверки: следующая молния — сейчас
     frame: function () { return frameIndex; }, fading: function () { return !!fade; }, entry: function (i) { return store[i]; },
-    motionOn: function (i) { return !!mvConf(i) && !(MV[i] && MV[i].fail); },   // e1.14: у кадра синемаграф — спрайтовые машины/люди/сценки не рисуются
+    motionOn: function (i) { return !!mvConf(i) && !(MV[i] && MV[i].fail); },
+    mvCars: function (i) {   // e1.15: треки машин ролика и время видео — для ночных фар (details.js)
+      var S = MV[i], f = store[i]; if (!S || S.fail || !S.cars || !f || !f.mvUse) return null;
+      return { cars: S.cars.cars, n: S.cars.n, k: S.cars.k, fps: S.cars.fps, ar: S.cars.ar || 0.5625, t: S.t >= 0 ? S.t : S.v.currentTime };   // время кадра, который сейчас в текстуре (не «живое» время видео)
+    },
+    errors: function () { return ERR.slice(); },   // журнал ошибок (проверочные скрипты, ?debug=1)   // e1.14: у кадра синемаграф — спрайтовые машины/люди/сценки не рисуются
     mvBusy: function () { return Object.keys(MV).some(function (k) { var S = MV[k], f = store[k]; return !S.fail && f && !f.mvUse && (+k === frameIndex); }); },   // для проверки: видео текущего кадра ещё не в текстуре
     projectB: function (f, u, v) {   // точка слоя «здание» -> пиксели сцены (для пролёта «за зданием»)
       var ld = lastDraw || { shiftX: 0, shiftY: 0, zoom: 0 };
@@ -1109,13 +1152,9 @@
     hotspotsEl.innerHTML = '';
     activeHotspots = [];
     (HS[frameIdx] || []).forEach(function (hs) {
-      var btn = document.createElement('button'), ring = CONFIG.HOTSPOT_STYLE === 'outline', ix = activeHotspots.length;
+      var btn = document.createElement('button');   // e1.15: только точки как у живого Кукурузника; «обводка» с номерами (e1.13) удалена из движка
       btn.type = 'button';
-      btn.className = ring ? 'hs-ring' : 'hs-dot';
-      if (ring) {   // e1.13: деталь периодически обводится карандашной линией, которая рисует себя; номер-ярлык; тап по области — инфо
-        btn.style.setProperty('--i', ix);
-        btn.innerHTML = '<svg class="hr-svg" viewBox="0 0 100 70" preserveAspectRatio="none" aria-hidden="true"><path class="hr-path" pathLength="1" d="M18 44 C9 26 30 8 56 8 C82 8 96 24 92 42 C88 60 64 66 44 64 C24 62 9 54 12 38 C14 30 20 24 30 19"/></svg><span class="hr-tag" aria-hidden="true">' + (ix + 1) + '</span>';
-      }
+      btn.className = 'hs-dot';
       btn.setAttribute('aria-label', (CONFIG.I18N[hs.key] && CONFIG.I18N[hs.key][currentLang]) || hs.key);
       btn.addEventListener('pointerdown', function (e) { lastPointerType = e.pointerType; });
       btn.addEventListener('click', function (e) {
@@ -1535,7 +1574,11 @@
   var lastNow = null;
   var lastDraw = null;
 
-  function frame(now) {
+  function frame(now) {   // e1.15: исключение в кадре не останавливает цикл — следующий кадр всё равно будет
+    try { frameStep(now); } catch (e) { logErr('frame', e); requestAnimationFrame(frame); }
+    if (DBG) { dbgFc++; if (now - dbgF0 >= 1000) { dbgFps = Math.round(dbgFc * 1000 / (now - dbgF0)); dbgFc = 0; dbgF0 = now; } dbgShow(false); }
+  }
+  function frameStep(now) {
     var dt = lastNow === null ? 16.667 : clamp(now - lastNow, 1, 64);
     lastNow = now;
     var rm = reduced();
@@ -1551,8 +1594,7 @@
         fade = null;
         mixState = 0;
         fx.zoomA = 1; fx.zoomB = 1;
-        markDot(frameIndex);
-        buildHotspots(frameIndex);
+        safe('dots', function () { markDot(frameIndex); buildHotspots(frameIndex); });
       } else {
         mixState = clamp(EASE(p), 0, 1);
         fx.zoomA = 1 + 0.06 * mixState;    // уходящий кадр медленно приближается и растворяется,
@@ -1582,7 +1624,7 @@
       if (dp >= 1) demoStop();
       else { var dk = Math.sin(Math.PI * dp); targetX = demo.ax * dk; targetY = demo.ay * dk; }
     }
-    paradeStep(now); ringStep(now); flagFrameStep();
+    safe('parade', function () { paradeStep(now); ringStep(now); flagFrameStep(); });
 
     // --- наклон ---
     if (ret) {
@@ -1622,18 +1664,20 @@
       var tAmb = (now - t0) / 1000; // настоящее время: ветер, мерцание звёзд, «дыхание» фонарей
       fx.windOn = CONFIG.WIND && perfLevel < 2;
       fx.windAmp = CONFIG.WIND_AMP_PX * wx.wind * (fb ? CONFIG.WIND_K[fa.idx] + (CONFIG.WIND_K[fb.idx] - CONFIG.WIND_K[fa.idx]) * mixState : CONFIG.WIND_K[fa.idx]) * (coverUvW / CONFIG.BASE_SCALE) / Math.max(1, stage.clientWidth);
-      stepNightFx(fa, fb, now);
-      fillLamps(fa, fb, mixState, shiftX, shiftY, zoom, tAmb);
+      safe('nightfx', function () { stepNightFx(fa, fb, now); fillLamps(fa, fb, mixState, shiftX, shiftY, zoom, tAmb); });
       stage.classList.toggle('is-night', tod.sky > 0.5);
       var nightNow = tod.night > 0.5 ? '1' : '0';
       if (document.documentElement.getAttribute('data-night') !== nightNow) document.documentElement.setAttribute('data-night', nightNow);   // тёмная подложка кнопок на телефоне
       perfCheck(now, !!(fade || todAnim || (window.Details && window.Details.paradeBusy && window.Details.paradeBusy())));
       lastDraw = { fa: fa, fb: fb, mix: mixState, shiftX: shiftX, shiftY: shiftY, zoom: zoom, t: t, tAmb: tAmb };
-      stepWeather(now);
-      if (NI) mvPlan(fade ? fade.from : frameIndex, fade ? fade.to : null, rm);
-      if (!glLost) drawGL(fa, fb, mixState, shiftX, shiftY, zoom, t, tAmb);
-      drawPrecip(now, dt, rm);
-      if (window.Details && window.Details.frame) { if (perfLevel < 1 && !rm) window.Details.frame(now); else window.Details.off(); }   // живые детали: тот же цикл, не свой rAF
+      safe('weather', function () { stepWeather(now); });
+      if (NI) safe('video', function () { mvPlan(fade ? fade.from : frameIndex, fade ? fade.to : null, rm); });
+      if (!glLost && !(gl.isContextLost && gl.isContextLost())) safe('draw', function () { drawGL(fa, fb, mixState, shiftX, shiftY, zoom, t, tAmb); });
+      safe('precip', function () { drawPrecip(now, dt, rm); });
+      if (window.Details && window.Details.frame && !detailsBroken) {   // живые детали: тот же цикл, не свой rAF; 30 ошибок подряд — детали выключаются, кадр живёт
+        try { if (perfLevel < 1 && !rm) window.Details.frame(now); else window.Details.off(); detailsErr = 0; }
+        catch (e) { logErr('details', e); if (++detailsErr > 30) { detailsBroken = true; safe('details off', function () { window.Details.off(); }); } }
+      }
     } else {
       var cssW = stage.clientWidth, cssH = stage.clientHeight;
       var kb = CONFIG.FALLBACK_LAYER_K;
@@ -1649,10 +1693,11 @@
       });
     }
 
-    if (!fade) updateHotspotPositions(shiftX, shiftY, useGL ? zoom : 0);
+    if (!fade) safe('hotspots', function () { updateHotspotPositions(shiftX, shiftY, useGL ? zoom : 0); });
 
     requestAnimationFrame(frame);
   }
+  var detailsErr = 0, detailsBroken = false;
 
   // ---------- панель: время суток, миниатюры, настройки, открытка ----------
   var bodyEl = document.body;
