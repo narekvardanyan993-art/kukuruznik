@@ -1,0 +1,23 @@
+{
+ "clips": [
+  "veo_C1.mp4"
+ ],
+ "frames": 720,
+ "fps": 20.0,
+ "video_s": 36.0,
+ "bg_loop_s": 9.0,
+ "bg_loops": 4,
+ "car_tracks": 0,
+ "enter_at_edge": 0,
+ "exit_at_edge": 0,
+ "merges_cut": 0,
+ "ends_extended": 0,
+ "tracks_dropped": 0,
+ "passes": 0,
+ "whole_passes": 0,
+ "events": 0,
+ "car_frames": 0,
+ "car_frames_target": 0,
+ "mp4_kb": 1777,
+ "moving_pct": 19.21
+}

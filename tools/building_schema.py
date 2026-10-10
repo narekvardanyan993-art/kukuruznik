@@ -241,10 +241,10 @@ def validate(bdir, b, site):
     look = c.obj(b['look'], 'look', required=('day', 'night', 'frameSize', 'sunSide'), optional=('hotspots', 'showNight', 'nightEdge'))
     if look and 'nightEdge' in look and look['nightEdge'] != 'solid':
         c.err('look.nightEdge', 'край вырезки ночью: "solid" или поле не задавать')
-    if look and 'hotspots' in look and look['hotspots'] not in ('dot', 'outline'):
-        c.err('look.hotspots', 'вид точек-подсказок: "dot" или "outline"')
-    if look and 'showNight' in look and look['showNight'] != 'bright':
-        c.err('look.showNight', 'шоу ночью: "bright" или поле не задавать')
+    if look and 'hotspots' in look:   # e1.15: «обводка» с номерами удалена (s9: Нарек отверг) — точки только как у Кукурузника
+        c.err('look.hotspots', 'настройки вида точек больше нет: точки-подсказки только как у живого Кукурузника')
+    if look and 'showNight' in look and look['showNight'] not in ('bright', 'toned'):
+        c.err('look.showNight', 'шоу ночью: "bright", "toned" (флаг в тон ночи, слабый тёплый свет снизу) или поле не задавать')
     if look:
         d = c.obj(look['day'], 'look.day', required=('skyTop', 'skyHor', 'mix', 'greenHue', 'greenPull', 'greenSat'))
         if d:
@@ -414,7 +414,7 @@ def validate(bdir, b, site):
         if 'skyBirds' in fr:      # e1.8: false — без трёх одиночных птиц движка (у кадра свои стаи)
             c.boolean(fr['skyBirds'], '%s: skyBirds' % w)
         if 'motionVideo' in fr:   # e1.13: синемаграф (tools/cinemagraph.py): {src, mask, on, hideLife}
-            c.obj(fr['motionVideo'], '%s: motionVideo' % w, required=('src', 'mask'), optional=('on', 'hideLife', 'depth'))
+            c.obj(fr['motionVideo'], '%s: motionVideo' % w, required=('src', 'mask'), optional=('on', 'hideLife', 'depth', 'cars'))
         if 'nightWins' in fr:     # e1.12: true — окна других зданий (win2 из маски Gemini) горят и ночью с ночной картинкой
             c.boolean(fr['nightWins'], '%s: nightWins' % w)
         if 'depthRaw' in fr:      # e1.5: карта глубины кадра без растяжки контраста (значения файла = глубина в шейдере)

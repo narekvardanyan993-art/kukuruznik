@@ -69,7 +69,7 @@
     "night": {"dim": 0.64, "mainLit": [0, 0], "otherLit": [0.5, 0.65], "mainWindowShare": 0},
     "frameSize": [768, 1365],
     "sunSide": "right",
-    "showNight": "bright",
+    "showNight": "toned",
     "nightEdge": "solid"
   },
   "tuning": {"BUILDING_DEPTH_PIXEL": true, "MAX_SHIFT_X": 0.0156, "MAX_SHIFT_Y": 0.0094, "ZOOM_NEAR": 0.0156, "BREATH_AMPLITUDE": 0.0031, "LOOK": {"sunsetSmear": {"strength": 0.0}}},
@@ -83,7 +83,7 @@
   "frames": [
     {
       "name": "lenin_1",
-      "motionVideo": {"src": "lenin_1_motion.mp4", "mask": "lenin_1_motion_mask.png"},
+      "motionVideo": {"src": "lenin_1_motion.mp4", "mask": "lenin_1_motion_mask.png", "cars": "lenin_1_motion_cars.json"},
       "sunset": false,
       "crop": [0, 0, 1, 1],
       "flag": null,
@@ -152,7 +152,7 @@
       ],
       "nightLamps": [[0.5853, 0.378, 0.5853, 0.4022], [0.696, 0.4051, 0.696, 0.43], [0.7474, 0.4346, 0.7474, 0.4579], [0.862, 0.4751, 0.862, 0.5121], [0.355, 0.5498, 0.355, 0.5744], [0.6706, 0.6533, 0.6706, 0.6872], [0.5286, 0.7681, 0.5286, 0.8022], [0.7656, 0.7685, 0.7656, 0.8044], [0.2051, 0.8652, 0.2051, 0.8967]],
       "nightWins": true,
-      "motionVideo": {"src": "lenin_2_motion.mp4", "mask": "lenin_2_motion_mask.png"},
+      "motionVideo": {"src": "lenin_2_motion.mp4", "mask": "lenin_2_motion_mask.png", "cars": "lenin_2_motion_cars.json"},
       "nightHalo": 1,
       "lamps": [],
       "sun": {
@@ -334,7 +334,7 @@
     },
     {
       "name": "lenin_6",
-      "motionVideo": {"src": "lenin_6_motion.mp4", "mask": "lenin_6_motion_mask.png"},
+      "motionVideo": {"src": "lenin_6_motion.mp4", "mask": "lenin_6_motion_mask.png", "cars": "lenin_6_motion_cars.json"},
       "sunset": false,
       "crop": [0, 0, 1, 1],
       "flag": null,

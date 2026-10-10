@@ -425,7 +425,7 @@ async function captureWalk(browser, origin, target, vpName, outDir) {
     if (phone) { await click('#panelBtn'); await snap('walk-2-sheet-open'); await closeSheet(); await snap('walk-3-sheet-closed'); }
     else { await click('#panelBtn'); await snap('walk-2-panel-collapsed'); await click('#panelBtn'); await snap('walk-3-panel-open'); }
     // карточка точки-подсказки
-    const dot = await page.$('.hs-dot.show, .hs-ring.show');   // e1.13: точки «обводка» = .hs-ring
+    const dot = await page.$('.hs-dot.show');
     if (dot) {
       await dot.click(); await adv(900); await snap('walk-4-hint-open');
       await click('#hsBack'); await snap('walk-5-hint-closed');
@@ -514,7 +514,7 @@ async function checkStructure(browser, origin, target) {
     for (let i = 0; i < cfg.n; i++) {
       await goFrame(i);
       const st = await page.evaluate(() => ({
-        shown: document.querySelectorAll('#hotspots .hs-dot.show, #hotspots .hs-ring.show').length, total: document.querySelectorAll('#hotspots .hs-dot, #hotspots .hs-ring').length,
+        shown: document.querySelectorAll('#hotspots .hs-dot.show').length, total: document.querySelectorAll('#hotspots .hs-dot').length,
         flags: ['flagBtnB', 'flagBtnP'].map((id) => { const b = document.getElementById(id); return b ? { hidden: b.hidden, off: b.classList.contains('off-frame') } : null; }) }));
       info.dots.push(st.shown);
       if (st.shown !== cfg.hs[i] || st.total !== cfg.hs[i]) bad(`кадр ${i + 1}: точек-подсказок на странице ${st.shown} (всего в разметке ${st.total}), в настройках ${cfg.hs[i]}`);

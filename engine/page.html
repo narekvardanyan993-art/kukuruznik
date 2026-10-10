@@ -755,11 +755,6 @@
     #bottomBar #flagBtnB.busy .sh-bar { opacity: 1; }
     #bottomBar #homeBtn { justify-self: end; }
     .sh-btn.busy.wait .sh-bar { animation: shWait 900ms ease-in-out infinite alternate; }
-    html[data-hs="i"] .hs-dot { width: 44px; height: 44px; margin: -22px; }
-    html[data-hs="i"] .hs-dot::before { content: 'i'; width: 19px; height: 19px; box-sizing: border-box; display: grid; place-items: center;
-      background: rgba(255,252,244,0.96); border: 1.6px solid #2f2a25; color: #2f2a25; font: italic 700 13px/1 Georgia, 'Times New Roman', serif; padding-top: 1px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
-    html[data-hs="i"] .hs-dot::after { width: 19px; height: 19px; }
     .hs-dot { width: 44px; height: 44px; margin: -22px; }   /* зона нажатия ≥ 44; вид точки — как на живом сайте (e1.13, Кукурузник = живой сайт) */
     #sheetClose, body.immersive #immExit { width: 44px; height: 44px; }
   }
@@ -803,25 +798,6 @@
     #stage.loading, #stage.loading * { cursor: var(--cw); }
   }
 
-  /* e1.13: точки-подсказки «обводка» (CONFIG.HOTSPOT_STYLE = 'outline', building.json look.hotspots): деталь раз в ~10 с
-     обводится карандашной линией, которая рисует себя, и гаснет; номер-ярлык виден всегда; тап по области или ярлыку — инфо. */
-  .hs-ring { position: absolute; top: 0; left: 0; width: 44px; height: 44px; margin: -22px; border: 0; padding: 0; background: none;
-    pointer-events: auto; cursor: var(--cp); opacity: 0; transition: opacity var(--dur) var(--spring); -webkit-tap-highlight-color: transparent; }
-  .hs-ring.show { opacity: 1; }
-  .hr-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
-  .hr-path { fill: none; stroke: #2f2a25; stroke-width: 2.2; stroke-linecap: round; vector-effect: non-scaling-stroke;
-    stroke-dasharray: 1; stroke-dashoffset: 1; opacity: 0; filter: drop-shadow(0 0 1.5px rgba(255,252,244,0.9));
-    animation: hrDraw 10s var(--ease) infinite; animation-delay: calc(var(--i) * 3.3s + 1.2s); }
-  html[data-night="1"] .hr-path { stroke: #ffe2a8; filter: drop-shadow(0 0 2px rgba(10,14,30,0.9)); }
-  .hs-ring:focus-visible .hr-path, .hs-ring:hover .hr-path { animation: none; stroke-dashoffset: 0; opacity: 0.95; transition: stroke-dashoffset 600ms var(--out); }
-  .hr-tag { position: absolute; right: -4px; top: -6px; min-width: 18px; height: 18px; padding: 0 4px; box-sizing: border-box; display: grid; place-items: center;
-    border-radius: 9px 8px 9px 7px; background: rgba(255,252,244,0.94); border: 1.4px solid #2f2a25; color: #2f2a25;
-    font: 700 11px/1 var(--font); box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
-  html[data-night="1"] .hr-tag { background: rgba(28,32,52,0.9); border-color: #ffe2a8; color: #ffe2a8; }
-  @keyframes hrDraw { 0% { stroke-dashoffset: 1; opacity: 0.95; } 14% { stroke-dashoffset: 0; opacity: 0.95; } 36% { stroke-dashoffset: 0; opacity: 0.95; }
-    46% { stroke-dashoffset: 0; opacity: 0; } 100% { stroke-dashoffset: 1; opacity: 0; } }
-  @media (prefers-reduced-motion: reduce) { html:not([data-motion="on"]) .hr-path { animation: none; stroke-dashoffset: 0; opacity: 0.6; } }
-
   /* e1.13: живые части курсора ПК (скрипт внизу страницы; только мышь) */
   html.cur-js { --cp: var(--cn); }
   html.cur-js #stage.loading, html.cur-js #stage.loading * { cursor: var(--cn); }
@@ -845,6 +821,25 @@
    Все параметры эффекта «3D-фото» собраны здесь, ничего похожего
    больше в коде не настраивается. */
 var CONFIG = {{CONFIG}};
+CONFIG.ENGINE_V = '{{V}}';
+/* e1.15 (s9): Safari на iPhone показывал старую страницу из кэша (восстановленная вкладка) — со старыми настройками при новом движке
+   (у Ленина всплыли отменённые круги с цифрами). Страница сверяет свою версию с engine/VERSION (без кэша) при открытии, при возврате
+   из кэша вкладок и после 10+ мин в фоне; новее — один раз перезагружается на свежий адрес. */
+(function () {
+  var V = '{{V}}', E = '{{E}}', hid = 0;
+  function chk() {
+    if (!window.fetch) return;
+    fetch(E + 'VERSION?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
+      t = (t || '').trim(); if (!t || t === V || t.length > 20) return;
+      var k = 'chka-reload-' + t; try { if (sessionStorage.getItem(k)) return; sessionStorage.setItem(k, '1'); } catch (e) {}
+      var h = location.hash, u = location.href.split('#')[0].replace(/([?&])_v=[^&]*&?/, '$1').replace(/[?&]$/, '');
+      location.replace(u + (u.indexOf('?') < 0 ? '?' : '&') + '_v=' + encodeURIComponent(t) + h);
+    }).catch(function () {});
+  }
+  chk();
+  window.addEventListener('pageshow', function (e) { if (e.persisted) chk(); });
+  document.addEventListener('visibilitychange', function () { if (document.hidden) hid = Date.now(); else if (hid && Date.now() - hid > 600000) chk(); });
+})();
 /* ==================================================== */
 
 // язык страницы (общий с сайтом: тот же ключ localStorage) — нужен приветствию до основного скрипта
@@ -998,7 +993,7 @@ document.querySelectorAll('.chips').forEach(function (g) { g.querySelectorAll('.
   ring.className = 'cur-ring'; ld.className = 'cur-load';
   ld.innerHTML = '<svg viewBox="0 0 26 26" width="26" height="26"><path pathLength="1" d="M13 3.2 C18.6 3 23 7 22.9 12.8 C22.8 18.4 18.6 22.8 12.8 22.7 C7.4 22.6 3.2 18.4 3.3 13 C3.4 8.6 6.4 4.8 10.6 3.6"/></svg>';
   document.body.appendChild(ring); document.body.appendChild(ld); html.classList.add('cur-js');
-  var CL = 'a, button, [role="button"], .hs-dot, .hs-ring, .chip, label, select, summary, input[type="checkbox"], input[type="radio"]';
+  var CL = 'a, button, [role="button"], .hs-dot, .chip, label, select, summary, input[type="checkbox"], input[type="radio"]';
   var stage = document.getElementById('stage');
   document.addEventListener('pointermove', function (e) {
     if (e.pointerType !== 'mouse') return;
