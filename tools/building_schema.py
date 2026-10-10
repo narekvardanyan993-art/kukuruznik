@@ -414,7 +414,12 @@ def validate(bdir, b, site):
         if 'skyBirds' in fr:      # e1.8: false — без трёх одиночных птиц движка (у кадра свои стаи)
             c.boolean(fr['skyBirds'], '%s: skyBirds' % w)
         if 'motionVideo' in fr:   # e1.13: синемаграф (tools/cinemagraph.py): {src, mask, on, hideLife}
-            c.obj(fr['motionVideo'], '%s: motionVideo' % w, required=('src', 'mask'), optional=('on', 'hideLife', 'depth', 'cars'))
+            mvo = c.obj(fr['motionVideo'], '%s: motionVideo' % w, required=('mask',), optional=('src', 'on', 'hideLife', 'depth', 'cars', 'clips'))
+            if mvo is not None:   # e1.16: clips [{src, cars}] (Flow: первый = последний кадр) или старое src
+                if not mvo.get('src') and not mvo.get('clips'):
+                    c.err('%s: motionVideo' % w, 'нужно src или clips [{src, cars}]')
+                for j, cl in enumerate(mvo.get('clips') or []):
+                    c.obj(cl, '%s: motionVideo.clips[%d]' % (w, j + 1), required=('src',), optional=('cars',))
         if 'nightWins' in fr:     # e1.12: true — окна других зданий (win2 из маски Gemini) горят и ночью с ночной картинкой
             c.boolean(fr['nightWins'], '%s: nightWins' % w)
         if 'depthRaw' in fr:      # e1.5: карта глубины кадра без растяжки контраста (значения файла = глубина в шейдере)

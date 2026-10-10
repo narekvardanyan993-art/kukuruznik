@@ -1687,7 +1687,7 @@
       if (mvOn && MV.hideLife !== false) AM = MV._A || (MV._A = { flocks: AM.flocks, details: AM.details, occluders: AM.occluders, lightBirds: AM.lightBirds });
       drawAmbientLife(now, w, f, AM);
     }
-    if (mvOn && MV.cars) drawVideoCarLights(w, f, fr);   // e1.15: ночные фары машин из видео
+    if (mvOn && (MV.cars || (MV.clips && MV.clips.some(function (c) { return c.cars; })))) drawVideoCarLights(w, f, fr);   // e1.15: ночные фары машин из видео (e1.16: треки текущего клипа)
     for (var i = active.length - 1; i >= 0; i--) {
       var e = active[i], t = (now - e.t0) / e.dur;
       if (t >= 1) { active.splice(i, 1); continue; }

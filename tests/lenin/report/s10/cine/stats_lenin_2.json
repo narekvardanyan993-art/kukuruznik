@@ -1,0 +1,82 @@
+{
+ "stats": [
+  {
+   "clip": "B_1.mp4",
+   "out": "lenin_2_motion_1.mp4",
+   "frames": 160,
+   "sec": 8.0,
+   "mp4_kb": 468,
+   "webm_kb": 598,
+   "crf": [
+    30,
+    46
+   ],
+   "cars": 7,
+   "pop": 1,
+   "pops": [
+    [
+     "in",
+     77,
+     0.276,
+     0.449
+    ]
+   ],
+   "drift": 1.55,
+   "new_px": 0,
+   "edge_px": 404,
+   "align": [
+    1.0,
+    1.0,
+    0.0,
+    0.0
+   ],
+   "corr": 0.997
+  },
+  {
+   "clip": "B_2.mp4",
+   "out": "lenin_2_motion_2.mp4",
+   "frames": 160,
+   "sec": 8.0,
+   "mp4_kb": 475,
+   "webm_kb": 597,
+   "crf": [
+    30,
+    46
+   ],
+   "cars": 7,
+   "pop": 1,
+   "pops": [
+    [
+     "out",
+     74,
+     0.696,
+     0.79
+    ]
+   ],
+   "drift": 1.67,
+   "new_px": 0,
+   "edge_px": 375,
+   "align": [
+    1.0,
+    1.0,
+    0.0,
+    0.0
+   ],
+   "corr": 0.997
+  }
+ ],
+ "motionVideo": {
+  "clips": [
+   {
+    "src": "lenin_2_motion_1.mp4",
+    "cars": "lenin_2_motion_1_cars.json"
+   },
+   {
+    "src": "lenin_2_motion_2.mp4",
+    "cars": "lenin_2_motion_2_cars.json"
+   }
+  ],
+  "mask": "lenin_2_motion_mask.png"
+ },
+ "moving_pct": 19.43
+}

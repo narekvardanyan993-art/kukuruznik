@@ -379,7 +379,7 @@ def build_beta(site, bdirs=None, root=None, with_local=False):
         written.append(str(out.relative_to(site)))
         if bd in own:   # кадры здания — рядом со страницей: beta/tests/<имя>/frames/*.webp
             fdir = Path(root or ROOT) / bd / 'frames'   # + синемаграф (e1.13): <кадр>_motion.mp4 и маска
-            for src in sorted(list(fdir.glob('*.webp')) + list(fdir.glob('*_motion.mp4')) + list(fdir.glob('*_motion.webm')) + list(fdir.glob('*_motion_mask.png')) + list(fdir.glob('*_motion_cars.json'))):   # e1.15: + треки машин для ночных фар
+            for src in sorted(list(fdir.glob('*.webp')) + list(fdir.glob('*_motion*.mp4')) + list(fdir.glob('*_motion*.webm')) + list(fdir.glob('*_motion_mask.png')) + list(fdir.glob('*_motion*cars.json'))):   # e1.15: + треки машин для ночных фар
                 dst = out.parent / 'frames' / src.name
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(src, dst)
@@ -656,7 +656,7 @@ def place_live_files(site, slug, root=None):
     out.mkdir(parents=True)
     written = []
     fsrc = root / src / b['framesDir']
-    for f in sorted(list(fsrc.glob('*.webp')) + list(fsrc.glob('*_motion.mp4')) + list(fsrc.glob('*_motion.webm')) + list(fsrc.glob('*_motion_mask.png')) + list(fsrc.glob('*_motion_cars.json'))):   # + синемаграф (e1.13), треки машин (e1.15)
+    for f in sorted(list(fsrc.glob('*.webp')) + list(fsrc.glob('*_motion*.mp4')) + list(fsrc.glob('*_motion*.webm')) + list(fsrc.glob('*_motion_mask.png')) + list(fsrc.glob('*_motion*cars.json'))):   # + синемаграф (e1.13), треки машин (e1.15)
         dst = out / b['framesDir'] / f.name
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(f, dst)
