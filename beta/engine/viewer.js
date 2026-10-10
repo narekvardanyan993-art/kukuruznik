@@ -645,41 +645,92 @@
   function mvConf(i) {
     if (!NI || /[?&]cine=0/.test(mvQ)) return null;
     var M = ((CONFIG.SCENE && CONFIG.SCENE[i]) || {}).motionVideo;
-    if (!M || !M.src || !M.mask) return null;
+    if (!M || !(M.src || (M.clips && M.clips.length)) || !M.mask) return null;   // e1.16: clips [{src, cars}] или старое src
     if (M.on === false && !/[?&]cine=1/.test(mvQ)) return null;
     if (FRAMES[i] && FRAMES[i].sunset) return null;   // юнит заката-земли занят картинкой заката — видео не кладём (у кадров с синемаграфом заката-картинки нет)
     return M;
+  }
+  // e1.16 (s10): клипы Flow «Frames to Video» — первый кадр = последний = рисунок, поэтому любой клип стыкуется с любым:
+  // motionVideo.clips [{src, cars}] — после каждого круга случайный следующий (один клип — обычная петля). Старое {src, cars} — один клип.
+  function mvClips(M) { return M.clips && M.clips.length ? M.clips : [{ src: M.src, cars: M.cars }]; }
+  // iOS: видео вне документа и до первого касания Safari может не запускать (бета s9: «B оживает после нескольких пролистываний»).
+  // Поэтому: видео живут в скрытом слое документа (1 px, прозрачно), muted + playsinline + autoplay ДО src, play() — на canplay,
+  // при отказе — повтор с паузой, и первое касание/клавиша запускает все нужные видео прямо в обработчике жеста.
+  var mvHold = null;
+  function mvHolder() {
+    if (mvHold) return mvHold;
+    mvHold = document.createElement('div'); mvHold.setAttribute('aria-hidden', 'true');
+    mvHold.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;overflow:hidden;opacity:0.01;pointer-events:none;z-index:-1';
+    document.body.appendChild(mvHold); return mvHold;
+  }
+  function mvTryPlay(S, now) {
+    if (!S.want || !S.v.paused || S.pending || S.fail || (now || 0) < S.retryAt) return;
+    var pr; try { pr = S.v.play(); } catch (e) { pr = null; }
+    if (pr && pr.then) {
+      S.pending = true;
+      pr.then(function () { S.pending = false; S.retries = 0; }, function (e) {
+        S.pending = false; S.retries++; S.retryAt = performance.now() + Math.min(2000, 250 * S.retries);
+        if (S.retries === 3) logErr('video play', (e && e.name) || e);
+      });
+    }
+  }
+  function mvGesture() {   // жест пользователя: нужные видео — играть; соседние (ещё не показанные) — «разблокировать» play→pause, чтобы при пролистывании они пошли сразу
+    Object.keys(MV).forEach(function (k) {
+      var S = MV[k];
+      if (S.want && S.v.paused) { S.retryAt = 0; S.pending = false; mvTryPlay(S, 0); }
+      else if (!S.want && !S.unlocked && S.v.paused) {
+        S.unlocked = true;
+        try { var pr = S.v.play(); if (pr && pr.then) pr.then(function () { if (!S.want) S.v.pause(); }, function () { S.unlocked = false; }); } catch (e) { S.unlocked = false; }
+      }
+    });
+  }
+  ['pointerdown', 'touchend', 'keydown', 'click'].forEach(function (ev) { window.addEventListener(ev, mvGesture, { passive: true, capture: true }); });
+  function mvSetClip(S, j) {
+    var C = S.clips[j]; S.ci = j; S.ready = false; S.t = -1;
+    S.v.src = S.base + (S.h264 ? C.src : C.src.replace(/\.mp4$/, '.webm'));   // без H.264 — запасной VP9
+    try { S.v.load(); } catch (e) {}
+    S.cars = S.carsBy[j] || null;
+    if (C.cars && !S.carsBy[j]) fetch(S.base + C.cars).then(function (r) { return r.ok ? r.json() : null; }).then(function (js) { S.carsBy[j] = js; if (S.ci === j) S.cars = js; }, function () {});   // треки машин клипа — ночные фары
   }
   function mvOpen(i) {
     var S = MV[i], M = mvConf(i);
     if (S || !M) return S;
     var base = (FRAMES[i].color || '').replace(/[^\/]*$/, '');
-    S = MV[i] = { v: document.createElement('video'), m: new Image(), t: -1, fail: false, ready: false, errs: 0, cars: null };
-    S.v.muted = true; S.v.loop = true; S.v.playsInline = true; S.v.setAttribute('playsinline', ''); S.v.setAttribute('muted', ''); S.v.preload = 'auto';
+    S = MV[i] = { v: document.createElement('video'), m: new Image(), t: -1, fail: false, ready: false, errs: 0, cars: null, carsBy: [], clips: mvClips(M), ci: 0, base: base,
+                  want: false, pending: false, retries: 0, retryAt: 0 };
+    S.v.muted = true; S.v.defaultMuted = true; S.v.playsInline = true; S.v.autoplay = false;
+    S.v.setAttribute('playsinline', ''); S.v.setAttribute('webkit-playsinline', ''); S.v.setAttribute('muted', ''); S.v.preload = 'auto';
+    S.v.loop = S.clips.length < 2;
+    S.v.style.cssText = 'width:1px;height:1px';
+    S.h264 = !!S.v.canPlayType('video/mp4; codecs="avc1.42E01E"');
     S.v.addEventListener('error', function () { S.fail = true; logErr('video ' + i, (S.v.error && ('code ' + S.v.error.code)) || 'error'); });
     S.v.addEventListener('loadeddata', function () { S.ready = true; });
-    // e1.15: ролик (30+ с, проезды по полосам) стартует с случайного места — у каждого захода свой узор; проверка (__mvFreeze) — с начала
-    S.v.addEventListener('loadedmetadata', function () { if (!window.__mvFreeze && isFinite(S.v.duration) && S.v.duration > 2) { try { S.v.currentTime = Math.random() * (S.v.duration - 0.5); } catch (e) {} } });
-    if (M.cars) fetch(base + M.cars).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) { S.cars = j; }, function () {});   // треки машин для ночных фар
-    S.v.src = base + (S.v.canPlayType('video/mp4; codecs="avc1.42E01E"') ? M.src : M.src.replace(/\.mp4$/, '.webm'));   // без H.264 — запасной VP9
+    S.v.addEventListener('canplay', function () { S.retryAt = 0; mvTryPlay(S, performance.now()); });   // готово — сразу играть, не ждать следующего кадра/касания
+    S.v.addEventListener('ended', function () {   // e1.16: круг кончился (последний кадр = рисунок) — случайный следующий клип
+      var n = S.clips.length, j = n < 2 ? 0 : (S.ci + 1 + Math.floor(Math.random() * (n - 1))) % n;
+      if (n < 2) { try { S.v.currentTime = 0; } catch (e) {} } else mvSetClip(S, j);
+      S.retryAt = 0; mvTryPlay(S, performance.now());
+    });
+    mvSetClip(S, window.__mvFreeze ? 0 : Math.floor(Math.random() * S.clips.length));
     S.m.src = base + M.mask;
+    mvHolder().appendChild(S.v);
     return S;
   }
   function mvClose(i) {
     var S = MV[i]; if (!S) return;
-    try { S.v.pause(); S.v.removeAttribute('src'); S.v.load(); } catch (e) {}
+    try { S.v.pause(); S.v.removeAttribute('src'); S.v.load(); if (S.v.parentNode) S.v.parentNode.removeChild(S.v); } catch (e) {}
     var f = store[i]; if (f) { if (f.mvTex && useGL && gl) gl.deleteTexture(f.mvTex); f.mvTex = null; f.mvUse = false; }
     delete MV[i];
   }
-  function mvPlan(cur, to, rm) {   // какие видео держать и какие играть — раз за кадр отрисовки
-    var n = FRAMES.length, keep = {};
+  function mvPlan(cur, to, rm) {   // какие видео держать и какие играть — раз за кадр отрисовки (текущий + соседи — предзагрузка с входа)
+    var n = FRAMES.length, keep = {}, now = performance.now();
     [cur, (cur + 1) % n, (cur + n - 1) % n, to].forEach(function (k) { if (k != null && mvConf(k)) keep[k] = 1; });
     Object.keys(MV).forEach(function (k) { if (!keep[k]) mvClose(+k); });
     Object.keys(keep).forEach(function (k) {
       var S = mvOpen(+k); if (!S) return;
-      var play = (+k === cur || +k === to) && !rm && perfLevel < 2 && !window.__mvFreeze && !document.hidden;
-      if (play && S.v.paused) { var pr = S.v.play(); if (pr && pr.catch) pr.catch(function () {}); }
-      else if (!play && !S.v.paused) S.v.pause();
+      S.want = (+k === cur || +k === to) && !rm && perfLevel < 2 && !window.__mvFreeze && !document.hidden;
+      if (S.want) mvTryPlay(S, now);
+      else if (!S.v.paused) S.v.pause();
     });
   }
   var mvCanvas = null;   // e1.15: один общий холст для всех видео (память iPhone): кадр видео × маска собирается и сразу уходит в текстуру
@@ -1005,7 +1056,7 @@
     frame: function () { return frameIndex; }, fading: function () { return !!fade; }, entry: function (i) { return store[i]; },
     motionOn: function (i) { return !!mvConf(i) && !(MV[i] && MV[i].fail); },
     mvCars: function (i) {   // e1.15: треки машин ролика и время видео — для ночных фар (details.js)
-      var S = MV[i], f = store[i]; if (!S || S.fail || !S.cars || !f || !f.mvUse) return null;
+      var S = MV[i], f = store[i]; if (!S || S.fail || !S.cars || !S.ready || !f || !f.mvUse) return null;   // e1.16: треки текущего клипа
       return { cars: S.cars.cars, n: S.cars.n, k: S.cars.k, fps: S.cars.fps, ar: S.cars.ar || 0.5625, t: S.t >= 0 ? S.t : S.v.currentTime };   // время кадра, который сейчас в текстуре (не «живое» время видео)
     },
     errors: function () { return ERR.slice(); },   // журнал ошибок (проверочные скрипты, ?debug=1)   // e1.14: у кадра синемаграф — спрайтовые машины/люди/сценки не рисуются
