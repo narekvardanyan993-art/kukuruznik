@@ -1,0 +1,44 @@
+{
+ "stats": [
+  {
+   "clip": "C_1.mp4",
+   "frames": 264,
+   "sec": 13.2,
+   "speed": 0.6,
+   "cars": 0,
+   "pop": 0,
+   "pops": [],
+   "merge": [],
+   "big": [],
+   "offroad": [],
+   "car_len": [],
+   "drift": 3.6,
+   "new_px": 0,
+   "align": [
+    1.0,
+    1.0,
+    0.0,
+    0.0
+   ],
+   "corr": 0.998,
+   "verdict": "forced",
+   "why": [
+    "drift"
+   ],
+   "out": "lenin_3_motion_1.mp4",
+   "mp4_kb": 336,
+   "webm_kb": 431,
+   "crf": [
+    30,
+    40
+   ]
+  }
+ ],
+ "clips": [
+  {
+   "src": "lenin_3_motion_1.mp4",
+   "speed": 0.6
+  }
+ ],
+ "moving_pct": 3.04
+}
