@@ -1,0 +1,27 @@
+A day: lenin_1_motion_1.webm@4.00 {"day":"lenin_1_motion_1.mp4 P","night":null,"useD":true,"useN":false}
+B day: lenin_2_motion_1.webm@4.00 {"day":"lenin_2_motion_1.mp4 P","night":null,"useD":true,"useN":false}
+C day: lenin_3_motion_1.webm@4.00 {"day":"lenin_3_motion_1.mp4 P","night":null,"useD":true,"useN":false}
+D day: lenin_4_motion_1.webm@4.00 {"day":"lenin_4_motion_1.mp4 P","night":null,"useD":true,"useN":false}
+G day: lenin_6_motion_1.webm@4.00 {"day":"lenin_6_motion_1.mp4 P","night":null,"useD":true,"useN":false}
+A night state {"day":"lenin_1_motion_1.mp4 P","night":null,"useD":true,"useN":false}
+A windows {"total":11,"on":4,"brightMin":"0.29","brightMax":"0.86","lamps":0}
+B night state {"day":"lenin_2_motion_1.mp4 P","night":null,"useD":true,"useN":false}
+B windows {"total":49,"on":21,"brightMin":"0.26","brightMax":"1.00","lamps":9}
+C night state {"day":"lenin_3_motion_1.mp4 P","night":null,"useD":true,"useN":false}
+C windows {"total":1,"on":1,"brightMin":"0.67","brightMax":"0.67","lamps":0}
+D night state {"day":"lenin_4_motion_1.mp4 P","night":null,"useD":true,"useN":false}
+D windows {"total":0,"on":0,"brightMin":null,"brightMax":null,"lamps":0}
+G night state {"day":"lenin_6_motion_1.mp4 P","night":null,"useD":true,"useN":false}
+G windows {"total":23,"on":8,"brightMin":"0.21","brightMax":"0.99","lamps":15}
+errs1 [] []
+A night live 0: lenin_1_motion_1.webm@3.8 lenin_2_motion_1.webm@0.0P lenin_6_motion_1.webm@0.0P
+A night live 1: lenin_1_motion_1.webm@11.0 lenin_2_motion_1.webm@0.0P lenin_6_motion_1.webm@0.0P
+B night live 0: lenin_1_motion_1.webm@2.6P lenin_2_motion_1.webm@7.3 lenin_3_motion_1.webm@0.0P
+B night live 1: lenin_1_motion_1.webm@2.6P lenin_2_motion_1.webm@0.3 lenin_3_motion_1.webm@0.0P
+C night live 0: lenin_2_motion_1.webm@4.9P lenin_3_motion_1.webm@9.8 lenin_4_motion_1.webm@0.0P
+C night live 1: lenin_2_motion_1.webm@4.9P lenin_3_motion_1.webm@2.9 lenin_4_motion_1.webm@0.0P
+D night live 0: lenin_3_motion_1.webm@8.6P lenin_4_motion_1.webm@10.6 lenin_6_motion_1.webm@0.0P
+D night live 1: lenin_3_motion_1.webm@8.6P lenin_4_motion_1.webm@4.2 lenin_6_motion_1.webm@0.0P
+G night live 0: lenin_4_motion_1.webm@8.9P lenin_6_motion_1.webm@9.2 lenin_1_motion_1.webm@0.0P
+G night live 1: lenin_4_motion_1.webm@8.9P lenin_6_motion_1.webm@2.2 lenin_1_motion_1.webm@0.0P
+errs2 [] []

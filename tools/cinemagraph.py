@@ -3,7 +3,8 @@
 
   python3 tools/cinemagraph.py tests/<здание> <кадр> clip1.mp4[,clip2.mp4…] [--night] [--speed 0.6] [--fps 20] [--thr 9] [--crf 30]
           [--max-kb 700] [--exclude u0,v0,u1,v1;…] [--roads маска.png] [--allow маска.png] [--car-area 160] [--car-ref v:px,v:px]
-          [--no-cars] [--water] [--shrink 0.6] [--check] [--first N] [--report DIR]
+          [--no-cars] [--water] [--flags] [--zone u0,v0,u1,v1;…] [--ped-max 70] [--vehicle-check дороги.png] [--shrink 0.6]
+          [--drift-max 3] [--check] [--first N] [--report DIR]
 
 e1.16 (круг s10): каждый ролик сам начинается и кончается на рисунке → петля без шва; клипы не склеиваются и не дорисовываются,
 каждый клип — свой файл, движок после каждого круга берёт случайный следующий.
@@ -23,6 +24,13 @@ e1.17 (круг s11, отзыв на e1.16: машины «бешеные» и �
     освободившееся место — рисунок; путь и скорость те же. Veo держит размер машины по ширине дороги, а не по «киоску» — так
     размер задаётся числом; проверка big считает длину уже с K;
   • треки машин (_cars.json) больше не пишутся: искусственные фары по трекам удалены из движка (e1.17), треки — только для проверок.
+e1.18 (круг s13, площади без машин — живость из воды, листвы, флагов и мелких дальних людей):
+  • --flags — ткань: небольшие красные пятна рисунка (флаги, полотнища) тоже «свободная» зона, как листва и вода;
+  • --zone u0,v0,u1,v1;… — дальние тротуары: там берётся только мелкое движение (капля ≤ --ped-max px кадра = крошечный человек);
+    крупнее — вырезается из кадра, а если крупные капли в зоне живут ≥ 8 кадров подряд — брак bigpeople;
+  • --vehicle-check дороги.png — дороги только для проверки (в маску не идут): машиноподобный трек по дороге = брак car.
+  • --drift-max D — порог «рисунок плывёт» для кадра (по умолчанию 3). drift меряется ВНЕ маски (в вывод не идёт), а у крупных
+    видов сверху Veo даёт общее мерцание фасадов 2,5–3,5 при чистой листве — порог кадра поднимать только после листа/глаз.
 1. Кадры клипа (замедленные) → размер кадра, совмещение с картинкой (днём — рисунок, --night — ночная картинка) по контурам.
 2. Маска (общая на клипы кадра): дороги целиком ∪ (движение ∩ (листва ∪ вода)), без слоя здания, водяного знака, рамок --exclude.
 3. Кадр синемаграфа = картинка, а там, где кадр клипа заметно отличается от медианы клипа (то, что движется), — пиксель клипа.
@@ -218,8 +226,8 @@ def shrink_cars(wv, wraw, src, mvp, road_only, car_area, k):
     return np.maximum(wv2, lay_w), src2
 
 
-def zones(day, H, W, sky_end, water):
-    """Листва (зелёное рисунка) и вода (синее ниже неба) — там видео может двигаться и вне дорог."""
+def zones(day, H, W, sky_end, water, flags=False):
+    """Листва (зелёное рисунка) и вода (синее ниже неба) — там видео может двигаться и вне дорог; --flags — ещё и ткань."""
     hsv = cv2.cvtColor(day, cv2.COLOR_RGB2HSV)
     h, s, v = hsv[..., 0], hsv[..., 1], hsv[..., 2]
     leaf = ((h >= 28) & (h <= 88) & (s >= 55) & (v >= 35)).astype(np.uint8)
@@ -234,6 +242,13 @@ def zones(day, H, W, sky_end, water):
         n, lab, st, _ = cv2.connectedComponentsWithStats(w)
         wat = np.isin(lab, [i for i in range(1, n) if st[i][4] >= 1500]).astype(np.uint8)
         wat = cv2.dilate(wat, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)))
+    if flags:   # e1.18: флаги — небольшие насыщенно-красные пятна ниже неба (крупное красное — крыши, не берём)
+        f = (((h <= 8) | (h >= 172)) & (s >= 110) & (v >= 70)).astype(np.uint8)
+        f[:int(H * sky_end)] = 0
+        n, lab, st, _ = cv2.connectedComponentsWithStats(f)
+        f = np.isin(lab, [i for i in range(1, n) if 6 <= st[i][4] <= 900]).astype(np.uint8)
+        f = cv2.dilate(f, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)))
+        wat = np.maximum(wat, f)
     return leaf.astype(bool), wat.astype(bool)
 
 
@@ -292,12 +307,23 @@ def main():
             u0, v0, u1, v1 = map(float, box.split(','))
             excl[int(v0 * H):int(v1 * H), int(u0 * W):int(u1 * W)] = True
     off = excl | cv2.dilate(bld.astype(np.uint8), np.ones((5, 5), np.uint8)).astype(bool)
-    leaf, wat = zones(day, H, W, sky_end, '--water' in a)
+    leaf, wat = zones(day, H, W, sky_end, '--water' in a, '--flags' in a)
+    walk = np.zeros((H, W), bool)                                # e1.18: дальние тротуары — только мелкое движение (крошечные люди)
+    for box in (opt('--zone') or '').split(';'):
+        if box:
+            u0, v0, u1, v1 = map(float, box.split(','))
+            walk[int(v0 * H):int(v1 * H), int(u0 * W):int(u1 * W)] = True
+    walk &= ~(leaf | wat)
+    ped_max = int(opt('--ped-max', 70))
+    drift_max = float(opt('--drift-max', DRIFT_MAX))
+    vchk = None
+    if opt('--vehicle-check'):
+        vchk = np.asarray(Image.open(opt('--vehicle-check')).convert('L').resize((W, H), Image.NEAREST)) > 127
     rd = None
     if opt('--roads'):
         rd = np.asarray(Image.open(opt('--roads')).convert('L').resize((W, H), Image.NEAREST)) > 127
         rd = cv2.dilate(rd.astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (17, 17))).astype(bool)
-    free = leaf | wat                                           # где движется всё (листва, вода); на дороге — только крупное (машины)
+    free = leaf | wat | walk                                    # где движется всё (листва, вода, ткань, тротуары); на дороге — только крупное (машины)
     clips = []
     for src in srcs:                                            # 1. кадры, совмещение, медиана, разброс
         fr = read_frames(src, W, H, fps, speed, first)
@@ -345,19 +371,30 @@ def main():
             cars, pops, merges, offroad = [], [], [], []
         else:
             cars, pops, merges, offroad = track(D, allow, car_area, W, H, rd)
+        bigp, vcars = 0, []
+        if walk.any():                                          # e1.18: крупные капли на тротуарах (не крошечные люди) — сколько кадров подряд
+            run = 0
+            for t in range(T):
+                n_, lab_, st_, _ = cv2.connectedComponentsWithStats(((D[t].astype(np.float32) > 14) & walk & allow).astype(np.uint8))
+                run = run + 1 if any(st_[i][4] > ped_max for i in range(1, n_)) else 0
+                bigp = max(bigp, run)
+        if vchk is not None:                                    # e1.18: машины в ролике без машин — брак
+            vroad = cv2.dilate(vchk.astype(np.uint8), np.ones((9, 9), np.uint8)).astype(bool)
+            vcars = [[int(tr['t0']), round(float(tr['pts'][0][0]) / W, 3), round(float(tr['pts'][0][1]) / H, 3)]
+                     for tr in track(D, vroad, car_area, W, H, vroad)[0]]
         sizes = car_sizes(cars, W, H)
         big = []
         for ln, v, t0 in sizes:
             r = ref_len(refs, v)
             if r and ln * shrink > BIG_K * r:                     # --shrink: машина в выводе меньше во столько раз
                 big.append([t0, round(v, 3), round(ln * shrink, 1), round(r, 1)])
-        why = (['merge'] if merges else []) + (['big'] if big else []) + (['pop'] if pops else []) + (['offroad'] if offroad else []) + (['drift'] if drift > DRIFT_MAX else [])
+        why = (['merge'] if merges else []) + (['big'] if big else []) + (['pop'] if pops else []) + (['offroad'] if offroad else []) + (['drift'] if drift > drift_max else []) + (['car'] if vcars else []) + (['bigpeople'] if bigp >= 8 else [])
         s = {'clip': C['src'].name, 'frames': T, 'sec': round(T / fps, 2), 'speed': speed, 'cars': len(cars), 'pop': len(pops), 'pops': pops,
              'merge': merges, 'big': big, 'offroad': offroad, 'car_len': [[round(x, 1), round(v, 3)] for x, v, _ in sizes],
-             'drift': round(drift, 2), 'new_px': new_px, 'align': [round(float(x), 3) for x in C['par']], 'corr': round(float(C['corr']), 3),
+             'drift': round(drift, 2), 'new_px': new_px, 'vehicles': vcars, 'bigpeople_frames': bigp, 'align': [round(float(x), 3) for x in C['par']], 'corr': round(float(C['corr']), 3),
              'verdict': 'ok' if not why else 'reject', 'why': why}
-        print('%s: %s — %s %s; машин %d (длина px: %s), merge %s, big %s, pop %s, offroad %s, drift %.2f, new %d px' % (
-            name, C['src'].name, s['verdict'].upper(), ','.join(why), len(cars), [round(x) for x, _, _ in sizes], merges, big, pops, offroad, drift, new_px))
+        print('%s: %s — %s %s; машин %d (длина px: %s), merge %s, big %s, pop %s, offroad %s, drift %.2f, new %d px, car %s, bigpeople %d кадр.' % (
+            name, C['src'].name, s['verdict'].upper(), ','.join(why), len(cars), [round(x) for x, _, _ in sizes], merges, big, pops, offroad, drift, new_px, vcars, bigp))
         C['stat'] = s; stats.append(s)
         if check:
             del fr, D; continue
@@ -385,6 +422,10 @@ def main():
                 n, lab, st, _ = cv2.connectedComponentsWithStats((mvp & road_only).astype(np.uint8))
                 small = np.isin(lab, [i for i in range(1, n) if st[i][4] < car_area * 0.35])
                 Dt[cv2.dilate(small.astype(np.uint8), np.ones((5, 5), np.uint8)).astype(bool) & road_only] = 0
+            if walk.any():                                      # e1.18: на тротуарах — только крошечные люди, крупное не берём
+                n, lab, st, _ = cv2.connectedComponentsWithStats((mvp & walk).astype(np.uint8))
+                bigb = np.isin(lab, [i for i in range(1, n) if st[i][4] > ped_max])
+                Dt[cv2.dilate(bigb.astype(np.uint8), np.ones((7, 7), np.uint8)).astype(bool) & walk] = 0
             wv = np.clip((Dt - 10) / 18, 0, 1) * mask
             src = fr[t].astype(np.float32)
             if shrink < 0.999 and road_only.any():              # --shrink: машины на дороге меньше (Veo рисует их ~2× крупнее нужного)

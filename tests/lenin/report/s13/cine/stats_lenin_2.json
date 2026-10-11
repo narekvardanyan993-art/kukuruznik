@@ -1,0 +1,81 @@
+{
+ "stats": [
+  {
+   "clip": "B_3.mp4",
+   "frames": 264,
+   "sec": 13.2,
+   "speed": 0.6,
+   "cars": 0,
+   "pop": 0,
+   "pops": [],
+   "merge": [],
+   "big": [],
+   "offroad": [],
+   "car_len": [],
+   "drift": 3.41,
+   "new_px": 0,
+   "vehicles": [],
+   "bigpeople_frames": 0,
+   "align": [
+    1.0,
+    1.0,
+    0.0,
+    0.0
+   ],
+   "corr": 0.997,
+   "verdict": "ok",
+   "why": [],
+   "out": "lenin_2_motion_1.mp4",
+   "mp4_kb": 654,
+   "webm_kb": 654,
+   "crf": [
+    30,
+    46
+   ]
+  },
+  {
+   "clip": "B_1.mp4",
+   "frames": 264,
+   "sec": 13.2,
+   "speed": 0.6,
+   "cars": 0,
+   "pop": 0,
+   "pops": [],
+   "merge": [],
+   "big": [],
+   "offroad": [],
+   "car_len": [],
+   "drift": 2.92,
+   "new_px": 0,
+   "vehicles": [],
+   "bigpeople_frames": 0,
+   "align": [
+    1.0,
+    1.0,
+    0.0,
+    0.0
+   ],
+   "corr": 0.997,
+   "verdict": "ok",
+   "why": [],
+   "out": "lenin_2_motion_2.mp4",
+   "mp4_kb": 604,
+   "webm_kb": 636,
+   "crf": [
+    30,
+    46
+   ]
+  }
+ ],
+ "clips": [
+  {
+   "src": "lenin_2_motion_1.mp4",
+   "speed": 0.6
+  },
+  {
+   "src": "lenin_2_motion_2.mp4",
+   "speed": 0.6
+  }
+ ],
+ "moving_pct": 9.74
+}
