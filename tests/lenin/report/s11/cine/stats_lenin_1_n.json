@@ -1,0 +1,113 @@
+{
+ "stats": [
+  {
+   "clip": "A_n2.mp4",
+   "frames": 264,
+   "sec": 13.2,
+   "speed": 0.6,
+   "cars": 1,
+   "pop": 0,
+   "pops": [],
+   "merge": [],
+   "big": [
+    [
+     8,
+     0.661,
+     59.8,
+     27.8
+    ]
+   ],
+   "offroad": [],
+   "car_len": [
+    [
+     59.8,
+     0.661
+    ]
+   ],
+   "drift": 0.62,
+   "new_px": 0,
+   "align": [
+    1.0,
+    1.0,
+    0.0,
+    0.0
+   ],
+   "corr": 0.998,
+   "verdict": "forced",
+   "why": [
+    "big"
+   ],
+   "out": "lenin_1_motion_n1.mp4",
+   "mp4_kb": 199,
+   "webm_kb": 252,
+   "crf": [
+    30,
+    40
+   ]
+  },
+  {
+   "clip": "A_n1.mp4",
+   "frames": 264,
+   "sec": 13.2,
+   "speed": 0.6,
+   "cars": 2,
+   "pop": 0,
+   "pops": [],
+   "merge": [
+    [
+     86,
+     0.092,
+     0.651
+    ]
+   ],
+   "big": [
+    [
+     19,
+     0.688,
+     53.2,
+     38.1
+    ],
+    [
+     87,
+     0.654,
+     57.1,
+     25.0
+    ]
+   ],
+   "offroad": [],
+   "car_len": [
+    [
+     53.2,
+     0.688
+    ],
+    [
+     57.1,
+     0.654
+    ]
+   ],
+   "drift": 6.52,
+   "new_px": 0,
+   "align": [
+    1.0,
+    1.0,
+    0.0,
+    0.0
+   ],
+   "corr": 0.998,
+   "verdict": "reject",
+   "why": [
+    "merge",
+    "big",
+    "drift"
+   ]
+  }
+ ],
+ "clips": [
+  {
+   "src": "lenin_1_motion_n1.mp4",
+   "speed": 0.6,
+   "time": "night"
+  }
+ ],
+ "moving_pct": 1.57
+}

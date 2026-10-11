@@ -1,0 +1,101 @@
+{
+ "stats": [
+  {
+   "clip": "G_d3.mp4",
+   "frames": 264,
+   "sec": 13.2,
+   "speed": 0.6,
+   "cars": 3,
+   "pop": 0,
+   "pops": [],
+   "merge": [],
+   "big": [],
+   "offroad": [],
+   "car_len": [
+    [
+     46.1,
+     0.431
+    ],
+    [
+     42.6,
+     0.523
+    ],
+    [
+     53.9,
+     0.586
+    ]
+   ],
+   "drift": 1.8,
+   "new_px": 0,
+   "align": [
+    1.0,
+    1.0,
+    0.0,
+    0.0
+   ],
+   "corr": 0.998,
+   "verdict": "ok",
+   "why": [],
+   "out": "lenin_6_motion_1.mp4",
+   "mp4_kb": 365,
+   "webm_kb": 531,
+   "crf": [
+    30,
+    40
+   ],
+   "shrink": 0.65
+  },
+  {
+   "clip": "G_d2.mp4",
+   "frames": 264,
+   "sec": 13.2,
+   "speed": 0.6,
+   "cars": 2,
+   "pop": 0,
+   "pops": [],
+   "merge": [],
+   "big": [],
+   "offroad": [],
+   "car_len": [
+    [
+     72.6,
+     0.564
+    ],
+    [
+     58.8,
+     0.535
+    ]
+   ],
+   "drift": 1.25,
+   "new_px": 0,
+   "align": [
+    1.0,
+    1.0,
+    0.0,
+    0.0
+   ],
+   "corr": 0.998,
+   "verdict": "ok",
+   "why": [],
+   "out": "lenin_6_motion_2.mp4",
+   "mp4_kb": 368,
+   "webm_kb": 538,
+   "crf": [
+    30,
+    40
+   ],
+   "shrink": 0.55
+  }
+ ],
+ "clips": [
+  {
+   "src": "lenin_6_motion_1.mp4",
+   "speed": 0.6
+  },
+  {
+   "src": "lenin_6_motion_2.mp4",
+   "speed": 0.6
+  }
+ ],
+ "moving_pct": 9.52
+}

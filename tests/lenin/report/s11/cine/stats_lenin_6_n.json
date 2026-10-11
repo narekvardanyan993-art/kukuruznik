@@ -1,0 +1,44 @@
+{
+ "stats": [
+  {
+   "clip": "G_n1.mp4",
+   "frames": 264,
+   "sec": 13.2,
+   "speed": 0.6,
+   "cars": 0,
+   "pop": 0,
+   "pops": [],
+   "merge": [],
+   "big": [],
+   "offroad": [],
+   "car_len": [],
+   "drift": 1.91,
+   "new_px": 0,
+   "align": [
+    1.0,
+    1.0,
+    0.0,
+    0.0
+   ],
+   "corr": 0.997,
+   "verdict": "ok",
+   "why": [],
+   "out": "lenin_6_motion_n1.mp4",
+   "mp4_kb": 239,
+   "webm_kb": 320,
+   "crf": [
+    30,
+    40
+   ],
+   "shrink": 0.55
+  }
+ ],
+ "clips": [
+  {
+   "src": "lenin_6_motion_n1.mp4",
+   "speed": 0.6,
+   "time": "night"
+  }
+ ],
+ "moving_pct": 9.52
+}

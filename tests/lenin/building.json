@@ -66,13 +66,13 @@
       "greenPull": 0.78,
       "greenSat": 1.9
     },
-    "night": {"dim": 0.64, "mainLit": [0, 0], "otherLit": [0.5, 0.65], "mainWindowShare": 0},
+    "night": {"dim": 0.64, "mainLit": [0, 0], "otherLit": [0.35, 0.5], "mainWindowShare": 0},
     "frameSize": [768, 1365],
     "sunSide": "right",
     "showNight": "toned",
     "nightEdge": "solid"
   },
-  "tuning": {"BUILDING_DEPTH_PIXEL": true, "MAX_SHIFT_X": 0.0156, "MAX_SHIFT_Y": 0.0094, "ZOOM_NEAR": 0.0156, "BREATH_AMPLITUDE": 0.0031, "LOOK": {"sunsetSmear": {"strength": 0.0}}},
+  "tuning": {"BUILDING_DEPTH_PIXEL": true, "MAX_SHIFT_X": 0.0156, "MAX_SHIFT_Y": 0.0094, "ZOOM_NEAR": 0.0156, "BREATH_AMPLITUDE": 0.0031, "LOOK": {"sunsetSmear": {"strength": 0.0}, "lampHalo": {"core": 0.7, "wide": 0.07, "wideSize": 0.0009, "ground": 0.42, "groundSizeX": 0.0022, "groundSizeY": 0.00026}}},
   "live": {
     "slug": "lenin",
     "meta": {"url": "https://chka.am/lenin/", "ogImage": "og.jpg", "favicon": "../assets/favicon-32.png", "appleTouchIcon": "../assets/icon-180.png", "viewerVersion": "lenin-1", "description": {"hy": "Լենինի արձանը (1940–1991) Երևանի կենտրոնական հրապարակում՝ 1970-ականների վերջի – 1980-ականների տեսքով, գծանկար։"}},
@@ -83,7 +83,7 @@
   "frames": [
     {
       "name": "lenin_1",
-      "motionVideo": {"clips": [{"src": "lenin_1_motion_1.mp4", "cars": "lenin_1_motion_1_cars.json"}, {"src": "lenin_1_motion_2.mp4"}], "mask": "lenin_1_motion_mask.png"},
+      "motionVideo": {"clips": [{"src": "lenin_1_motion_1.mp4", "speed": 0.6}, {"src": "lenin_1_motion_n1.mp4", "speed": 0.6, "time": "night"}], "mask": "lenin_1_motion_mask.png"},
       "sunset": false,
       "crop": [0, 0, 1, 1],
       "flag": null,
@@ -152,7 +152,7 @@
       ],
       "nightLamps": [[0.5853, 0.378, 0.5853, 0.4022], [0.696, 0.4051, 0.696, 0.43], [0.7474, 0.4346, 0.7474, 0.4579], [0.862, 0.4751, 0.862, 0.5121], [0.355, 0.5498, 0.355, 0.5744], [0.6706, 0.6533, 0.6706, 0.6872], [0.5286, 0.7681, 0.5286, 0.8022], [0.7656, 0.7685, 0.7656, 0.8044], [0.2051, 0.8652, 0.2051, 0.8967]],
       "nightWins": true,
-      "motionVideo": {"clips": [{"src": "lenin_2_motion_1.mp4", "cars": "lenin_2_motion_1_cars.json"}, {"src": "lenin_2_motion_2.mp4", "cars": "lenin_2_motion_2_cars.json"}], "mask": "lenin_2_motion_mask.png"},
+      "motionVideo": {"clips": [{"src": "lenin_2_motion_1.mp4", "speed": 0.6}, {"src": "lenin_2_motion_2.mp4", "speed": 0.6}, {"src": "lenin_2_motion_n1.mp4", "speed": 0.6, "time": "night"}], "mask": "lenin_2_motion_mask.png"},
       "nightHalo": 1,
       "lamps": [],
       "sun": {
@@ -182,7 +182,7 @@
     },
     {
       "name": "lenin_3",
-      "motionVideo": {"clips": [{"src": "lenin_3_motion_1.mp4"}], "mask": "lenin_3_motion_mask.png"},
+      "motionVideo": {"clips": [{"src": "lenin_3_motion_1.mp4", "speed": 0.6}], "mask": "lenin_3_motion_mask.png"},
       "sunset": false,
       "crop": [0, 0, 1, 1],
       "flag": null,
@@ -251,7 +251,7 @@
     },
     {
       "name": "lenin_4",
-      "motionVideo": {"clips": [{"src": "lenin_4_motion_1.mp4"}], "mask": "lenin_4_motion_mask.png"},
+      "motionVideo": {"clips": [{"src": "lenin_4_motion_1.mp4", "speed": 0.6}], "mask": "lenin_4_motion_mask.png"},
       "sunset": false,
       "crop": [0, 0, 1, 1],
       "flag": null,
@@ -335,7 +335,7 @@
     },
     {
       "name": "lenin_6",
-      "motionVideo": {"clips": [{"src": "lenin_6_motion_1.mp4", "cars": "lenin_6_motion_1_cars.json"}, {"src": "lenin_6_motion_2.mp4", "cars": "lenin_6_motion_2_cars.json"}], "mask": "lenin_6_motion_mask.png"},
+      "motionVideo": {"clips": [{"src": "lenin_6_motion_1.mp4", "speed": 0.6}, {"src": "lenin_6_motion_2.mp4", "speed": 0.6}, {"src": "lenin_6_motion_n1.mp4", "speed": 0.6, "time": "night"}], "mask": "lenin_6_motion_mask.png"},
       "sunset": false,
       "crop": [0, 0, 1, 1],
       "flag": null,

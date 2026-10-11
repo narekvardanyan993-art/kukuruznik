@@ -732,43 +732,7 @@
     ctx.beginPath(); ctx.ellipse(rx - cs * len * 0.5, ry - sn * len * 0.3 + len * 0.06, len * 0.6, len * 0.16, Math.atan2(sn * 0.6, cs), 0, 6.283); ctx.fill();
     ctx.restore();
   }
-  // e1.15 (s9): ночные фары машин из видео-синемаграфа. Треки машин ролика — <кадр>_motion_cars.json (tools/cinemagraph.py),
-  // время — по самому видео. Две маленькие тёплые круглые фары спереди и слабое пятно света на дороге, сзади — красные точки. Днём выкл.
-  function drawVideoCarLights(w, f, fr) {
-    var L = w.n; if (L < 0.05 || !V.mvCars) return;
-    var cd = V.mvCars(fr); if (!cd || !cd.cars) return;
-    var n = cd.n, k = cd.k || 2, ft = cd.t * cd.fps, ar = cd.ar;
-    ctx.save();
-    for (var c = 0; c < cd.cars.length; c++) {
-      var C = cd.cars[c], P = C.p, j = (((ft - C.s) % n) + n) % n, x = j / k;
-      if (x > P.length - 1) continue;
-      var i0 = Math.floor(x), q = x - i0, p0 = P[i0], p1 = P[Math.min(i0 + 1, P.length - 1)];
-      var u = p0[0] + (p1[0] - p0[0]) * q, v = p0[1] + (p1[1] - p0[1]) * q, dx = p0[2] + (p1[2] - p0[2]) * q, dy = p0[3] + (p1[3] - p0[3]) * q;
-      var ln = p0[4] + (p1[4] - p0[4]) * q, wd = p0[5] + (p1[5] - p0[5]) * q, a = Math.min(1, x / 2, (P.length - 1 - x) / 2);
-      var A = ground(f, u, v), B = ground(f, u + dx * ln * 0.5, v + dy * ln * 0.5 * ar), ex = B[0] - A[0], ey = B[1] - A[1], half = Math.hypot(ex, ey);
-      if (half < 0.8) continue;
-      ctx.save(); ctx.translate(A[0], A[1]); ctx.rotate(Math.atan2(ey, ex));
-      vidCarLights(half * 2, half * 2 * wd / Math.max(1e-4, ln), a, L, Math.abs(ey) / half);
-      ctx.restore();
-    }
-    ctx.restore();
-  }
-  function vidCarLights(len, wd, a, L, sv) {   // начало координат — центр машины, x — вперёд; sv — насколько машина едет к зрителю/от него
-    var sep = wd * 0.22 * (0.35 + 0.65 * sv), r = Math.max(0.7, wd * 0.09);
-    ctx.globalCompositeOperation = 'lighter';
-    var rg = ctx.createRadialGradient(len * 0.95, 0, 0, len * 0.95, 0, len * 0.7);   // слабое тёплое пятно на дороге перед машиной
-    rg.addColorStop(0, 'rgba(255,214,150,' + (0.2 * L * a).toFixed(3) + ')'); rg.addColorStop(1, 'rgba(255,214,150,0)');
-    ctx.globalAlpha = 1; ctx.fillStyle = rg; ctx.save(); ctx.scale(1, 0.55); ctx.beginPath(); ctx.arc(len * 0.95, 0, len * 0.7, 0, 6.283); ctx.fill(); ctx.restore();
-    ctx.globalAlpha = 0.35 * a * L; ctx.fillStyle = 'rgb(255,228,170)';           // ореол фар
-    ctx.beginPath(); ctx.arc(len * 0.47, -sep, r * 2.6, 0, 6.283); ctx.arc(len * 0.47, sep, r * 2.6, 0, 6.283); ctx.fill();
-    ctx.globalAlpha = a * L; ctx.fillStyle = 'rgb(255,244,212)';                  // фары
-    ctx.beginPath(); ctx.arc(len * 0.47, -sep, r, 0, 6.283); ctx.arc(len * 0.47, sep, r, 0, 6.283); ctx.fill();
-    ctx.globalAlpha = 0.25 * a * L; ctx.fillStyle = 'rgb(255,40,30)';             // задние огни: красные точки с лёгким ореолом
-    ctx.beginPath(); ctx.arc(-len * 0.47, -sep, r * 2.2, 0, 6.283); ctx.arc(-len * 0.47, sep, r * 2.2, 0, 6.283); ctx.fill();
-    ctx.globalAlpha = 0.9 * a * L; ctx.fillStyle = 'rgb(255,52,40)';
-    ctx.beginPath(); ctx.arc(-len * 0.47, -sep, r * 0.8, 0, 6.283); ctx.arc(-len * 0.47, sep, r * 0.8, 0, 6.283); ctx.fill();
-    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
-  }
+  // e1.17 (s11): искусственные фары по трекам видео (e1.15) удалены — «фары ехали отдельно от машин»; ночью фары и огни — из ночных роликов Flow.
   function carLights(len, wd, kind, a, L, noBody) {   // e1.10 ночь: кузов в темноте, лучи фар ложатся на дорогу, красные задние огни; троллейбус — тёплый салон
     if (!noBody) { ctx.globalAlpha = a * 0.6 * L; ctx.fillStyle = 'rgb(16,20,40)'; ctx.fillRect(-len / 2, -wd / 2, len, wd); }
     ctx.globalCompositeOperation = 'lighter';
@@ -1687,7 +1651,6 @@
       if (mvOn && MV.hideLife !== false) AM = MV._A || (MV._A = { flocks: AM.flocks, details: AM.details, occluders: AM.occluders, lightBirds: AM.lightBirds });
       drawAmbientLife(now, w, f, AM);
     }
-    if (mvOn && (MV.cars || (MV.clips && MV.clips.some(function (c) { return c.cars; })))) drawVideoCarLights(w, f, fr);   // e1.15: ночные фары машин из видео (e1.16: треки текущего клипа)
     for (var i = active.length - 1; i >= 0; i--) {
       var e = active[i], t = (now - e.t0) / e.dur;
       if (t >= 1) { active.splice(i, 1); continue; }

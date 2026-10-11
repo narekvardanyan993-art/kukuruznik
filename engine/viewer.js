@@ -55,7 +55,7 @@
     if (!DBG) return;
     var now = performance.now(); if (!force && now - dbgT < 1000) return; dbgT = now;
     if (!dbgEl) { dbgEl = document.createElement('pre'); dbgEl.id = 'dbgLog'; dbgEl.style.cssText = 'position:fixed;left:4px;top:4px;z-index:99999;max-width:92vw;max-height:46vh;overflow:hidden;margin:0;padding:4px 6px;font:10px/1.25 ui-monospace,Menlo,monospace;color:#fff;background:rgba(0,0,0,0.62);border-radius:4px;pointer-events:none;white-space:pre-wrap'; document.body.appendChild(dbgEl); }
-    var mv = []; try { Object.keys(MV).forEach(function (k) { var S = MV[k]; mv.push(k + ':' + (S.fail ? 'FAIL' : 'rs' + S.v.readyState + (S.v.paused ? ' pause' : ' play') + ' t' + S.v.currentTime.toFixed(1))); }); } catch (x) {}
+    var mv = []; try { [MV, MVN].forEach(function (map, q) { Object.keys(map).forEach(function (k) { var S = map[k]; mv.push(k + (q ? 'n' : '') + ':' + (S.fail ? 'FAIL' : 'rs' + S.v.readyState + (S.v.paused ? ' pause' : ' play') + ' t' + S.v.currentTime.toFixed(1))); }); }); } catch (x) {}
     dbgEl.textContent = (CONFIG.ENGINE_V || '') + ' кадр ' + frameIndex + ' fps ' + (dbgFps || 0) + ' perf ' + perfLevel + (glLost ? ' GL-LOST' : '') + ' gl ' + (useGL ? 'on' : 'off') + '\nвидео ' + (mv.join(' | ') || '—') + (ERR.length ? '\n' + ERR.slice(-12).join('\n') : '\nошибок нет');
   }
   var dbgFps = 0, dbgFc = 0, dbgF0 = 0;
@@ -322,7 +322,10 @@
     '  vec3 c = texture2D(bg, pc).rgb;',
     // e1.14 синемаграф: видео Veo (rgb, в альфе — маска движения) — часть рисунка земли: тот же параллакс по глубине, ветер, дневная обработка,
     // ночь и погода, что у рисунка; ночью — ночная картинка × (видео / рисунок): неподвижное = ночной рисунок без шва, движущееся темнеет так же
-    NI ? '  vec3 c0 = c; vec4 mv = vec4(0.0); if (has.z > 0.5) { mv = texture2D(sg, pc); c = mix(c, mv.rgb, mv.a); }' : '',
+    // e1.17: has.z = 1 — дневной клип (юнит заката-земли), +2 — ночной клип (юнит заката-здания: у кадров с видео картинки заката нет).
+    // Ночной клип — это ночная картинка + движение из ролика Flow (фары, огни — из самого ролика), кладётся прямо в ночную картинку;
+    // день растворяется в ночь вместе с картинкой: дневные машины уходят с днём, ночные приходят с ночью.
+    NI ? '  vec3 c0 = c; vec4 mv = vec4(0.0); float mvN = step(1.5, has.z); if (has.z - 2.0 * mvN > 0.5) { mv = texture2D(sg, pc); c = mix(c, mv.rgb, mv.a); }' : '',
     '  float sky = env.g;',
     '  vec4 eg = texture2D(em, pc);',                         // окна других зданий: g = свет ночью, a = сама маска
     // здание: один общий сдвиг и масштаб на весь предмет — жёсткое тело
@@ -393,7 +396,7 @@
     NI ? '  if (hasSv > 0.5 && uSunMix > 0.001) c = mix(c, texture2D(sb, pb).rgb * b.a + texture2D(sg, pc).rgb * inv, uSunMix);' : '',
     // ночь-картинка: закат (или день) растворяется в ночь; тёмное темнее (CONFIG.NIGHT_DIM), свет окон и фонарей — как нарисован
     NI ? '  if (hasNv > 0.5 && uNightMix > 0.001) {' : '',
-    NI ? '    vec3 ngc = texture2D(ng, pc).rgb; if (mv.a > 0.004) ngc = mix(ngc, ngc * clamp(mv.rgb / max(c0, vec3(0.04)), 0.0, 1.5), mv.a);' : '',
+    NI ? '    vec3 ngc = texture2D(ng, pc).rgb; if (mvN > 0.5) { vec4 mn = texture2D(sb, pc); ngc = mix(ngc, mn.rgb, mn.a); } else if (mv.a > 0.004) ngc = mix(ngc, ngc * clamp(mv.rgb / max(c0, vec3(0.04)), 0.0, 1.5), mv.a);' : '',
     // e1.14 look.nightEdge "solid": у мягкого края вырезки ночью — сама ночная картинка (её небо у силуэта), а не подложка под зданием:
     // подложка × средний тон кольца светлее ночного неба и давала светлую «обводку» вокруг статуи (s8). Без флага — как было.
     NI ? '    float bn = ' + (CONFIG.NIGHT_EDGE === 'solid' ? 'smoothstep(0.0, 0.3, b.a)' : 'b.a') + ';' : '',
@@ -641,18 +644,25 @@
   // Включён у каждого кадра, где задан (on: false — выключен, ?cine=1 — включить и такой; ?cine=0 — выключить все, для сравнения).
   // Видео держим только у текущего и соседних кадров (и у того, в который идёт переход); остальные освобождаются.
   // Кадр видео × маска (альфа) → холст → текстура в юнит заката-земли; шейдер кладёт его в рисунок земли (см. shadeFrame).
-  var MV = {}, mvQ = location.search;
+  var MV = {}, MVN = {}, mvQ = location.search;   // e1.17: MV — дневные клипы кадра, MVN — ночные (clips[].time = "night")
   function mvConf(i) {
     if (!NI || /[?&]cine=0/.test(mvQ)) return null;
     var M = ((CONFIG.SCENE && CONFIG.SCENE[i]) || {}).motionVideo;
-    if (!M || !(M.src || (M.clips && M.clips.length)) || !M.mask) return null;   // e1.16: clips [{src, cars}] или старое src
+    if (!M || !(M.src || (M.clips && M.clips.length)) || !M.mask) return null;   // e1.16: clips [{src}] или старое src
     if (M.on === false && !/[?&]cine=1/.test(mvQ)) return null;
     if (FRAMES[i] && FRAMES[i].sunset) return null;   // юнит заката-земли занят картинкой заката — видео не кладём (у кадров с синемаграфом заката-картинки нет)
     return M;
   }
   // e1.16 (s10): клипы Flow «Frames to Video» — первый кадр = последний = рисунок, поэтому любой клип стыкуется с любым:
-  // motionVideo.clips [{src, cars}] — после каждого круга случайный следующий (один клип — обычная петля). Старое {src, cars} — один клип.
-  function mvClips(M) { return M.clips && M.clips.length ? M.clips : [{ src: M.src, cars: M.cars }]; }
+  // motionVideo.clips [{src}] — после каждого круга случайный следующий (один клип — обычная петля). Старое {src} — один клип.
+  // e1.17 (s11): у клипа time: "day" (по умолчанию) | "night". Днём играют дневные, ночью — ночные (ночная картинка + фары и огни из ролика);
+  // на переходе день↔ночь оба клипа играют, каждый в своей картинке, и меняются вместе с картинкой. Без ночных клипов ночью — как в e1.16
+  // (дневной клип поверх ночной картинки, темнее). speed — замедление, уже вшитое в файл (tools/cinemagraph.py), rate — доп. множитель.
+  // Искусственные фары по трекам (e1.15, _cars.json) удалены: фары — только в ночных роликах.
+  function mvClips(M, night) {
+    var a = M.clips && M.clips.length ? M.clips : [{ src: M.src }];
+    return a.filter(function (c) { return night ? c.time === 'night' : c.time !== 'night'; });
+  }
   // iOS: видео вне документа и до первого касания Safari может не запускать (бета s9: «B оживает после нескольких пролистываний»).
   // Поэтому: видео живут в скрытом слое документа (1 px, прозрачно), muted + playsinline + autoplay ДО src, play() — на canplay,
   // при отказе — повтор с паузой, и первое касание/клавиша запускает все нужные видео прямо в обработчике жеста.
@@ -675,8 +685,7 @@
     }
   }
   function mvGesture() {   // жест пользователя: нужные видео — играть; соседние (ещё не показанные) — «разблокировать» play→pause, чтобы при пролистывании они пошли сразу
-    Object.keys(MV).forEach(function (k) {
-      var S = MV[k];
+    Object.keys(MV).map(function (k) { return MV[k]; }).concat(Object.keys(MVN).map(function (k) { return MVN[k]; })).forEach(function (S) {   // e1.17: и ночные клипы
       if (S.want && S.v.paused) { S.retryAt = 0; S.pending = false; mvTryPlay(S, 0); }
       else if (!S.want && !S.unlocked && S.v.paused) {
         S.unlocked = true;
@@ -689,22 +698,24 @@
     var C = S.clips[j]; S.ci = j; S.ready = false; S.t = -1;
     S.v.src = S.base + (S.h264 ? C.src : C.src.replace(/\.mp4$/, '.webm'));   // без H.264 — запасной VP9
     try { S.v.load(); } catch (e) {}
-    S.cars = S.carsBy[j] || null;
-    if (C.cars && !S.carsBy[j]) fetch(S.base + C.cars).then(function (r) { return r.ok ? r.json() : null; }).then(function (js) { S.carsBy[j] = js; if (S.ci === j) S.cars = js; }, function () {});   // треки машин клипа — ночные фары
+    S.rate = +C.rate > 0 ? +C.rate : 1;
+    try { S.v.defaultPlaybackRate = S.rate; S.v.playbackRate = S.rate; } catch (e) {}
   }
-  function mvOpen(i) {
-    var S = MV[i], M = mvConf(i);
+  function mvOpen(i, night) {
+    var map = night ? MVN : MV, S = map[i], M = mvConf(i);
     if (S || !M) return S;
+    var clips = mvClips(M, night);
+    if (!clips.length) return null;
     var base = (FRAMES[i].color || '').replace(/[^\/]*$/, '');
-    S = MV[i] = { v: document.createElement('video'), m: new Image(), t: -1, fail: false, ready: false, errs: 0, cars: null, carsBy: [], clips: mvClips(M), ci: 0, base: base,
-                  want: false, pending: false, retries: 0, retryAt: 0 };
+    S = map[i] = { v: document.createElement('video'), m: new Image(), t: -1, fail: false, ready: false, errs: 0, clips: clips, ci: 0, base: base, night: !!night,
+                  want: false, pending: false, retries: 0, retryAt: 0, rate: 1 };
     S.v.muted = true; S.v.defaultMuted = true; S.v.playsInline = true; S.v.autoplay = false;
     S.v.setAttribute('playsinline', ''); S.v.setAttribute('webkit-playsinline', ''); S.v.setAttribute('muted', ''); S.v.preload = 'auto';
     S.v.loop = S.clips.length < 2;
     S.v.style.cssText = 'width:1px;height:1px';
     S.h264 = !!S.v.canPlayType('video/mp4; codecs="avc1.42E01E"');
-    S.v.addEventListener('error', function () { S.fail = true; logErr('video ' + i, (S.v.error && ('code ' + S.v.error.code)) || 'error'); });
-    S.v.addEventListener('loadeddata', function () { S.ready = true; });
+    S.v.addEventListener('error', function () { S.fail = true; logErr('video ' + i + (night ? 'n' : ''), (S.v.error && ('code ' + S.v.error.code)) || 'error'); });
+    S.v.addEventListener('loadeddata', function () { S.ready = true; try { S.v.playbackRate = S.rate; } catch (e) {} });
     S.v.addEventListener('canplay', function () { S.retryAt = 0; mvTryPlay(S, performance.now()); });   // готово — сразу играть, не ждать следующего кадра/касания
     S.v.addEventListener('ended', function () {   // e1.16: круг кончился (последний кадр = рисунок) — случайный следующий клип
       var n = S.clips.length, j = n < 2 ? 0 : (S.ci + 1 + Math.floor(Math.random() * (n - 1))) % n;
@@ -716,32 +727,46 @@
     mvHolder().appendChild(S.v);
     return S;
   }
-  function mvClose(i) {
-    var S = MV[i]; if (!S) return;
+  function mvClose(i, night) {
+    var map = night ? MVN : MV, S = map[i]; if (!S) return;
     try { S.v.pause(); S.v.removeAttribute('src'); S.v.load(); if (S.v.parentNode) S.v.parentNode.removeChild(S.v); } catch (e) {}
-    var f = store[i]; if (f) { if (f.mvTex && useGL && gl) gl.deleteTexture(f.mvTex); f.mvTex = null; f.mvUse = false; }
-    delete MV[i];
+    var f = store[i];
+    if (f && night) { if (f.mvTexN && useGL && gl) gl.deleteTexture(f.mvTexN); f.mvTexN = null; f.mvUseN = false; }
+    else if (f) { if (f.mvTex && useGL && gl) gl.deleteTexture(f.mvTex); f.mvTex = null; f.mvUse = false; }
+    delete map[i];
   }
   function mvPlan(cur, to, rm) {   // какие видео держать и какие играть — раз за кадр отрисовки (текущий + соседи — предзагрузка с входа)
     var n = FRAMES.length, keep = {}, now = performance.now();
     [cur, (cur + 1) % n, (cur + n - 1) % n, to].forEach(function (k) { if (k != null && mvConf(k)) keep[k] = 1; });
-    Object.keys(MV).forEach(function (k) { if (!keep[k]) mvClose(+k); });
+    // e1.17: ночные клипы грузим, когда ночь близко (идёт переход к ночи или уже за серединой заката), и освобождаем днём
+    var nightNear = tod.p > 0.5 || tod.night > 0 || !!(todAnim && todAnim.p1 > 1);
+    Object.keys(MV).forEach(function (k) { if (!keep[k]) mvClose(+k, false); });
+    Object.keys(MVN).forEach(function (k) { if (!keep[k] || !nightNear) mvClose(+k, true); });
     Object.keys(keep).forEach(function (k) {
-      var S = mvOpen(+k); if (!S) return;
-      S.want = (+k === cur || +k === to) && !rm && perfLevel < 2 && !window.__mvFreeze && !document.hidden;
-      if (S.want) mvTryPlay(S, now);
-      else if (!S.v.paused) S.v.pause();
+      var act = (+k === cur || +k === to) && !rm && perfLevel < 2 && !window.__mvFreeze && !document.hidden;
+      var Sn = nightNear ? mvOpen(+k, true) : null, nOk = !!(Sn && !Sn.fail);
+      var S = mvOpen(+k, false);
+      if (S) {   // дневной клип: пока виден день; ночью — только если своего ночного клипа нет (тогда он ложится в ночную картинку, как в e1.16)
+        S.want = act && (!nOk || tod.night < 0.999);
+        if (S.want) mvTryPlay(S, now); else if (!S.v.paused) S.v.pause();
+      }
+      if (Sn) {
+        Sn.want = act && tod.night > 0.001;
+        if (Sn.want) mvTryPlay(Sn, now); else if (!Sn.v.paused) Sn.v.pause();
+      }
     });
   }
   var mvCanvas = null;   // e1.15: один общий холст для всех видео (память iPhone): кадр видео × маска собирается и сразу уходит в текстуру
-  function mvStep(f) {   // новый кадр видео → текстура (только когда кадр видео сменился)
-    var S = f && MV[f.idx];
-    if (!S || S.fail || !S.ready || S.v.readyState < 2 || S.v.seeking || !S.m.complete || !S.m.naturalWidth) return;   // e1.15: только готовый кадр видео
-    try { mvUpload(f, S); } catch (e) { S.errs++; logErr('video→texture ' + f.idx, e); if (S.errs > 5) { S.fail = true; f.mvUse = false; } }
+  function mvStep(f) {   // новый кадр видео → текстура (только когда кадр видео сменился); e1.17: дневной и ночной клип — каждый в свою текстуру
+    if (!f) return;
+    [MV[f.idx], MVN[f.idx]].forEach(function (S) {
+      if (!S || S.fail || !S.ready || S.v.readyState < 2 || S.v.seeking || !S.m.complete || !S.m.naturalWidth) return;   // e1.15: только готовый кадр видео
+      try { mvUpload(f, S); } catch (e) { S.errs++; logErr('video→texture ' + f.idx + (S.night ? 'n' : ''), e); if (S.errs > 5) { S.fail = true; if (S.night) f.mvUseN = false; else f.mvUse = false; } }
+    });
   }
   function mvUpload(f, S) {
-    var ct = S.v.currentTime;
-    if (f.mvUse && ct === S.t) return;
+    var ct = S.v.currentTime, N = S.night;
+    if ((N ? f.mvUseN : f.mvUse) && ct === S.t) return;
     S.t = ct;
     var vw = S.v.videoWidth, vh = S.v.videoHeight;
     if (!vw || !vh) return;
@@ -752,16 +777,17 @@
     x.globalCompositeOperation = 'destination-in'; x.drawImage(S.m, 0, 0, vw, vh); x.globalCompositeOperation = 'source-over';
     gl.activeTexture(gl.TEXTURE0);
     gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);   // как у картинок кадра (prep.js: colorSpaceConversion none)
-    if (!f.mvTex || f.mvW !== vw || f.mvH !== vh) {
-      if (f.mvTex) gl.deleteTexture(f.mvTex);
-      f.mvTex = makeTexture(gl.LINEAR); f.mvW = vw; f.mvH = vh;
+    var tk = N ? 'mvTexN' : 'mvTex', wk = N ? 'mvWN' : 'mvW', hk = N ? 'mvHN' : 'mvH';
+    if (!f[tk] || f[wk] !== vw || f[hk] !== vh) {
+      if (f[tk]) gl.deleteTexture(f[tk]);
+      f[tk] = makeTexture(gl.LINEAR); f[wk] = vw; f[hk] = vh;
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cv);
     } else {
-      gl.bindTexture(gl.TEXTURE_2D, f.mvTex);
+      gl.bindTexture(gl.TEXTURE_2D, f[tk]);
       gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, cv);
     }
     gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.BROWSER_DEFAULT_WEBGL);
-    f.mvUse = true;
+    if (N) f.mvUseN = true; else f.mvUse = true;
   }
 
   function bindFrame(f, unit0) {
@@ -771,7 +797,7 @@
       gl.bindTexture(gl.TEXTURE_2D, t[i]);
     }
     if (NI) {   // закат и ночь: юниты +4..+7; если картинки ещё нет — заглушка (шейдер её не читает: has = 0)
-      var st = [f.mvUse ? f.mvTex : (f.sG || f.bgTex), f.sB || f.bgTex, f.nG || f.bgTex, f.nB || f.bgTex];   // e1.14: видео синемаграфа — в юните заката-земли (у кадров с видео картинки заката нет)
+      var st = [f.mvUse ? f.mvTex : (f.sG || f.bgTex), f.mvUseN ? f.mvTexN : (f.sB || f.bgTex), f.nG || f.bgTex, f.nB || f.bgTex];   // e1.17: ночной клип — в юните заката-здания   // e1.14: видео синемаграфа — в юните заката-земли (у кадров с видео картинки заката нет)
       for (i = 0; i < 4; i++) {
         gl.activeTexture(gl.TEXTURE0 + unit0 + 4 + i);
         gl.bindTexture(gl.TEXTURE_2D, st[i]);
@@ -812,7 +838,8 @@
     gl.uniform4f(US.uSkyRef, CONFIG.DAY.SKY_REF[fa.idx] || 0.86, CONFIG.DAY.SKY_END[fa.idx] || 0.55,
       fb ? (CONFIG.DAY.SKY_REF[fb.idx] || 0.86) : 0.86, fb ? (CONFIG.DAY.SKY_END[fb.idx] || 0.55) : 0.55);
     if (NI) {
-      gl.uniform3f(US.uHasA, fa.sG && !fa.mvUse ? 1 : 0, fa.nG ? 1 : 0, fa.mvUse ? 1 : 0); gl.uniform3f(US.uHasB, fb && fb.sG && !fb.mvUse ? 1 : 0, fb && fb.nG ? 1 : 0, fb && fb.mvUse ? 1 : 0);
+      gl.uniform3f(US.uHasA, fa.sG && !fa.mvUse && !fa.mvUseN ? 1 : 0, fa.nG ? 1 : 0, (fa.mvUse ? 1 : 0) + (fa.mvUseN && fa.nG ? 2 : 0));
+      gl.uniform3f(US.uHasB, fb && fb.sG && !fb.mvUse && !fb.mvUseN ? 1 : 0, fb && fb.nG ? 1 : 0, fb ? (fb.mvUse ? 1 : 0) + (fb.mvUseN && fb.nG ? 2 : 0) : 0);
       gl.uniform1f(US.uSunMix, tod.sun); gl.uniform1f(US.uNightMix, tod.night);
     }
     gl.uniform2f(US.uShift, shiftX, shiftY);
@@ -859,6 +886,7 @@
     canvas.addEventListener('webglcontextlost', function (e) {
       e.preventDefault(); glLost = true; logErr('webgl', 'context lost');
       Object.keys(MV).forEach(function (k) { try { MV[k].v.pause(); } catch (x) {} var f = store[k]; if (f) { f.mvTex = null; f.mvUse = false; } });   // текстуры потеряны вместе с контекстом
+      Object.keys(MVN).forEach(function (k) { try { MVN[k].v.pause(); } catch (x) {} var f = store[k]; if (f) { f.mvTexN = null; f.mvUseN = false; } });
       // e1.15: iOS часто сам контекст не возвращает — просим вернуть через 1,5 с (WEBGL_lose_context)
       setTimeout(function () { if (glLost && loseExt && gl.isContextLost()) { try { loseExt.restoreContext(); } catch (x) { logErr('webgl restore', x); } } }, 1500);
     });
@@ -1055,9 +1083,9 @@
     testBolt: function () { nextFlash = performance.now(); },   // для проверки: следующая молния — сейчас
     frame: function () { return frameIndex; }, fading: function () { return !!fade; }, entry: function (i) { return store[i]; },
     motionOn: function (i) { return !!mvConf(i) && !(MV[i] && MV[i].fail); },
-    mvCars: function (i) {   // e1.15: треки машин ролика и время видео — для ночных фар (details.js)
-      var S = MV[i], f = store[i]; if (!S || S.fail || !S.cars || !S.ready || !f || !f.mvUse) return null;   // e1.16: треки текущего клипа
-      return { cars: S.cars.cars, n: S.cars.n, k: S.cars.k, fps: S.cars.fps, ar: S.cars.ar || 0.5625, t: S.t >= 0 ? S.t : S.v.currentTime };   // время кадра, который сейчас в текстуре (не «живое» время видео)
+    mvState: function (i) {   // e1.17: для проверки — какие клипы кадра сейчас в текстурах (день/ночь)
+      var f = store[i], S = MV[i], N = MVN[i];
+      return { day: S ? (S.clips[S.ci] || {}).src + (S.v.paused ? ' P' : '') : null, night: N ? (N.clips[N.ci] || {}).src + (N.v.paused ? ' P' : '') : null, useD: !!(f && f.mvUse), useN: !!(f && f.mvUseN) };
     },
     errors: function () { return ERR.slice(); },   // журнал ошибок (проверочные скрипты, ?debug=1)   // e1.14: у кадра синемаграф — спрайтовые машины/люди/сценки не рисуются
     mvBusy: function () { return Object.keys(MV).some(function (k) { var S = MV[k], f = store[k]; return !S.fail && f && !f.mvUse && (+k === frameIndex); }); },   // для проверки: видео текущего кадра ещё не в текстуре

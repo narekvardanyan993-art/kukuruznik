@@ -418,8 +418,10 @@ def validate(bdir, b, site):
             if mvo is not None:   # e1.16: clips [{src, cars}] (Flow: первый = последний кадр) или старое src
                 if not mvo.get('src') and not mvo.get('clips'):
                     c.err('%s: motionVideo' % w, 'нужно src или clips [{src, cars}]')
-                for j, cl in enumerate(mvo.get('clips') or []):
-                    c.obj(cl, '%s: motionVideo.clips[%d]' % (w, j + 1), required=('src',), optional=('cars',))
+                for j, cl in enumerate(mvo.get('clips') or []):   # e1.17: time day|night, speed (вшито в файл), rate (множитель движку)
+                    clo = c.obj(cl, '%s: motionVideo.clips[%d]' % (w, j + 1), required=('src',), optional=('cars', 'time', 'speed', 'rate'))
+                    if clo is not None and clo.get('time', 'day') not in ('day', 'night'):
+                        c.err('%s: motionVideo.clips[%d].time' % (w, j + 1), 'только "day" или "night"')
         if 'nightWins' in fr:     # e1.12: true — окна других зданий (win2 из маски Gemini) горят и ночью с ночной картинкой
             c.boolean(fr['nightWins'], '%s: nightWins' % w)
         if 'depthRaw' in fr:      # e1.5: карта глубины кадра без растяжки контраста (значения файла = глубина в шейдере)
