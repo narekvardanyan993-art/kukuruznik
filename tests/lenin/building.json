@@ -66,13 +66,13 @@
       "greenPull": 0.78,
       "greenSat": 1.9
     },
-    "night": {"dim": 0.64, "mainLit": [0, 0], "otherLit": [0.35, 0.5], "mainWindowShare": 0},
+    "night": {"dim": 0.64, "mainLit": [0, 0], "otherLit": [0.4, 0.6], "mainWindowShare": 0},
     "frameSize": [768, 1365],
     "sunSide": "right",
     "showNight": "toned",
     "nightEdge": "solid"
   },
-  "tuning": {"BUILDING_DEPTH_PIXEL": true, "MAX_SHIFT_X": 0.0156, "MAX_SHIFT_Y": 0.0094, "ZOOM_NEAR": 0.0156, "BREATH_AMPLITUDE": 0.0031, "LOOK": {"sunsetSmear": {"strength": 0.0}, "lampHalo": {"core": 0.85, "coreSize": 0.00002, "wide": 0.2, "wideSize": 0.0003, "ground": 0.0}}, "LAMP_BREATH": 0.03},
+  "tuning": {"BUILDING_DEPTH_PIXEL": true, "MAX_SHIFT_X": 0.0156, "MAX_SHIFT_Y": 0.0094, "ZOOM_NEAR": 0.0156, "BREATH_AMPLITUDE": 0.0031, "LOOK": {"sunsetSmear": {"strength": 0.0}, "lampHalo": {"core": 0.85, "coreSize": 0.00002, "wide": 0.2, "wideSize": 0.0003, "ground": 0.0}}, "LAMP_BREATH": 0.03, "NIGHT_MAIN_WINS": false, "WIN_SPILL": 0.35, "WIN_SPILL_PX": 7, "CLOUD_FIELD": 1.0, "CLOUD_FIELD_NIGHT": 1.4, "CLOUD_FIELD_SPEED": 0.02, "MV_DELTA": true, "MV_CAL": true, "WINDOW_TOGGLE_S": [3, 6]},
   "live": {
     "slug": "lenin",
     "meta": {"url": "https://chka.am/lenin/", "ogImage": "og.jpg", "favicon": "../assets/favicon-32.png", "appleTouchIcon": "../assets/icon-180.png", "viewerVersion": "lenin-1", "description": {"hy": "Լենինի արձանը (1940–1991) Երևանի կենտրոնական հրապարակում՝ 1970-ականների վերջի – 1980-ականների տեսքով, գծանկար։"}},
@@ -106,8 +106,8 @@
       "sun": {"day": [0.8, 0.11], "sunset": [0.22, 0.38], "moon": [0.8, 0.12]},
       "life": {
         "day": ["birds", "plane", "cranes", "kite"],
-        "sunset": ["birds", "plane", "cranes", "lantern"],
-        "night": ["plane", "lantern"]
+        "sunset": ["birds", "plane", "cranes"],
+        "night": ["plane"]
       }
     },
     {
@@ -170,13 +170,11 @@
         "sunset": [
           "birds",
           "plane",
-          "cranes",
-          "lantern"
+          "cranes"
         ],
         "night": [
           "plane",
-          "winlight",
-          "lantern"
+          "winlight"
         ]
       }
     },
@@ -240,12 +238,10 @@
         "sunset": [
           "birds",
           "plane",
-          "cranes",
-          "lantern"
+          "cranes"
         ],
         "night": [
-          "plane",
-          "lantern"
+          "plane"
         ]
       }
     },
@@ -310,12 +306,10 @@
         "sunset": [
           "birds",
           "plane",
-          "cranes",
-          "lantern"
+          "cranes"
         ],
         "night": [
-          "plane",
-          "lantern"
+          "plane"
         ]
       },
       "closeUp": {
@@ -389,13 +383,11 @@
         "sunset": [
           "birds",
           "plane",
-          "cranes",
-          "lantern"
+          "cranes"
         ],
         "night": [
           "plane",
-          "winlight",
-          "lantern"
+          "winlight"
         ]
       }
     }

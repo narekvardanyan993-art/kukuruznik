@@ -376,6 +376,9 @@
     var areas = winsT.map(function (q) { return q.bw * q.bh; }).sort(function (a, b) { return a - b; });
     var a85 = areas.length ? areas[Math.floor(areas.length * 0.85)] : 0;
     winsT = winsT.filter(function (q) { var a = q.bw * q.bh; return q.bw >= 0.55 * med && a >= 0.4 * a85 && a <= 1.9 * a85; });
+    // e1.18 (s14): NIGHT_MAIN_WINS false — у главного слоя кадра окон нет (памятник): тёмная табличка/капитель постамента
+    // не попадает в окна и не «зажигается» жёлтым пятном при переключении окон ночью
+    if (CONFIG.NIGHT_MAIN_WINS === false) winsT = [];
     var gw = CONFIG.NIGHT_WINS && CONFIG.NIGHT_WINS[frameIdx];   // e1.12: окна других зданий из маски Gemini — мелкие и прямоугольные
     var winsO = labelWindows(maskO, ew, eh, 100, gw ? { amin: 0.25, amax: 4, fill: 0.45, min: 2, rect: true } : { amin: 0.6, amax: 2.6, fill: 0.7 });
     var wins = [];
@@ -502,9 +505,26 @@
       var hole = alpha.slice();
       boxBlur(hole, w, h, 3);
       var ground = new Uint8Array(n * 3);
+      // e1.18 (s14), только при NIGHT_EDGE "solid" (Ленин): подложка под зданием подгоняется по МЕСТНОМУ тону (ночь/день вокруг точки,
+      // окно ~50 px только вне здания), а не одним числом на кольцо. Общий коэффициент кольца (небо + кроны + постамент) делал подложку
+      // у силуэта статуи светлее ночного неба — при наклоне она выглядывает из-под края: почти невидимая светлая «обводка» (G, A, C).
+      // Кроме того подложка не заходит наружу за край вырезки (у Кукурузника — как было).
+      var loc = null;
+      if (CONFIG.NIGHT_EDGE === 'solid' && kind === 'night') {
+        var R = Math.max(8, Math.round(w / 15)), mo = new Float32Array(n);
+        for (q = 0; q < n; q++) mo[q] = near[q] === 0 ? 1 : 0;
+        var mb = mo.slice(); boxBlurF(mb, w, h, R); boxBlurF(mb, w, h, R);
+        loc = [0, 1, 2].map(function (z) {
+          var a1 = new Float32Array(n), a2 = new Float32Array(n);
+          for (q = 0; q < n; q++) { a1[q] = mo[q] * np[q * 4 + z]; a2[q] = mo[q] * D[q * 4 + z]; }
+          boxBlurF(a1, w, h, R); boxBlurF(a1, w, h, R); boxBlurF(a2, w, h, R); boxBlurF(a2, w, h, R);
+          for (q = 0; q < n; q++) a1[q] = mb[q] > 0.02 && a2[q] > 1 ? clamp(a1[q] / a2[q], 0.05, 1.6) : ratio[z];
+          return a1;
+        });
+      }
       for (q = 0; q < n; q++) {
-        var ha = Math.min(255, hole[q] * 3) / 255;
-        for (k = 0; k < 3; k++) ground[q * 3 + k] = ha > 0 ? np[q * 4 + k] * (1 - ha) + P[q * 4 + k] * ratio[k] * ha : np[q * 4 + k];
+        var ha = loc ? (alpha[q] > 0 ? Math.min(255, hole[q] * 3) / 255 : 0) : Math.min(255, hole[q] * 3) / 255;
+        for (k = 0; k < 3; k++) ground[q * 3 + k] = ha > 0 ? np[q * 4 + k] * (1 - ha) + P[q * 4 + k] * (loc ? loc[k][q] : ratio[k]) * ha : np[q * 4 + k];
       }
       return { ground: ground, full: full, lit: lit, w: w, h: h };
     });

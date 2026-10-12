@@ -214,6 +214,13 @@
   var LK = CONFIG.LOOK;
   function glf(x) { return Number.isInteger(x) ? x.toFixed(1) : String(x); }                    // число -> литерал GLSL
   function v3(a) { return 'vec3(' + a.map(glf).join(', ') + ')'; }
+  // e1.18 (s14), всё за настройками здания (у Кукурузника 0/false — шейдер тот же, что в e1.17):
+  // WIN_SPILL — свет окна на стене под ним; CLOUD_FIELD — тени облаков полем по всему кадру (вместо двух пятен), CLOUD_FIELD_NIGHT —
+  // доля этих теней ночью (лунные облака); MV_DELTA — видео синемаграфа хранит отличие от рисунка (серый 128 = рисунок), MV_CAL —
+  // калибровка цвета видео по полоске в его нижнем крае (см. mvUpload).
+  var SPILL = +CONFIG.WIN_SPILL || 0, SPILL_PX = +CONFIG.WIN_SPILL_PX || 7;
+  var CF = +CONFIG.CLOUD_FIELD || 0, CFN = +CONFIG.CLOUD_FIELD_NIGHT || 0;
+  var MVD = !!CONFIG.MV_DELTA;
   var STAR_CELLS = [Math.max(1, Math.round(FW / LK.stars.cell)), Math.max(1, Math.round(FH / LK.stars.cell))];   // сетка звёзд: ячейка ~LK.stars.cell пикселей кадра, любой размер кадра
   var SCENE_FRAG = [
     'precision highp float;',
@@ -233,6 +240,7 @@
     NI ? 'uniform sampler2D uSGA; uniform sampler2D uSBA; uniform sampler2D uNGA; uniform sampler2D uNBA;' : '',   // кадр A: закат (земля, главное здание), ночь (земля, главное здание)
     NI ? 'uniform sampler2D uSGB; uniform sampler2D uSBB; uniform sampler2D uNGB; uniform sampler2D uNBB;' : '',   // кадр B
     NI ? 'uniform vec3 uHasA; uniform vec3 uHasB;' : '',         // x — есть картинка заката, y — есть картинка ночи, z — в юните заката-земли видео синемаграфа (e1.14)
+    NI && MVD ? 'uniform mat4 uMvCalA; uniform mat4 uMvCalB;' : '',   // e1.18: калибровка цвета видео кадра A/B (по полоске в краю видео, MV_CAL)
     NI ? 'uniform float uSunMix; uniform float uNightMix;' : '', // день→закат (2.5 с), закат→ночь (3 с): плавное растворение
     'uniform vec4  uCropA; uniform vec4 uCropB; uniform vec4 uFlagA; uniform vec4 uFlagB;',   // обрезка кадров A/B: x0, y0, ширина, высота (доли)
     'uniform vec3  uKdA;',        // здание кадра A: x = k (-1..1), y = средняя глубина 0..1, z = 1 — глубина здания по точкам (альфа земли)
@@ -297,8 +305,14 @@
     'float wxHash(vec2 q) { return fract(sin(dot(q, vec2(127.1, 311.7))) * 43758.5453); }',
     'float wxNoise(vec2 q) { vec2 i = floor(q), f = fract(q); f = f * f * (3.0 - 2.0 * f);',
     '  return mix(mix(wxHash(i), wxHash(i + vec2(1.0, 0.0)), f.x), mix(wxHash(i + vec2(0.0, 1.0)), wxHash(i + vec2(1.0, 1.0)), f.x), f.y); }',
+    // e1.18 CLOUD_FIELD: тени облаков полем по всему кадру — мягкие пятна с широким краем (почти нигде не ровно 0) плывут и медленно меняют форму, поэтому за 15 с
+    // меняется любой участок земли и фасадов (а не только полоса двух пятен cloudShadow)
+    CF > 0 ? 'float cloudField(vec2 uv, float t) {' +
+      ' vec2 q = vec2(uv.x * ' + glf(FW / FH) + ', uv.y) * ' + glf(+CONFIG.CLOUD_FIELD_SCALE || 2.4) + ' + vec2(t, t * 0.23) * ' + glf(+CONFIG.CLOUD_FIELD_SPEED || 0.011) + ';' +
+      ' float n = 0.55 * wxNoise(q) + 0.30 * wxNoise(q * 2.03 + vec2(5.2, 1.3) + t * 0.021) + 0.15 * wxNoise(q * 4.1 + vec2(1.7, 8.9) - t * 0.034);' +
+      ' return smoothstep(0.15, 0.82, n); }' : '',
     // Готовый цвет пикселя одного кадра: параллакс, ветер, закат, ночь.
-    'vec4 shadeFrame(sampler2D bg, sampler2D depth, sampler2D bld, sampler2D em, vec3 kd, float starQ, vec2 skyRef, vec4 crop, vec4 flag,' + (NI ? ' sampler2D sg, sampler2D sb, sampler2D ng, sampler2D nb, vec3 has,' : '') + ' vec2 uv, vec2 sc) {',
+    'vec4 shadeFrame(sampler2D bg, sampler2D depth, sampler2D bld, sampler2D em, vec3 kd, float starQ, vec2 skyRef, vec4 crop, vec4 flag,' + (NI ? ' sampler2D sg, sampler2D sb, sampler2D ng, sampler2D nb, vec3 has,' : '') + (NI && MVD ? ' mat4 cal,' : '') + ' vec2 uv, vec2 sc) {',
     '  uv = crop.xy + uv * crop.zw;',   // обрезка белого края бумаги: показываем только внутренний прямоугольник кадра
     // фон и земля: у каждого пикселя свой сдвиг (3 итерации против «резины» на краях)
     '  vec2 p = uv;',
@@ -325,7 +339,11 @@
     // e1.17: has.z = 1 — дневной клип (юнит заката-земли), +2 — ночной клип (юнит заката-здания: у кадров с видео картинки заката нет).
     // Ночной клип — это ночная картинка + движение из ролика Flow (фары, огни — из самого ролика), кладётся прямо в ночную картинку;
     // день растворяется в ночь вместе с картинкой: дневные машины уходят с днём, ночные приходят с ночью.
-    NI ? '  vec3 c0 = c; vec4 mv = vec4(0.0); float mvN = step(1.5, has.z); if (has.z - 2.0 * mvN > 0.5) { mv = texture2D(sg, pc); c = mix(c, mv.rgb, mv.a); }' : '',
+    // e1.18 MV_DELTA (s14): видео хранит не пиксели, а ОТЛИЧИЕ от рисунка (серый 128 = «как на рисунке»): неподвижное всегда из
+    // рисунка, сдвиг цвета видео при декодировании (iPhone) не красит площадь маски; cal — поправка цвета по полоске (MV_CAL)
+    NI ? (MVD
+      ? '  vec3 c0 = c; vec4 mv = vec4(0.0); float mvN = step(1.5, has.z); if (has.z - 2.0 * mvN > 0.5) { mv = texture2D(sg, pc); mv.rgb = clamp(c0 + (cal * vec4(mv.rgb, 1.0)).rgb - 0.50196, 0.0, 1.0); c = mix(c, mv.rgb, mv.a); }'
+      : '  vec3 c0 = c; vec4 mv = vec4(0.0); float mvN = step(1.5, has.z); if (has.z - 2.0 * mvN > 0.5) { mv = texture2D(sg, pc); c = mix(c, mv.rgb, mv.a); }') : '',
     '  float sky = env.g;',
     '  vec4 eg = texture2D(em, pc);',                         // окна других зданий: g = свет ночью, a = сама маска
     // здание: один общий сдвиг и масштаб на весь предмет — жёсткое тело
@@ -380,6 +398,9 @@
     '  }',
     '  float winNight = eb.r * b.a + eg.g * inv;',
     '  float winBase = max(eb.b * b.a, eg.a * inv);',
+    // e1.18 (s14) WIN_SPILL: свет окна слегка ложится на подоконник и стену под окном (три выборки карты окон выше точки);
+    // гаснет и зажигается вместе с окном. 0 (по умолчанию, Кукурузник) — кода в шейдере нет.
+    SPILL > 0 ? '  float winSpill = (texture2D(em, pc - vec2(0.0, ' + glf(SPILL_PX * 0.35 / FH) + ')).g * 0.5 + texture2D(em, pc - vec2(0.0, ' + glf(SPILL_PX * 0.7 / FH) + ')).g * 0.32 + texture2D(em, pc - vec2(0.0, ' + glf(SPILL_PX * 1.05 / FH) + ')).g * 0.18) * (1.0 - eg.a) * inv;' : '',
     NI ? '  float hasSv = has.x, hasNv = has.y;' : '  float hasSv = 0.0, hasNv = 0.0;',
     // ---- закат: тёплый оранжево-розовый тон, свечение с одной стороны, окна отражают закат ----
     '  if (uSunset > 0.001 && hasSv < 0.5) {',
@@ -430,6 +451,7 @@
     '    }',
     '    nc += ' + v3(LK.stars.color) + ' * star * sky * uStars;',
     '    nc += ' + v3(LK.windowGlow.color) + ' * winNight * ' + glf(LK.windowGlow.strength) + ' + ' + v3(LK.windowGlow.color2) + ' * winNight * winNight * ' + glf(LK.windowGlow.strength2) + ';',
+    SPILL > 0 ? '    nc += ' + v3(LK.windowGlow.color) + ' * winSpill * ' + glf(SPILL) + ';' : '',
     '    c = nc;',
     '  }',
     // ---- погода (e1.3): при uWeather = 0 блок не выполняется — картинка ровно как без погоды ----
@@ -465,15 +487,15 @@
     '  vec2 uv = vUv * uCoverScale + uCoverOffset;',
     '  uv = 0.5 + (uv - 0.5) / uScale;',
     '  vec2 uvA = 0.5 + (uv - 0.5) / uFadeZoom.x;',
-    '  vec4 sa = shadeFrame(uBgA, uDepthA, uBldA, uEmA, uKdA, uStarQ.x, uSkyRef.xy, uCropA, uFlagA, ' + (NI ? 'uSGA, uSBA, uNGA, uNBA, uHasA, ' : '') + 'uvA, vUv);',
+    '  vec4 sa = shadeFrame(uBgA, uDepthA, uBldA, uEmA, uKdA, uStarQ.x, uSkyRef.xy, uCropA, uFlagA, ' + (NI ? 'uSGA, uSBA, uNGA, uNBA, uHasA, ' : '') + (NI && MVD ? 'uMvCalA, ' : '') + 'uvA, vUv);',
     '  if (uMix > 0.0) {',
     '    vec2 uvB = 0.5 + (uv - 0.5) / uFadeZoom.y;',
-    '    sa = mix(sa, shadeFrame(uBgB, uDepthB, uBldB, uEmB, uKdB, uStarQ.y, uSkyRef.zw, uCropB, uFlagB, ' + (NI ? 'uSGB, uSBB, uNGB, uNBB, uHasB, ' : '') + 'uvB, vUv), uMix);',
+    '    sa = mix(sa, shadeFrame(uBgB, uDepthB, uBldB, uEmB, uKdB, uStarQ.y, uSkyRef.zw, uCropB, uFlagB, ' + (NI ? 'uSGB, uSBB, uNGB, uNBB, uHasB, ' : '') + (NI && MVD ? 'uMvCalB, ' : '') + 'uvB, vUv), uMix);',
     '  }',
     '  vec3 c = sa.rgb;',
-    '  float shadow = cloudShadow(uv, uCloudT);',
+    CF > 0 ? '  float shadow = cloudField(uv, uCloudT);' : '  float shadow = cloudShadow(uv, uCloudT);',
     '  if (uWeather.x > 0.0) shadow = clamp(mix(shadow, max(shadow, cloudShadow(uv * 0.7 + 0.15, uCloudT * 1.3 + 17.0)), uWeather.x) * (0.55 + 0.7 * wxNoise(uv * 3.5 + vec2(uCloudT * 0.02, 0.0))), 0.0, 1.0);',   // тучи: теней больше, края рваные
-    '  c *= (1.0 - (mix(uCloudK.x, uCloudK.y, uMix) + uWeather.x * ' + glf(LK.weather.overcastShadow) + ') * shadow * (1.0 - sa.a) * (1.0 - uNightGnd));',   // в тучи тени облаков по земле гуще
+    '  c *= (1.0 - (mix(uCloudK.x, uCloudK.y, uMix)' + (CF > 0 ? ' * ' + glf(CF) : '') + ' + uWeather.x * ' + glf(LK.weather.overcastShadow) + ') * shadow * (1.0 - sa.a) * (1.0 - uNightGnd' + (CFN > 0 ? ' * ' + glf(1 - CFN) : '') + '));',   // в тучи тени облаков по земле гуще; e1.18 CLOUD_FIELD_NIGHT — и ночью слабее
     '  gl_FragColor = vec4(c, 1.0);',
     '}'
   ].join('\n');
@@ -564,7 +586,8 @@
   var SCENE_NAMES = ['uBgA', 'uDepthA', 'uBldA', 'uEmA', 'uBgB', 'uDepthB', 'uBldB', 'uEmB',
     'uKdA', 'uKdB', 'uSkyRef', 'uCloudK', 'uCropA', 'uCropB', 'uFlagA', 'uFlagB', 'uStarQ', 'uMix', 'uShift', 'uZoom', 'uScale', 'uCoverScale', 'uCoverOffset', 'uTime', 'uCloudT',
     'uSunset', 'uNightSky', 'uNightGnd', 'uStars', 'uFadeZoom', 'uAspect', 'uWindAmp', 'uWindOn', 'uWeather', 'uFlash', 'uCellPx', 'uShoot', 'uShootP']
-    .concat(NI ? ['uSGA', 'uSBA', 'uNGA', 'uNBA', 'uSGB', 'uSBB', 'uNGB', 'uNBB', 'uHasA', 'uHasB', 'uSunMix', 'uNightMix'] : []);
+    .concat(NI ? ['uSGA', 'uSBA', 'uNGA', 'uNBA', 'uSGB', 'uSBB', 'uNGB', 'uNBB', 'uHasA', 'uHasB', 'uSunMix', 'uNightMix'] : [])
+    .concat(NI && MVD ? ['uMvCalA', 'uMvCalB'] : []);
 
   function initGLProgram() {   // возвращает Promise: шейдеры компилируются в фоне, приветствие и анимации не замирают
     var buf = gl.createBuffer();
@@ -764,6 +787,45 @@
       try { mvUpload(f, S); } catch (e) { S.errs++; logErr('video→texture ' + f.idx + (S.night ? 'n' : ''), e); if (S.errs > 5) { S.fail = true; if (S.night) f.mvUseN = false; else f.mvUse = false; } }
     });
   }
+  // e1.18 (s14) MV_CAL: калибровка цвета видео. Нижние 16 строк ролика — плашки известного цвета (CONFIG.MV_CAL_PATCHES, их же рисует
+  // tools/cinemagraph.py --cal; маска там 0, на экране их нет). Раз на клип меряем середины плашек на холсте (то, что реально уйдёт в
+  // текстуру после декодирования Safari/Chrome) и подбираем поправку rgb' = A·rgb + b (наименьшие квадраты). Шейдер применяет её к
+  // видео до вычитания серого 128 (MV_DELTA) — сдвиг цвета/гаммы декодера не меняет картинку. Нет полоски / странный замер — без поправки.
+  var MV_ID = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+  function mvCalibrate(x, vw, vh) {
+    var P = CONFIG.MV_CAL_PATCHES || [], n = P.length;
+    if (n < 6) return null;
+    var d; try { d = x.getImageData(0, vh - 12, vw, 8).data; } catch (e) { logErr('video cal', e); return null; }
+    var meas = [], i, j, k, w = vw / n;
+    for (i = 0; i < n; i++) {
+      var x0 = Math.round(i * w + w * 0.25), x1 = Math.round((i + 1) * w - w * 0.25), r = 0, g = 0, b = 0, c = 0;
+      for (var yy = 0; yy < 8; yy++) for (var xx = x0; xx < x1; xx++) { k = (yy * vw + xx) * 4; r += d[k]; g += d[k + 1]; b += d[k + 2]; c++; }
+      meas.push([r / c, g / c, b / c]);
+    }
+    // проверка, что полоска есть: серые плашки 0..6 идут по возрастанию и близки к своим значениям (±40)
+    for (i = 0; i < 7; i++) if (Math.abs(meas[i][1] - P[i][1]) > 40 || (i && meas[i][1] <= meas[i - 1][1])) return null;
+    // наименьшие квадраты: для каждого канала c: [m_r m_g m_b 1]·[a_r a_g a_b b] = P_c
+    var AtA = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], Atb = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
+    for (i = 0; i < n; i++) {
+      var v = [meas[i][0] / 255, meas[i][1] / 255, meas[i][2] / 255, 1];
+      for (j = 0; j < 4; j++) { for (k = 0; k < 4; k++) AtA[j][k] += v[j] * v[k]; for (var ch = 0; ch < 3; ch++) Atb[ch][j] += v[j] * P[i][ch] / 255; }
+    }
+    for (j = 0; j < 4; j++) AtA[j][j] += 1e-4;   // слабая регуляризация к единичной
+    var sol = [0, 1, 2].map(function (ch) {   // Гаусс 4×4
+      var M = AtA.map(function (row, r0) { return row.concat([Atb[ch][r0]]); }), r1, c1, q;
+      for (c1 = 0; c1 < 4; c1++) {
+        var piv = c1; for (r1 = c1 + 1; r1 < 4; r1++) if (Math.abs(M[r1][c1]) > Math.abs(M[piv][c1])) piv = r1;
+        q = M[c1]; M[c1] = M[piv]; M[piv] = q;
+        for (r1 = 0; r1 < 4; r1++) if (r1 !== c1) { var fk = M[r1][c1] / M[c1][c1]; for (k = c1; k < 5; k++) M[r1][k] -= fk * M[c1][k]; }
+      }
+      return [M[0][4] / M[0][0], M[1][4] / M[1][1], M[2][4] / M[2][2], M[3][4] / M[3][3]];
+    });
+    for (i = 0; i < 3; i++) if (!isFinite(sol[i][3]) || Math.abs(sol[i][i] - 1) > 0.6 || Math.abs(sol[i][3]) > 0.4) return null;
+    // mat4 по столбцам: rgb' = A·rgb + b
+    var m = new Float32Array([sol[0][0], sol[1][0], sol[2][0], 0, sol[0][1], sol[1][1], sol[2][1], 0, sol[0][2], sol[1][2], sol[2][2], 0, sol[0][3], sol[1][3], sol[2][3], 1]);
+    window.__mvCal = { meas: meas.map(function (q) { return q.map(Math.round); }), m: Array.prototype.map.call(m, function (z) { return +z.toFixed(4); }) };
+    return m;
+  }
   function mvUpload(f, S) {
     var ct = S.v.currentTime, N = S.night;
     if ((N ? f.mvUseN : f.mvUse) && ct === S.t) return;
@@ -774,6 +836,8 @@
     if (cv.width !== vw || cv.height !== vh) { cv.width = vw; cv.height = vh; }
     var x = cv.getContext('2d');
     x.globalCompositeOperation = 'copy'; x.drawImage(S.v, 0, 0, vw, vh);
+    if (MVD && CONFIG.MV_CAL && !N && S.calCi !== S.ci) { S.calCi = S.ci; S.cal = mvCalibrate(x, vw, vh); f.mvCal = S.cal; }   // e1.18: раз на клип
+    else if (!N && S.cal) f.mvCal = S.cal;
     x.globalCompositeOperation = 'destination-in'; x.drawImage(S.m, 0, 0, vw, vh); x.globalCompositeOperation = 'source-over';
     gl.activeTexture(gl.TEXTURE0);
     gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);   // как у картинок кадра (prep.js: colorSpaceConversion none)
@@ -840,6 +904,7 @@
     if (NI) {
       gl.uniform3f(US.uHasA, fa.sG && !fa.mvUse && !fa.mvUseN ? 1 : 0, fa.nG ? 1 : 0, (fa.mvUse ? 1 : 0) + (fa.mvUseN && fa.nG ? 2 : 0));
       gl.uniform3f(US.uHasB, fb && fb.sG && !fb.mvUse && !fb.mvUseN ? 1 : 0, fb && fb.nG ? 1 : 0, fb ? (fb.mvUse ? 1 : 0) + (fb.mvUseN && fb.nG ? 2 : 0) : 0);
+      if (MVD) { gl.uniformMatrix4fv(US.uMvCalA, false, (fa && fa.mvCal) || MV_ID); gl.uniformMatrix4fv(US.uMvCalB, false, (fb && fb.mvCal) || MV_ID); }
       gl.uniform1f(US.uSunMix, tod.sun); gl.uniform1f(US.uNightMix, tod.night);
     }
     gl.uniform2f(US.uShift, shiftX, shiftY);
@@ -952,7 +1017,8 @@
     var cfg = {
       MAX_TEX_SIZE: CONFIG.MAX_TEX_SIZE, DEPTH_BLUR_PX: CONFIG.DEPTH_BLUR_PX, STARS: CONFIG.STARS, BUILDING_DEPTH_PIXEL: !!CONFIG.BUILDING_DEPTH_PIXEL,
       NIGHT_MAIN_LIT: CONFIG.NIGHT_MAIN_LIT, FRAME_SIZE: CONFIG.FRAME_SIZE, STAR_CELLS: STAR_CELLS, NIGHT_OTHER_LIT: CONFIG.NIGHT_OTHER_LIT, WINDOW_BRIGHT: CONFIG.WINDOW_BRIGHT, DAY: CONFIG.DAY,
-      NIGHT_WINS: (CONFIG.SCENE || []).map(function (q) { return !!(q && q.nightWins); })
+      NIGHT_WINS: (CONFIG.SCENE || []).map(function (q) { return !!(q && q.nightWins); }),
+      NIGHT_MAIN_WINS: CONFIG.NIGHT_MAIN_WINS, NIGHT_EDGE: CONFIG.NIGHT_EDGE
     };
     function viaMain(method, args) {
       if (!mainReadyP) {

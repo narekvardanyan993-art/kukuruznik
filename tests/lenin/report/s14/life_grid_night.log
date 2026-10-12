@@ -1,0 +1,11 @@
+night A t0: video 0.00
+night A t15: video 0.00
+night B t0: video 0.00
+night B t15: video 0.00
+night C t0: video 0.00
+night C t15: video 0.00
+night D t0: video 0.00
+night D t15: video 0.00
+night G t0: video 0.00
+night G t15: video 1.85 
+errs []

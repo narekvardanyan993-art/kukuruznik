@@ -1,0 +1,16 @@
+A day: lenin_1_motion_1.webm@0.00 {"day":"lenin_1_motion_1.mp4 P","night":null,"useD":true,"useN":false}
+B day: lenin_2_motion_1.webm@0.00 {"day":"lenin_2_motion_1.mp4 P","night":null,"useD":true,"useN":false}
+C day: lenin_3_motion_1.webm@0.00 {"day":"lenin_3_motion_1.mp4 P","night":null,"useD":true,"useN":false}
+D day: lenin_4_motion_1.webm@0.00 {"day":"lenin_4_motion_1.mp4 P","night":null,"useD":true,"useN":false}
+G day: lenin_6_motion_1.webm@4.00 {"day":"lenin_6_motion_1.mp4 P","night":null,"useD":true,"useN":false}
+A night state {"day":"lenin_1_motion_1.mp4 P","night":null,"useD":true,"useN":false}
+A windows {"total":18,"on":12,"brightMin":"0.24","brightMax":"0.96","lamps":0}
+B night state {"day":"lenin_2_motion_1.mp4 P","night":null,"useD":true,"useN":false}
+B windows {"total":183,"on":81,"brightMin":"0.20","brightMax":"1.00","lamps":9}
+C night state {"day":"lenin_3_motion_1.mp4 P","night":null,"useD":true,"useN":false}
+C windows {"total":0,"on":0,"brightMin":null,"brightMax":null,"lamps":0}
+D night state {"day":"lenin_4_motion_1.mp4 P","night":null,"useD":true,"useN":false}
+D windows {"total":0,"on":0,"brightMin":null,"brightMax":null,"lamps":0}
+G night state {"day":"lenin_6_motion_1.mp4 P","night":null,"useD":true,"useN":false}
+G windows {"total":108,"on":45,"brightMin":"0.22","brightMax":"0.98","lamps":15}
+errs1 [] []

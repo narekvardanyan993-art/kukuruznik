@@ -31,6 +31,14 @@ e1.18 (круг s13, площади без машин — живость из в
   • --vehicle-check дороги.png — дороги только для проверки (в маску не идут): машиноподобный трек по дороге = брак car.
   • --drift-max D — порог «рисунок плывёт» для кадра (по умолчанию 3). drift меряется ВНЕ маски (в вывод не идёт), а у крупных
     видов сверху Veo даёт общее мерцание фасадов 2,5–3,5 при чистой листве — порог кадра поднимать только после листа/глаз.
+e1.18 (круг s14, отзыв: голуби в слоумо «исчезают как с другой планеты», G бледный, линия неба на G):
+  • птиц и голубей в видео нет никогда: в каждом кадре капли движения, где клип серее и темнее медианы (сизый голубь поверх
+    зелёной кроны или синей воды), вырезаются — там рисунок; птиц даёт движок (--keep-birds — оставить, для проверки);
+  • --delta — ролик хранит ОТЛИЧИЕ от рисунка (серый 128 = «как на рисунке»): неподвижное всегда из рисунка, сдвиг цвета видео
+    при декодировании (iPhone) не красит площадь маски (движок: CONFIG.MV_DELTA);
+  • --cal — нижние 16 строк ролика = калибровочная полоска (12 плашек engine/config.json MV_CAL_PATCHES, маска там 0): движок
+    на старте клипа меряет полоску и строит поправку цвета (CONFIG.MV_CAL);
+  • --edge-drop — куски маски, обрезанные краем --exclude (прямая горизонтальная линия), выкидываются целиком: прямого края нет.
 1. Кадры клипа (замедленные) → размер кадра, совмещение с картинкой (днём — рисунок, --night — ночная картинка) по контурам.
 2. Маска (общая на клипы кадра): дороги целиком ∪ (движение ∩ (листва ∪ вода)), без слоя здания, водяного знака, рамок --exclude.
 3. Кадр синемаграфа = картинка, а там, где кадр клипа заметно отличается от медианы клипа (то, что движется), — пиксель клипа.
@@ -48,6 +56,35 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gemini_road_mask import align  # noqa: E402
 
 DRIFT_MAX = 3.0
+CAL_ROWS = 16
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def cal_patches():
+    return json.loads((ROOT / 'engine' / 'config.json').read_text(encoding='utf-8'))['MV_CAL_PATCHES']
+
+
+def draw_cal(img, W2, H2):
+    """Калибровочная полоска в нижних CAL_ROWS строках кадра: плашки известного цвета во всю ширину (движок меряет середину плашки)."""
+    P = cal_patches(); n = len(P); w = W2 / n
+    for i, c in enumerate(P):
+        img[H2 - CAL_ROWS:H2, int(round(i * w)):int(round((i + 1) * w))] = c
+    return img
+
+
+def birds_mask(f, bgc, Dt, mask, wat=None):
+    """Птица/голубь в кадре клипа: движущаяся капля заметно серее медианы клипа (сизая, светлая или тёмная, поверх зелёного/синего).
+    На воде блики фонтана тоже «серее» синего, но СВЕТЛЕЕ — там птица только та, что ещё и темнее медианы."""
+    hc = cv2.cvtColor(f, cv2.COLOR_RGB2HSV).astype(np.int16)
+    s_c, v_c = hc[..., 1], hc[..., 2]
+    b = (Dt > 14) & (mask > 0.03) & (s_c < 80) & (bgc[..., 1] - s_c > 26)
+    if wat is not None:
+        b &= ~wat | (v_c < bgc[..., 2] - 10)
+    b = cv2.morphologyEx(b.astype(np.uint8), cv2.MORPH_OPEN, np.ones((2, 2), np.uint8))
+    n, lab, st, _ = cv2.connectedComponentsWithStats(b)
+    keep = [i for i in range(1, n) if st[i][4] >= 6]
+    b = np.isin(lab, keep).astype(np.uint8)
+    return cv2.dilate(b, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (13, 13))).astype(bool), len(keep)
 _SLOW = {}
 BIG_K = 1.3
 
@@ -302,10 +339,13 @@ def main():
     bld = np.asarray(Image.open(fd / (name + '_building.webp')))[..., 3] > 60
     excl = np.zeros((H, W), bool)
     excl[int(H * 0.93):, int(W * 0.72):] = True                                        # водяной знак Veo
+    xedges = []
     for box in (opt('--exclude') or '').split(';'):
         if box:
             u0, v0, u1, v1 = map(float, box.split(','))
             excl[int(v0 * H):int(v1 * H), int(u0 * W):int(u1 * W)] = True
+            xedges += [int(v0 * H), int(v1 * H)]
+    delta, cal, keep_birds, edge_drop = '--delta' in a, '--cal' in a, '--keep-birds' in a, '--edge-drop' in a
     off = excl | cv2.dilate(bld.astype(np.uint8), np.ones((5, 5), np.uint8)).astype(bool)
     leaf, wat = zones(day, H, W, sky_end, '--water' in a, '--flags' in a)
     walk = np.zeros((H, W), bool)                                # e1.18: дальние тротуары — только мелкое движение (крошечные люди)
@@ -352,6 +392,14 @@ def main():
         mask = np.clip(cv2.GaussianBlur(mv.astype(np.float32), (0, 0), 4.0) * 1.5, 0, 1)
         mask[off] = 0
         mask = cv2.GaussianBlur(mask, (0, 0), 1.0)
+        if edge_drop and xedges:                               # e1.18: куски маски у прямого края --exclude — целиком вон (нет линии)
+            n, lab, st, _ = cv2.connectedComponentsWithStats((mask > 0.02).astype(np.uint8))
+            cut = [i for i in range(1, n) if any(st[i][1] <= e + 3 and st[i][1] + st[i][3] >= e - 3 for e in xedges if 0 < e < H)]
+            dropped = int(np.isin(lab, cut).sum())
+            mask[np.isin(lab, cut)] = 0
+            print('%s: --edge-drop — убрано %d кусков маски у края (%d px)' % (name, len(cut), dropped))
+    if cal:
+        mask[H2 - CAL_ROWS - 2:, :] = 0                        # e1.18: под калибровочной полоской маски нет
     allow = mask > 0.5
     road_only = allow & ~free if rd is not None else np.zeros((H, W), bool)   # тут двигаются только машины (крупные капли)
     print('%s: маска — в движении %.1f %% кадра (дороги %.1f %%, листва/вода %.1f %%)' % (name, allow.mean() * 100, road_only.mean() * 100, (allow & free).mean() * 100))
@@ -415,8 +463,13 @@ def main():
         fr = [cv2.warpAffine(f, C['M'], (W, H), borderMode=cv2.BORDER_REPLICATE) for f in read_frames(C['src'], W, H, fps, speed, first)]
         bg, T = C['bg'], len(fr)
         out = []
+        bgc = cv2.cvtColor(np.clip(bg, 0, 255).astype(np.uint8), cv2.COLOR_RGB2HSV).astype(np.int16)
+        nb = 0
         for t in range(T):
             Dt = cv2.GaussianBlur(np.abs(fr[t].astype(np.float32) - bg).max(-1), (0, 0), 1.5)
+            if not keep_birds:                                  # e1.18: птицы/голуби из видео — вон (движок даёт своих)
+                bm, k_ = birds_mask(fr[t], bgc, Dt, mask, wat)
+                Dt[bm] = 0; nb += k_
             mvp = Dt > 14
             if road_only.any():                                 # на голой дороге — только крупные капли (машины), голуби на асфальте — нет
                 n, lab, st, _ = cv2.connectedComponentsWithStats((mvp & road_only).astype(np.uint8))
@@ -432,10 +485,14 @@ def main():
                 wv, src = shrink_cars(wv, np.clip((Dt - 10) / 18, 0, 1), src, Dt > 14, road_only, car_area, shrink)
             ramp = min(1.0, t / 3, (T - 1 - t) / 3)                 # стык: первый и последний кадр — картинка
             wv = (wv * ramp)[..., None]
-            out.append(np.clip(d * (1 - wv) + src * wv + 0.5, 0, 255).astype(np.uint8)[:H2, :W2])
+            o = (np.clip(128 + (src - d) * wv + 0.5, 0, 255) if delta else np.clip(d * (1 - wv) + src * wv + 0.5, 0, 255)).astype(np.uint8)[:H2, :W2]
+            if cal:
+                o = draw_cal(o.copy(), W2, H2)
+            out.append(o)
         mp4 = fd / ('%s%d.mp4' % (pre, k))
         c1, c2 = encode(out, fps, mp4, crf, max_kb, W2, H2)
-        s = C['stat']; s.update({'out': mp4.name, 'mp4_kb': mp4.stat().st_size // 1024, 'webm_kb': mp4.with_suffix('.webm').stat().st_size // 1024, 'crf': [c1, c2]})
+        print('%s: %s — вырезано птиц/голубей: %d капель-кадров' % (name, C['src'].name, nb))
+        s = C['stat']; s.update({'birds_cut': nb, 'delta': delta, 'cal': cal, 'out': mp4.name, 'mp4_kb': mp4.stat().st_size // 1024, 'webm_kb': mp4.with_suffix('.webm').stat().st_size // 1024, 'crf': [c1, c2]})
         cc = {'src': mp4.name, 'speed': speed}
         if shrink < 0.999:
             s['shrink'] = shrink
@@ -446,7 +503,8 @@ def main():
         if rep:
             rp = Path(rep); rp.mkdir(parents=True, exist_ok=True)
             idx = np.linspace(0, T - 1, 8).astype(int)
-            sm = [cv2.resize(out[i], (W2 // 3, H2 // 3), interpolation=cv2.INTER_AREA) for i in idx]
+            vis = (lambda o: np.clip(d[:H2, :W2] + o.astype(np.float32) - 128, 0, 255).astype(np.uint8)) if delta else (lambda o: o)   # --delta: лист — рисунок + отличие
+            sm = [cv2.resize(vis(out[i]), (W2 // 3, H2 // 3), interpolation=cv2.INTER_AREA) for i in idx]
             Image.fromarray(np.hstack(sm)).save(rp / ('sheet_%s_%s%d.jpg' % (name, 'n' if night else '', k)), quality=85)
         del fr, out
     if not opt('--allow') and not night:
