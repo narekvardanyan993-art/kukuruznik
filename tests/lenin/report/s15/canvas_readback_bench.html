@@ -1,0 +1,25 @@
+<!doctype html><html><body><video id=v src=v.webm muted playsinline loop autoplay></video><img id=m src=m.png><canvas id=g width=64 height=64></canvas>
+<script>
+window.run = async function (reads, sep) {
+  const v = document.getElementById('v'), m = document.getElementById('m');
+  await v.play(); while (v.readyState < 2 || !m.complete) await new Promise(r => setTimeout(r, 50));
+  const vw = v.videoWidth, vh = v.videoHeight;
+  const cv = document.createElement('canvas'); cv.width = vw; cv.height = vh; const x = cv.getContext('2d');
+  const gl = document.getElementById('g').getContext('webgl'); const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cv);
+  let cal = sep ? document.createElement('canvas').getContext('2d', { willReadFrequently: true }) : null;
+  if (cal) { cal.canvas.width = vw; cal.canvas.height = 16; }
+  const times = [];
+  for (let i = 0; i < 60; i++) {
+    await new Promise(r => requestAnimationFrame(r));
+    const t0 = performance.now();
+    x.globalCompositeOperation = 'copy'; x.drawImage(v, 0, 0, vw, vh);
+    if (i < reads) { if (cal) { cal.drawImage(v, 0, vh - 16, vw, 16, 0, 0, vw, 16); cal.getImageData(0, 4, vw, 8); } else x.getImageData(0, vh - 12, vw, 8); }
+    x.globalCompositeOperation = 'destination-in'; x.drawImage(m, 0, 0, vw, vh); x.globalCompositeOperation = 'source-over';
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, cv);
+    if (i >= 10) times.push(performance.now() - t0);
+  }
+  times.sort((a, b) => a - b);
+  return { med: +times[times.length >> 1].toFixed(2), avg: +(times.reduce((a, b) => a + b) / times.length).toFixed(2) };
+};
+</script></body></html>

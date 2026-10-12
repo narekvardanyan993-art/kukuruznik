@@ -221,10 +221,40 @@
   var SPILL = +CONFIG.WIN_SPILL || 0, SPILL_PX = +CONFIG.WIN_SPILL_PX || 7;
   var CF = +CONFIG.CLOUD_FIELD || 0, CFN = +CONFIG.CLOUD_FIELD_NIGHT || 0;
   var MVD = !!CONFIG.MV_DELTA;
+  // e1.19 (s15): тени облаков полем (CLOUD_FIELD) — в вершинном шейдере сцены на сетке CF_GRID, а не на каждый пиксель
+  var CF_GRID = [64, 128];   // ячеек сетки по ширине и высоте экрана
+  var CF_SRC = CF > 0 ? [
+    'float wxHash(vec2 q) { return fract(sin(dot(q, vec2(127.1, 311.7))) * 43758.5453); }',
+    'float wxNoise(vec2 q) { vec2 i = floor(q), f = fract(q); f = f * f * (3.0 - 2.0 * f);',
+    '  return mix(mix(wxHash(i), wxHash(i + vec2(1.0, 0.0)), f.x), mix(wxHash(i + vec2(0.0, 1.0)), wxHash(i + vec2(1.0, 1.0)), f.x), f.y); }',
+    'float cloudField(vec2 uv, float t) {' +
+      ' vec2 q = vec2(uv.x * ' + glf(FW / FH) + ', uv.y) * ' + glf(+CONFIG.CLOUD_FIELD_SCALE || 2.4) + ' + vec2(t, t * 0.23) * ' + glf(+CONFIG.CLOUD_FIELD_SPEED || 0.011) + ';' +
+      ' float n = 0.55 * wxNoise(q) + 0.30 * wxNoise(q * 2.03 + vec2(5.2, 1.3) + t * 0.021) + 0.15 * wxNoise(q * 4.1 + vec2(1.7, 8.9) - t * 0.034);' +
+      ' return smoothstep(0.15, 0.82, n); }'
+  ].join('\n') : '';
+  // вершинный шейдер сцены: при CLOUD_FIELD — ещё и поле облаков в узлах сетки (uv — та же формула, что в main() фрагмента)
+  var VERT_SCENE = CF > 0 ? [
+    'precision highp float;',
+    'attribute vec2 aPos;',
+    'varying vec2 vUv;',
+    'varying vec2 vTc;',
+    'varying float vCloud;',
+    'uniform vec2 uCoverScale; uniform vec2 uCoverOffset; uniform float uScale; uniform float uCloudT;',
+    CF_SRC,
+    'void main() {',
+    '  vTc = aPos * 0.5 + 0.5;',
+    '  vUv = vec2(vTc.x, 1.0 - vTc.y);',
+    '  vec2 uv = vUv * uCoverScale + uCoverOffset;',
+    '  uv = 0.5 + (uv - 0.5) / uScale;',
+    '  vCloud = cloudField(uv, uCloudT);',
+    '  gl_Position = vec4(aPos, 0.0, 1.0);',
+    '}'
+  ].join('\n') : VERT;
   var STAR_CELLS = [Math.max(1, Math.round(FW / LK.stars.cell)), Math.max(1, Math.round(FH / LK.stars.cell))];   // сетка звёзд: ячейка ~LK.stars.cell пикселей кадра, любой размер кадра
   var SCENE_FRAG = [
     'precision highp float;',
     'varying vec2 vUv;',
+    CF > 0 ? 'varying float vCloud;' : '',   // e1.19: поле облаков из вершинного шейдера
     // день (v12): цвета неба и настройки зелени — из CONFIG.DAY
     'const vec3 DAY_SKY_TOP = ' + vec3lit(CONFIG.DAY.SKY_TOP) + ';',
     'const vec3 DAY_SKY_HOR = ' + vec3lit(CONFIG.DAY.SKY_HOR) + ';',
@@ -240,7 +270,8 @@
     NI ? 'uniform sampler2D uSGA; uniform sampler2D uSBA; uniform sampler2D uNGA; uniform sampler2D uNBA;' : '',   // кадр A: закат (земля, главное здание), ночь (земля, главное здание)
     NI ? 'uniform sampler2D uSGB; uniform sampler2D uSBB; uniform sampler2D uNGB; uniform sampler2D uNBB;' : '',   // кадр B
     NI ? 'uniform vec3 uHasA; uniform vec3 uHasB;' : '',         // x — есть картинка заката, y — есть картинка ночи, z — в юните заката-земли видео синемаграфа (e1.14)
-    NI && MVD ? 'uniform mat4 uMvCalA; uniform mat4 uMvCalB;' : '',   // e1.18: калибровка цвета видео кадра A/B (по полоске в краю видео, MV_CAL)
+    NI && MVD ? 'uniform mat4 uMvCalA; uniform mat4 uMvCalB;' : '',
+    SPILL > 0 ? 'uniform vec2 uEmKA; uniform vec2 uEmKB;' : '',   // e1.19: текстура окон кадра A/B — доля высоты окон и начало света на стене   // e1.18: калибровка цвета видео кадра A/B (по полоске в краю видео, MV_CAL)
     NI ? 'uniform float uSunMix; uniform float uNightMix;' : '', // день→закат (2.5 с), закат→ночь (3 с): плавное растворение
     'uniform vec4  uCropA; uniform vec4 uCropB; uniform vec4 uFlagA; uniform vec4 uFlagB;',   // обрезка кадров A/B: x0, y0, ширина, высота (доли)
     'uniform vec3  uKdA;',        // здание кадра A: x = k (-1..1), y = средняя глубина 0..1, z = 1 — глубина здания по точкам (альфа земли)
@@ -307,12 +338,11 @@
     '  return mix(mix(wxHash(i), wxHash(i + vec2(1.0, 0.0)), f.x), mix(wxHash(i + vec2(0.0, 1.0)), wxHash(i + vec2(1.0, 1.0)), f.x), f.y); }',
     // e1.18 CLOUD_FIELD: тени облаков полем по всему кадру — мягкие пятна с широким краем (почти нигде не ровно 0) плывут и медленно меняют форму, поэтому за 15 с
     // меняется любой участок земли и фасадов (а не только полоса двух пятен cloudShadow)
-    CF > 0 ? 'float cloudField(vec2 uv, float t) {' +
-      ' vec2 q = vec2(uv.x * ' + glf(FW / FH) + ', uv.y) * ' + glf(+CONFIG.CLOUD_FIELD_SCALE || 2.4) + ' + vec2(t, t * 0.23) * ' + glf(+CONFIG.CLOUD_FIELD_SPEED || 0.011) + ';' +
-      ' float n = 0.55 * wxNoise(q) + 0.30 * wxNoise(q * 2.03 + vec2(5.2, 1.3) + t * 0.021) + 0.15 * wxNoise(q * 4.1 + vec2(1.7, 8.9) - t * 0.034);' +
-      ' return smoothstep(0.15, 0.82, n); }' : '',
+    // e1.19 (s15): поле считается в ВЕРШИННОМ шейдере на сетке ~12×13 px экрана (CF_GRID) и приходит во фрагмент готовым (vCloud):
+    // поле плавное (самая мелкая ячейка шума ~170 px), линейная интерполяция между узлами отличается < 0,5 уровня, а на пиксель
+    // больше не считается 12 хешей с sin. Тот же код функции — CF_SRC (см. VERT_SCENE).
     // Готовый цвет пикселя одного кадра: параллакс, ветер, закат, ночь.
-    'vec4 shadeFrame(sampler2D bg, sampler2D depth, sampler2D bld, sampler2D em, vec3 kd, float starQ, vec2 skyRef, vec4 crop, vec4 flag,' + (NI ? ' sampler2D sg, sampler2D sb, sampler2D ng, sampler2D nb, vec3 has,' : '') + (NI && MVD ? ' mat4 cal,' : '') + ' vec2 uv, vec2 sc) {',
+    'vec4 shadeFrame(sampler2D bg, sampler2D depth, sampler2D bld, sampler2D em, vec3 kd, float starQ, vec2 skyRef, vec4 crop, vec4 flag,' + (SPILL > 0 ? ' vec2 ek,' : '') + (NI ? ' sampler2D sg, sampler2D sb, sampler2D ng, sampler2D nb, vec3 has,' : '') + (NI && MVD ? ' mat4 cal,' : '') + ' vec2 uv, vec2 sc) {',
     '  uv = crop.xy + uv * crop.zw;',   // обрезка белого края бумаги: показываем только внутренний прямоугольник кадра
     // фон и земля: у каждого пикселя свой сдвиг (3 итерации против «резины» на краях)
     '  vec2 p = uv;',
@@ -345,7 +375,9 @@
       ? '  vec3 c0 = c; vec4 mv = vec4(0.0); float mvN = step(1.5, has.z); if (has.z - 2.0 * mvN > 0.5) { mv = texture2D(sg, pc); mv.rgb = clamp(c0 + (cal * vec4(mv.rgb, 1.0)).rgb - 0.50196, 0.0, 1.0); c = mix(c, mv.rgb, mv.a); }'
       : '  vec3 c0 = c; vec4 mv = vec4(0.0); float mvN = step(1.5, has.z); if (has.z - 2.0 * mvN > 0.5) { mv = texture2D(sg, pc); c = mix(c, mv.rgb, mv.a); }') : '',
     '  float sky = env.g;',
-    '  vec4 eg = texture2D(em, pc);',                         // окна других зданий: g = свет ночью, a = сама маска
+    // e1.19 (s15) при WIN_SPILL текстура окон двухэтажная: сверху сами окна (ek.x — их доля высоты), снизу — заранее посчитанный
+    // свет окон на стене под ними (с ek.y); см. emSpillRows
+    SPILL > 0 ? '  vec4 eg = texture2D(em, vec2(pc.x, pc.y * ek.x));' : '  vec4 eg = texture2D(em, pc);',                         // окна других зданий: g = свет ночью, a = сама маска
     // здание: один общий сдвиг и масштаб на весь предмет — жёсткое тело
     '  vec2 pb = 0.5 + (uv - 0.5) / (1.0 + uZoom * kd.y) - kd.x * uShift;',
     '  float bdL = kd.y;',
@@ -357,7 +389,7 @@
     '    }',
     '  }',
     '  vec4 b = texture2D(bld, pb);',                         // цвет уже умножен на альфу
-    '  vec4 eb = texture2D(em, pb);',                         // окна главного здания: r = свет ночью, b = сама маска
+    SPILL > 0 ? '  vec4 eb = texture2D(em, vec2(pb.x, clamp(pb.y, 0.0, 1.0) * ek.x));' : '  vec4 eb = texture2D(em, pb);',                         // окна главного здания: r = свет ночью, b = сама маска
     '  c = b.rgb + c * (1.0 - b.a);',
     '  float inv = 1.0 - b.a;',
     '  sky *= inv;',
@@ -398,9 +430,9 @@
     '  }',
     '  float winNight = eb.r * b.a + eg.g * inv;',
     '  float winBase = max(eb.b * b.a, eg.a * inv);',
-    // e1.18 (s14) WIN_SPILL: свет окна слегка ложится на подоконник и стену под окном (три выборки карты окон выше точки);
-    // гаснет и зажигается вместе с окном. 0 (по умолчанию, Кукурузник) — кода в шейдере нет.
-    SPILL > 0 ? '  float winSpill = (texture2D(em, pc - vec2(0.0, ' + glf(SPILL_PX * 0.35 / FH) + ')).g * 0.5 + texture2D(em, pc - vec2(0.0, ' + glf(SPILL_PX * 0.7 / FH) + ')).g * 0.32 + texture2D(em, pc - vec2(0.0, ' + glf(SPILL_PX * 1.05 / FH) + ')).g * 0.18) * (1.0 - eg.a) * inv;' : '',
+    // e1.18 (s14) WIN_SPILL: свет окна слегка ложится на подоконник и стену под окном; гаснет и зажигается вместе с окном.
+    // e1.19 (s15): не три выборки карты окон на каждый пиксель, а одна — из заранее посчитанного света (нижний этаж текстуры окон,
+    // пересчитывается на CPU только в куске переключённого окна) и только ночью. 0 (по умолчанию, Кукурузник) — кода в шейдере нет.
     NI ? '  float hasSv = has.x, hasNv = has.y;' : '  float hasSv = 0.0, hasNv = 0.0;',
     // ---- закат: тёплый оранжево-розовый тон, свечение с одной стороны, окна отражают закат ----
     '  if (uSunset > 0.001 && hasSv < 0.5) {',
@@ -451,7 +483,7 @@
     '    }',
     '    nc += ' + v3(LK.stars.color) + ' * star * sky * uStars;',
     '    nc += ' + v3(LK.windowGlow.color) + ' * winNight * ' + glf(LK.windowGlow.strength) + ' + ' + v3(LK.windowGlow.color2) + ' * winNight * winNight * ' + glf(LK.windowGlow.strength2) + ';',
-    SPILL > 0 ? '    nc += ' + v3(LK.windowGlow.color) + ' * winSpill * ' + glf(SPILL) + ';' : '',
+    SPILL > 0 ? '    nc += ' + v3(LK.windowGlow.color) + ' * (texture2D(em, vec2(pc.x, ek.y + pc.y * ek.x)).r * (1.0 - eg.a) * inv) * ' + glf(SPILL) + ';' : '',
     '    c = nc;',
     '  }',
     // ---- погода (e1.3): при uWeather = 0 блок не выполняется — картинка ровно как без погоды ----
@@ -487,13 +519,13 @@
     '  vec2 uv = vUv * uCoverScale + uCoverOffset;',
     '  uv = 0.5 + (uv - 0.5) / uScale;',
     '  vec2 uvA = 0.5 + (uv - 0.5) / uFadeZoom.x;',
-    '  vec4 sa = shadeFrame(uBgA, uDepthA, uBldA, uEmA, uKdA, uStarQ.x, uSkyRef.xy, uCropA, uFlagA, ' + (NI ? 'uSGA, uSBA, uNGA, uNBA, uHasA, ' : '') + (NI && MVD ? 'uMvCalA, ' : '') + 'uvA, vUv);',
+    '  vec4 sa = shadeFrame(uBgA, uDepthA, uBldA, uEmA, uKdA, uStarQ.x, uSkyRef.xy, uCropA, uFlagA, ' + (SPILL > 0 ? 'uEmKA, ' : '') + (NI ? 'uSGA, uSBA, uNGA, uNBA, uHasA, ' : '') + (NI && MVD ? 'uMvCalA, ' : '') + 'uvA, vUv);',
     '  if (uMix > 0.0) {',
     '    vec2 uvB = 0.5 + (uv - 0.5) / uFadeZoom.y;',
-    '    sa = mix(sa, shadeFrame(uBgB, uDepthB, uBldB, uEmB, uKdB, uStarQ.y, uSkyRef.zw, uCropB, uFlagB, ' + (NI ? 'uSGB, uSBB, uNGB, uNBB, uHasB, ' : '') + (NI && MVD ? 'uMvCalB, ' : '') + 'uvB, vUv), uMix);',
+    '    sa = mix(sa, shadeFrame(uBgB, uDepthB, uBldB, uEmB, uKdB, uStarQ.y, uSkyRef.zw, uCropB, uFlagB, ' + (SPILL > 0 ? 'uEmKB, ' : '') + (NI ? 'uSGB, uSBB, uNGB, uNBB, uHasB, ' : '') + (NI && MVD ? 'uMvCalB, ' : '') + 'uvB, vUv), uMix);',
     '  }',
     '  vec3 c = sa.rgb;',
-    CF > 0 ? '  float shadow = cloudField(uv, uCloudT);' : '  float shadow = cloudShadow(uv, uCloudT);',
+    CF > 0 ? '  float shadow = vCloud;' : '  float shadow = cloudShadow(uv, uCloudT);',
     '  if (uWeather.x > 0.0) shadow = clamp(mix(shadow, max(shadow, cloudShadow(uv * 0.7 + 0.15, uCloudT * 1.3 + 17.0)), uWeather.x) * (0.55 + 0.7 * wxNoise(uv * 3.5 + vec2(uCloudT * 0.02, 0.0))), 0.0, 1.0);',   // тучи: теней больше, края рваные
     '  c *= (1.0 - (mix(uCloudK.x, uCloudK.y, uMix)' + (CF > 0 ? ' * ' + glf(CF) : '') + ' + uWeather.x * ' + glf(LK.weather.overcastShadow) + ') * shadow * (1.0 - sa.a) * (1.0 - uNightGnd' + (CFN > 0 ? ' * ' + glf(1 - CFN) : '') + '));',   // в тучи тени облаков по земле гуще; e1.18 CLOUD_FIELD_NIGHT — и ночью слабее
     '  gl_FragColor = vec4(c, 1.0);',
@@ -559,8 +591,8 @@
     gl.compileShader(sh);
     return sh;
   }
-  function startProgram(frag) {   // компиляция и линковка запускаются, но не ждём ответа драйвера
-    var prog = gl.createProgram(), vs = compileShader(gl.VERTEX_SHADER, VERT), fs = compileShader(gl.FRAGMENT_SHADER, frag);
+  function startProgram(frag, vert) {   // компиляция и линковка запускаются, но не ждём ответа драйвера
+    var prog = gl.createProgram(), vs = compileShader(gl.VERTEX_SHADER, vert || VERT), fs = compileShader(gl.FRAGMENT_SHADER, frag);
     gl.attachShader(prog, vs); gl.attachShader(prog, fs);
     gl.bindAttribLocation(prog, 0, 'aPos');
     gl.linkProgram(prog);
@@ -587,15 +619,31 @@
     'uKdA', 'uKdB', 'uSkyRef', 'uCloudK', 'uCropA', 'uCropB', 'uFlagA', 'uFlagB', 'uStarQ', 'uMix', 'uShift', 'uZoom', 'uScale', 'uCoverScale', 'uCoverOffset', 'uTime', 'uCloudT',
     'uSunset', 'uNightSky', 'uNightGnd', 'uStars', 'uFadeZoom', 'uAspect', 'uWindAmp', 'uWindOn', 'uWeather', 'uFlash', 'uCellPx', 'uShoot', 'uShootP']
     .concat(NI ? ['uSGA', 'uSBA', 'uNGA', 'uNBA', 'uSGB', 'uSBB', 'uNGB', 'uNBB', 'uHasA', 'uHasB', 'uSunMix', 'uNightMix'] : [])
-    .concat(NI && MVD ? ['uMvCalA', 'uMvCalB'] : []);
+    .concat(NI && MVD ? ['uMvCalA', 'uMvCalB'] : [])
+    .concat(SPILL > 0 ? ['uEmKA', 'uEmKB'] : []);
 
+  var quadBuf = null, gridBuf = null, gridIdx = null, gridN = 0;   // e1.19: четыре вершины (второй проход) и сетка сцены (CLOUD_FIELD)
   function initGLProgram() {   // возвращает Promise: шейдеры компилируются в фоне, приветствие и анимации не замирают
-    var buf = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    quadBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
     gl.enableVertexAttribArray(0);
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-    var hs = startProgram(SCENE_FRAG), hp = startProgram(POST_FRAG);
+    gridBuf = null; gridIdx = null; gridN = 0;
+    if (CF > 0) {   // e1.19: сетка для сцены (поле облаков в узлах); второй проход — как был, на четырёх вершинах
+      var gx = CF_GRID[0], gy = CF_GRID[1], vtx = new Float32Array((gx + 1) * (gy + 1) * 2), ix = new Uint16Array(gx * gy * 6), a, b2, k2 = 0;
+      for (b2 = 0; b2 <= gy; b2++) for (a = 0; a <= gx; a++) { vtx[k2++] = a / gx * 2 - 1; vtx[k2++] = b2 / gy * 2 - 1; }
+      k2 = 0;
+      for (b2 = 0; b2 < gy; b2++) for (a = 0; a < gx; a++) {
+        var v0 = b2 * (gx + 1) + a, v1 = v0 + 1, v2 = v0 + gx + 1, v3 = v2 + 1;
+        ix[k2++] = v0; ix[k2++] = v1; ix[k2++] = v2; ix[k2++] = v2; ix[k2++] = v1; ix[k2++] = v3;
+      }
+      gridBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, gridBuf); gl.bufferData(gl.ARRAY_BUFFER, vtx, gl.STATIC_DRAW);
+      gridIdx = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gridIdx); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, ix, gl.STATIC_DRAW);
+      gridN = ix.length;
+      gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+    }
+    var hs = startProgram(SCENE_FRAG, VERT_SCENE), hp = startProgram(POST_FRAG);
     return whenCompiled([hs, hp]).then(function () {
       scenePrg = finishProgram(hs, SCENE_NAMES, US);
       // юниты: кадр A = 0..7 (земля, глубина+окружение, здание, окна, закат: земля/главное здание, ночь: земля/главное здание),
@@ -646,7 +694,7 @@
       function () { f.bgTex = r.ground4 ? texRGBA(r.w, r.h, r.ground4) : texRGB(r.w, r.h, r.ground); },   // земля: кадр с подложкой на месте здания (+ в альфе глубина здания по точкам, если включена)
       function () { f.depthTex = texRGBA(r.ew, r.eh, r.gpuDepth); },         // R глубина, G небо, B высота дерева, A фаза (вдвое мельче)
       function () { f.bldTex = texRGBA(r.w, r.h, r.bldPm); },                // здание, цвет уже умножен на альфу
-      function () { f.emTex = texRGBA(r.ew, r.eh, r.emis); }                 // окна: R/G свет ночью (главное здание/другие здания), B/A сами маски
+      function () { emSetup(f, r); f.emTex = texRGBA(r.ew, f.emH, f.emAll); }   // окна: R/G свет ночью (главное здание/другие здания), B/A сами маски (+ свет на стене, e1.19)
     ];
     return steps.reduce(function (p, st) { return p.then(function () { st(); return tick(); }); }, Promise.resolve());
   }
@@ -655,12 +703,77 @@
     return tick().then(function () { f[kind + 'B'] = texRGB(r.w, r.h, r.full); return tick(); });
   }
 
+  // e1.19 (s15): текстура окон. Без WIN_SPILL — как была (ew × eh). С WIN_SPILL — двухэтажная (ew × (2·eh + 4)): строки 0..eh-1 — окна
+  // (f.emis — вид на них, туда пишет updateWindows), eh и eh+1 — копия последней строки окон (край как у CLAMP_TO_EDGE), eh+2 и eh+3 —
+  // копия первой строки света на стене, eh+4.. — свет окна на стене под ним (R). Свет на стене = те же три выборки карты окон выше точки
+  // (0,5 / 0,32 / 0,18), что считал шейдер e1.18 на каждый пиксель, только на CPU, один раз и потом лишь в куске переключённого окна.
+  var SPILL_TAPS = SPILL > 0 ? [[+glf(SPILL_PX * 0.35 / FH), 0.5], [+glf(SPILL_PX * 0.7 / FH), 0.32], [+glf(SPILL_PX * 1.05 / FH), 0.18]] : [];
+  function emSetup(f, r) {
+    var ew = r.ew, eh = r.eh;
+    f.emRect = null;
+    if (SPILL > 0) {
+      var H = eh * 2 + 4, all = new Uint8Array(ew * H * 4);
+      all.set(r.emis);
+      f.emAll = all; f.emis = all.subarray(0, ew * eh * 4); f.emH = H; f.emK = [eh / H, (eh + 4) / H];
+      f.emTaps = SPILL_TAPS.map(function (t) { return [t[0] * eh, t[1]]; });
+      f.emReach = Math.ceil(Math.max.apply(null, f.emTaps.map(function (t) { return t[0]; }))) + 1;   // на сколько строк вниз достаёт свет окна
+      emSpillRows(f, 0, ew - 1, 0, eh - 1);
+      emPadRows(f, 0, ew - 1);
+    } else { f.emAll = r.emis; f.emis = r.emis; f.emH = eh; f.emK = [1, 0]; }
+  }
+  function emSpillRows(f, x0, x1, j0, j1) {   // свет на стене в строках j0..j1, столбцах x0..x1 (по каналу G окон других зданий)
+    var ew = f.ew, eh = f.eh, A = f.emAll, T = f.emTaps, base = (eh + 4) * ew, j, x, i, y, y0, fr, ra, rb, sum;
+    for (j = j0; j <= j1; j++) {
+      for (x = x0; x <= x1; x++) {
+        sum = 0;
+        for (i = 0; i < T.length; i++) {   // линейная выборка по вертикали, как у текстуры (край — CLAMP_TO_EDGE)
+          y = j - T[i][0]; y0 = Math.floor(y); fr = y - y0;
+          ra = y0 < 0 ? 0 : (y0 > eh - 1 ? eh - 1 : y0); rb = y0 + 1 < 0 ? 0 : (y0 + 1 > eh - 1 ? eh - 1 : y0 + 1);
+          sum += T[i][1] * (A[(ra * ew + x) * 4 + 1] * (1 - fr) + A[(rb * ew + x) * 4 + 1] * fr);
+        }
+        A[(base + j * ew + x) * 4] = (sum + 0.5) | 0;
+      }
+    }
+  }
+  function emPadRows(f, x0, x1) {   // строки-прокладки между этажами (чтобы линейная выборка у края этажа вела себя как у края текстуры)
+    var ew = f.ew, eh = f.eh, A = f.emAll, x, k, s0 = ((eh - 1) * ew) * 4, s1 = ((eh + 4) * ew) * 4;
+    for (x = x0; x <= x1; x++) for (k = 0; k < 4; k++) {
+      A[(eh * ew + x) * 4 + k] = A[((eh + 1) * ew + x) * 4 + k] = A[s0 + x * 4 + k];
+      A[((eh + 2) * ew + x) * 4 + k] = A[((eh + 3) * ew + x) * 4 + k] = A[s1 + x * 4 + k];
+    }
+  }
+  function emSub(f, x0, y0, x1, y1) {   // залить в GPU прямоугольник текстуры окон (WebGL1 без UNPACK_ROW_LENGTH — копия строк)
+    var ew = f.ew, w = x1 - x0 + 1, h = y1 - y0 + 1, buf;
+    if (w === ew) buf = f.emAll.subarray(y0 * ew * 4, (y1 + 1) * ew * 4);
+    else {
+      var n = w * h * 4;
+      if (!f.emTmp || f.emTmp.length < n) f.emTmp = new Uint8Array(Math.max(n, 4096));
+      buf = f.emTmp.subarray(0, n);
+      for (var y = 0; y < h; y++) buf.set(f.emAll.subarray(((y0 + y) * ew + x0) * 4, ((y0 + y) * ew + x1 + 1) * 4), y * w * 4);
+    }
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, x0, y0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+  }
+  // e1.19: в GPU уходит только изменившийся кусок (рамка переключённых окон), а не вся текстура окон каждый кадр перехода
   function uploadEm(f) {
     if (!f || !f.emDirty) return;
+    f.emDirty = false;
+    var R = f.emRect; f.emRect = null;
+    if (!R) return;
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, f.emTex);
-    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, f.ew, f.eh, gl.RGBA, gl.UNSIGNED_BYTE, f.emis);
-    f.emDirty = false;
+    var eh = f.eh;
+    if (SPILL > 0) {
+      var j1 = Math.min(eh - 1, R[3] + f.emReach);
+      emSpillRows(f, R[0], R[2], R[1], j1);
+      emPadRows(f, R[0], R[2]);
+      emSub(f, R[0], R[1], R[2], R[3] >= eh - 1 ? eh + 1 : R[3]);
+      emSub(f, R[0], R[1] === 0 ? eh + 2 : eh + 4 + R[1], R[2], eh + 4 + j1);
+    } else emSub(f, R[0], R[1], R[2], R[3]);
+  }
+  function winBox(idx, ew) {   // рамка окна в пикселях карты окон
+    var x0 = 1e9, y0 = 1e9, x1 = -1, y1 = -1;
+    for (var k = 0; k < idx.length; k++) { var x = idx[k] % ew, y = (idx[k] / ew) | 0; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    return [x0, y0, x1, y1];
   }
 
   // ---------- e1.14 синемаграф (кадр: motionVideo {src, mask, on}) — основной способ оживления ----------
@@ -792,10 +905,21 @@
   // текстуру после декодирования Safari/Chrome) и подбираем поправку rgb' = A·rgb + b (наименьшие квадраты). Шейдер применяет её к
   // видео до вычитания серого 128 (MV_DELTA) — сдвиг цвета/гаммы декодера не меняет картинку. Нет полоски / странный замер — без поправки.
   var MV_ID = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
-  function mvCalibrate(x, vw, vh) {
+  // e1.19 (s15): полоску меряем на СВОЁМ маленьком холсте (vw × 16, willReadFrequently), а не на общем холсте видео. Chrome после двух
+  // чтений (getImageData) переводит холст на процессор навсегда: каждый кадр видео тогда идёт через CPU (видео → память → маска → снова
+  // в GPU) — бета e1.18 на «ночь, кадр 2» (второй клип = второе чтение) упала с 60 до 47 fps. Замер и поправка — те же.
+  var mvCalCv = null;
+  function mvCalibrate(v, vw, vh) {
     var P = CONFIG.MV_CAL_PATCHES || [], n = P.length;
     if (n < 6) return null;
-    var d; try { d = x.getImageData(0, vh - 12, vw, 8).data; } catch (e) { logErr('video cal', e); return null; }
+    var d;
+    try {
+      var cc = mvCalCv || (mvCalCv = document.createElement('canvas'));
+      if (cc.width !== vw || cc.height !== 16) { cc.width = vw; cc.height = 16; }
+      var cx = cc.getContext('2d', { willReadFrequently: true });
+      cx.globalCompositeOperation = 'copy'; cx.drawImage(v, 0, vh - 16, vw, 16, 0, 0, vw, 16);
+      d = cx.getImageData(0, 4, vw, 8).data;   // = строки vh-12 … vh-5 кадра видео, как в e1.18
+    } catch (e) { logErr('video cal', e); return null; }
     var meas = [], i, j, k, w = vw / n;
     for (i = 0; i < n; i++) {
       var x0 = Math.round(i * w + w * 0.25), x1 = Math.round((i + 1) * w - w * 0.25), r = 0, g = 0, b = 0, c = 0;
@@ -836,7 +960,7 @@
     if (cv.width !== vw || cv.height !== vh) { cv.width = vw; cv.height = vh; }
     var x = cv.getContext('2d');
     x.globalCompositeOperation = 'copy'; x.drawImage(S.v, 0, 0, vw, vh);
-    if (MVD && CONFIG.MV_CAL && !N && S.calCi !== S.ci) { S.calCi = S.ci; S.cal = mvCalibrate(x, vw, vh); f.mvCal = S.cal; }   // e1.18: раз на клип
+    if (MVD && CONFIG.MV_CAL && !N && S.calCi !== S.ci) { S.calCi = S.ci; S.cal = mvCalibrate(S.v, vw, vh); f.mvCal = S.cal; }   // e1.18: раз на клип
     else if (!N && S.cal) f.mvCal = S.cal;
     x.globalCompositeOperation = 'destination-in'; x.drawImage(S.m, 0, 0, vw, vh); x.globalCompositeOperation = 'source-over';
     gl.activeTexture(gl.TEXTURE0);
@@ -901,6 +1025,7 @@
     gl.uniform2f(US.uCloudK, CONFIG.CLOUD_SHADOW[fa.idx] || 0.12, fb ? (CONFIG.CLOUD_SHADOW[fb.idx] || 0.12) : 0.12);
     gl.uniform4f(US.uSkyRef, CONFIG.DAY.SKY_REF[fa.idx] || 0.86, CONFIG.DAY.SKY_END[fa.idx] || 0.55,
       fb ? (CONFIG.DAY.SKY_REF[fb.idx] || 0.86) : 0.86, fb ? (CONFIG.DAY.SKY_END[fb.idx] || 0.55) : 0.55);
+    if (SPILL > 0) { gl.uniform2f(US.uEmKA, fa.emK[0], fa.emK[1]); gl.uniform2f(US.uEmKB, fb ? fb.emK[0] : 1, fb ? fb.emK[1] : 0); }   // e1.19: двухэтажная текстура окон
     if (NI) {
       gl.uniform3f(US.uHasA, fa.sG && !fa.mvUse && !fa.mvUseN ? 1 : 0, fa.nG ? 1 : 0, (fa.mvUse ? 1 : 0) + (fa.mvUseN && fa.nG ? 2 : 0));
       gl.uniform3f(US.uHasB, fb && fb.sG && !fb.mvUse && !fb.mvUseN ? 1 : 0, fb && fb.nG ? 1 : 0, fb ? (fb.mvUse ? 1 : 0) + (fb.mvUseN && fb.nG ? 2 : 0) : 0);
@@ -927,7 +1052,12 @@
     gl.uniform2f(US.uShootP, fx.shootP, fx.shootLen);
     gl.uniform2f(US.uCoverScale, coverUvW, coverUvH);
     gl.uniform2f(US.uCoverOffset, coverOffX, coverOffY);
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    if (gridBuf) {   // e1.19: сцена на сетке (поле облаков в вершинах), потом обратно четыре вершины для второго прохода
+      gl.bindBuffer(gl.ARRAY_BUFFER, gridBuf); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gridIdx);
+      gl.drawElements(gl.TRIANGLES, gridN, gl.UNSIGNED_SHORT, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    } else gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     // --- проход 2: длинные тени (закат) и фонари (ночь) -> экран ---
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.useProgram(postPrg);
@@ -996,6 +1126,11 @@
         w.lvl = lvl; ch = w.ch;
         for (var k = 0; k < w.idx.length; k++) e[w.idx[k] * 4 + ch] = (w.val[k] * lvl + 0.5) | 0;
         dirty = true;
+        if (w.idx.length) {   // e1.19: рамка изменившегося куска — только он уходит в GPU
+          var bb = w.bb || (w.bb = winBox(w.idx, f.ew)), R = f.emRect;
+          if (!R) f.emRect = bb.slice();
+          else { if (bb[0] < R[0]) R[0] = bb[0]; if (bb[1] < R[1]) R[1] = bb[1]; if (bb[2] > R[2]) R[2] = bb[2]; if (bb[3] > R[3]) R[3] = bb[3]; }
+        }
       }
     }
     return dirty;
