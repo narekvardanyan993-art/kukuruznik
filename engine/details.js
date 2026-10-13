@@ -1634,7 +1634,9 @@
       nextKite = now + rnd(14000, 22000);
     }
     UNIT = unit();
-    if (key && !par && now >= nextAt && active.length < 2) { spawn(fr, key); nextAt = now + rnd(8000, 15000); }
+    // e1.21 (s17): life.nightRare [мин, макс] с — ночью не больше ОДНОГО события (огонёк самолёта) и редко; без настройки — как было
+    var nRare = key === 'night' && SC(fr).life && SC(fr).life.nightRare;
+    if (key && !par && now >= nextAt && active.length < (nRare ? 1 : 2)) { spawn(fr, key); nextAt = now + (nRare ? rnd(nRare[0], nRare[1]) * 1000 : rnd(8000, 15000)); }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H); drawn = true;
     var w = wts();

@@ -106,7 +106,8 @@
       "life": {
         "day": ["birds", "plane", "cranes", "kite"],
         "sunset": ["birds", "plane", "cranes"],
-        "night": ["plane"]
+        "night": ["plane"],
+        "nightRare": [70, 140]
       }
     },
     {
@@ -172,7 +173,8 @@
         ],
         "night": [
           "plane"
-        ]
+        ],
+        "nightRare": [70, 140]
       }
     },
     {
@@ -237,7 +239,8 @@
         ],
         "night": [
           "plane"
-        ]
+        ],
+        "nightRare": [70, 140]
       }
     },
     {
@@ -305,7 +308,8 @@
         ],
         "night": [
           "plane"
-        ]
+        ],
+        "nightRare": [70, 140]
       },
       "closeUp": {
         "glints": false,
@@ -380,7 +384,8 @@
         ],
         "night": [
           "plane"
-        ]
+        ],
+        "nightRare": [70, 140]
       }
     }
   ]

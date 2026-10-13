@@ -466,8 +466,11 @@ def validate(bdir, b, site):
             lw = fr['lawn']
             if c.numbers(lw, '%s: lawn' % w, 4, 0, 1) and not (lw[0] < lw[2] and lw[1] < lw[3]):
                 c.err('%s: lawn' % w, 'газон [u0, v0, u1, v1]: u0 < u1 и v0 < v1')
-        life = c.obj(fr['life'], '%s: life' % w, required=('day', 'sunset', 'night'))
+        life = c.obj(fr['life'], '%s: life' % w, required=('day', 'sunset', 'night'), optional=('nightRare',))
         if life:
+            if 'nightRare' in life:   # e1.21: ночью одно событие за раз, пауза [мин, макс] секунд
+                if c.numbers(life['nightRare'], '%s: life.nightRare' % w, 2, 5, 600) and not life['nightRare'][0] <= life['nightRare'][1]:
+                    c.err('%s: life.nightRare' % w, '[мин, макс] секунд: мин ≤ макс')
             for t in ('day', 'sunset', 'night'):
                 if not isinstance(life[t], list):
                     c.err('%s: life.%s' % (w, t), 'должен быть список событий')

@@ -1,0 +1,83 @@
+{
+ "lenin_1": {
+  "gemini": "g1_v2.jpg",
+  "ecc": 0.9592,
+  "objects": 36,
+  "patch_px": 23512,
+  "rejected": {
+   "small": 0,
+   "big": 6,
+   "notempty": 1,
+   "forbid": 9,
+   "blue": 0,
+   "thin": 0,
+   "nearbig": 2,
+   "bg_ref": 0.8
+  }
+ },
+ "lenin_2": {
+  "gemini": "g2_v1.jpg",
+  "ecc": 0.9724,
+  "objects": 66,
+  "patch_px": 18375,
+  "rejected": {
+   "small": 0,
+   "big": 5,
+   "notempty": 41,
+   "forbid": 17,
+   "blue": 0,
+   "thin": 0,
+   "bg": 3,
+   "nearbig": 14,
+   "bg_ref": 0.7
+  }
+ },
+ "lenin_3": {
+  "gemini": "g3_v3.jpg",
+  "ecc": 0.9674,
+  "objects": 33,
+  "patch_px": 34127,
+  "rejected": {
+   "small": 0,
+   "big": 4,
+   "notempty": 2,
+   "forbid": 1,
+   "blue": 0,
+   "thin": 0,
+   "bg_ref": 0.8
+  }
+ },
+ "lenin_4": {
+  "gemini": "g4_v2.jpg",
+  "ecc": 0.9967,
+  "objects": 20,
+  "patch_px": 9449,
+  "rejected": {
+   "small": 0,
+   "big": 0,
+   "notempty": 0,
+   "forbid": 4,
+   "blue": 0,
+   "thin": 20,
+   "nearbig": 1,
+   "bg_ref": 0.9
+  }
+ },
+ "lenin_6": {
+  "gemini": "g5_v1.jpg",
+  "ecc": 0.9284,
+  "objects": 97,
+  "patch_px": 22282,
+  "rejected": {
+   "small": 0,
+   "big": 6,
+   "notempty": 12,
+   "forbid": 0,
+   "blue": 0,
+   "thin": 0,
+   "bg": 25,
+   "nearbig": 15,
+   "bg_ref": 0.6
+  }
+ }
+}
