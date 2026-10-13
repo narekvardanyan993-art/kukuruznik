@@ -1,0 +1,340 @@
+{
+ "lenin_1": {
+  "statue_day": {
+   "before_engine": {
+    "L": 40.5,
+    "a": 4.3,
+    "b": 15.0,
+    "hue_lab": 74.2,
+    "chroma": 15.9,
+    "hsv_h": 32.0,
+    "hsv_s": 0.414
+   },
+   "after_engine": {
+    "L": 34.7,
+    "a": 0.6,
+    "b": 3.8,
+    "hue_lab": 81.1,
+    "chroma": 5.3,
+    "hsv_h": 30.0,
+    "hsv_s": 0.141
+   },
+   "after_image": {
+    "L": 34.7,
+    "a": 0.6,
+    "b": 3.8,
+    "hue_lab": 81.0,
+    "chroma": 5.3,
+    "hsv_h": 30.0,
+    "hsv_s": 0.141
+   },
+   "px": 11434
+  },
+  "statue_night": {
+   "before_engine_s17": {
+    "L": 31.5,
+    "a": 6.5,
+    "b": 18.1,
+    "hue_lab": 70.3,
+    "chroma": 19.4,
+    "hsv_h": 30.0,
+    "hsv_s": 0.558
+   },
+   "after_engine": {
+    "L": 28.6,
+    "a": 1.7,
+    "b": 7.1,
+    "hue_lab": 76.8,
+    "chroma": 8.2,
+    "hsv_h": 34.0,
+    "hsv_s": 0.256
+   },
+   "k": 1.371,
+   "ratio_to_sky": 2.2,
+   "measure": {
+    "statue": 0.2755,
+    "around": 0.125,
+    "ratio": 2.2,
+    "around_kind": "sky"
+   }
+  }
+ },
+ "lenin_2": {
+  "statue_day": {
+   "before_engine": {
+    "L": 38.4,
+    "a": -7.6,
+    "b": 26.3,
+    "hue_lab": 106.1,
+    "chroma": 29.8,
+    "hsv_h": 40.0,
+    "hsv_s": 0.666
+   },
+   "after_engine": {
+    "L": 34.5,
+    "a": 3.7,
+    "b": 9.1,
+    "hue_lab": 68.0,
+    "chroma": 10.6,
+    "hsv_h": 22.0,
+    "hsv_s": 0.244
+   },
+   "after_image": {
+    "L": 34.5,
+    "a": 4.4,
+    "b": 8.7,
+    "hue_lab": 63.2,
+    "chroma": 10.0,
+    "hsv_h": 22.0,
+    "hsv_s": 0.235
+   },
+   "px": 399
+  },
+  "statue_night": {
+   "before_engine_s17": {
+    "L": 9.5,
+    "a": -1.9,
+    "b": 3.0,
+    "hue_lab": 122.6,
+    "chroma": 4.4,
+    "hsv_h": 120.0,
+    "hsv_s": 0.364
+   },
+   "after_engine": {
+    "L": 27.5,
+    "a": 5.6,
+    "b": 11.1,
+    "hue_lab": 63.4,
+    "chroma": 12.6,
+    "hsv_h": 26.0,
+    "hsv_s": 0.384
+   },
+   "k": 1.088,
+   "ratio_to_sky": 2.31,
+   "measure": {
+    "statue": 0.2625,
+    "around": 0.1261,
+    "ratio": 2.08,
+    "around_kind": "ground",
+    "ratio_frame_sky": 2.31,
+    "statue_vs_ground": 2.08
+   }
+  },
+  "paper_edge_px": 75159
+ },
+ "lenin_3": {
+  "statue_day": {
+   "before_engine": {
+    "L": 50.5,
+    "a": -3.7,
+    "b": 7.9,
+    "hue_lab": 115.4,
+    "chroma": 8.9,
+    "hsv_h": 68.0,
+    "hsv_s": 0.147
+   },
+   "after_engine": {
+    "L": 35.5,
+    "a": 0.1,
+    "b": 3.4,
+    "hue_lab": 87.6,
+    "chroma": 5.5,
+    "hsv_h": 34.0,
+    "hsv_s": 0.14
+   },
+   "after_image": {
+    "L": 35.5,
+    "a": 0.2,
+    "b": 3.4,
+    "hue_lab": 87.3,
+    "chroma": 5.5,
+    "hsv_h": 34.0,
+    "hsv_s": 0.14
+   },
+   "px": 12181
+  },
+  "statue_night": {
+   "before_engine_s17": {
+    "L": 31.3,
+    "a": 0.7,
+    "b": 10.5,
+    "hue_lab": 86.5,
+    "chroma": 10.6,
+    "hsv_h": 40.0,
+    "hsv_s": 0.313
+   },
+   "after_engine": {
+    "L": 31.0,
+    "a": 1.6,
+    "b": 7.5,
+    "hue_lab": 78.2,
+    "chroma": 9.0,
+    "hsv_h": 36.0,
+    "hsv_s": 0.242
+   },
+   "k": 1.599,
+   "ratio_to_sky": 2.28,
+   "measure": {
+    "statue": 0.2977,
+    "around": 0.1306,
+    "ratio": 2.28,
+    "around_kind": "sky"
+   }
+  }
+ },
+ "lenin_4": {
+  "statue_day": {
+   "before_engine": {
+    "L": 52.9,
+    "a": 5.0,
+    "b": 17.9,
+    "hue_lab": 74.3,
+    "chroma": 18.7,
+    "hsv_h": 32.0,
+    "hsv_s": 0.372
+   },
+   "after_engine": {
+    "L": 35.1,
+    "a": 1.2,
+    "b": 4.5,
+    "hue_lab": 75.2,
+    "chroma": 6.2,
+    "hsv_h": 28.0,
+    "hsv_s": 0.155
+   },
+   "after_image": {
+    "L": 35.1,
+    "a": 1.2,
+    "b": 4.5,
+    "hue_lab": 75.2,
+    "chroma": 6.2,
+    "hsv_h": 28.0,
+    "hsv_s": 0.155
+   },
+   "px": 183408
+  },
+  "statue_night": {
+   "before_engine_s17": {
+    "L": 35.1,
+    "a": 6.6,
+    "b": 19.5,
+    "hue_lab": 71.2,
+    "chroma": 20.7,
+    "hsv_h": 32.0,
+    "hsv_s": 0.534
+   },
+   "after_engine": {
+    "L": 30.5,
+    "a": 2.7,
+    "b": 8.5,
+    "hue_lab": 72.3,
+    "chroma": 9.9,
+    "hsv_h": 32.0,
+    "hsv_s": 0.264
+   },
+   "k": 1.481,
+   "ratio_to_sky": 2.2,
+   "measure": {
+    "statue": 0.2922,
+    "around": 0.1328,
+    "ratio": 2.2,
+    "around_kind": "sky"
+   }
+  }
+ },
+ "lenin_6": {
+  "statue_day": {
+   "before_engine": {
+    "L": 36.8,
+    "a": 4.8,
+    "b": 16.5,
+    "hue_lab": 73.8,
+    "chroma": 17.5,
+    "hsv_h": 32.0,
+    "hsv_s": 0.486
+   },
+   "after_engine": {
+    "L": 34.5,
+    "a": 2.4,
+    "b": 6.4,
+    "hue_lab": 69.8,
+    "chroma": 7.3,
+    "hsv_h": 28.0,
+    "hsv_s": 0.218
+   },
+   "after_image": {
+    "L": 34.5,
+    "a": 2.4,
+    "b": 6.4,
+    "hue_lab": 69.6,
+    "chroma": 7.3,
+    "hsv_h": 28.0,
+    "hsv_s": 0.217
+   },
+   "px": 5495
+  },
+  "paving_before": {
+   "yellow": {
+    "px": 353804,
+    "L": 90.9,
+    "chroma": 19.23,
+    "chroma_p90": 33.06,
+    "hue": 84.9
+   },
+   "white": {
+    "px": 72787,
+    "L": 92.4,
+    "chroma": 8.78,
+    "chroma_p90": 9.22,
+    "hue": 78.2
+   }
+  },
+  "paving_after": {
+   "yellow": {
+    "px": 353804,
+    "L": 86.2,
+    "chroma": 26.59,
+    "chroma_p90": 39.62,
+    "hue": 79.5
+   },
+   "white": {
+    "px": 72787,
+    "L": 87.8,
+    "chroma": 14.25,
+    "chroma_p90": 15.13,
+    "hue": 76.9
+   },
+   "mask_px": 429179
+  },
+  "statue_night": {
+   "before_engine_s17": {
+    "L": 37.1,
+    "a": 7.5,
+    "b": 22.0,
+    "hue_lab": 71.1,
+    "chroma": 23.4,
+    "hsv_h": 32.0,
+    "hsv_s": 0.589
+   },
+   "after_engine": {
+    "L": 26.1,
+    "a": 3.0,
+    "b": 8.6,
+    "hue_lab": 71.0,
+    "chroma": 9.5,
+    "hsv_h": 30.0,
+    "hsv_s": 0.33
+   },
+   "k": 1.269,
+   "ratio_to_sky": 2.22,
+   "measure": {
+    "statue": 0.2525,
+    "around": 0.3036,
+    "ratio": 0.83,
+    "around_kind": "ground",
+    "ratio_frame_sky": 2.22,
+    "statue_vs_ground": 0.83
+   }
+  }
+ }
+}

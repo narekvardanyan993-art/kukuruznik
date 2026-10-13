@@ -15,6 +15,8 @@ import posixpath
 import re
 from pathlib import Path
 
+FIG_TYPES = ('sit', 'stand', 'chess', 'pigeon', 'balloon', 'leaf', 'grass')   # e1.22 FIGURES — тот же порядок, что в engine/viewer.js
+FIG_MAX = 25
 PARADE_KINDS = ('planes', 'drones', 'heli', 'fireworks', 'balloons', 'banner')   # виды парада (details.js): самолёты с дымом, дроны-флаг, вертолёт с флагом, салют, воздушные шары, знамя на фасаде (крупный план)
 
 LANGS = ('hy', 'ru', 'en')
@@ -280,7 +282,7 @@ def validate(bdir, b, site):
         nm = f.get('name') if isinstance(f, dict) else None
         w = 'кадр %d%s' % (i + 1, ' (%s)' % nm if isinstance(nm, str) else '')
         fr = c.obj(f, w, required=('name', 'crop', 'flag', 'cloudShadow', 'wind', 'sky', 'sun', 'life', 'hotspots', 'nightLamps', 'nightHalo', 'lamps'),
-                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins', 'motionVideo'))
+                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'figures'))
         if not fr:
             continue
         if not (isinstance(nm, str) and re.fullmatch(r'[A-Za-z0-9_\-]+', nm)):
@@ -478,6 +480,29 @@ def validate(bdir, b, site):
                 for k in life[t]:
                     if k not in kinds:
                         c.err('%s: life.%s' % (w, t), 'неизвестное событие «%s» (есть: %s)' % (k, ', '.join(sorted(kinds))))
+        if 'figures' in fr:   # e1.22: мелкие фигуры рисунка чуть движутся на месте (маска <кадр>_fig.png рядом с картинками кадра)
+            fo = c.obj(fr['figures'], '%s: figures' % w, required=('items',))
+            if fo:
+                its = fo['items']
+                if not isinstance(its, list) or not (1 <= len(its) <= FIG_MAX):
+                    c.err('%s: figures.items' % w, 'список из 1…%d фигур [u0, v0, u1, v1, тип, сторона(, 1 — на слое здания)]' % FIG_MAX)
+                else:
+                    for j, it in enumerate(its):
+                        wj = '%s: figures.items[%d]' % (w, j + 1)
+                        if not isinstance(it, list) or len(it) not in (6, 7):
+                            c.err(wj, '[u0, v0, u1, v1, тип, сторона(, 1 — на слое здания)]'); continue
+                        if c.numbers(it[:4], wj, 4, 0, 1) and not (it[0] < it[2] and it[1] < it[3] and it[2] - it[0] < 0.5 and it[3] - it[1] < 0.5):
+                            c.err(wj, 'рамка: u0 < u1, v0 < v1, не больше половины кадра')
+                        if it[4] not in FIG_TYPES:
+                            c.err(wj, 'тип «%s» неизвестен (есть: %s)' % (it[4], ', '.join(FIG_TYPES)))
+                        if it[5] not in (1, -1):
+                            c.err(wj, 'сторона: 1 (смотрит вправо) или -1 (влево)')
+                        if len(it) == 7 and it[6] not in (0, 1):
+                            c.err(wj, 'седьмое число: 1 — фигура на слое здания, 0 — на земле')
+                if not hidden and isinstance(b.get('framesDir'), str):
+                    pm = '%s/%s_fig.png' % (posixpath.normpath(posixpath.join(bdir, b['framesDir'])), nm)
+                    if not (Path(site) / pm).exists():
+                        c.err(w, 'нет маски фигур %s (tests/lenin/source/s18/build_figures.py)' % pm)
         if 'closeUp' in fr:
             cu = c.obj(fr['closeUp'], '%s: closeUp' % w, optional=('glints', 'perch', 'mast', 'banner'))
             if cu:

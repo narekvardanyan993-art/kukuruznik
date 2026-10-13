@@ -1,0 +1,14 @@
+{
+ "nardy (frame 3)": {
+  "frame": 3,
+  "max_shift_px": 2.17
+ },
+ "pigeons (frame 1)": {
+  "frame": 1,
+  "max_shift_px": 2.19
+ },
+ "balloon (frame 5)": {
+  "frame": 5,
+  "max_shift_px": 1.76
+ }
+}

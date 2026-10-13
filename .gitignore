@@ -26,3 +26,6 @@ tests/*/refs/
 tests/*/source/*/layers/
 
 STATE.md
+
+# Черновые картинки отладки кругов (s18+): на диске, в git не входят
+tests/*/source/*/figs/debug/

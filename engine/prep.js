@@ -347,9 +347,10 @@
   }
 
   // Окружение кадра для GPU: карта глубины+небо+деревья (RGBA), окна с состояниями, звёзды, лампы.
-  function prepareEnv(imgEnv, imgWin2, depth, bld, frameIdx) {
+  function prepareEnv(imgEnv, imgWin2, depth, bld, frameIdx, imgFig) {
     var w = depth.w, h = depth.h, n = w * h, i;
     var env = readChannels(imgEnv, w, h), w2px = readChannels(imgWin2, w, h);
+    var fig = imgFig ? readChannels(imgFig, w, h) : null;   // e1.22: маска фигур кадра (R)
     var ew = (w + 1) >> 1, eh = (h + 1) >> 1, en = ew * eh;
     // GPU-текстура: R глубина, G небо, B высота дерева, A фаза (вдвое мельче)
     var gd = new Uint8Array(en * 4), x, y, skyCount = 0;
@@ -359,6 +360,9 @@
       gd[o * 4 + 1] = (env[s0 * 4] + env[s1 * 4]) >> 1;
       gd[o * 4 + 2] = (env[s0 * 4 + 1] + env[s1 * 4 + 1]) >> 1;
       gd[o * 4 + 3] = env[s0 * 4 + 2];
+      // e1.22 FIGURES: где нет дерева (высота дерева ≤ 2), фаза ветра не нужна — там в альфе маска фигур (или 0, если у кадра фигур нет);
+      // шейдер сдвигает выборку только при env.b < 0,008 и env.a > 0. Без фигур у здания (FIG_ON false) — как было.
+      if (CONFIG.FIG_ON && gd[o * 4 + 2] <= 2) gd[o * 4 + 3] = fig ? (fig[s0 * 4] + fig[s1 * 4]) >> 1 : 0;
       if (gd[o * 4 + 1] > 127) skyCount++;
     }
     var skyFrac = skyCount / en;
@@ -399,10 +403,10 @@
 
   // ---------- один кадр: день ----------
   function prepDay(f, i) {
-    return Promise.all([load(f.color), load(f.depth), load(f.bg.color), load(f.building.color), load(f.env), load(f.win2)]).then(function (imgs) {
+    return Promise.all([load(f.color), load(f.depth), load(f.bg.color), load(f.building.color), load(f.env), load(f.win2), f.fig ? load(f.fig) : null]).then(function (imgs) {
       var depth = prepareDepth(imgs[1], !!f.depthRaw);
       var bld = analyzeBuilding(imgs[3], depth, imgs[0], imgs[2]);
-      var env = prepareEnv(imgs[4], imgs[5], depth, bld, i);
+      var env = prepareEnv(imgs[4], imgs[5], depth, bld, i, imgs[6]);
       // список окон главного здания (центр и размер, доли кадра) — для «живых» деталей ночью
       var winList = (env.winsT || []).map(function (q) { return { u: q.cx / env.ew, v: q.cy / env.eh, w: q.bw / env.ew, h: q.bh / env.eh }; });
       STATE[i] = { w: bld.w, h: bld.h, alpha: bld.alpha, dayPx: bld.dayPx, plate: bld.plate, ew: env.ew, eh: env.eh, winList: winList };
