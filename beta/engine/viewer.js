@@ -221,6 +221,15 @@
   var SPILL = +CONFIG.WIN_SPILL || 0, SPILL_PX = +CONFIG.WIN_SPILL_PX || 7;
   var CF = +CONFIG.CLOUD_FIELD || 0, CFN = +CONFIG.CLOUD_FIELD_NIGHT || 0;
   var MVD = !!CONFIG.MV_DELTA;
+  // e1.22 FIGURES (s18): мелкие фигуры рисунка (люди, игроки в нарды, голуби, шарик, листья, трава) чуть движутся на месте — не спрайты,
+  // а сдвиг выборки самой картинки внутри мягкой маски фигуры (prep.js кладёт маску в альфу карты окружения там, где нет дерева).
+  // Фигура = рамка (доли кадра) + тип + сторона; движение считает CPU (figMotion: по времени, кривые --ios/--out/--in из page.html,
+  // своя фаза у каждой), шейдер деформирует: ноги/сиденье на месте, верх качается; голова/рука/клюв — своей зоной. Ночь — та же маска,
+  // фигуры в ночной картинке двигаются так же; голуби ночью спят. У зданий без figures (Кукурузник) кода в шейдере нет.
+  var FIG_TYPES = ['sit', 'stand', 'chess', 'pigeon', 'balloon', 'leaf', 'grass'];
+  var FIGS = (CONFIG.FIGURES || []).map(function (q) { return q && q.items ? q.items : []; });
+  var FN = FIGS.reduce(function (m, a) { return Math.max(m, a.length); }, 0);
+  var FIGB = FN > 0 && FIGS.some(function (a) { return a.some(function (it) { return it[6] === 1; }); });   // есть фигуры на слое здания
   // e1.19 (s15): тени облаков полем (CLOUD_FIELD) — в вершинном шейдере сцены на сетке CF_GRID, а не на каждый пиксель
   var CF_GRID = [64, 128];   // ячеек сетки по ширине и высоте экрана
   var CF_SRC = CF > 0 ? [
@@ -297,7 +306,9 @@
     'uniform float uFlash;',      // молния: 0..1 — небо и облака вспыхивают (ночью заметнее)     // погода: x пасмурно, y туман, z мокрая земля (дождь), w снег; 0 — как без погоды
     'uniform vec2  uCellPx;',     // размер ячейки звёздной сетки в пикселях экрана
     'uniform vec4  uShoot;',      // падающая звезда: старт xy (экран 0..1), направление xy
-    'uniform vec2  uShootP;',     // x = прогресс 0..1 (<0 — нет), y = длина пролёта
+    'uniform vec2  uShootP;' +    // x = прогресс 0..1 (<0 — нет), y = длина пролёта
+      (FN > 0 ? '\nuniform vec4 uFigA[' + (2 * FN) + ']; uniform vec4 uFigB[' + (2 * FN) + ']; uniform vec2 uFigN;' : '') +   // e1.22: на фигуру — рамка (x0, y0, тип·2+сторона + ширина, высота) и движение (px)
+      (FIGB ? '\nuniform vec4 uFigBoxA; uniform vec4 uFigBoxB;' : ''),   // рамка всех фигур слоя здания кадра A/B (x0, y0, x1, y1); без фигур строк нет — шейдер Кукурузника побайтно прежний
     '',
     'float h21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }',
     'vec3 rgb2hsv(vec3 c) {',
@@ -341,8 +352,46 @@
     // e1.19 (s15): поле считается в ВЕРШИННОМ шейдере на сетке ~12×13 px экрана (CF_GRID) и приходит во фрагмент готовым (vCloud):
     // поле плавное (самая мелкая ячейка шума ~170 px), линейная интерполяция между узлами отличается < 0,5 уровня, а на пиксель
     // больше не считается 12 хешей с sin. Тот же код функции — CF_SRC (см. VERT_SCENE).
+    // e1.22 FIGURES: сдвиг выборки (доли кадра) в точке q кадра slot (0 — A, 1 — B) при маске фигур m. Точка относится к ближайшей
+    // по центру рамке из тех, что её содержат (стаи: у каждой птицы своё движение). Край рамки — плавно в 0 за 2 px.
+    (FN > 0 ? [
+      'vec2 figWarp(float slot, vec2 q, float m) {',
+      '  float nf = slot < 0.5 ? uFigN.x : uFigN.y;',
+      '  float bd = 1e3; vec4 R = vec4(0.0); vec4 M = vec4(0.0); vec2 S = vec2(0.0);',
+      '  for (int i = 0; i < ' + FN + '; i++) {',
+      '    if (float(i) >= nf) break;',
+      '    vec4 r = slot < 0.5 ? uFigA[2 * i] : uFigB[2 * i];',
+      '    vec2 st = (q - r.xy) / vec2(fract(r.z), r.w);',
+      '    if (st.x < 0.0 || st.x > 1.0 || st.y < 0.0 || st.y > 1.0) continue;',
+      '    float dd = dot(st - 0.5, st - 0.5);',
+      '    if (dd < bd) { bd = dd; R = r; S = st; M = slot < 0.5 ? uFigA[2 * i + 1] : uFigB[2 * i + 1]; }',
+      '  }',
+      '  if (bd > 100.0) return vec2(0.0);',
+      '  float code = floor(R.z), ty = floor(code * 0.5 + 0.01), side = code - 2.0 * ty > 0.5 ? 1.0 : -1.0;',
+      '  float s = S.x, t = S.y, fs = side > 0.0 ? s : 1.0 - s;',   // fs: 0 — спина/хвост, 1 — перед (куда смотрит)
+      '  vec2 v = vec2(0.0);',
+      '  if (ty < 2.5) {',   // люди: sit 0, stand 1, chess 2 — верх качается (ноги/сиденье на месте), голова кивает
+      '    float body = ty < 0.5 ? clamp((0.62 - t) / 0.62, 0.0, 1.0) : 1.0 - t;',
+      '    float head = 1.0 - smoothstep(0.16, 0.32, t);',
+      '    v = M.xy * body; v.y += M.w * head;',
+      '    if (ty > 1.5) v += vec2(side, 0.35) * M.z * smoothstep(0.42, 0.8, fs) * smoothstep(0.22, 0.4, t) * (1.0 - smoothstep(0.6, 0.8, t));',   // рука к доске
+      '    else v.x += M.z * (s - 0.5) * 2.0 * head;',   // поворот головы: лёгкое сжатие по горизонтали
+      '  } else if (ty < 3.5) {',   // голубь: подскок целиком, клюв — голова вперёд-вниз
+      '    v = M.xy + vec2(side * M.z, M.w) * smoothstep(0.42, 0.72, fs) * (1.0 - smoothstep(0.42, 0.7, t));',
+      '  } else if (ty < 4.5) {',   // шарик: верх качается, нитка и ребёнок почти на месте
+      '    v = M.xy * (1.0 - smoothstep(0.38, 0.75, t));',
+      '  } else if (ty < 5.5) {',   // лист: приподнимает ветром
+      '    v = M.xy * (0.6 + 0.4 * (1.0 - t));',
+      '  } else {',   // трава: корень на месте
+      '    v = M.xy * (1.0 - t) * (1.0 - t);',
+      '  }',
+      '  vec2 rp = vec2(fract(R.z) * ' + glf(FW) + ', R.w * ' + glf(FH) + ');',
+      '  float edge = min(min(s, 1.0 - s) * rp.x, min(t, 1.0 - t) * rp.y);',
+      '  return v * (m * smoothstep(0.0, 2.0, edge)) * vec2(' + glf(1 / FW) + ', ' + glf(1 / FH) + ');',
+      '}'
+    ].join('\n') + '\n' : '') +
     // Готовый цвет пикселя одного кадра: параллакс, ветер, закат, ночь.
-    'vec4 shadeFrame(sampler2D bg, sampler2D depth, sampler2D bld, sampler2D em, vec3 kd, float starQ, vec2 skyRef, vec4 crop, vec4 flag,' + (SPILL > 0 ? ' vec2 ek,' : '') + (NI ? ' sampler2D sg, sampler2D sb, sampler2D ng, sampler2D nb, vec3 has,' : '') + (NI && MVD ? ' mat4 cal,' : '') + ' vec2 uv, vec2 sc) {',
+    'vec4 shadeFrame(sampler2D bg, sampler2D depth, sampler2D bld, sampler2D em, vec3 kd, float starQ, vec2 skyRef, vec4 crop, vec4 flag,' + (SPILL > 0 ? ' vec2 ek,' : '') + (NI ? ' sampler2D sg, sampler2D sb, sampler2D ng, sampler2D nb, vec3 has,' : '') + (NI && MVD ? ' mat4 cal,' : '') + (FN > 0 ? ' float slot,' : '') + ' vec2 uv, vec2 sc) {',
     '  uv = crop.xy + uv * crop.zw;',   // обрезка белого края бумаги: показываем только внутренний прямоугольник кадра
     // фон и земля: у каждого пикселя свой сдвиг (3 итерации против «резины» на краях)
     '  vec2 p = uv;',
@@ -351,7 +400,8 @@
     '    float k = d * 2.0 - 1.0;',                           // -1..1, 0 — плоскость фокуса
     '    p = 0.5 + (uv - 0.5) / (1.0 + uZoom * d) - k * uShift;',
     '  }',
-    '  vec4 env = texture2D(depth, p);',                      // r глубина, g небо, b высота дерева, a фаза дерева
+    '  vec4 env = texture2D(depth, p);' +                     // r глубина, g небо, b высота дерева, a фаза дерева
+      (FN > 0 ? '\n  if (env.b < 0.008 && env.a > 0.004) p -= figWarp(slot, p, env.a);' : ''),   // e1.22: фигура рисунка (маска в альфе, где нет дерева)
     // ветер: чем выше точка дерева, тем сильнее сдвиг; корень неподвижен; у каждого дерева своя фаза и период 5–7 с
     '  if (uWindOn > 0.5 && env.b > 0.004) {',
     '    float per = 5.0 + 2.0 * fract(env.a * 7.13);',
@@ -388,6 +438,7 @@
     '      pb = 0.5 + (uv - 0.5) / (1.0 + uZoom * bdL) - (bdL * 2.0 - 1.0) * uShift;',
     '    }',
     '  }',
+    (FIGB ? '  { vec4 fbx = slot < 0.5 ? uFigBoxA : uFigBoxB; if (pb.x > fbx.x && pb.x < fbx.z && pb.y > fbx.y && pb.y < fbx.w) { vec4 ef = texture2D(depth, pb); if (ef.b < 0.008 && ef.a > 0.004) pb -= figWarp(slot, pb, ef.a); } }\n' : '') +   // e1.22: фигуры на слое здания (листья на постаменте)
     '  vec4 b = texture2D(bld, pb);',                         // цвет уже умножен на альфу
     SPILL > 0 ? '  vec4 eb = texture2D(em, vec2(pb.x, clamp(pb.y, 0.0, 1.0) * ek.x));' : '  vec4 eb = texture2D(em, pb);',                         // окна главного здания: r = свет ночью, b = сама маска
     '  c = b.rgb + c * (1.0 - b.a);',
@@ -519,10 +570,10 @@
     '  vec2 uv = vUv * uCoverScale + uCoverOffset;',
     '  uv = 0.5 + (uv - 0.5) / uScale;',
     '  vec2 uvA = 0.5 + (uv - 0.5) / uFadeZoom.x;',
-    '  vec4 sa = shadeFrame(uBgA, uDepthA, uBldA, uEmA, uKdA, uStarQ.x, uSkyRef.xy, uCropA, uFlagA, ' + (SPILL > 0 ? 'uEmKA, ' : '') + (NI ? 'uSGA, uSBA, uNGA, uNBA, uHasA, ' : '') + (NI && MVD ? 'uMvCalA, ' : '') + 'uvA, vUv);',
+    '  vec4 sa = shadeFrame(uBgA, uDepthA, uBldA, uEmA, uKdA, uStarQ.x, uSkyRef.xy, uCropA, uFlagA, ' + (SPILL > 0 ? 'uEmKA, ' : '') + (NI ? 'uSGA, uSBA, uNGA, uNBA, uHasA, ' : '') + (NI && MVD ? 'uMvCalA, ' : '') + (FN > 0 ? '0.0, ' : '') + 'uvA, vUv);',
     '  if (uMix > 0.0) {',
     '    vec2 uvB = 0.5 + (uv - 0.5) / uFadeZoom.y;',
-    '    sa = mix(sa, shadeFrame(uBgB, uDepthB, uBldB, uEmB, uKdB, uStarQ.y, uSkyRef.zw, uCropB, uFlagB, ' + (SPILL > 0 ? 'uEmKB, ' : '') + (NI ? 'uSGB, uSBB, uNGB, uNBB, uHasB, ' : '') + (NI && MVD ? 'uMvCalB, ' : '') + 'uvB, vUv), uMix);',
+    '    sa = mix(sa, shadeFrame(uBgB, uDepthB, uBldB, uEmB, uKdB, uStarQ.y, uSkyRef.zw, uCropB, uFlagB, ' + (SPILL > 0 ? 'uEmKB, ' : '') + (NI ? 'uSGB, uSBB, uNGB, uNBB, uHasB, ' : '') + (NI && MVD ? 'uMvCalB, ' : '') + (FN > 0 ? '1.0, ' : '') + 'uvB, vUv), uMix);',
     '  }',
     '  vec3 c = sa.rgb;',
     CF > 0 ? '  float shadow = vCloud;' : '  float shadow = cloudShadow(uv, uCloudT);',
@@ -635,7 +686,9 @@
     'uSunset', 'uNightSky', 'uNightGnd', 'uStars', 'uFadeZoom', 'uAspect', 'uWindAmp', 'uWindOn', 'uWeather', 'uFlash', 'uCellPx', 'uShoot', 'uShootP']
     .concat(NI ? ['uSGA', 'uSBA', 'uNGA', 'uNBA', 'uSGB', 'uSBB', 'uNGB', 'uNBB', 'uHasA', 'uHasB', 'uSunMix', 'uNightMix'] : [])
     .concat(NI && MVD ? ['uMvCalA', 'uMvCalB'] : [])
-    .concat(SPILL > 0 ? ['uEmKA', 'uEmKB'] : []);
+    .concat(SPILL > 0 ? ['uEmKA', 'uEmKB'] : [])
+    .concat(FN > 0 ? ['uFigA', 'uFigB', 'uFigN'] : [])
+    .concat(FIGB ? ['uFigBoxA', 'uFigBoxB'] : []);
 
   var quadBuf = null, gridBuf = null, gridIdx = null, gridN = 0;   // e1.19: четыре вершины (второй проход) и сетка сцены (CLOUD_FIELD)
   function initGLProgram() {   // возвращает Promise: шейдеры компилируются в фоне, приветствие и анимации не замирают
@@ -1021,6 +1074,101 @@
     fboW = w; fboH = h;
   }
 
+  // ---------- e1.22 FIGURES: движение фигур (CPU, px кадра) ----------
+  // Кривые — те же, что у интерфейса (engine/page.html): --ios cubic-bezier(.32,.72,0,1), --out (.16,1,.3,1), --in (.4,0,.9,.3).
+  function bez(x1, y1, x2, y2) {
+    function cx(t) { return 3 * x1 * t * (1 - t) * (1 - t) + 3 * x2 * t * t * (1 - t) + t * t * t; }
+    function cy(t) { return 3 * y1 * t * (1 - t) * (1 - t) + 3 * y2 * t * t * (1 - t) + t * t * t; }
+    return function (x) {
+      if (x <= 0) return 0; if (x >= 1) return 1;
+      var lo = 0, hi = 1, t = x;
+      for (var k = 0; k < 18; k++) { t = (lo + hi) / 2; if (cx(t) < x) lo = t; else hi = t; }
+      return cy(t);
+    };
+  }
+  var C_IOS = bez(0.32, 0.72, 0, 1), C_OUT = bez(0.16, 1, 0.3, 1), C_IN = bez(0.4, 0, 0.9, 0.3);
+  var TAU = Math.PI * 2;
+  // импульс: подъём за a с (кривая ci), держим h с, спад за b с (кривая co); 0..1
+  function pulse(dt, a, h, b, ci, co) {
+    if (dt <= 0 || dt >= a + h + b) return 0;
+    if (dt < a) return ci(dt / a);
+    if (dt < a + h) return 1;
+    return 1 - co((dt - a - h) / b);
+  }
+  function figInit(it, idx, j) {
+    var R = rng(7919 * (idx + 1) + 104729 * (j + 1) + 17), ty = it[4];
+    var r = function (a, b) { return a + (b - a) * R(); };
+    var S = { R: R, r: r, p1: r(0, TAU), p2: r(0, TAU), p3: r(0, TAU), P1: r(5, 8.5), P2: r(2.9, 4.4), Pb: r(3.4, 4.9), next: r(1, 6), ev: -1e9, ev2: -1e9, evA: 1, hold: 0.5,
+      wsFrom: 0, wsTo: 0, wsT0: -1e9, wsNext: r(0.5, 5), hop: -1e9, hopNext: r(6, 20), hopH: 2, sgn: R() < 0.5 ? -1 : 1 };
+    S.amp = ty === 'sit' ? r(0.55, 0.85) : ty === 'chess' ? r(0.3, 0.5) : r(0.35, 0.55);
+    if (ty === 'grass') { S.P1 = r(2.2, 3.4); S.amp = r(0.7, 1.1); }
+    if (ty === 'balloon') { S.P1 = r(2.8, 3.6); S.P2 = r(1.5, 2.0); }
+    return S;
+  }
+  // движение одной фигуры в момент t: [x, y] верха/целиком, z — рука/поворот головы/клюв вперёд, w — кивок/клюв вниз (px кадра)
+  function figMotion(it, S, t, night) {
+    var ty = it[4], r = S.r, x = 0, y = 0, z = 0, w = 0;
+    if (ty === 'sit' || ty === 'stand' || ty === 'chess') {
+      x = S.amp * (0.65 * Math.sin(TAU * t / S.P1 + S.p1) + 0.35 * Math.sin(TAU * t / S.P2 + S.p2));
+      y = -(ty === 'sit' ? 0.5 : 0.35) * (0.5 - 0.5 * Math.cos(TAU * t / S.Pb + S.p3));   // дыхание
+      if (ty === 'stand') {   // перенос веса: ±1 px, переход 1,3–1,8 с по --ios
+        if (t > S.wsNext) { S.wsFrom = S.wsFrom + (S.wsTo - S.wsFrom) * C_IOS(Math.min(1, (t - S.wsT0) / S.wsDur || 1)); S.wsTo = (S.wsTo > 0 ? -1 : 1) * r(0.6, 1.1); S.wsT0 = t; S.wsDur = r(1.3, 1.8); S.wsNext = t + r(4, 10); }
+        x += S.wsFrom + (S.wsTo - S.wsFrom) * C_IOS(Math.min(1, (t - S.wsT0) / (S.wsDur || 1)));
+      }
+      if (t > S.next) {   // событие: кивок (сидит), рука к доске (нарды), поворот головы (стоит)
+        S.ev = evAt(S.next, t); S.evA = ty === 'chess' ? r(1.6, 2.2) : ty === 'sit' ? r(0.8, 1.2) : (R2s(S) * r(0.45, 0.7));
+        S.hold = ty === 'stand' ? r(1, 2.5) : ty === 'chess' ? r(0.35, 0.8) : r(0.3, 0.8);
+        S.ev2 = ty === 'chess' && S.R() < 0.3 ? S.ev + 1.2 + S.hold + 1.25 : -1e9;
+        S.next = S.ev + (ty === 'chess' ? r(6, 14) : ty === 'sit' ? r(8, 20) : r(10, 25));
+      }
+      var e = pulse(t - S.ev, ty === 'chess' ? 0.55 : 0.5, S.hold, ty === 'chess' ? 0.7 : 0.6, C_OUT, C_IOS) * S.evA;
+      if (ty === 'chess') { z = e + pulse(t - S.ev2, 0.5, 0.3, 0.6, C_OUT, C_IOS) * S.evA * 0.7; w = 0.35 * e; }
+      else if (ty === 'stand') z = e;
+      else w = e;
+    } else if (ty === 'pigeon') {
+      if (t > S.next) { S.ev = evAt(S.next, t); S.evA = r(1.0, 1.5); S.ev2 = S.R() < 0.35 ? S.ev + r(0.4, 0.55) : -1e9; S.next = S.ev + r(1.6, 4.5); }
+      var pk = pulse(t - S.ev, 0.12, 0.05, 0.22, C_IN, C_OUT) + pulse(t - S.ev2, 0.12, 0.04, 0.22, C_IN, C_OUT);
+      w = pk * S.evA; z = pk * 0.4;
+      if (t > S.hopNext) { S.hop = evAt(S.hopNext, t); S.hopH = r(1.6, 2.6); S.hopNext = S.hop + r(10, 25); }
+      var hp = (t - S.hop) / 0.32;
+      if (hp > 0 && hp < 1) { y = -S.hopH * 4 * hp * (1 - hp); x = it[5] * 0.9 * Math.sin(Math.PI * hp); }
+      var k = 1 - night; x *= k; y *= k; z *= k; w *= k;   // ночью спят
+    } else if (ty === 'balloon') {
+      x = 1.3 * Math.sin(TAU * t / S.P1 + S.p1) + 0.5 * Math.sin(TAU * t / S.P2 + S.p2);
+      y = 0.5 * Math.sin(TAU * t / 2.5 + S.p3);
+    } else if (ty === 'leaf') {
+      if (t > S.next) { S.ev = evAt(S.next, t); S.next = S.ev + r(5, 14); S.evA = r(0.7, 1.1); }
+      var lp = (t - S.ev) / 1.0;
+      if (lp > 0 && lp < 1) { var en = Math.sin(Math.PI * lp); x = it[5] * 0.9 * S.evA * en * (1 + 0.3 * Math.sin(6 * Math.PI * lp)); y = -0.7 * S.evA * en * (0.6 + 0.4 * Math.sin(4 * Math.PI * lp)); }
+      x *= wx.wind; y *= wx.wind;
+    } else {   // grass
+      x = S.amp * (0.6 * Math.sin(TAU * t / S.P1 + S.p1) + 0.4 * Math.sin(TAU * t / (S.P1 * 0.53) + S.p2)) * (0.7 + 0.3 * Math.sin(TAU * t / 11 + S.p3)) * wx.wind;
+    }
+    return [x, y, z, w];
+  }
+  function R2s(S) { return S.R() < 0.5 ? -1 : 1; }
+  function evAt(due, t) { return t - due < 0.5 ? due : t; }   // событие — в назначенный момент (не «в кадр, когда заметили»); после паузы вкладки — сейчас
+  var FIG_BUF = FN > 0 ? [new Float32Array(8 * FN), new Float32Array(8 * FN)] : null, FIG_ST = [], FIG_BOX = [new Float32Array(4), new Float32Array(4)];
+  function figFill(f, slot, t) {
+    var buf = FIG_BUF[slot], items = f ? (FIGS[f.idx] || []) : [], n = items.length, on = fx.figOn ? 1 : 0;
+    if (!n) { if (FIGB) FIG_BOX[slot].set([0, 0, 0, 0]); return 0; }
+    var st = FIG_ST[f.idx] || (FIG_ST[f.idx] = items.map(function (it, j) { return figInit(it, f.idx, j); }));
+    var bx0 = 2, by0 = 2, bx1 = -1, by1 = -1;
+    for (var j = 0; j < n; j++) {
+      var it = items[j], m = on ? figMotion(it, st[j], t, tod.night) : [0, 0, 0, 0], o = j * 8;
+      buf[o] = it[0]; buf[o + 1] = it[1]; buf[o + 2] = (FIG_TYPES.indexOf(it[4]) * 2 + (it[5] > 0 ? 1 : 0)) + Math.min(0.999, it[2] - it[0]); buf[o + 3] = it[3] - it[1];
+      buf[o + 4] = m[0]; buf[o + 5] = m[1]; buf[o + 6] = m[2]; buf[o + 7] = m[3];
+      if (it[6] === 1) { bx0 = Math.min(bx0, it[0]); by0 = Math.min(by0, it[1]); bx1 = Math.max(bx1, it[2]); by1 = Math.max(by1, it[3]); }
+    }
+    if (FIGB) FIG_BOX[slot].set(bx1 > bx0 ? [bx0, by0, bx1, by1] : [0, 0, 0, 0]);
+    return n;
+  }
+  function figUpload(fa, fb, t) {
+    var na = figFill(fa, 0, t), nb = fb ? figFill(fb, 1, t) : 0;
+    gl.uniform4fv(US.uFigA, FIG_BUF[0]); gl.uniform4fv(US.uFigB, FIG_BUF[1]); gl.uniform2f(US.uFigN, na, nb);
+    if (FIGB) { gl.uniform4fv(US.uFigBoxA, FIG_BOX[0]); gl.uniform4fv(US.uFigBoxB, FIG_BOX[1]); }
+  }
+
   // s = состояние кадра: fa/fb (готовые кадры), mix, shiftX/Y, zoom, t
   function drawGL(fa, fb, mix, shiftX, shiftY, zoom, t, tAmb) {
     ensureFbo(canvas.width, canvas.height);
@@ -1067,6 +1215,7 @@
     gl.uniform2f(US.uShootP, fx.shootP, fx.shootLen);
     gl.uniform2f(US.uCoverScale, coverUvW, coverUvH);
     gl.uniform2f(US.uCoverOffset, coverOffX, coverOffY);
+    if (FN > 0) figUpload(fa, fb, tAmb);   // e1.22
     if (gridBuf) {   // e1.19: сцена на сетке (поле облаков в вершинах), потом обратно четыре вершины для второго прохода
       gl.bindBuffer(gl.ARRAY_BUFFER, gridBuf); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gridIdx);
@@ -1169,7 +1318,7 @@
       MAX_TEX_SIZE: CONFIG.MAX_TEX_SIZE, DEPTH_BLUR_PX: CONFIG.DEPTH_BLUR_PX, STARS: CONFIG.STARS, BUILDING_DEPTH_PIXEL: !!CONFIG.BUILDING_DEPTH_PIXEL,
       NIGHT_MAIN_LIT: CONFIG.NIGHT_MAIN_LIT, FRAME_SIZE: CONFIG.FRAME_SIZE, STAR_CELLS: STAR_CELLS, NIGHT_OTHER_LIT: CONFIG.NIGHT_OTHER_LIT, WINDOW_BRIGHT: CONFIG.WINDOW_BRIGHT, DAY: CONFIG.DAY,
       NIGHT_WINS: (CONFIG.SCENE || []).map(function (q) { return !!(q && q.nightWins); }),
-      NIGHT_MAIN_WINS: CONFIG.NIGHT_MAIN_WINS, NIGHT_EDGE: CONFIG.NIGHT_EDGE
+      NIGHT_MAIN_WINS: CONFIG.NIGHT_MAIN_WINS, NIGHT_EDGE: CONFIG.NIGHT_EDGE, FIG_ON: !!CONFIG.FIGURES
     };
     function viaMain(method, args) {
       if (!mainReadyP) {
@@ -1980,6 +2129,7 @@
     if (useGL) {
       var tAmb = (now - t0) / 1000; // настоящее время: ветер, мерцание звёзд, «дыхание» фонарей
       fx.windOn = CONFIG.WIND && perfLevel < 2;
+      fx.figOn = FN > 0 && !rm && perfLevel < 2;   // e1.22: фигуры стоят при «Уменьшить движение» и на слабом устройстве
       fx.windAmp = CONFIG.WIND_AMP_PX * wx.wind * (fb ? CONFIG.WIND_K[fa.idx] + (CONFIG.WIND_K[fb.idx] - CONFIG.WIND_K[fa.idx]) * mixState : CONFIG.WIND_K[fa.idx]) * (coverUvW / CONFIG.BASE_SCALE) / Math.max(1, stage.clientWidth);
       safe('nightfx', function () { stepNightFx(fa, fb, now); fillLamps(fa, fb, mixState, shiftX, shiftY, zoom, tAmb); });
       stage.classList.toggle('is-night', tod.sky > 0.5);

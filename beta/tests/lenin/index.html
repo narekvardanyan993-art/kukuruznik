@@ -13,7 +13,7 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#f5ecda">
 <meta name="viewer-version" content="test">
-<meta name="engine-version" content="e1.21">
+<meta name="engine-version" content="e1.22">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Չկա">
 <meta property="og:url" content="https://chka.am/beta/tests/lenin/">
@@ -29,20 +29,20 @@
 <title>Լենինի արձանը, Երևան | Չկա</title>
 <script>/* ?motion=1 — показать всё движение, даже если в системе включено «Уменьшить движение» (для проверки) */
 (function () { if (/[?&]motion=1/.test(location.search)) document.documentElement.setAttribute('data-motion', 'on'); })();</script>
-<link rel="preload" href="../../engine/welcome-loader.js?v=e1.21" as="script">
-<link rel="preload" href="../../engine/welcome-letters.js?v=e1.21" as="script">
-<link rel="preload" href="../../engine/fonts/NotoSerif-latin.woff2?v=e1.21" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.21" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.21" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../../engine/welcome-loader.js?v=e1.22" as="script">
+<link rel="preload" href="../../engine/welcome-letters.js?v=e1.22" as="script">
+<link rel="preload" href="../../engine/fonts/NotoSerif-latin.woff2?v=e1.22" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.22" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.22" as="font" type="font/woff2" crossorigin>
 <style>
   /* Один шрифт для hy/ru/en — Noto Serif: латиница и кириллица (Noto Serif) и армянский (Noto Serif Armenian)
      из одной системы дизайна, лицензия OFL (fonts/LICENSE.txt). Подключён локально, один вес 400–700. */
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../../engine/fonts/NotoSerif-latin.woff2?v=e1.21) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    src: url(../../engine/fonts/NotoSerif-latin.woff2?v=e1.22) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.21) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+    src: url(../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.22) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.21) format("woff2"); unicode-range: U+0308, U+0530-058F, U+2010, U+2024, U+25CC, U+FB13-FB17; }
+    src: url(../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.22) format("woff2"); unicode-range: U+0308, U+0530-058F, U+2010, U+2024, U+25CC, U+FB13-FB17; }
   :root {
     --font: "Chka Serif", "Noto Serif", serif;
     --paper: #f5ecda; --paper-2: #ede0c2; --ink: #2f2a25;
@@ -835,8 +835,8 @@
 <body>
 <script>try { if (localStorage.getItem('chka-panel') === 'collapsed') document.body.classList.add('panel-collapsed'); } catch (e) {}   /* панель, свёрнутая в прошлый раз, — сразу свёрнутой, без анимации закрытия */</script>
 
-<script src="../../engine/welcome-letters.js?v=e1.21"></script>
-<script src="../../engine/welcome-loader.js?v=e1.21"></script>
+<script src="../../engine/welcome-letters.js?v=e1.22"></script>
+<script src="../../engine/welcome-loader.js?v=e1.22"></script>
 <script>
 /* ===================== CONFIG =====================
    Все параметры эффекта «3D-фото» собраны здесь, ничего похожего
@@ -1484,6 +1484,760 @@ var CONFIG = {
  },
  "SHOW_NIGHT": "toned",
  "NIGHT_EDGE": "solid",
+ "FIGURES": [
+  {
+   "items": [
+    [
+     0.0651,
+     0.62491,
+     0.10156,
+     0.65788,
+     "stand",
+     -1
+    ],
+    [
+     0.33333,
+     0.81319,
+     0.37109,
+     0.83516,
+     "pigeon",
+     -1
+    ],
+    [
+     0.23047,
+     0.85055,
+     0.29036,
+     0.87912,
+     "pigeon",
+     1
+    ],
+    [
+     0.17578,
+     0.84176,
+     0.22656,
+     0.8674,
+     "pigeon",
+     1
+    ],
+    [
+     0.22396,
+     0.83077,
+     0.28125,
+     0.85275,
+     "pigeon",
+     1
+    ],
+    [
+     0.29948,
+     0.8337,
+     0.33333,
+     0.85934,
+     "pigeon",
+     -1
+    ],
+    [
+     0.35807,
+     0.84689,
+     0.41406,
+     0.87106,
+     "pigeon",
+     -1
+    ],
+    [
+     0.31771,
+     0.85861,
+     0.39193,
+     0.88938,
+     "pigeon",
+     -1
+    ],
+    [
+     0.11979,
+     0.8674,
+     0.17188,
+     0.8989,
+     "pigeon",
+     1
+    ],
+    [
+     0.27734,
+     0.88645,
+     0.33333,
+     0.91868,
+     "pigeon",
+     -1
+    ],
+    [
+     0.02214,
+     0.78755,
+     0.07031,
+     0.80733,
+     "grass",
+     -1
+    ],
+    [
+     0.04036,
+     0.8293,
+     0.09896,
+     0.85934,
+     "grass",
+     1
+    ],
+    [
+     0.80859,
+     0.88864,
+     0.83594,
+     0.90623,
+     "grass",
+     -1
+    ],
+    [
+     0.46745,
+     0.89524,
+     0.52734,
+     0.92894,
+     "grass",
+     -1
+    ],
+    [
+     0.67448,
+     0.89597,
+     0.70182,
+     0.91795,
+     "grass",
+     -1
+    ],
+    [
+     0.02865,
+     0.87546,
+     0.07943,
+     0.89451,
+     "leaf",
+     -1
+    ],
+    [
+     0.00781,
+     0.89963,
+     0.05469,
+     0.91868,
+     "leaf",
+     -1
+    ],
+    [
+     0.15495,
+     0.93114,
+     0.20833,
+     0.95165,
+     "leaf",
+     1
+    ],
+    [
+     0.67708,
+     0.94359,
+     0.72526,
+     0.96117,
+     "leaf",
+     1
+    ],
+    [
+     0.36328,
+     0.96264,
+     0.41276,
+     0.98608,
+     "leaf",
+     1
+    ]
+   ]
+  },
+  {
+   "items": [
+    [
+     0.51562,
+     0.38168,
+     0.54036,
+     0.40586,
+     "stand",
+     1
+    ],
+    [
+     0.46745,
+     0.38462,
+     0.49349,
+     0.40147,
+     "stand",
+     1
+    ],
+    [
+     0.23047,
+     0.40879,
+     0.25391,
+     0.43077,
+     "stand",
+     1
+    ],
+    [
+     0.68359,
+     0.4381,
+     0.70833,
+     0.45714,
+     "stand",
+     -1
+    ],
+    [
+     0.34635,
+     0.51282,
+     0.39453,
+     0.54872,
+     "stand",
+     1
+    ],
+    [
+     0.54688,
+     0.38974,
+     0.57812,
+     0.41832,
+     "balloon",
+     -1
+    ],
+    [
+     0.48568,
+     0.41905,
+     0.53385,
+     0.44982,
+     "stand",
+     1
+    ],
+    [
+     0.47656,
+     0.55678,
+     0.52604,
+     0.59048,
+     "sit",
+     -1
+    ],
+    [
+     0.67839,
+     0.58462,
+     0.73958,
+     0.61465,
+     "sit",
+     1
+    ],
+    [
+     0.26042,
+     0.4381,
+     0.27865,
+     0.44835,
+     "pigeon",
+     1
+    ],
+    [
+     0.27214,
+     0.44249,
+     0.29167,
+     0.45275,
+     "pigeon",
+     1
+    ],
+    [
+     0.27734,
+     0.4359,
+     0.29818,
+     0.44542,
+     "pigeon",
+     -1
+    ],
+    [
+     0.23698,
+     0.44396,
+     0.28646,
+     0.463,
+     "pigeon",
+     -1
+    ],
+    [
+     0.69141,
+     0.54505,
+     0.72656,
+     0.56044,
+     "pigeon",
+     1
+    ],
+    [
+     0.71354,
+     0.53846,
+     0.73958,
+     0.55165,
+     "pigeon",
+     -1
+    ],
+    [
+     0.67188,
+     0.54945,
+     0.69661,
+     0.5619,
+     "pigeon",
+     1
+    ],
+    [
+     0.6849,
+     0.53846,
+     0.70443,
+     0.55092,
+     "pigeon",
+     1
+    ],
+    [
+     0.67839,
+     0.5619,
+     0.70052,
+     0.57729,
+     "pigeon",
+     1
+    ],
+    [
+     0.16536,
+     0.93187,
+     0.19401,
+     0.95018,
+     "pigeon",
+     1
+    ],
+    [
+     0.13151,
+     0.93407,
+     0.15625,
+     0.94872,
+     "pigeon",
+     -1
+    ],
+    [
+     0.14193,
+     0.95018,
+     0.16797,
+     0.96484,
+     "pigeon",
+     -1
+    ],
+    [
+     0.18229,
+     0.94212,
+     0.20703,
+     0.95751,
+     "pigeon",
+     1
+    ],
+    [
+     0.15234,
+     0.92161,
+     0.17318,
+     0.93846,
+     "pigeon",
+     -1
+    ]
+   ]
+  },
+  {
+   "items": [
+    [
+     0.77214,
+     0.67253,
+     0.84375,
+     0.73846,
+     "chess",
+     1
+    ],
+    [
+     0.86849,
+     0.67106,
+     0.9375,
+     0.72161,
+     "chess",
+     -1
+    ],
+    [
+     0.94271,
+     0.6696,
+     0.98958,
+     0.71941,
+     "stand",
+     -1
+    ],
+    [
+     0.32552,
+     0.84103,
+     0.38802,
+     0.87106,
+     "pigeon",
+     -1
+    ],
+    [
+     0.20573,
+     0.84322,
+     0.32682,
+     0.89084,
+     "pigeon",
+     -1
+    ],
+    [
+     0.40365,
+     0.85641,
+     0.49349,
+     0.89158,
+     "pigeon",
+     -1
+    ],
+    [
+     0.3138,
+     0.87399,
+     0.40495,
+     0.91355,
+     "pigeon",
+     1
+    ],
+    [
+     0.08073,
+     0.87473,
+     0.14974,
+     0.91062,
+     "pigeon",
+     1
+    ],
+    [
+     0.17188,
+     0.82051,
+     0.19792,
+     0.83736,
+     "grass",
+     1
+    ],
+    [
+     0.71615,
+     0.84762,
+     0.74479,
+     0.86081,
+     "grass",
+     1
+    ],
+    [
+     0.75651,
+     0.85421,
+     0.78125,
+     0.87619,
+     "grass",
+     -1
+    ],
+    [
+     0.79688,
+     0.85714,
+     0.84896,
+     0.87839,
+     "grass",
+     -1
+    ],
+    [
+     0.67578,
+     0.86667,
+     0.71224,
+     0.89451,
+     "grass",
+     -1
+    ],
+    [
+     0.5026,
+     0.88938,
+     0.53516,
+     0.90769,
+     "grass",
+     1
+    ],
+    [
+     0.91927,
+     0.8989,
+     0.95573,
+     0.92821,
+     "grass",
+     -1
+    ],
+    [
+     0.85417,
+     0.91355,
+     0.89583,
+     0.92821,
+     "grass",
+     -1
+    ],
+    [
+     0.46224,
+     0.92454,
+     0.5,
+     0.94359,
+     "grass",
+     -1
+    ],
+    [
+     0.41536,
+     0.92601,
+     0.44531,
+     0.94286,
+     "grass",
+     -1
+    ]
+   ]
+  },
+  {
+   "items": [
+    [
+     0.29427,
+     0.70183,
+     0.36068,
+     0.72088,
+     "leaf",
+     -1,
+     1
+    ],
+    [
+     0.59505,
+     0.70842,
+     0.65234,
+     0.72015,
+     "leaf",
+     -1,
+     1
+    ],
+    [
+     0.14193,
+     0.81685,
+     0.22786,
+     0.85495,
+     "grass",
+     -1,
+     1
+    ],
+    [
+     0.78516,
+     0.8293,
+     0.85547,
+     0.85495,
+     "grass",
+     1,
+     1
+    ],
+    [
+     0.87109,
+     0.81905,
+     0.91276,
+     0.84908,
+     "grass",
+     1
+    ],
+    [
+     0.11458,
+     0.83297,
+     0.13542,
+     0.84542,
+     "grass",
+     -1
+    ]
+   ]
+  },
+  {
+   "items": [
+    [
+     0.55469,
+     0.29158,
+     0.57031,
+     0.30696,
+     "stand",
+     1
+    ],
+    [
+     0.73307,
+     0.30623,
+     0.76042,
+     0.32381,
+     "stand",
+     1
+    ],
+    [
+     0.67578,
+     0.30769,
+     0.69271,
+     0.32454,
+     "stand",
+     -1
+    ],
+    [
+     0.33724,
+     0.32821,
+     0.36328,
+     0.34799,
+     "stand",
+     1
+    ],
+    [
+     0.31771,
+     0.34725,
+     0.33724,
+     0.36264,
+     "stand",
+     1
+    ],
+    [
+     0.26562,
+     0.36484,
+     0.28646,
+     0.38168,
+     "stand",
+     1
+    ],
+    [
+     0.41146,
+     0.37949,
+     0.45052,
+     0.40879,
+     "stand",
+     -1
+    ],
+    [
+     0.33464,
+     0.41245,
+     0.3776,
+     0.44615,
+     "stand",
+     1
+    ],
+    [
+     0.31641,
+     0.48205,
+     0.35286,
+     0.51941,
+     "stand",
+     1
+    ],
+    [
+     0.67839,
+     0.42564,
+     0.73438,
+     0.44908,
+     "stand",
+     1
+    ],
+    [
+     0.42318,
+     0.68205,
+     0.48438,
+     0.72161,
+     "balloon",
+     1
+    ],
+    [
+     0.72135,
+     0.41172,
+     0.74219,
+     0.42491,
+     "balloon",
+     -1
+    ],
+    [
+     0.17969,
+     0.57289,
+     0.20703,
+     0.58608,
+     "pigeon",
+     1
+    ],
+    [
+     0.20443,
+     0.57729,
+     0.22526,
+     0.59121,
+     "pigeon",
+     -1
+    ],
+    [
+     0.19141,
+     0.58608,
+     0.21094,
+     0.5978,
+     "pigeon",
+     1
+    ],
+    [
+     0.84375,
+     0.77143,
+     0.86979,
+     0.78535,
+     "pigeon",
+     -1
+    ],
+    [
+     0.81771,
+     0.79267,
+     0.84505,
+     0.80586,
+     "pigeon",
+     -1
+    ],
+    [
+     0.79167,
+     0.7685,
+     0.8138,
+     0.78315,
+     "pigeon",
+     1
+    ],
+    [
+     0.81641,
+     0.76996,
+     0.83984,
+     0.78242,
+     "pigeon",
+     1
+    ],
+    [
+     0.82812,
+     0.77875,
+     0.85156,
+     0.79048,
+     "pigeon",
+     -1
+    ],
+    [
+     0.79948,
+     0.44249,
+     0.82552,
+     0.45421,
+     "pigeon",
+     -1
+    ],
+    [
+     0.79688,
+     0.45201,
+     0.82031,
+     0.463,
+     "pigeon",
+     -1
+    ],
+    [
+     0.77083,
+     0.75165,
+     0.79557,
+     0.76557,
+     "pigeon",
+     -1
+    ],
+    [
+     0.75,
+     0.7707,
+     0.77995,
+     0.78315,
+     "pigeon",
+     1
+    ]
+   ]
+  }
+ ],
  "NIGHT_MAIN_LIT": [
   0,
   0
@@ -1557,7 +2311,8 @@ var CONFIG = {
    },
    "env": "frames/lenin_1_env.webp",
    "win2": "frames/lenin_1_win2.webp",
-   "night": "frames/lenin_1_night.webp"
+   "night": "frames/lenin_1_night.webp",
+   "fig": "frames/lenin_1_fig.png"
   },
   {
    "color": "frames/lenin_2.webp",
@@ -1572,7 +2327,8 @@ var CONFIG = {
    },
    "env": "frames/lenin_2_env.webp",
    "win2": "frames/lenin_2_win2.webp",
-   "night": "frames/lenin_2_night.webp"
+   "night": "frames/lenin_2_night.webp",
+   "fig": "frames/lenin_2_fig.png"
   },
   {
    "color": "frames/lenin_3.webp",
@@ -1587,7 +2343,8 @@ var CONFIG = {
    },
    "env": "frames/lenin_3_env.webp",
    "win2": "frames/lenin_3_win2.webp",
-   "night": "frames/lenin_3_night.webp"
+   "night": "frames/lenin_3_night.webp",
+   "fig": "frames/lenin_3_fig.png"
   },
   {
    "color": "frames/lenin_4.webp",
@@ -1603,7 +2360,8 @@ var CONFIG = {
    "env": "frames/lenin_4_env.webp",
    "win2": "frames/lenin_4_win2.webp",
    "night": "frames/lenin_4_night.webp",
-   "depthRaw": true
+   "depthRaw": true,
+   "fig": "frames/lenin_4_fig.png"
   },
   {
    "color": "frames/lenin_6.webp",
@@ -1618,7 +2376,8 @@ var CONFIG = {
    },
    "env": "frames/lenin_6_env.webp",
    "win2": "frames/lenin_6_win2.webp",
-   "night": "frames/lenin_6_night.webp"
+   "night": "frames/lenin_6_night.webp",
+   "fig": "frames/lenin_6_fig.png"
   }
  ],
  "HOTSPOTS": [
@@ -4454,12 +5213,12 @@ var CONFIG = {
   }
  }
 };
-CONFIG.ENGINE_V = 'e1.21';
+CONFIG.ENGINE_V = 'e1.22';
 /* e1.15 (s9): Safari на iPhone показывал старую страницу из кэша (восстановленная вкладка) — со старыми настройками при новом движке
    (у Ленина всплыли отменённые круги с цифрами). Страница сверяет свою версию с engine/VERSION (без кэша) при открытии, при возврате
    из кэша вкладок и после 10+ мин в фоне; новее — один раз перезагружается на свежий адрес. */
 (function () {
-  var V = 'e1.21', E = '../../engine/', hid = 0;
+  var V = 'e1.22', E = '../../engine/', hid = 0;
   function chk() {
     if (!window.fetch) return;
     fetch(E + 'VERSION?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
@@ -4614,9 +5373,9 @@ document.querySelectorAll('.chips').forEach(function (g) { g.querySelectorAll('.
 </main>
 </div>
 
-<script src="../../engine/wall-data.js?v=e1.21" defer></script>
-<script src="../../engine/wall.js?v=e1.21" defer></script>
-<script src="../../engine/viewer.js?v=e1.21" defer>
+<script src="../../engine/wall-data.js?v=e1.22" defer></script>
+<script src="../../engine/wall.js?v=e1.22" defer></script>
+<script src="../../engine/viewer.js?v=e1.22" defer>
 </script>
 <script>
 // e1.13: курсор ПК — чернильный кружок у острия плавно растёт над кликабельным, при загрузке рядом рисует себя чернильный круг
