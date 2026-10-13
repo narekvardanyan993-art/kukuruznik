@@ -578,6 +578,21 @@
     '  gl_FragColor = vec4(c, 1.0);',
     '}'
   ].join('\n');
+  // s16: редкое мягкое мигание 1–2 фонарей кадра ночью (LAMP_FLICKER.lamps[1] > 0 — только здания с настройкой; у остальных шейдер тот же).
+  // Провал яркости — по эллипсу нарисованного в ночной картинке пятна света (как p9_lamp_light.py: полуоси 1,25·H и 1,25·H·0,5, центр чуть ниже основания).
+  var FLICK = !!(CONFIG.LAMP_FLICKER && CONFIG.LAMP_FLICKER.lamps && CONFIG.LAMP_FLICKER.lamps[1] > 0);
+  if (FLICK) POST_FRAG = POST_FRAG.replace('void main() {', 'uniform vec4 uLampD[16];\nvoid main() {').replace('  gl_FragColor = vec4(c, 1.0);', [
+    '  if (uNight > 0.001) {',
+    '    for (int i = 0; i < 16; i++) {',
+    '      vec4 ld = uLampD[i];',
+    '      if (ld.w > 0.001) {',
+    '        vec2 d = (vTc - ld.xy) * vec2(uAspect, 1.0);',
+    '        float e = sqrt(d.x * d.x / (ld.z * ld.z) + d.y * d.y / (ld.z * ld.z * 0.25));',
+    '        c *= 1.0 - ld.w * smoothstep(1.15, 0.25, e);',
+    '      }',
+    '    }',
+    '  }',
+    '  gl_FragColor = vec4(c, 1.0);'].join('\n'));
 
   var scenePrg = null, postPrg = null;
   var US = {}, UP = {};
@@ -652,7 +667,7 @@
       uA.forEach(function (n, i) { if (US[n]) gl.uniform1i(US[n], i); });
       uB.forEach(function (n, i) { if (US[n]) gl.uniform1i(US[n], i + UB0); });
       gl.uniform1f(US.uScale, CONFIG.BASE_SCALE);
-      postPrg = finishProgram(hp, ['uScene', 'uSunset', 'uNight', 'uAspect', 'uLampH', 'uLampB', 'uFog'], UP);
+      postPrg = finishProgram(hp, ['uScene', 'uSunset', 'uNight', 'uAspect', 'uLampH', 'uLampB', 'uFog'].concat(FLICK ? ['uLampD'] : []), UP);
       gl.uniform1i(UP.uScene, 0);
       gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
       fbo = null; sceneTex = null; fboW = 0; fboH = 0;
@@ -1069,6 +1084,7 @@
     gl.uniform1f(UP.uFog, wx.cur[1]);
     gl.uniform3fv(UP.uLampH, fx.lampH);
     gl.uniform3fv(UP.uLampB, fx.lampB);
+    if (FLICK) gl.uniform4fv(UP.uLampD, fx.lampD);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
@@ -1215,6 +1231,10 @@
         phase: R() * 6.2832, period: rand(R, CONFIG.LAMP_PERIOD_S[0], CONFIG.LAMP_PERIOD_S[1]), delay: R() * 0.88
       });
     });
+    if (FLICK && out.length) {   // s16: какие фонари кадра мигают (1–2, всегда одни и те же)
+      var R2 = rng(900 + i * 17), LF = CONFIG.LAMP_FLICKER, kf = Math.round(rand(R2, LF.lamps[0], LF.lamps[1]));
+      for (var q = 0; q < kf; q++) out[Math.floor(R2() * out.length)].flick = { next: 0, t0: -1, dur: 0, depth: 0, dbl: false };
+    }
     return out;
   }
 
@@ -1606,7 +1626,7 @@
   var fx = {
     windAmp: 0, windOn: true, zoomA: 1, zoomB: 1,
     shoot: [0, 0, 0, 0], shootP: -1, shootLen: 0.3,
-    lampH: new Float32Array(48), lampB: new Float32Array(48)
+    lampH: new Float32Array(48), lampB: new Float32Array(48), lampD: new Float32Array(64)
   };
   var perfLevel = 0;                 // 0 — всё; 1 — выключены живые детали и падающие звёзды; 2 — ещё и ветер
   var perfOn = !/[?&]perf=0/.test(location.search);
@@ -1625,24 +1645,41 @@
   }
 
   // Фонари: ореол у лампы и светлое пятно на земле под ней; «дыхание» яркости ±8%, у каждого свой период 4–6 с.
+  function flickDip(s, t) {   // s16: редкий короткий мягкий провал яркости фонаря (раз в every с, глубина depth, длительность dur)
+    var LF = CONFIG.LAMP_FLICKER;
+    if (!s.next) s.next = t + 2 + Math.random() * LF.every[0];
+    if (s.t0 < 0 && t >= s.next) { s.t0 = t; s.dur = LF.dur[0] + Math.random() * (LF.dur[1] - LF.dur[0]); s.depth = LF.depth[0] + Math.random() * (LF.depth[1] - LF.depth[0]); s.dbl = Math.random() < 0.4; }
+    if (s.t0 < 0) return 0;
+    var p = (t - s.t0) / s.dur;
+    if (p >= 1 || p < 0) { s.t0 = -1; s.next = t + LF.every[0] + Math.random() * (LF.every[1] - LF.every[0]); return 0; }
+    var e = Math.sin(Math.PI * p);
+    if (s.dbl) e = Math.max(e * 0.55, Math.sin(Math.PI * Math.min(1, p * 2.2)));   // иногда двойной «морг»
+    return s.depth * e * e;
+  }
   function fillLamps(fa, fb, mix, sx, sy, zoom, tAmb) {
-    var H = fx.lampH, B = fx.lampB, n = 0;
+    var H = fx.lampH, B = fx.lampB, D = fx.lampD, n = 0;
     function add(f, wgt) {
       if (!f || wgt <= 0.001) return;
       f.lamps.forEach(function (l) {
         if (n >= 16) return;
         var gate = clamp((tod.lights - l.delay) / 0.12, 0, 1);   // фонари зажигаются по одному
         var I = gate * (1 + CONFIG.LAMP_BREATH * Math.sin(tAmb * 2 * Math.PI / l.period + l.phase)) * wgt * (f.haloK || 1);
+        var dip = (FLICK && l.flick) ? flickDip(l.flick, tAmb) : 0;
+        I *= 1 - dip;
         var h = projectImg(l.hu, l.hv, l.hd, l.hd * 2 - 1, sx, sy, zoom, f.crop);
         var b = projectImg(l.bu, l.bv, l.bd, l.bd * 2 - 1, sx, sy, zoom, f.crop);
         H[n * 3] = h[0]; H[n * 3 + 1] = 1 - h[1]; H[n * 3 + 2] = I;
         B[n * 3] = b[0]; B[n * 3 + 1] = 1 - b[1]; B[n * 3 + 2] = I;
+        if (FLICK) {
+          var rx = 1.25 * Math.max(Math.abs(b[1] - h[1]), 0.004);
+          D[n * 4] = b[0]; D[n * 4 + 1] = 1 - b[1] - 0.06 * rx; D[n * 4 + 2] = rx; D[n * 4 + 3] = dip * gate * wgt;
+        }
         n++;
       });
     }
     add(fa, fb ? 1 - mix : 1);
     add(fb, mix);
-    for (; n < 16; n++) { H[n * 3 + 2] = 0; B[n * 3 + 2] = 0; }
+    for (; n < 16; n++) { H[n * 3 + 2] = 0; B[n * 3 + 2] = 0; D[n * 4 + 3] = 0; }
   }
 
   // Окна, раз в 8–12 с одно случайное окно плавно зажигается/гаснет (1.5 с); падающие звёзды раз в 40–60 с.
