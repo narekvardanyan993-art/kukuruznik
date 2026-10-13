@@ -1,0 +1,58 @@
+{
+ "lenin_1": {
+  "changed_px": 0,
+  "outside_mask_px": 0,
+  "windows_found": 7,
+  "windows_lit": 2,
+  "lit_px_outside_windows": 0
+ },
+ "lenin_2": {
+  "changed_px": 34973,
+  "outside_mask_px": 0,
+  "windows_found": 146,
+  "windows_lit": 58,
+  "lit_px_outside_windows": 0
+ },
+ "lenin_3": {
+  "changed_px": 4062,
+  "outside_mask_px": 0
+ },
+ "lenin_4": {
+  "changed_px": 0,
+  "outside_mask_px": 0
+ },
+ "lenin_6": {
+  "changed_px": 45016,
+  "outside_mask_px": 0,
+  "windows_found": 92,
+  "windows_lit": 41,
+  "lit_px_outside_windows": 0,
+  "color": {
+   "frame1": {
+    "C_mean": 17.99213218688965,
+    "C_p90": 32.893768310546875,
+    "L_mean": 180.85215759277344,
+    "L_std": 58.92900466918945
+   },
+   "before": {
+    "C_mean": 16.96156120300293,
+    "C_p90": 26.019224166870117,
+    "L_mean": 211.72177124023438,
+    "L_std": 44.613529205322266
+   },
+   "after": {
+    "C_mean": 19.926292419433594,
+    "C_p90": 31.016124725341797,
+    "L_mean": 194.65859985351562,
+    "L_std": 55.43309020996094
+   },
+   "params": {
+    "kL": 1.22461421463854,
+    "muS": 211.72177124023438,
+    "muL": 190.11304168701173,
+    "kC": 1.2245786609412248
+   }
+  },
+  "sky_mask_edge_row": 156
+ }
+}

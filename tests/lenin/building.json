@@ -72,7 +72,7 @@
     "showNight": "toned",
     "nightEdge": "solid"
   },
-  "tuning": {"BUILDING_DEPTH_PIXEL": true, "MAX_SHIFT_X": 0.0156, "MAX_SHIFT_Y": 0.0094, "ZOOM_NEAR": 0.0156, "BREATH_AMPLITUDE": 0.0031, "LOOK": {"sunsetSmear": {"strength": 0.0}, "lampHalo": {"core": 0.85, "coreSize": 0.00002, "wide": 0.2, "wideSize": 0.0003, "ground": 0.0}}, "LAMP_BREATH": 0.03, "NIGHT_MAIN_WINS": false, "WIN_SPILL": 0.35, "WIN_SPILL_PX": 7, "CLOUD_FIELD": 1.0, "CLOUD_FIELD_NIGHT": 1.4, "CLOUD_FIELD_SPEED": 0.02, "MV_DELTA": true, "MV_CAL": true, "WINDOW_TOGGLE_S": [3, 6]},
+  "tuning": {"BUILDING_DEPTH_PIXEL": true, "MAX_SHIFT_X": 0.0156, "MAX_SHIFT_Y": 0.0094, "ZOOM_NEAR": 0.0156, "BREATH_AMPLITUDE": 0.0031, "LOOK": {"sunsetSmear": {"strength": 0.0}, "lampHalo": {"core": 0.85, "coreSize": 0.00002, "wide": 0.2, "wideSize": 0.0003, "ground": 0.0}}, "LAMP_BREATH": 0.03, "NIGHT_MAIN_WINS": false, "CLOUD_FIELD": 1.0, "CLOUD_FIELD_NIGHT": 1.4, "CLOUD_FIELD_SPEED": 0.02, "MV_DELTA": true, "MV_CAL": true, "LAMP_FLICKER": {"lamps": [1, 2], "every": [8, 20], "depth": [0.1, 0.3], "dur": [0.25, 0.6]}},
   "live": {
     "slug": "lenin",
     "meta": {"url": "https://chka.am/lenin/", "ogImage": "og.jpg", "favicon": "../assets/favicon-32.png", "appleTouchIcon": "../assets/icon-180.png", "viewerVersion": "lenin-1", "description": {"hy": "Լենինի արձանը (1940–1991) Երևանի կենտրոնական հրապարակում՝ 1970-ականների վերջի – 1980-ականների տեսքով, գծանկար։"}},
@@ -100,7 +100,6 @@
         {"key": "removed", "layer": "building", "u": 0.556, "v": 0.66, "r": [0.12, 0.04]}
       ],
       "nightLamps": [],
-      "nightWins": true,
       "nightHalo": 1,
       "lamps": [],
       "sun": {"day": [0.8, 0.11], "sunset": [0.22, 0.38], "moon": [0.8, 0.12]},
@@ -152,7 +151,6 @@
         }
       ],
       "nightLamps": [[0.5853, 0.378, 0.5853, 0.4022], [0.696, 0.4051, 0.696, 0.43], [0.7474, 0.4346, 0.7474, 0.4579], [0.862, 0.4751, 0.862, 0.5121], [0.355, 0.5498, 0.355, 0.5744], [0.6706, 0.6533, 0.6706, 0.6872], [0.5286, 0.7681, 0.5286, 0.8022], [0.7656, 0.7685, 0.7656, 0.8044], [0.2051, 0.8652, 0.2051, 0.8967]],
-      "nightWins": true,
       "nightHalo": 1,
       "lamps": [],
       "sun": {
@@ -173,14 +171,12 @@
           "cranes"
         ],
         "night": [
-          "plane",
-          "winlight"
+          "plane"
         ]
       }
     },
     {
       "name": "lenin_3",
-      "motionVideo": {"clips": [{"src": "lenin_3_motion_1.mp4", "speed": 0.6}], "mask": "lenin_3_motion_mask.png"},
       "sunset": false,
       "crop": [0, 0, 1, 1],
       "flag": null,
@@ -220,7 +216,6 @@
         }
       ],
       "nightLamps": [],
-      "nightWins": true,
       "nightHalo": 1,
       "lamps": [],
       "sun": {
@@ -329,7 +324,6 @@
     },
     {
       "name": "lenin_6",
-      "motionVideo": {"clips": [{"src": "lenin_6_motion_1.mp4", "speed": 0.6}], "mask": "lenin_6_motion_mask.png"},
       "sunset": false,
       "crop": [0, 0, 1, 1],
       "flag": null,
@@ -369,7 +363,6 @@
         }
       ],
       "nightLamps": [[0.4707, 0.267, 0.4707, 0.2879], [0.5436, 0.2824, 0.5436, 0.3048], [0.9141, 0.3238, 0.9141, 0.3465], [0.4583, 0.3286, 0.4583, 0.3516], [0.2936, 0.3553, 0.2936, 0.3758], [0.8398, 0.3773, 0.8398, 0.4022], [0.0397, 0.4, 0.0397, 0.4212], [0.8714, 0.4496, 0.8714, 0.4725], [0.0378, 0.4601, 0.0378, 0.4821], [0.0755, 0.515, 0.0755, 0.5407], [0.1374, 0.5707, 0.1374, 0.5985], [0.0326, 0.6271, 0.0326, 0.6564], [0.7923, 0.6311, 0.7923, 0.6542], [0.6764, 0.6927, 0.6764, 0.7238], [0.9622, 0.7018, 0.9622, 0.7319]],
-      "nightWins": true,
       "nightHalo": 1,
       "lamps": [],
       "sun": {"day": [0.24, 0.05], "sunset": [0.26, 0.075], "moon": [0.24, 0.05]},
@@ -386,8 +379,7 @@
           "cranes"
         ],
         "night": [
-          "plane",
-          "winlight"
+          "plane"
         ]
       }
     }
