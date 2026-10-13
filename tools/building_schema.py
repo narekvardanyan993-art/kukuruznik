@@ -485,20 +485,22 @@ def validate(bdir, b, site):
             if fo:
                 its = fo['items']
                 if not isinstance(its, list) or not (1 <= len(its) <= FIG_MAX):
-                    c.err('%s: figures.items' % w, 'список из 1…%d фигур [u0, v0, u1, v1, тип, сторона(, 1 — на слое здания)]' % FIG_MAX)
+                    c.err('%s: figures.items' % w, 'список из 1…%d фигур [u0, v0, u1, v1, тип, сторона(, 1 — на слое здания(, множитель движения))]' % FIG_MAX)
                 else:
                     for j, it in enumerate(its):
                         wj = '%s: figures.items[%d]' % (w, j + 1)
-                        if not isinstance(it, list) or len(it) not in (6, 7):
-                            c.err(wj, '[u0, v0, u1, v1, тип, сторона(, 1 — на слое здания)]'); continue
+                        if not isinstance(it, list) or len(it) not in (6, 7, 8):
+                            c.err(wj, '[u0, v0, u1, v1, тип, сторона(, 1 — на слое здания(, множитель движения))]'); continue
                         if c.numbers(it[:4], wj, 4, 0, 1) and not (it[0] < it[2] and it[1] < it[3] and it[2] - it[0] < 0.5 and it[3] - it[1] < 0.5):
                             c.err(wj, 'рамка: u0 < u1, v0 < v1, не больше половины кадра')
                         if it[4] not in FIG_TYPES:
                             c.err(wj, 'тип «%s» неизвестен (есть: %s)' % (it[4], ', '.join(FIG_TYPES)))
                         if it[5] not in (1, -1):
                             c.err(wj, 'сторона: 1 (смотрит вправо) или -1 (влево)')
-                        if len(it) == 7 and it[6] not in (0, 1):
+                        if len(it) >= 7 and it[6] not in (0, 1):
                             c.err(wj, 'седьмое число: 1 — фигура на слое здания, 0 — на земле')
+                        if len(it) == 8 and not (isinstance(it[7], (int, float)) and not isinstance(it[7], bool) and 0.2 <= it[7] <= 6):   # e1.23 (s19)
+                            c.err(wj, 'восьмое число — множитель движения фигуры 0,2…6 (маска фигуры должна быть шире на столько же)')
                 if not hidden and isinstance(b.get('framesDir'), str):
                     pm = '%s/%s_fig.png' % (posixpath.normpath(posixpath.join(bdir, b['framesDir'])), nm)
                     if not (Path(site) / pm).exists():

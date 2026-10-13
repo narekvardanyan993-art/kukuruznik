@@ -56,7 +56,8 @@
     var now = performance.now(); if (!force && now - dbgT < 1000) return; dbgT = now;
     if (!dbgEl) { dbgEl = document.createElement('pre'); dbgEl.id = 'dbgLog'; dbgEl.style.cssText = 'position:fixed;left:4px;top:4px;z-index:99999;max-width:92vw;max-height:46vh;overflow:hidden;margin:0;padding:4px 6px;font:10px/1.25 ui-monospace,Menlo,monospace;color:#fff;background:rgba(0,0,0,0.62);border-radius:4px;pointer-events:none;white-space:pre-wrap'; document.body.appendChild(dbgEl); }
     var mv = []; try { [MV, MVN].forEach(function (map, q) { Object.keys(map).forEach(function (k) { var S = map[k]; mv.push(k + (q ? 'n' : '') + ':' + (S.fail ? 'FAIL' : 'rs' + S.v.readyState + (S.v.paused ? ' pause' : ' play') + ' t' + S.v.currentTime.toFixed(1))); }); }); } catch (x) {}
-    dbgEl.textContent = (CONFIG.ENGINE_V || '') + ' кадр ' + frameIndex + ' fps ' + (dbgFps || 0) + ' perf ' + perfLevel + (glLost ? ' GL-LOST' : '') + ' gl ' + (useGL ? 'on' : 'off') + '\nвидео ' + (mv.join(' | ') || '—') + (ERR.length ? '\n' + ERR.slice(-12).join('\n') : '\nошибок нет');
+    var figPk = FIG_PEAK || 0; FIG_PEAK = 0;
+    dbgEl.textContent = (CONFIG.ENGINE_V || '') + ' кадр ' + frameIndex + ' fps ' + (dbgFps || 0) + ' perf ' + perfLevel + (glLost ? ' GL-LOST' : '') + ' gl ' + (useGL ? 'on' : 'off') + (FN > 0 || FIG_CUT ? '\nфигуры ' + (fx && fx.figOn ? 'идут' : 'СТОЯТ') + ' ' + ((FIGS[frameIndex] || []).length) + ' шт., сдвиг до ' + figPk.toFixed(1) + ' px' + (FIG_CUT ? ' (урезано ' + FIG_CUT + ')' : '') + (reduced() ? ' · «Уменьшить движение» ВКЛ' : '') : '') + '\nвидео ' + (mv.join(' | ') || '—') + (ERR.length ? '\n' + ERR.slice(-12).join('\n') : '\nошибок нет');
   }
   var dbgFps = 0, dbgFc = 0, dbgF0 = 0;
   // Пружина как в iOS (response 0.65 с, damping ratio 0.86): ступенчатый отклик, оседание ~0.5%.
@@ -80,6 +81,7 @@
   // prefers-reduced-motion: выключаем только фоновое движение (дыхание, облака, птицы); переходы и автопокачивание работают
   var reduceMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
   var motionForce = /[?&]motion=1/.test(location.search);   // ?motion=1 — для проверки: показать всё движение при включённом «Уменьшить движение»
+  var stillQ = /[?&]still=1/.test(location.search);   // e1.23: ?still=1 — для снимков (tools/snap.mjs): камера без «дыхания», остальное живёт
   function reduced() { return reduceMQ.matches && !motionForce; }
   // Сглаживание, не зависящее от частоты кадров: k — доля пути за кадр на 60 fps.
   function lerpK(k, dt) { return 1 - Math.pow(1 - k, dt / 16.667); }
@@ -229,6 +231,13 @@
   var FIG_TYPES = ['sit', 'stand', 'chess', 'pigeon', 'balloon', 'leaf', 'grass'];
   var FIGS = (CONFIG.FIGURES || []).map(function (q) { return q && q.items ? q.items : []; });
   var FN = FIGS.reduce(function (m, a) { return Math.max(m, a.length); }, 0);
+  // e1.23 (s19): шейдеру фигур нужно 4 vec4 на фигуру (рамки и движение кадров A и B). Если видеокарта даёт меньше uniform-векторов,
+  // чем нужно (минимум по стандарту WebGL — 16), фигур меньше — иначе шейдер сцены не соберётся и вся картинка уйдёт в запасной режим.
+  var FIG_CUT = 0;
+  if (FN > 0 && useGL) {
+    var fuMax = gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS) || 0, fnMax = Math.max(0, Math.floor((fuMax - 96) / 4));
+    if (FN > fnMax) { FIG_CUT = FN - fnMax; FN = fnMax; FIGS = FIGS.map(function (a) { return a.slice(0, fnMax); }); console.info('фигуры: uniform-векторов ' + fuMax + ' -> до ' + fnMax + ' фигур на кадр'); }
+  }
   var FIGB = FN > 0 && FIGS.some(function (a) { return a.some(function (it) { return it[6] === 1; }); });   // есть фигуры на слое здания
   // e1.19 (s15): тени облаков полем (CLOUD_FIELD) — в вершинном шейдере сцены на сетке CF_GRID, а не на каждый пиксель
   var CF_GRID = [64, 128];   // ячеек сетки по ширине и высоте экрана
@@ -1116,7 +1125,7 @@
         x += S.wsFrom + (S.wsTo - S.wsFrom) * C_IOS(Math.min(1, (t - S.wsT0) / (S.wsDur || 1)));
       }
       if (t > S.next) {   // событие: кивок (сидит), рука к доске (нарды), поворот головы (стоит)
-        S.ev = evAt(S.next, t); S.evA = ty === 'chess' ? r(1.6, 2.2) : ty === 'sit' ? r(0.8, 1.2) : (R2s(S) * r(0.45, 0.7));
+        S.ev = evAt(S.next, t); S.evA = ty === 'chess' ? r(1.6, 2.2) : ty === 'sit' ? r(FIG_K ? 0.5 : 0.8, FIG_K ? 0.7 : 1.2) : (R2s(S) * r(0.45, 0.7));
         S.hold = ty === 'stand' ? r(1, 2.5) : ty === 'chess' ? r(0.35, 0.8) : r(0.3, 0.8);
         S.ev2 = ty === 'chess' && S.R() < 0.3 ? S.ev + 1.2 + S.hold + 1.25 : -1e9;
         S.next = S.ev + (ty === 'chess' ? r(6, 14) : ty === 'sit' ? r(8, 20) : r(10, 25));
@@ -1129,7 +1138,7 @@
       if (t > S.next) { S.ev = evAt(S.next, t); S.evA = r(1.0, 1.5); S.ev2 = S.R() < 0.35 ? S.ev + r(0.4, 0.55) : -1e9; S.next = S.ev + r(1.6, 4.5); }
       var pk = pulse(t - S.ev, 0.12, 0.05, 0.22, C_IN, C_OUT) + pulse(t - S.ev2, 0.12, 0.04, 0.22, C_IN, C_OUT);
       w = pk * S.evA; z = pk * 0.4;
-      if (t > S.hopNext) { S.hop = evAt(S.hopNext, t); S.hopH = r(1.6, 2.6); S.hopNext = S.hop + r(10, 25); }
+      if (t > S.hopNext) { S.hop = evAt(S.hopNext, t); S.hopH = FIG_K ? r(1.0, 1.6) : r(1.6, 2.6); S.hopNext = S.hop + r(10, 25); }
       var hp = (t - S.hop) / 0.32;
       if (hp > 0 && hp < 1) { y = -S.hopH * 4 * hp * (1 - hp); x = it[5] * 0.9 * Math.sin(Math.PI * hp); }
       var k = 1 - night; x *= k; y *= k; z *= k; w *= k;   // ночью спят
@@ -1149,6 +1158,9 @@
   function R2s(S) { return S.R() < 0.5 ? -1 : 1; }
   function evAt(due, t) { return t - due < 0.5 ? due : t; }   // событие — в назначенный момент (не «в кадр, когда заметили»); после паузы вкладки — сейчас
   var FIG_BUF = FN > 0 ? [new Float32Array(8 * FN), new Float32Array(8 * FN)] : null, FIG_ST = [], FIG_BOX = [new Float32Array(4), new Float32Array(4)];
+  var FIG_PEAK = 0;   // наибольший сдвиг фигуры (px кадра) с прошлого вопроса — для ?debug=1 и tools/snap.mjs
+  // e1.23: у фигур есть множитель движения (восьмое число) — кивок сидящего и подскок голубя мягче, иначе при множителе 3–4 «прыгают»
+  var FIG_K = FIGS.some(function (a) { return a.some(function (it) { return it.length > 7; }); });
   function figFill(f, slot, t) {
     var buf = FIG_BUF[slot], items = f ? (FIGS[f.idx] || []) : [], n = items.length, on = fx.figOn ? 1 : 0;
     if (!n) { if (FIGB) FIG_BOX[slot].set([0, 0, 0, 0]); return 0; }
@@ -1156,6 +1168,9 @@
     var bx0 = 2, by0 = 2, bx1 = -1, by1 = -1;
     for (var j = 0; j < n; j++) {
       var it = items[j], m = on ? figMotion(it, st[j], t, tod.night) : [0, 0, 0, 0], o = j * 8;
+      var ka = it.length > 7 ? +it[7] : 1;   // e1.23 (s19): восьмое число — множитель движения фигуры (от её размера; маска шире на столько же)
+      if (ka !== 1) { var kr = Math.sqrt(ka); m[0] *= ka; m[1] *= kr; m[2] *= ka; m[3] *= ka; }   // y (дыхание, подскок) — по корню: крупнее, но не «прыгает»
+      var am = Math.max(Math.abs(m[0]) + Math.abs(m[2]), Math.abs(m[1]) + Math.abs(m[3])); if (am > FIG_PEAK) FIG_PEAK = am;
       buf[o] = it[0]; buf[o + 1] = it[1]; buf[o + 2] = (FIG_TYPES.indexOf(it[4]) * 2 + (it[5] > 0 ? 1 : 0)) + Math.min(0.999, it[2] - it[0]); buf[o + 3] = it[3] - it[1];
       buf[o + 4] = m[0]; buf[o + 5] = m[1]; buf[o + 6] = m[2]; buf[o + 7] = m[3];
       if (it[6] === 1) { bx0 = Math.min(bx0, it[0]); by0 = Math.min(by0, it[1]); bx1 = Math.max(bx1, it[2]); by1 = Math.max(by1, it[3]); }
@@ -1457,6 +1472,7 @@
       var f = store[i], S = MV[i], N = MVN[i];
       return { day: S ? (S.clips[S.ci] || {}).src + (S.v.paused ? ' P' : '') : null, night: N ? (N.clips[N.ci] || {}).src + (N.v.paused ? ' P' : '') : null, useD: !!(f && f.mvUse), useN: !!(f && f.mvUseN) };
     },
+    figs: function () { var pk = FIG_PEAK; FIG_PEAK = 0; return { n: FN, on: !!fx.figOn, cut: FIG_CUT, peakPx: +pk.toFixed(2), reduced: reduced(), perf: perfLevel }; },   // e1.23: для tools/snap.mjs
     errors: function () { return ERR.slice(); },   // журнал ошибок (проверочные скрипты, ?debug=1)   // e1.14: у кадра синемаграф — спрайтовые машины/люди/сценки не рисуются
     mvBusy: function () { return Object.keys(MV).some(function (k) { var S = MV[k], f = store[k]; return !S.fail && f && !f.mvUse && (+k === frameIndex); }); },   // для проверки: видео текущего кадра ещё не в текстуре
     projectB: function (f, u, v) {   // точка слоя «здание» -> пиксели сцены (для пролёта «за зданием»)
@@ -2112,7 +2128,7 @@
     var tiltX = clamp(curX, -1, 1);
     var tiltY = clamp(curY, -1, 1);
 
-    var ba = rm ? 0 : CONFIG.BREATH_AMPLITUDE;
+    var ba = rm || stillQ ? 0 : CONFIG.BREATH_AMPLITUDE;
     var breathX = ba * Math.sin(t * 2 * Math.PI / CONFIG.BREATH_PERIOD_S);
     var breathY = ba * Math.cos(t * 2 * Math.PI / (CONFIG.BREATH_PERIOD_S * 0.7));
     var shiftX = tiltX * CONFIG.MAX_SHIFT_X + breathX;
@@ -2129,7 +2145,7 @@
     if (useGL) {
       var tAmb = (now - t0) / 1000; // настоящее время: ветер, мерцание звёзд, «дыхание» фонарей
       fx.windOn = CONFIG.WIND && perfLevel < 2;
-      fx.figOn = FN > 0 && !rm && perfLevel < 2;   // e1.22: фигуры стоят при «Уменьшить движение» и на слабом устройстве
+      fx.figOn = FN > 0 && !rm;   // e1.22: фигуры стоят при «Уменьшить движение»; e1.23 (s19): от экономии по fps не зависят — они дешёвые (только пиксели фигур), а на телефоне экономия могла их выключить навсегда
       fx.windAmp = CONFIG.WIND_AMP_PX * wx.wind * (fb ? CONFIG.WIND_K[fa.idx] + (CONFIG.WIND_K[fb.idx] - CONFIG.WIND_K[fa.idx]) * mixState : CONFIG.WIND_K[fa.idx]) * (coverUvW / CONFIG.BASE_SCALE) / Math.max(1, stage.clientWidth);
       safe('nightfx', function () { stepNightFx(fa, fb, now); fillLamps(fa, fb, mixState, shiftX, shiftY, zoom, tAmb); });
       stage.classList.toggle('is-night', tod.sky > 0.5);

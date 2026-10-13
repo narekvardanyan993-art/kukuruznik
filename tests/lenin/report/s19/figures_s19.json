@@ -1,0 +1,583 @@
+{
+ "lenin_1": {
+  "n": 20,
+  "mask_px_s18": 15574,
+  "mask_px_s19": 38643,
+  "figs": [
+   {
+    "type": "stand",
+    "h": 45,
+    "ka": 2.8,
+    "ring_px": 7
+   },
+   {
+    "type": "pigeon",
+    "h": 30,
+    "ka": 1.88,
+    "ring_px": 7
+   },
+   {
+    "type": "pigeon",
+    "h": 39,
+    "ka": 2.4,
+    "ring_px": 8
+   },
+   {
+    "type": "pigeon",
+    "h": 35,
+    "ka": 2.19,
+    "ring_px": 7
+   },
+   {
+    "type": "pigeon",
+    "h": 30,
+    "ka": 1.88,
+    "ring_px": 7
+   },
+   {
+    "type": "pigeon",
+    "h": 35,
+    "ka": 2.19,
+    "ring_px": 7
+   },
+   {
+    "type": "pigeon",
+    "h": 33,
+    "ka": 2.06,
+    "ring_px": 7
+   },
+   {
+    "type": "pigeon",
+    "h": 42,
+    "ka": 2.4,
+    "ring_px": 8
+   },
+   {
+    "type": "pigeon",
+    "h": 43,
+    "ka": 2.4,
+    "ring_px": 8
+   },
+   {
+    "type": "pigeon",
+    "h": 44,
+    "ka": 2.4,
+    "ring_px": 8
+   },
+   {
+    "type": "grass",
+    "h": 27,
+    "ka": 1.6,
+    "ring_px": 4
+   },
+   {
+    "type": "grass",
+    "h": 41,
+    "ka": 1.6,
+    "ring_px": 4
+   },
+   {
+    "type": "grass",
+    "h": 24,
+    "ka": 1.6,
+    "ring_px": 4
+   },
+   {
+    "type": "grass",
+    "h": 46,
+    "ka": 1.6,
+    "ring_px": 4
+   },
+   {
+    "type": "grass",
+    "h": 30,
+    "ka": 1.6,
+    "ring_px": 4
+   },
+   {
+    "type": "leaf",
+    "h": 26,
+    "ka": 1.6,
+    "ring_px": 5
+   },
+   {
+    "type": "leaf",
+    "h": 26,
+    "ka": 1.6,
+    "ring_px": 5
+   },
+   {
+    "type": "leaf",
+    "h": 28,
+    "ka": 1.6,
+    "ring_px": 5
+   },
+   {
+    "type": "leaf",
+    "h": 24,
+    "ka": 1.6,
+    "ring_px": 5
+   },
+   {
+    "type": "leaf",
+    "h": 32,
+    "ka": 1.6,
+    "ring_px": 5
+   }
+  ]
+ },
+ "lenin_2": {
+  "n": 23,
+  "mask_px_s18": 9362,
+  "mask_px_s19": 25305,
+  "figs": [
+   {
+    "type": "stand",
+    "h": 33,
+    "ka": 2.54,
+    "ring_px": 7
+   },
+   {
+    "type": "stand",
+    "h": 23,
+    "ka": 1.77,
+    "ring_px": 5
+   },
+   {
+    "type": "stand",
+    "h": 30,
+    "ka": 2.31,
+    "ring_px": 6
+   },
+   {
+    "type": "stand",
+    "h": 26,
+    "ka": 2.0,
+    "ring_px": 5
+   },
+   {
+    "type": "stand",
+    "h": 49,
+    "ka": 2.8,
+    "ring_px": 7
+   },
+   {
+    "type": "balloon",
+    "h": 39,
+    "ka": 1.95,
+    "ring_px": 5
+   },
+   {
+    "type": "stand",
+    "h": 42,
+    "ka": 2.8,
+    "ring_px": 7
+   },
+   {
+    "type": "sit",
+    "h": 46,
+    "ka": 4.5,
+    "ring_px": 6
+   },
+   {
+    "type": "sit",
+    "h": 41,
+    "ka": 4.1,
+    "ring_px": 5
+   },
+   {
+    "type": "pigeon",
+    "h": 14,
+    "ka": 1.2,
+    "ring_px": 5
+   },
+   {
+    "type": "pigeon",
+    "h": 14,
+    "ka": 1.2,
+    "ring_px": 5
+   },
+   {
+    "type": "pigeon",
+    "h": 13,
+    "ka": 1.2,
+    "ring_px": 5
+   },
+   {
+    "type": "pigeon",
+    "h": 26,
+    "ka": 1.62,
+    "ring_px": 6
+   },
+   {
+    "type": "pigeon",
+    "h": 21,
+    "ka": 1.31,
+    "ring_px": 5
+   },
+   {
+    "type": "pigeon",
+    "h": 18,
+    "ka": 1.2,
+    "ring_px": 5
+   },
+   {
+    "type": "pigeon",
+    "h": 17,
+    "ka": 1.2,
+    "ring_px": 5
+   },
+   {
+    "type": "pigeon",
+    "h": 17,
+    "ka": 1.2,
+    "ring_px": 5
+   },
+   {
+    "type": "pigeon",
+    "h": 21,
+    "ka": 1.31,
+    "ring_px": 5
+   },
+   {
+    "type": "pigeon",
+    "h": 25,
+    "ka": 1.56,
+    "ring_px": 6
+   },
+   {
+    "type": "pigeon",
+    "h": 20,
+    "ka": 1.25,
+    "ring_px": 5
+   },
+   {
+    "type": "pigeon",
+    "h": 20,
+    "ka": 1.25,
+    "ring_px": 5
+   },
+   {
+    "type": "pigeon",
+    "h": 21,
+    "ka": 1.31,
+    "ring_px": 5
+   },
+   {
+    "type": "pigeon",
+    "h": 23,
+    "ka": 1.44,
+    "ring_px": 6
+   }
+  ]
+ },
+ "lenin_3": {
+  "n": 18,
+  "mask_px_s18": 23335,
+  "mask_px_s19": 49801,
+  "figs": [
+   {
+    "type": "chess",
+    "h": 90,
+    "ka": 2.25,
+    "ring_px": 8
+   },
+   {
+    "type": "chess",
+    "h": 69,
+    "ka": 1.73,
+    "ring_px": 6
+   },
+   {
+    "type": "stand",
+    "h": 68,
+    "ka": 2.8,
+    "ring_px": 7
+   },
+   {
+    "type": "pigeon",
+    "h": 41,
+    "ka": 2.4,
+    "ring_px": 8
+   },
+   {
+    "type": "pigeon",
+    "h": 65,
+    "ka": 2.4,
+    "ring_px": 8
+   },
+   {
+    "type": "pigeon",
+    "h": 48,
+    "ka": 2.4,
+    "ring_px": 8
+   },
+   {
+    "type": "pigeon",
+    "h": 54,
+    "ka": 2.4,
+    "ring_px": 8
+   },
+   {
+    "type": "pigeon",
+    "h": 49,
+    "ka": 2.4,
+    "ring_px": 8
+   },
+   {
+    "type": "grass",
+    "h": 23,
+    "ka": 1.6,
+    "ring_px": 4
+   },
+   {
+    "type": "grass",
+    "h": 18,
+    "ka": 1.6,
+    "ring_px": 4
+   },
+   {
+    "type": "grass",
+    "h": 30,
+    "ka": 1.6,
+    "ring_px": 4
+   },
+   {
+    "type": "grass",
+    "h": 29,
+    "ka": 1.6,
+    "ring_px": 4
+   },
+   {
+    "type": "grass",
+    "h": 38,
+    "ka": 1.6,
+    "ring_px": 4
+   },
+   {
+    "type": "grass",
+    "h": 25,
+    "ka": 1.6,
+    "ring_px": 4
+   },
+   {
+    "type": "grass",
+    "h": 40,
+    "ka": 1.6,
+    "ring_px": 4
+   },
+   {
+    "type": "grass",
+    "h": 20,
+    "ka": 1.6,
+    "ring_px": 4
+   },
+   {
+    "type": "grass",
+    "h": 26,
+    "ka": 1.6,
+    "ring_px": 4
+   },
+   {
+    "type": "grass",
+    "h": 23,
+    "ka": 1.6,
+    "ring_px": 4
+   }
+  ]
+ },
+ "lenin_4": {
+  "n": 6,
+  "mask_px_s18": 5003,
+  "mask_px_s19": 10634,
+  "figs": [
+   {
+    "type": "leaf",
+    "h": 26,
+    "ka": 1.6,
+    "ring_px": 5
+   },
+   {
+    "type": "leaf",
+    "h": 16,
+    "ka": 1.6,
+    "ring_px": 5
+   },
+   {
+    "type": "grass",
+    "h": 52,
+    "ka": 1.6,
+    "ring_px": 4
+   },
+   {
+    "type": "grass",
+    "h": 35,
+    "ka": 1.6,
+    "ring_px": 4
+   },
+   {
+    "type": "grass",
+    "h": 41,
+    "ka": 1.6,
+    "ring_px": 4
+   },
+   {
+    "type": "grass",
+    "h": 17,
+    "ka": 1.6,
+    "ring_px": 4
+   }
+  ]
+ },
+ "lenin_6": {
+  "n": 24,
+  "mask_px_s18": 9101,
+  "mask_px_s19": 26567,
+  "figs": [
+   {
+    "type": "stand",
+    "h": 21,
+    "ka": 1.62,
+    "ring_px": 5
+   },
+   {
+    "type": "stand",
+    "h": 24,
+    "ka": 1.85,
+    "ring_px": 5
+   },
+   {
+    "type": "stand",
+    "h": 23,
+    "ka": 1.77,
+    "ring_px": 5
+   },
+   {
+    "type": "stand",
+    "h": 27,
+    "ka": 2.08,
+    "ring_px": 6
+   },
+   {
+    "type": "stand",
+    "h": 21,
+    "ka": 1.62,
+    "ring_px": 5
+   },
+   {
+    "type": "stand",
+    "h": 23,
+    "ka": 1.77,
+    "ring_px": 5
+   },
+   {
+    "type": "stand",
+    "h": 40,
+    "ka": 2.8,
+    "ring_px": 7
+   },
+   {
+    "type": "stand",
+    "h": 46,
+    "ka": 2.8,
+    "ring_px": 7
+   },
+   {
+    "type": "stand",
+    "h": 51,
+    "ka": 2.8,
+    "ring_px": 7
+   },
+   {
+    "type": "stand",
+    "h": 32,
+    "ka": 2.46,
+    "ring_px": 6
+   },
+   {
+    "type": "balloon",
+    "h": 54,
+    "ka": 2.5,
+    "ring_px": 6
+   },
+   {
+    "type": "balloon",
+    "h": 18,
+    "ka": 1.2,
+    "ring_px": 4
+   },
+   {
+    "type": "pigeon",
+    "h": 18,
+    "ka": 1.2,
+    "ring_px": 5
+   },
+   {
+    "type": "pigeon",
+    "h": 19,
+    "ka": 1.2,
+    "ring_px": 5
+   },
+   {
+    "type": "pigeon",
+    "h": 16,
+    "ka": 1.2,
+    "ring_px": 5
+   },
+   {
+    "type": "pigeon",
+    "h": 19,
+    "ka": 1.2,
+    "ring_px": 5
+   },
+   {
+    "type": "pigeon",
+    "h": 18,
+    "ka": 1.2,
+    "ring_px": 5
+   },
+   {
+    "type": "pigeon",
+    "h": 20,
+    "ka": 1.25,
+    "ring_px": 5
+   },
+   {
+    "type": "pigeon",
+    "h": 17,
+    "ka": 1.2,
+    "ring_px": 5
+   },
+   {
+    "type": "pigeon",
+    "h": 16,
+    "ka": 1.2,
+    "ring_px": 5
+   },
+   {
+    "type": "pigeon",
+    "h": 16,
+    "ka": 1.2,
+    "ring_px": 5
+   },
+   {
+    "type": "pigeon",
+    "h": 15,
+    "ka": 1.2,
+    "ring_px": 5
+   },
+   {
+    "type": "pigeon",
+    "h": 19,
+    "ka": 1.2,
+    "ring_px": 5
+   },
+   {
+    "type": "pigeon",
+    "h": 17,
+    "ka": 1.2,
+    "ring_px": 5
+   }
+  ]
+ }
+}
