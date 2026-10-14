@@ -1055,7 +1055,8 @@
     (A.flocks || []).forEach(function (o0) {
       var o = lp('flocks', o0);
       if (o.preset === 'sky' || o.band) drawSkyFlock(f, o0._p ? o : o, t, col, a0 * (1 - 0.8 * night), light);
-      else { var c = occClip(f, A, o.at[1]); drawPigeons(f, o, t, dt, col, a0 * (1 - 0.8 * night), light); if (c) ctx.restore(); }
+      else { var aP = o.night === false ? a0 * (1 - night) : a0 * (1 - 0.8 * night); if (aP < 0.01) return;   // e1.24 (s20): night false — ночью голубей нет (Ленин); без настройки — как было
+        var c = occClip(f, A, o.at[1]); drawPigeons(f, o, t, dt, col, aP, light); if (c) ctx.restore(); }
     });
     ctx.restore();
   }

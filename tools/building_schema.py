@@ -240,7 +240,9 @@ def validate(bdir, b, site):
                 c.err('aboutFacts', 'факта «%s» нет в facts' % k)
 
     # --- look ---
-    look = c.obj(b['look'], 'look', required=('day', 'night', 'frameSize', 'sunSide'), optional=('hotspots', 'showNight', 'nightEdge'))
+    look = c.obj(b['look'], 'look', required=('day', 'night', 'frameSize', 'sunSide'), optional=('hotspots', 'showNight', 'nightEdge', 'bronzeKeep'))
+    if look and 'bronzeKeep' in look and look['bronzeKeep'] is not True:
+        c.err('look.bronzeKeep', 'только true (бронза не тянется к зелени) или поле не задавать')
     if look and 'nightEdge' in look and look['nightEdge'] != 'solid':
         c.err('look.nightEdge', 'край вырезки ночью: "solid" или поле не задавать')
     if look and 'hotspots' in look:   # e1.15: «обводка» с номерами удалена (s9: Нарек отверг) — точки только как у Кукурузника
@@ -337,8 +339,10 @@ def validate(bdir, b, site):
                                 c.number(oo['n'], wo + '.n', 1, 8)
                 for j, o in enumerate(am.get('flocks', [])):
                     wo = '%s: ambient.flocks[%d]' % (w, j + 1)
-                    oo = c.obj(o, wo, required=('preset',), optional=('at', 'band', 'size', 'n', 'rest', 'fly', 'radius', 'every'))
+                    oo = c.obj(o, wo, required=('preset',), optional=('at', 'band', 'size', 'n', 'rest', 'fly', 'radius', 'every', 'night'))
                     if oo:
+                        if 'night' in oo and oo['night'] is not False:   # e1.24 (s20): только false — ночью голубей нет
+                            c.err(wo + '.night', 'только false (ночью голубей нет) или не задавать')
                         if oo['preset'] not in presets['flocks']:
                             c.err(wo, 'preset: pigeons / sky')
                         elif oo['preset'] == 'pigeons':

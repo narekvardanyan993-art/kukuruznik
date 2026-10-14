@@ -122,6 +122,8 @@ def make_config(b, frames_url):
         C['SHOW_NIGHT'] = look['showNight']
     if look.get('nightEdge'):   # e1.14: край вырезки здания ночью (только если задан у здания)
         C['NIGHT_EDGE'] = look['nightEdge']
+    if look.get('bronzeKeep'):   # e1.24 (s20): бронза статуи не тянется к зелени дневной обработкой (только если задано у здания)
+        C['BRONZE_KEEP'] = True
     if any(f.get('figures') for f in fr):   # e1.22: фигуры рисунка (только если заданы у кадров — у остальных зданий CONFIG тот же)
         C['FIGURES'] = [f.get('figures') for f in fr]
     C.update({

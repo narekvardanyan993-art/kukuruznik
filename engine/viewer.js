@@ -483,6 +483,9 @@
     '    c = mix(c, mix(c, tinted, smoothstep(0.55, 0.85, rel)), skyW);',                // тёмный карандашный штрих — как был
     '    vec3 hv = rgb2hsv(c);',
     '    float gw = smoothstep(0.10, 0.16, hv.x) * (1.0 - smoothstep(0.36, 0.45, hv.x)) * smoothstep(0.06, 0.16, hv.y) * smoothstep(0.18, 0.40, hv.z) * (1.0 - skyW);',
+    // e1.24 (s20) look.bronzeKeep: малонасыщенные пиксели главного здания (бронза статуи, серо-зелёная патина) не тянутся к зелени —
+    // иначе тёмная бронза Gemini днём становится «хаки». Кроны и туф на слое здания насыщеннее порога — как было. Без настройки кода нет.
+    CONFIG.BRONZE_KEEP ? '    gw *= 1.0 - b.a * (1.0 - smoothstep(0.14, 0.26, hv.y));' : '',
     '    hv.x = mix(hv.x, GREEN_HUE, gw * GREEN_PULL);',
     '    hv.y = clamp(hv.y * (1.0 + gw * (GREEN_SAT - 1.0)) + gw * 0.05, 0.0, 1.0);',
     '    c = mix(c, hsv2rgb(hv), step(0.001, gw));',

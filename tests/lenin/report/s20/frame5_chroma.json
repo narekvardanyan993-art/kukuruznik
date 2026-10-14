@@ -1,0 +1,46 @@
+{
+ "s19 day": {
+  "frame2_chroma_L": [
+   20.56,
+   65.4
+  ],
+  "frame5_chroma_L": [
+   19.59,
+   74.4
+  ],
+  "ratio": 0.953
+ },
+ "s19 night": {
+  "frame2_chroma_L": [
+   5.57,
+   16.1
+  ],
+  "frame5_chroma_L": [
+   3.92,
+   22.3
+  ],
+  "ratio": 0.704
+ },
+ "s20 day": {
+  "frame2_chroma_L": [
+   20.74,
+   66.0
+  ],
+  "frame5_chroma_L": [
+   18.73,
+   66.6
+  ],
+  "ratio": 0.903
+ },
+ "s20 night": {
+  "frame2_chroma_L": [
+   5.6,
+   16.2
+  ],
+  "frame5_chroma_L": [
+   4.56,
+   18.2
+  ],
+  "ratio": 0.814
+ }
+}
