@@ -1,0 +1,42 @@
+{
+ "frame": "lenin_3",
+ "drawing": "refs/s21/build/lenin_3.png",
+ "speed": 0.8,
+ "rest": 6.0,
+ "k": 1,
+ "places": [
+  {
+   "clip": "refs/s21/out/lenin_3_players_1.mp4",
+   "crop": [
+    540,
+    880,
+    224,
+    126
+   ],
+   "zones": [
+    [
+     585,
+     893,
+     722,
+     1003
+    ]
+   ],
+   "forbid": [
+    [
+     669,
+     975,
+     768,
+     1010
+    ],
+    [
+     640,
+     983,
+     768,
+     1010
+    ]
+   ],
+   "thr": 9,
+   "delay": 0
+  }
+ ]
+}

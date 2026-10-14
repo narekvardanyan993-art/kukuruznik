@@ -179,6 +179,7 @@
     },
     {
       "name": "lenin_3",
+      "motionVideo": {"clips": [{"src": "lenin_3_motion_1.mp4", "speed": 0.8}, {"src": "lenin_3_motion_n1.mp4", "time": "night"}], "mask": "lenin_3_motion_mask.png"},
       "sunset": false,
       "crop": [0, 0, 1, 1],
       "flag": null,

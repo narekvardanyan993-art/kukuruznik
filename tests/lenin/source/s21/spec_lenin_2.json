@@ -1,0 +1,61 @@
+{
+ "frame": "lenin_2",
+ "drawing": "frames/lenin_2.webp",
+ "speed": 0.8,
+ "rest": 4.0,
+ "k": 1,
+ "base": {
+  "video": "refs/s21/base_backup/lenin_2_motion_1.mp4",
+  "mask": "refs/s21/base_backup/lenin_2_motion_mask.png"
+ },
+ "places": [
+  {
+   "name": "couple",
+   "clip": "refs/s21/out/lenin_2_square_1.mp4",
+   "crop": [
+    250,
+    515,
+    180,
+    320
+   ],
+   "range": [
+    0,
+    150
+   ],
+   "zones": [
+    [
+     380,
+     563,
+     420,
+     612
+    ]
+   ],
+   "delay": 0
+  },
+  {
+   "name": "bags",
+   "clip": "refs/s21/out/lenin_2_square_1.mp4",
+   "crop": [
+    250,
+    515,
+    180,
+    320
+   ],
+   "range": [
+    0,
+    178
+   ],
+   "zones": [
+    [
+     266,
+     698,
+     308,
+     752
+    ]
+   ],
+   "delay": 6
+  }
+ ],
+ "crf": 23,
+ "wcrf": 31
+}

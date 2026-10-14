@@ -1,0 +1,35 @@
+{
+ "base": {
+  "video": "refs/s21/base_backup/lenin_2_motion_1.mp4",
+  "mask": "refs/s21/base_backup/lenin_2_motion_mask.png"
+ },
+ "frame": "lenin_2",
+ "seconds": 26.4,
+ "speed": 0.8,
+ "rest": 4.0,
+ "crf": [
+  23,
+  31
+ ],
+ "mp4_kb": 435,
+ "webm_kb": 373,
+ "mask_px": 96705,
+ "places": [
+  {
+   "name": "couple",
+   "clip": "refs/s21/out/lenin_2_square_1.mp4",
+   "reach_px_frame": 6.6,
+   "flow_p99_px_frame": 6.0,
+   "drift": 0.0,
+   "delay": 0
+  },
+  {
+   "name": "bags",
+   "clip": "refs/s21/out/lenin_2_square_1.mp4",
+   "reach_px_frame": 2.3,
+   "flow_p99_px_frame": 3.9,
+   "drift": 0.0,
+   "delay": 6
+  }
+ ]
+}

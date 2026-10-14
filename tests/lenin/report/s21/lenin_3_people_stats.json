@@ -1,0 +1,24 @@
+{
+ "base": null,
+ "frame": "lenin_3",
+ "seconds": 16.0,
+ "speed": 0.8,
+ "rest": 6.0,
+ "crf": [
+  18,
+  24
+ ],
+ "mp4_kb": 99,
+ "webm_kb": 87,
+ "mask_px": 8345,
+ "places": [
+  {
+   "name": "",
+   "clip": "refs/s21/out/lenin_3_players_1.mp4",
+   "reach_px_frame": 9.9,
+   "flow_p99_px_frame": 14.6,
+   "drift": 0.0,
+   "delay": 0
+  }
+ ]
+}

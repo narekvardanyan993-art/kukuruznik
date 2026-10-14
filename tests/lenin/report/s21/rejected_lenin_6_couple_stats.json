@@ -1,0 +1,21 @@
+{
+ "frame": "lenin_6",
+ "seconds": 12.7,
+ "speed": 0.8,
+ "rest": 8.0,
+ "crf": [
+  18,
+  24
+ ],
+ "mp4_kb": 53,
+ "webm_kb": 46,
+ "mask_px": 3422,
+ "places": [
+  {
+   "clip": "refs/s21/out/lenin_6_couple_1.mp4",
+   "amp_px_frame": 4.9,
+   "drift": 0.0,
+   "delay": 0
+  }
+ ]
+}
