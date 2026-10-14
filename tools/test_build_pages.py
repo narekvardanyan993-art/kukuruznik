@@ -95,6 +95,9 @@ def main():
         ('11. все кадры скрыты', K, set_(lambda b: [f.__setitem__('hidden', True) for f in b['frames']]), 'все кадры скрыты', None),
         ('12. фонари ночной картинки при night: false', K, set_(lambda b: b['frames'][0].__setitem__('night', False)), 'night: false', None),
         ('13. кадр не 9:16 (2:3)', K, set_(lambda b: b['look'].__setitem__('frameSize', [768, 1145])), 'вертикальные 9:16', None),
+        ('14. снег без времени таяния (e1.25)', K, set_(lambda b: b['look'].__setitem__('snow', {'accumS': 35})), 'нет обязательного поля «meltS»', None),
+        ('15. порывы: сила не тремя числами (e1.25)', K, set_(lambda b: b['look'].__setitem__('gusts', {'level': [1, 1], 'gap': [5, 11], 'attack': 1, 'hold': 1, 'decay': 3, 'calm': 0.5, 'boost': 1, 'flutter': 1, 'spring': 0.5, 'damp': 0.3, 'leanPx': 6, 'delay': 0.6})), 'look.gusts.level', None),
+        ('16. маска снега кадра не да/нет (e1.25)', K, set_(lambda b: b['frames'][0].__setitem__('snowMask', 'yes')), 'snowMask', None),
     ]
     ok_all = True
     print('Испорченные настройки — сборка должна остановиться с понятным текстом:\n')

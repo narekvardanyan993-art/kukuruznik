@@ -240,7 +240,23 @@ def validate(bdir, b, site):
                 c.err('aboutFacts', 'факта «%s» нет в facts' % k)
 
     # --- look ---
-    look = c.obj(b['look'], 'look', required=('day', 'night', 'frameSize', 'sunSide'), optional=('hotspots', 'showNight', 'nightEdge', 'bronzeKeep'))
+    look = c.obj(b['look'], 'look', required=('day', 'night', 'frameSize', 'sunSide'), optional=('hotspots', 'showNight', 'nightEdge', 'bronzeKeep', 'snow', 'gusts'))
+    if look and 'snow' in look:   # e1.25 (s22): {accumS, meltS} — снег копится/тает, секунды
+        so = c.obj(look['snow'], 'look.snow', required=('accumS', 'meltS'))
+        for k in ('accumS', 'meltS'):
+            if so and k in so and not (isinstance(so[k], (int, float)) and not isinstance(so[k], bool) and 1 <= so[k] <= 600):
+                c.err('look.snow.' + k, 'секунды, число 1..600')
+    if look and 'gusts' in look:   # e1.25 (s22): ветер порывами
+        go = c.obj(look['gusts'], 'look.gusts', required=('level', 'gap', 'attack', 'hold', 'decay', 'calm', 'boost', 'flutter', 'spring', 'damp', 'leanPx', 'delay'))
+        if go:
+            num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool)
+            if not (isinstance(go.get('level'), list) and len(go['level']) == 3 and all(num(v) and 0 <= v <= 2 for v in go['level'])):
+                c.err('look.gusts.level', 'три числа 0..2: сила порывов при «тихо», «ветрено», «буря»')
+            if not (isinstance(go.get('gap'), list) and len(go['gap']) == 2 and all(num(v) and 0.5 <= v <= 120 for v in go['gap']) and go['gap'][0] <= go['gap'][1]):
+                c.err('look.gusts.gap', 'пауза между порывами [от, до] в секундах, 0,5..120')
+            for k in ('attack', 'hold', 'decay', 'calm', 'boost', 'flutter', 'spring', 'damp', 'leanPx', 'delay'):
+                if k in go and not (num(go[k]) and 0 <= go[k] <= 60):
+                    c.err('look.gusts.' + k, 'число 0..60')
     if look and 'bronzeKeep' in look and look['bronzeKeep'] is not True:
         c.err('look.bronzeKeep', 'только true (бронза не тянется к зелени) или поле не задавать')
     if look and 'nightEdge' in look and look['nightEdge'] != 'solid':
@@ -284,7 +300,7 @@ def validate(bdir, b, site):
         nm = f.get('name') if isinstance(f, dict) else None
         w = 'кадр %d%s' % (i + 1, ' (%s)' % nm if isinstance(nm, str) else '')
         fr = c.obj(f, w, required=('name', 'crop', 'flag', 'cloudShadow', 'wind', 'sky', 'sun', 'life', 'hotspots', 'nightLamps', 'nightHalo', 'lamps'),
-                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'figures'))
+                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'figures', 'snowMask'))
         if not fr:
             continue
         if not (isinstance(nm, str) and re.fullmatch(r'[A-Za-z0-9_\-]+', nm)):
@@ -430,6 +446,8 @@ def validate(bdir, b, site):
                         c.err('%s: motionVideo.clips[%d].time' % (w, j + 1), 'только "day" или "night"')
         if 'nightWins' in fr:     # e1.12: true — окна других зданий (win2 из маски Gemini) горят и ночью с ночной картинкой
             c.boolean(fr['nightWins'], '%s: nightWins' % w)
+        if 'snowMask' in fr:      # e1.25 (s22): маска снега кадра <имя>_snow.webp (из зимнего варианта Gemini)
+            c.boolean(fr['snowMask'], '%s: snowMask' % w)
         if 'depthRaw' in fr:      # e1.5: карта глубины кадра без растяжки контраста (значения файла = глубина в шейдере)
             c.boolean(fr['depthRaw'], '%s: depthRaw' % w)
         if 'bldDepth' in fr:      # e1.5: здание кадра жёстко на этой глубине (0 — далеко, 1 — близко)

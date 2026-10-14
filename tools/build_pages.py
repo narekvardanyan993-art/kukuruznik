@@ -124,6 +124,10 @@ def make_config(b, frames_url):
         C['NIGHT_EDGE'] = look['nightEdge']
     if look.get('bronzeKeep'):   # e1.24 (s20): бронза статуи не тянется к зелени дневной обработкой (только если задано у здания)
         C['BRONZE_KEEP'] = True
+    if look.get('snow'):   # e1.25 (s22): снег по маскам кадров, копится/тает плавно (только если задано у здания)
+        C['SNOW'] = look['snow']
+    if look.get('gusts'):   # e1.25 (s22): ветер порывами (только если задано у здания)
+        C['GUSTS'] = look['gusts']
     if any(f.get('figures') for f in fr):   # e1.22: фигуры рисунка (только если заданы у кадров — у остальных зданий CONFIG тот же)
         C['FIGURES'] = [f.get('figures') for f in fr]
     C.update({
@@ -136,7 +140,7 @@ def make_config(b, frames_url):
         'DAY': day,
         'CLOUD_SHADOW': [f['cloudShadow'] for f in fr],
         'WIND_K': [f['wind'] for f in fr],
-        'FRAMES': [dict(frame_files(frames_url, f['name'], f.get('night', True), f.get('sunset', True)), **({'depthRaw': True} if f.get('depthRaw') else {}), **({'fig': frames_url + f['name'] + '_fig.png'} if f.get('figures') else {})) for f in fr],
+        'FRAMES': [dict(frame_files(frames_url, f['name'], f.get('night', True), f.get('sunset', True)), **({'depthRaw': True} if f.get('depthRaw') else {}), **({'fig': frames_url + f['name'] + '_fig.png'} if f.get('figures') else {}), **({'snow': frames_url + f['name'] + '_snow.webp'} if f.get('snowMask') else {})) for f in fr],
         'HOTSPOTS': [f['hotspots'] for f in fr],
         'CROP': [f['crop'] for f in fr],
         'FLAGS': [f['flag'] or [0, 0, 0, 0] for f in fr],
