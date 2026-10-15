@@ -182,7 +182,7 @@ def road_coverage(am, presets_lane=None):
 def validate(bdir, b, site):
     c = Checker(bdir, site)
     if not c.obj(b, 'файл', required=('format', 'id', 'meta', 'app', 'links', 'framesDir', 'text', 'facts', 'aboutFacts',
-                                      'postcardFile', 'look', 'frames'), optional=('tuning', 'live', 'card')):
+                                      'postcardFile', 'look', 'frames'), optional=('tuning', 'live', 'card', 'postcard')):
         return c.errors
     if b['format'] != 1:
         c.err('format', 'неизвестный формат %r (нужен 1)' % (b['format'],))
@@ -219,6 +219,28 @@ def validate(bdir, b, site):
             c.err('framesDir', 'нет папки с кадрами %s' % fd)
     if c.string(b['postcardFile'], 'postcardFile') and not b['postcardFile'].endswith('.png'):
         c.err('postcardFile', 'имя файла открытки должно оканчиваться на .png')
+    # открытка «в сторис» (e1.27, s26): музейная табличка — название, годы, адрес chka.am/<здание>; без блока — название из панели
+    if 'postcard' in b:
+        pc = c.obj(b['postcard'], 'postcard', required=('name', 'years', 'url'))
+        if pc:
+            c.i18n(pc['name'], 'postcard.name')
+            if isinstance(pc['name'], dict):
+                for l, v in pc['name'].items():
+                    if isinstance(v, str) and len(v) > 48:
+                        c.err('postcard.name', 'название на «%s» длиннее 48 знаков — на табличке не поместится в две строки' % l)
+            yr = pc['years']
+            if isinstance(yr, dict):
+                c.i18n(yr, 'postcard.years')
+                yrs = [v for v in yr.values() if isinstance(v, str)]
+            elif c.string(yr, 'postcard.years'):
+                yrs = [yr]
+            else:
+                yrs = []
+            for v in yrs:
+                if len(v) > 32:
+                    c.err('postcard.years', 'годы длиннее 32 знаков: %r' % v)
+            if c.string(pc['url'], 'postcard.url') and not re.fullmatch(r'chka\.am(/[a-z0-9-]+)?', pc['url']):
+                c.err('postcard.url', 'адрес на открытке — вида chka.am/<здание> (латиница, без https:// и слеша в конце), а не %r' % pc['url'])
 
     # --- тексты ---
     tx = c.obj(b['text'], 'text', required=('title', 'pageTitle', 'plaque', 'panelTitle', 'welcome'))

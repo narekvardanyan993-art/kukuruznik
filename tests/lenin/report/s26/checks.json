@@ -1,0 +1,446 @@
+{
+ "date": "2026-10-15T23:10:40.733Z",
+ "buildings": {
+  "lenin": {
+   "cards": [
+    {
+     "name": "lenin-day-hy.jpg",
+     "state": "day",
+     "lang": "hy",
+     "film": false,
+     "line": ""
+    },
+    {
+     "name": "lenin-day-ru.jpg",
+     "state": "day",
+     "lang": "ru",
+     "film": false,
+     "line": ""
+    },
+    {
+     "name": "lenin-day-en.jpg",
+     "state": "day",
+     "lang": "en",
+     "film": false,
+     "line": ""
+    },
+    {
+     "name": "lenin-day-hy-film.jpg",
+     "state": "day",
+     "lang": "hy",
+     "film": true,
+     "line": "Այստեղ հանդիպեցին ծնողներս"
+    },
+    {
+     "name": "lenin-day-ru-film.jpg",
+     "state": "day",
+     "lang": "ru",
+     "film": true,
+     "line": "Здесь познакомились мои родители"
+    },
+    {
+     "name": "lenin-day-en-film.jpg",
+     "state": "day",
+     "lang": "en",
+     "film": true,
+     "line": ""
+    },
+    {
+     "name": "lenin-night-hy.jpg",
+     "state": "night",
+     "lang": "hy",
+     "film": false,
+     "line": ""
+    },
+    {
+     "name": "lenin-night-ru.jpg",
+     "state": "night",
+     "lang": "ru",
+     "film": false,
+     "line": ""
+    },
+    {
+     "name": "lenin-night-en.jpg",
+     "state": "night",
+     "lang": "en",
+     "film": false,
+     "line": ""
+    },
+    {
+     "name": "lenin-night-hy-film.jpg",
+     "state": "night",
+     "lang": "hy",
+     "film": true,
+     "line": "Այստեղ հանդիպեցին ծնողներս"
+    },
+    {
+     "name": "lenin-night-ru-film.jpg",
+     "state": "night",
+     "lang": "ru",
+     "film": true,
+     "line": "Здесь познакомились мои родители"
+    },
+    {
+     "name": "lenin-night-en-film.jpg",
+     "state": "night",
+     "lang": "en",
+     "film": true,
+     "line": ""
+    },
+    {
+     "name": "lenin-snow-hy.jpg",
+     "state": "snow",
+     "lang": "hy",
+     "film": false,
+     "line": ""
+    },
+    {
+     "name": "lenin-snow-ru.jpg",
+     "state": "snow",
+     "lang": "ru",
+     "film": false,
+     "line": ""
+    },
+    {
+     "name": "lenin-snow-en.jpg",
+     "state": "snow",
+     "lang": "en",
+     "film": false,
+     "line": ""
+    },
+    {
+     "name": "lenin-snow-hy-film.jpg",
+     "state": "snow",
+     "lang": "hy",
+     "film": true,
+     "line": "Այստեղ հանդիպեցին ծնողներս"
+    },
+    {
+     "name": "lenin-snow-ru-film.jpg",
+     "state": "snow",
+     "lang": "ru",
+     "film": true,
+     "line": "Здесь познакомились мои родители"
+    },
+    {
+     "name": "lenin-snow-en-film.jpg",
+     "state": "snow",
+     "lang": "en",
+     "film": true,
+     "line": ""
+    }
+   ],
+   "zones": [
+    {
+     "state": "day",
+     "boxes": {
+      "postmark": {
+       "x": 70,
+       "y": 272,
+       "w": 478,
+       "h": 236
+      },
+      "plaque": {
+       "x": 92,
+       "y": 1072.88,
+       "w": 525,
+       "h": 307.12
+      }
+     }
+    },
+    {
+     "state": "night",
+     "boxes": {
+      "postmark": {
+       "x": 446,
+       "y": 272,
+       "w": 478,
+       "h": 236
+      },
+      "plaque": {
+       "x": 377,
+       "y": 1072.88,
+       "w": 525,
+       "h": 307.12
+      }
+     }
+    },
+    {
+     "state": "snow",
+     "boxes": {
+      "postmark": {
+       "x": 70,
+       "y": 272,
+       "w": 478,
+       "h": 236
+      },
+      "plaque": {
+       "x": 92,
+       "y": 1072.88,
+       "w": 525,
+       "h": 307.12
+      }
+     }
+    }
+   ],
+   "errors": [],
+   "oneTap": {
+    "gestureAtClick": true,
+    "shares": [
+     {
+      "name": "lenin-1980s.jpg",
+      "type": "image/jpeg",
+      "size": 442429,
+      "gesture": false,
+      "ms": 9483,
+      "sameTask": true
+     }
+    ],
+    "downloads": [],
+    "toast": false
+   },
+   "cfg": {
+    "shares": [
+     {
+      "name": "lenin-1980s.jpg",
+      "type": "image/jpeg",
+      "size": 574165,
+      "gesture": false,
+      "ms": 6545,
+      "sameTask": true
+     }
+    ],
+    "stored": "{\"lang\":\"en\",\"line\":\"Grandpa worked here, 1984\",\"film\":true}"
+   },
+   "cfgClosed": true,
+   "pc": [
+    {
+     "name": "lenin-1980s.png",
+     "type": "image/png",
+     "size": 4821144
+    }
+   ]
+  },
+  "kukuruznik": {
+   "cards": [
+    {
+     "name": "kukuruznik-day-hy.jpg",
+     "state": "day",
+     "lang": "hy",
+     "film": false,
+     "line": ""
+    },
+    {
+     "name": "kukuruznik-day-ru.jpg",
+     "state": "day",
+     "lang": "ru",
+     "film": false,
+     "line": ""
+    },
+    {
+     "name": "kukuruznik-day-en.jpg",
+     "state": "day",
+     "lang": "en",
+     "film": false,
+     "line": ""
+    },
+    {
+     "name": "kukuruznik-day-hy-film.jpg",
+     "state": "day",
+     "lang": "hy",
+     "film": true,
+     "line": "Այստեղ հանդիպեցին ծնողներս"
+    },
+    {
+     "name": "kukuruznik-day-ru-film.jpg",
+     "state": "day",
+     "lang": "ru",
+     "film": true,
+     "line": "Здесь познакомились мои родители"
+    },
+    {
+     "name": "kukuruznik-day-en-film.jpg",
+     "state": "day",
+     "lang": "en",
+     "film": true,
+     "line": ""
+    },
+    {
+     "name": "kukuruznik-night-hy.jpg",
+     "state": "night",
+     "lang": "hy",
+     "film": false,
+     "line": ""
+    },
+    {
+     "name": "kukuruznik-night-ru.jpg",
+     "state": "night",
+     "lang": "ru",
+     "film": false,
+     "line": ""
+    },
+    {
+     "name": "kukuruznik-night-en.jpg",
+     "state": "night",
+     "lang": "en",
+     "film": false,
+     "line": ""
+    },
+    {
+     "name": "kukuruznik-night-hy-film.jpg",
+     "state": "night",
+     "lang": "hy",
+     "film": true,
+     "line": "Այստեղ հանդիպեցին ծնողներս"
+    },
+    {
+     "name": "kukuruznik-night-ru-film.jpg",
+     "state": "night",
+     "lang": "ru",
+     "film": true,
+     "line": "Здесь познакомились мои родители"
+    },
+    {
+     "name": "kukuruznik-night-en-film.jpg",
+     "state": "night",
+     "lang": "en",
+     "film": true,
+     "line": ""
+    },
+    {
+     "name": "kukuruznik-snow-hy.jpg",
+     "state": "snow",
+     "lang": "hy",
+     "film": false,
+     "line": ""
+    },
+    {
+     "name": "kukuruznik-snow-ru.jpg",
+     "state": "snow",
+     "lang": "ru",
+     "film": false,
+     "line": ""
+    },
+    {
+     "name": "kukuruznik-snow-en.jpg",
+     "state": "snow",
+     "lang": "en",
+     "film": false,
+     "line": ""
+    },
+    {
+     "name": "kukuruznik-snow-hy-film.jpg",
+     "state": "snow",
+     "lang": "hy",
+     "film": true,
+     "line": "Այստեղ հանդիպեցին ծնողներս"
+    },
+    {
+     "name": "kukuruznik-snow-ru-film.jpg",
+     "state": "snow",
+     "lang": "ru",
+     "film": true,
+     "line": "Здесь познакомились мои родители"
+    },
+    {
+     "name": "kukuruznik-snow-en-film.jpg",
+     "state": "snow",
+     "lang": "en",
+     "film": true,
+     "line": ""
+    }
+   ],
+   "zones": [
+    {
+     "state": "day",
+     "boxes": {
+      "postmark": {
+       "x": 446,
+       "y": 272,
+       "w": 478,
+       "h": 236
+      },
+      "plaque": {
+       "x": 92,
+       "y": 1072.88,
+       "w": 525,
+       "h": 307.12
+      }
+     }
+    },
+    {
+     "state": "night",
+     "boxes": {
+      "postmark": {
+       "x": 446,
+       "y": 272,
+       "w": 478,
+       "h": 236
+      },
+      "plaque": {
+       "x": 92,
+       "y": 1072.88,
+       "w": 525,
+       "h": 307.12
+      }
+     }
+    },
+    {
+     "state": "snow",
+     "boxes": {
+      "postmark": {
+       "x": 70,
+       "y": 272,
+       "w": 478,
+       "h": 236
+      },
+      "plaque": {
+       "x": 92,
+       "y": 1072.88,
+       "w": 525,
+       "h": 307.12
+      }
+     }
+    }
+   ],
+   "errors": [],
+   "oneTap": {
+    "gestureAtClick": true,
+    "shares": [
+     {
+      "name": "kukuruznik-1979.jpg",
+      "type": "image/jpeg",
+      "size": 629674,
+      "gesture": false,
+      "ms": 7250,
+      "sameTask": true
+     }
+    ],
+    "downloads": [],
+    "toast": false
+   },
+   "cfg": {
+    "shares": [
+     {
+      "name": "kukuruznik-1979.jpg",
+      "type": "image/jpeg",
+      "size": 714571,
+      "gesture": true,
+      "ms": 4149,
+      "sameTask": true
+     }
+    ],
+    "stored": "{\"lang\":\"en\",\"line\":\"Grandpa worked here, 1984\",\"film\":true}"
+   },
+   "cfgClosed": true,
+   "pc": [
+    {
+     "name": "kukuruznik-1979.png",
+     "type": "image/png",
+     "size": 4890312
+    }
+   ]
+  }
+ },
+ "problems": []
+}

@@ -213,6 +213,7 @@ def make_config(b, frames_url, stamp=None):
         'PARADE_STYLES': [('planes' if f.get('parade') is True else f['parade']) if f.get('parade') else None for f in fr],   # e1.3: свой парад на каждом кадре
         'ABOUT_FACTS': b['aboutFacts'],
         'POSTCARD_FILE': b['postcardFile'],
+        'POSTCARD': b.get('postcard'),   # e1.27: табличка открытки «в сторис» (название, годы, chka.am/<здание>)
         'I18N': b['facts'],
     })
     ui = dict(C['UI_I18N'])

@@ -1,0 +1,62 @@
+{
+ "kukuruznik-day": {
+  "drawn_px": 177250,
+  "outside_safe_px": 0,
+  "bbox": [
+   81,
+   279,
+   917,
+   1399
+  ]
+ },
+ "kukuruznik-night": {
+  "drawn_px": 175615,
+  "outside_safe_px": 0,
+  "bbox": [
+   89,
+   279,
+   917,
+   1391
+  ]
+ },
+ "kukuruznik-snow": {
+  "drawn_px": 185208,
+  "outside_safe_px": 0,
+  "bbox": [
+   77,
+   279,
+   629,
+   1399
+  ]
+ },
+ "lenin-day": {
+  "drawn_px": 187825,
+  "outside_safe_px": 0,
+  "bbox": [
+   77,
+   279,
+   627,
+   1398
+  ]
+ },
+ "lenin-night": {
+  "drawn_px": 175123,
+  "outside_safe_px": 0,
+  "bbox": [
+   369,
+   279,
+   917,
+   1395
+  ]
+ },
+ "lenin-snow": {
+  "drawn_px": 153551,
+  "outside_safe_px": 0,
+  "bbox": [
+   77,
+   279,
+   623,
+   1400
+  ]
+ }
+}

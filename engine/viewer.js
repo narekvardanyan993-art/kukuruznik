@@ -2816,49 +2816,175 @@
   document.addEventListener('fullscreenchange', onFullscreenChange);
   document.addEventListener('webkitfullscreenchange', onFullscreenChange);
 
-  // открытка: PNG текущего вида + подпись карандашным шрифтом внизу
-  var cardBtn = document.getElementById('cardBtn');
-  if (!useGL) { cardBtn.hidden = true; cardBtn.parentNode.hidden = true; }
-  cardBtn.addEventListener('click', function () {
-    if (!useGL || glLost || !lastDraw) return;
-    var d = lastDraw;
-    // Буфер WebGL читается только сразу после отрисовки — рисуем ещё раз и копируем тут же.
-    // Для открытки рисуем крупнее (~1080 px по ширине), потом возвращаем размер холста.
-    var W0 = canvas.width, H0 = canvas.height, kq = clamp(1080 / W0, 1, 2.5);
-    canvas.width = Math.round(W0 * kq); canvas.height = Math.round(H0 * kq);
+  // ---------- открытка «в сторис» (e1.27, s26): один тап — 1080×1920 в Фото; «Настроить» — язык подписи, своя строка, старая плёнка ----------
+  // Кадр — ровно то, что на экране (время суток, погода, снег, облака, птицы): холст рисуется ещё раз крупнее и обрезается «cover» под 9:16.
+  // Табличка, штемпель и подпись — engine/postcard.js, только в безопасной зоне TikTok/Instagram. На телефоне — системное «Поделиться» с файлом
+  // (там «Сохранить изображение»), на ПК и без Web Share — скачивание PNG. Share вызывается СИНХРОННО в обработчике нажатия (toDataURL, без
+  // ожиданий) — иначе iOS теряет «жест пользователя» и не открывает меню; не вышло — плашка «Открытка готова» со вторым нажатием.
+  var cardBtn = document.getElementById('cardBtn'), cardCfgBtn = document.getElementById('cardCfgBtn');
+  var cardCfg = document.getElementById('cardCfg'), cardPrev = document.getElementById('cardPrev'), cardLineIn = document.getElementById('cardLine');
+  var cardToast = document.getElementById('cardToast'), cardFlash = document.getElementById('cardFlash');
+  var CARD_FONT = '"Chka Serif", "Noto Serif", serif';
+  var CARD_SAMPLE = { hy: 'Երևան Կուկուռուզնիկ 0123', ru: 'Ереван Памятник 0123', en: 'Yerevan Monument 0123' };
+  if (!useGL || !window.ChkaPostcard) { cardBtn.hidden = true; cardBtn.parentNode.hidden = true; }
+  var cardSet = (function () { var s = null; try { s = JSON.parse(lsGet('chka-card') || 'null'); } catch (e) {} s = s && typeof s === 'object' ? s : {};
+    return { lang: CONFIG.LANGS.indexOf(s.lang) >= 0 ? s.lang : null, line: typeof s.line === 'string' ? s.line.slice(0, 40) : '', film: !!s.film }; })();
+  function cardSave() { lsSet('chka-card', JSON.stringify(cardSet)); }
+  function cardLang() { return cardSet.lang || currentLang; }
+  var shareOK = !!(navigator.share && navigator.canShare) && window.matchMedia('(pointer: coarse)').matches;   // ПК — скачивание файла
+  function cardFontsReady(lang) {
+    if (!document.fonts || !document.fonts.check) return true;
+    var t = CARD_SAMPLE[lang] || CARD_SAMPLE.en;
+    try { return document.fonts.check('700 40px ' + CARD_FONT, t) && document.fonts.check('400 40px ' + CARD_FONT, t); } catch (e) { return true; }
+  }
+  function cardFontsLoad() {   // шрифты всех трёх письменностей — заранее, чтобы нажатие не ждало сети
+    if (!document.fonts || !document.fonts.load) return Promise.resolve();
+    var all = [];
+    CONFIG.LANGS.forEach(function (l) { ['400', '500', '700'].forEach(function (w) { all.push(document.fonts.load(w + ' 40px ' + CARD_FONT, CARD_SAMPLE[l] || '').catch(function () {})); }); });
+    return Promise.all(all);
+  }
+  function cardInfo(lang) {   // данные таблички — из building.json (postcard); старое здание без них — название из панели
+    var P = CONFIG.POSTCARD || {};
+    var tx = function (v) { return v && typeof v === 'object' ? (v[lang] || v.en || '') : (v || ''); };
+    return { name: tx(P.name) || CONFIG.UI_I18N.panelTitle[lang], years: tx(P.years), url: P.url || 'chka.am' };
+  }
+  // кадр с экрана → холст 1080×1920 (cover). null — рисовать нечем (нет WebGL / потерян контекст / первый кадр ещё не нарисован)
+  function captureView() {
+    if (!useGL || glLost || !lastDraw) return null;
+    var d = lastDraw, PW = ChkaPostcard.W, PH = ChkaPostcard.H;
+    // Буфер WebGL читается только сразу после отрисовки — рисуем ещё раз (крупнее: ≥ 1080 по ширине) и копируем тут же.
+    var W0 = canvas.width, H0 = canvas.height, kq = clamp(PW / W0, 1, 2.5);
+    if (kq > 1) { canvas.width = Math.round(W0 * kq); canvas.height = Math.round(H0 * kq); }
     drawGL(d.fa, d.fb, d.mix, d.shiftX, d.shiftY, d.zoom, d.t, d.tAmb);
-    var W = canvas.width, H = canvas.height;
-    var c = document.createElement('canvas');
-    c.width = W; c.height = H;
-    var x = c.getContext('2d');
-    x.drawImage(canvas, 0, 0);
-    ['fxCanvas', 'wxCanvas'].forEach(function (id) { var o = document.getElementById(id); if (o && o.style.display !== 'none' && o.width) x.drawImage(o, 0, 0, W, H); });   // облака, солнце, дождь и снег — тоже в открытку
-    canvas.width = W0; canvas.height = H0; // следующий кадр цикла перерисует холст
-    var caption = CONFIG.UI_I18N.title[currentLang] + ' · chka.am';
-    var FONT = '"Chka Serif", "Noto Serif", serif';
-    var ready = (document.fonts && document.fonts.load) ? document.fonts.load('700 40px "Chka Serif"', caption).catch(function () {}) : Promise.resolve();
-    ready.then(function () {
-      var capH = Math.round(H * 0.085), lw = Math.max(2, Math.round(W / 300));
-      x.fillStyle = '#f5ecda';
-      x.fillRect(0, H - capH, W, capH);
-      x.fillStyle = 'rgba(47,42,37,0.75)';
-      x.fillRect(0, H - capH, W, lw); // черта над подписью
-      var fs = Math.round(capH * 0.5);
-      x.font = '700 ' + fs + 'px ' + FONT;
-      while (x.measureText(caption).width > W * 0.92 && fs > 10) { fs -= 2; x.font = '700 ' + fs + 'px ' + FONT; }
-      x.fillStyle = '#2f2a25';
-      x.textAlign = 'center'; x.textBaseline = 'middle';
-      x.fillText(caption, W / 2, H - capH / 2 + lw);
-      c.toBlob(function (blob) {
-        if (!blob) return;
-        var a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = CONFIG.POSTCARD_FILE;   // имя файла открытки — из настроек здания
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
-      }, 'image/png');
+    var W = canvas.width, H = canvas.height, s = Math.max(PW / W, PH / H), sw = PW / s, sh = PH / s, sx = (W - sw) / 2, sy = (H - sh) / 2;
+    var out = document.createElement('canvas'); out.width = PW; out.height = PH;
+    var x = out.getContext('2d'); x.imageSmoothingQuality = 'high';
+    x.drawImage(canvas, sx, sy, sw, sh, 0, 0, PW, PH);
+    ['fxCanvas', 'wxCanvas'].forEach(function (id) {   // облака, солнце, птицы, дождь и снег — тем же вырезом
+      var o = document.getElementById(id); if (!o || o.style.display === 'none' || !o.width) return;
+      var kx = o.width / W, ky = o.height / H;
+      x.drawImage(o, sx * kx, sy * ky, sw * kx, sh * ky, 0, 0, PW, PH);
     });
+    if (kq > 1) { canvas.width = W0; canvas.height = H0; }   // следующий кадр цикла перерисует холст
+    return out;
+  }
+  function composeCard(src, extra) {
+    var lang = cardLang(), info = cardInfo(lang);
+    var o = { lang: lang, name: info.name, years: info.years, url: info.url, line: cardSet.line.trim(), film: cardSet.film, font: CARD_FONT };
+    if (extra) Object.keys(extra).forEach(function (k) { o[k] = extra[k]; });
+    return ChkaPostcard.compose(src, o);
+  }
+  function cardName(ext) { return String(CONFIG.POSTCARD_FILE || 'chka.png').replace(/\.png$/i, '') + ext; }
+  function fileFromCanvas(cv) {   // синхронно (toDataURL): между нажатием и share не должно быть ожиданий
+    var u = cv.toDataURL('image/jpeg', 0.92), b = atob(u.slice(u.indexOf(',') + 1)), a = new Uint8Array(b.length);
+    for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i);
+    return new File([a], cardName('.jpg'), { type: 'image/jpeg', lastModified: Date.now() });
+  }
+  function downloadBlob(blob, name) {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+  }
+  var toastT = 0, toastFile = null;
+  function hideToast() { clearTimeout(toastT); toastFile = null; if (cardToast) cardToast.classList.remove('on'); }
+  function showToast(file) {   // share не открылся без жеста (ждали шрифты) — второе нажатие по плашке откроет его наверняка
+    toastFile = file; if (!cardToast) return;
+    cardToast.querySelector('span').textContent = CONFIG.UI_I18N.cardReady[currentLang];
+    cardToast.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(hideToast, 9000);
+  }
+  function shareFile(file) {
+    var p; try { p = navigator.share({ files: [file] }); } catch (e) { p = Promise.reject(e); }
+    return p.then(hideToast, function (e) {
+      if (e && e.name === 'AbortError') { hideToast(); return; }           // человек закрыл меню сам
+      if (e && e.name === 'NotAllowedError') { showToast(file); return; }   // нет жеста — плашка «Открытка готова»
+      hideToast(); downloadBlob(file, file.name);
+    });
+  }
+  // отдать открытку: телефон — меню «Поделиться» (Сохранить изображение / Instagram / TikTok), ПК — PNG-файл
+  function deliverCard(cv) {
+    if (shareOK) {
+      var f = fileFromCanvas(cv);
+      if (navigator.canShare({ files: [f] })) return shareFile(f);
+    }
+    cv.toBlob(function (blob) { if (blob) downloadBlob(blob, cardName('.png')); }, 'image/png');
+  }
+  function cardFeedback() {   // вспышка над картинкой и галочка на кнопке — отклик в тот же миг, что нажатие
+    if (cardFlash && cardFlash.animate) cardFlash.animate([{ opacity: reduced() ? 0.35 : 0.75 }, { opacity: 0 }], { duration: reduced() ? 380 : 620, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' });
+    cardBtn.classList.add('done'); clearTimeout(cardBtn.__t); cardBtn.__t = setTimeout(function () { cardBtn.classList.remove('done'); }, 1600);
+  }
+  function makeCard(after) {   // after(canvas) — сразу, если шрифты готовы; иначе после загрузки шрифтов (тогда share уже без жеста)
+    var src = captureView(); if (!src) return false;
+    var lang = cardLang();
+    if (cardFontsReady(lang)) { after(composeCard(src), true); return true; }
+    cardFontsLoad().then(function () { after(composeCard(src), false); });
+    return true;
+  }
+  cardBtn.addEventListener('click', function () {
+    if (!window.ChkaPostcard) return;
+    if (!makeCard(function (cv, sync) {
+      if (sync || !shareOK) deliverCard(cv);
+      else showToast(fileFromCanvas(cv));
+    })) return;
+    cardFeedback();
   });
+  if (cardToast) cardToast.addEventListener('click', function () { if (toastFile) shareFile(toastFile); });
+
+  // «Настроить»: окно поверх страницы — превью открытки (снимок экрана в момент открытия), язык подписи, своя строка, плёнка, «Сохранить»
+  var cfgSrc = null, cfgCard = null, cfgT = 0;
+  function cfgMarks() {
+    cardCfg.querySelectorAll('[data-clang]').forEach(function (b) { var on = b.getAttribute('data-clang') === cardLang(); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+    var fb = document.getElementById('cardFilm'); fb.classList.toggle('on', cardSet.film); fb.setAttribute('aria-pressed', cardSet.film ? 'true' : 'false');
+    var cn = document.getElementById('cardLineN'); if (cn) cn.textContent = cardSet.line.length + ' / 40';
+  }
+  function cfgRender() {
+    if (!cfgSrc) return;
+    cfgCard = composeCard(cfgSrc);
+    var px = cardPrev.getContext('2d'); px.imageSmoothingQuality = 'high';
+    px.drawImage(cfgCard, 0, 0, cardPrev.width, cardPrev.height);
+  }
+  function cfgLater() { clearTimeout(cfgT); cfgT = setTimeout(cfgRender, 120); }
+  function openCfg() {
+    if (!window.ChkaPostcard) return;
+    cfgSrc = captureView();
+    var dp = Math.min(2, window.devicePixelRatio || 1);
+    cardPrev.width = Math.round(180 * dp); cardPrev.height = Math.round(320 * dp);
+    cardLineIn.value = cardSet.line; cfgMarks();
+    hideToast();
+    document.documentElement.classList.add('panel-anim');
+    cardCfg.hidden = false; void cardCfg.offsetWidth;   // переход с текущего положения (закрыли посреди открытия — откроется от того места)
+    bodyEl.classList.add('card-open');
+    if (cardFontsReady(cardLang())) cfgRender(); else cardFontsLoad().then(cfgRender);
+  }
+  function closeCfg() { bodyEl.classList.remove('card-open'); clearTimeout(cfgT); }
+  if (cardCfgBtn && cardCfg) {
+    cardCfgBtn.addEventListener('click', openCfg);
+    document.getElementById('cardCfgClose').addEventListener('click', closeCfg);
+    document.getElementById('cardScrim').addEventListener('click', closeCfg);
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && bodyEl.classList.contains('card-open')) closeCfg(); });
+    cardCfg.querySelectorAll('[data-clang]').forEach(function (b) {
+      b.addEventListener('click', function () { cardSet.lang = b.getAttribute('data-clang'); cardSave(); cfgMarks(); if (cardFontsReady(cardLang())) cfgRender(); else cardFontsLoad().then(cfgRender); });
+    });
+    document.getElementById('cardFilm').addEventListener('click', function () { cardSet.film = !cardSet.film; cardSave(); cfgMarks(); cfgRender(); });
+    cardLineIn.addEventListener('input', function () { cardSet.line = cardLineIn.value.replace(/[\r\n]+/g, ' ').slice(0, 40); cardSave(); cfgMarks(); cfgLater(); });
+    document.getElementById('cardGo').addEventListener('click', function () {   // сохранить ту открытку, что в превью (с текущими настройками)
+      if (!cfgSrc) return;
+      clearTimeout(cfgT); cfgRender();
+      deliverCard(cfgCard);
+      cardFeedback();
+    });
+  }
+  // шрифты открытки — в простое после загрузки страницы (нажатие потом не ждёт сеть)
+  setTimeout(function () { (window.requestIdleCallback || function (f) { setTimeout(f, 1) })(function () { cardFontsLoad(); }); }, 4000);
+  window.__card = {   // для проверки (report s26): открытка с заданными настройками без «Поделиться»; dataURL JPEG/PNG
+    make: function (o) { var src = captureView(); if (!src) return null; o = o || {};
+      var keep = { lang: cardSet.lang, line: cardSet.line, film: cardSet.film };
+      if (o.lang) cardSet.lang = o.lang; if (o.line != null) cardSet.line = o.line; if (o.film != null) cardSet.film = !!o.film;
+      var cv = composeCard(src, { seed: o.seed != null ? o.seed : 26, date: o.date ? new Date(o.date) : undefined, grain: o.grain });
+      cardSet.lang = keep.lang; cardSet.line = keep.line; cardSet.film = keep.film;
+      return { url: cv.toDataURL(o.png ? 'image/png' : 'image/jpeg', 0.9), boxes: cv.__boxes, src: o.src ? src.toDataURL(o.png ? 'image/png' : 'image/jpeg', 0.9) : null }; },
+    fontsReady: function (l) { return cardFontsReady(l || cardLang()); }, fontsLoad: cardFontsLoad, safe: function () { return ChkaPostcard.SAFE; }
+  };
 
   // размер текста: крупный (по умолчанию) / обычный
   function setTextSize(v) {

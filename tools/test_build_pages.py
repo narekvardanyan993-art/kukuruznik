@@ -238,6 +238,40 @@ def check_with_building():
     return ok, out
 
 
+def check_postcard():
+    """s26 (e1.27): открытка «в сторис» — табличка из building.json у ОБОИХ настоящих зданий (название hy/ru/en, годы, chka.am/<здание>) вшита в
+    страницу (CONFIG.POSTCARD); движок подключает postcard.js раньше viewer.js; у кнопок открытки и окна «Настроить» есть тексты на трёх языках;
+    имя файла открытки прежнее (.png — скачивание на ПК, .jpg — «Поделиться» на телефоне). Возвращает (ok, строки отчёта)."""
+    out, ok = [], True
+    def rec(name, good, extra=''):
+        nonlocal ok
+        ok &= bool(good)
+        out.append('%s  открытка: %s%s' % ('OK   ' if good else 'ОШИБКА', name, (' — ' + extra) if extra else ''))
+    tmp = Path(tempfile.mkdtemp(prefix='chka-test-card-'))
+    try:
+        bdirs = ['kukuruznik', 'tests/lenin']
+        site = make_site(tmp, bdirs)
+        bp.build_beta(site, bdirs)
+        for bd, url in (('kukuruznik', 'chka.am/kukuruznik'), ('tests/lenin', 'chka.am/lenin')):
+            html_text = (site / 'beta' / bd / 'index.html').read_text(encoding='utf-8')
+            cfg = page_config(html_text)
+            pc = cfg.get('POSTCARD') or {}
+            good = isinstance(pc.get('name'), dict) and all((pc['name'].get(l) or '').strip() for l in ('hy', 'ru', 'en')) and re.fullmatch(r'\d{4}–\d{4}', str(pc.get('years', ''))) and pc.get('url') == url
+            rec('%s — табличка в странице (%s, %s, %s)' % (bd, pc.get('name', {}).get('hy'), pc.get('years'), pc.get('url')), good)
+            a, b = html_text.find('postcard.js?v='), html_text.find('viewer.js?v=')
+            rec('%s — postcard.js подключён раньше viewer.js' % bd, 0 <= a < b)
+            rec('%s — файл открытки %s' % (bd, cfg.get('POSTCARD_FILE')), str(cfg.get('POSTCARD_FILE', '')).endswith('.png'))
+            ui = cfg['UI_I18N']
+            miss = [k for k in ('postcard', 'postcardCfg', 'cardTitle', 'cardLang', 'cardLine', 'cardFilm', 'cardSave', 'cardReady') if not all((ui.get(k) or {}).get(l) for l in ('hy', 'ru', 'en'))]
+            rec('%s — тексты кнопок и окна на hy/ru/en' % bd, not miss, ', '.join(miss))
+            ids = [i for i in ('cardBtn', 'cardCfgBtn', 'cardCfg', 'cardPrev', 'cardLine', 'cardFilm', 'cardGo', 'cardToast', 'cardFlash') if 'id="%s"' % i not in html_text]
+            rec('%s — кнопка, «Настроить», окно и плашка в странице' % bd, not ids, ', '.join(ids))
+        rec('postcard.js скопирован в beta/engine/', (site / 'beta' / 'engine' / 'postcard.js').is_file())
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    return ok, out
+
+
 def engine_js_check(clip_src):
     """Запускает настоящий mvSetClip из engine/viewer.js (node, заглушка видео): с H.264 адрес = base + mp4?v, без — base + webm?v;
     старый адрес без ?v ведёт себя как раньше. Возвращает None (всё верно) или текст ошибки."""
@@ -289,6 +323,10 @@ def main():
         ('18. сдвиг кроны вне 2..40 px (e1.26)', K, set_(lambda b: b['look'].__setitem__('gusts', {'level': [0.3, 0.8, 1], 'gap': [5, 11], 'attack': 1, 'hold': 1, 'decay': 3, 'calm': 0.5, 'boost': 1, 'flutter': 1, 'spring': 0.5, 'damp': 0.3, 'leanPx': 6, 'delay': 0.6, 'swayMaxPx': 90})), 'look.gusts.swayMaxPx', None),
         ('19. листья без размера (e1.26)', K, set_(lambda b: b['look'].__setitem__('gusts', {'level': [0.3, 0.8, 1], 'gap': [5, 11], 'attack': 1, 'hold': 1, 'decay': 3, 'calm': 0.5, 'boost': 1, 'flutter': 1, 'spring': 0.5, 'damp': 0.3, 'leanPx': 6, 'delay': 0.6, 'leaves': {'colors': [[60, 120, 30, 1]]}})), 'нет обязательного поля «size»', None),
         ('20. кадр с sway без файла полей (e1.26)', K, set_(lambda b: b['frames'][1].__setitem__('sway', True)), '_sway.png', None),
+        ('21. открытка: нет названия на en (e1.27)', K, set_(lambda b: b['postcard']['name'].pop('en')), 'postcard.name: нет текста на языке «en»', None),
+        ('22. открытка: адрес с https:// (e1.27)', K, set_(lambda b: b['postcard'].__setitem__('url', 'https://chka.am/kukuruznik/')), 'postcard.url', None),
+        ('23. открытка: нет годов (e1.27)', K, set_(lambda b: b['postcard'].pop('years')), 'postcard: нет обязательного поля «years»', None),
+        ('24. открытка: опечатка в поле (e1.27)', K, set_(lambda b: b['postcard'].__setitem__('yaers', '1979')), 'неизвестное поле «yaers»', None),
     ]
     ok_all = True
     print('Испорченные настройки — сборка должна остановиться с понятным текстом:\n')
@@ -418,6 +456,10 @@ def main():
     for l in lines_st:
         print(l)
     ok_all &= ok_st
+    ok_pc, lines_pc = check_postcard()
+    for l in lines_pc:
+        print(l)
+    ok_all &= ok_pc
     # стопка главной: картинка здания встаёт на место силуэта, повтор ничего не меняет, чужое место и вне-диффы ловятся
     hub0 = (ROOT / 'index.html').read_text(encoding='utf-8')
     base = re.sub(r'\s*<!-- stack:lenin .*?<!-- /stack:lenin -->', '\n      <div class="stack-card sc-c"><div class="sc-pic"><svg class="ghost" viewBox="0 0 200 200"><use href="#ghost-statue"/></svg></div></div>', hub0, flags=re.S)

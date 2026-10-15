@@ -1031,6 +1031,7 @@
   "architects"
  ],
  "postcardFile": "kukuruznik-1979.png",
+ "postcard": {"name": {"hy": "Կուկուռուզնիկ", "ru": "Кукурузник", "en": "Kukuruznik"}, "years": "1979–2006", "url": "chka.am/kukuruznik"},
  "app": {
   "name": "Кукурузник — Дом молодёжи",
   "shortName": "Кукурузник"
