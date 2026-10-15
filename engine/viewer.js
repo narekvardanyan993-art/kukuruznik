@@ -232,6 +232,15 @@
   // в метель снег кружит и идёт косо.
   var SNOWM = NI && !!CONFIG.SNOW && FRAMES.some(function (f) { return f.snow; });
   var GUSTS = CONFIG.GUSTS || null;
+  // e1.26 SWAY (s23, look.gusts.swayMaxPx + frames[].sway): крона качается, НЕ затягивая фон. Раньше выборка сдвигалась по маске
+  // дерева в точке экрана: у наветренного края кроны в крону затягивало небо, дома и столбы (размазня), подветренный край обрезался
+  // по маске, а мягкая маска с разной высотой по строкам рвала штрих «лесенкой». Теперь каждая строка кроны каждого дерева —
+  // отрезок [x0, x1] (поля u, v в нижнем этаже карты окружения, см. prep.js addSway): при наклоне вправо левый край стоит, правый
+  // уходит на A и накрывает фон, влево — наоборот. Точку кроны для пикселя находим итерациями q = p - A·u(q); фон рядом с кроной
+  // не сдвигается никогда — он виден как есть или закрыт кроной (ближнее кроны — по глубине — крона не закрывает).
+  // Сдвиг A мягко ограничен swayMaxPx (px кадра). Без настройки — прежний ветер e1.25, шейдер Кукурузника прежний.
+  var SWAY = !!(GUSTS && GUSTS.swayMaxPx > 0 && FRAMES.some(function (f) { return f.sway; }));
+  var EH = (FH + 1) >> 1;   // строк в одном этаже карты окружения (она вдвое мельче кадра)
   // e1.22 FIGURES (s18): мелкие фигуры рисунка (люди, игроки в нарды, голуби, шарик, листья, трава) чуть движутся на месте — не спрайты,
   // а сдвиг выборки самой картинки внутри мягкой маски фигуры (prep.js кладёт маску в альфу карты окружения там, где нет дерева).
   // Фигура = рамка (доли кадра) + тип + сторона; движение считает CPU (figMotion: по времени, кривые --ios/--out/--in из page.html,
@@ -408,6 +417,16 @@
       '  return v * (m * smoothstep(0.0, 2.0, edge)) * vec2(' + glf(1 / FW) + ', ' + glf(1 / FH) + ');',
       '}'
     ].join('\n') + '\n' : '') +
+    // e1.26 SWAY: карта окружения двухэтажная (верх — как была, низ — поля качания крон); строки на стыке этажей не смешиваются
+    (SWAY ? [
+      'vec4 envT(sampler2D s, vec2 uv) { return texture2D(s, vec2(uv.x, clamp(uv.y * 0.5, ' + glf(0.25 / EH) + ', ' + glf(0.5 - 0.25 / EH) + '))); }',
+      'vec4 swayF(sampler2D s, vec2 uv) { return texture2D(s, vec2(uv.x, 0.5 + clamp(uv.y * 0.5, ' + glf(0.25 / EH) + ', ' + glf(0.5 - 0.25 / EH) + '))); }',
+      'float swayA(vec4 s, float x) {',   // сдвиг кроны (доли кадра, + вправо): наклон по ветру + качание по фазе дерева, мягко ограничен swayMaxPx
+      '  float per = 5.0 + 2.0 * fract(s.a * 7.13);',
+      '  float a = mix(uWindG.x, uWindG.y, clamp(x, 0.0, 1.0)) * s.b * (0.75 + 0.5 * fract(s.a * 3.7)) - uWindAmp * s.b * sin(uWindG.z * 6.2832 / per + s.a * 19.0);',
+      '  return a / sqrt(1.0 + a * a * ' + glf(1 / Math.pow(GUSTS.swayMaxPx / FW, 2)) + ');',
+      '}'
+    ].join('\n') + '\n' : '') +
     // Готовый цвет пикселя одного кадра: параллакс, ветер, закат, ночь.
     'vec4 shadeFrame(sampler2D bg, sampler2D depth, sampler2D bld, sampler2D em, vec3 kd, float starQ, vec2 skyRef, vec4 crop, vec4 flag,' + (SPILL > 0 ? ' vec2 ek,' : '') + (NI ? ' sampler2D sg, sampler2D sb, sampler2D ng, sampler2D nb, vec3 has,' : '') + (NI && MVD ? ' mat4 cal,' : '') + (FN > 0 ? ' float slot,' : '') + (SNOWM ? ' float snowM,' : '') + ' vec2 uv, vec2 sc) {',
     '  uv = crop.xy + uv * crop.zw;',   // обрезка белого края бумаги: показываем только внутренний прямоугольник кадра
@@ -421,11 +440,24 @@
     '  vec4 env = texture2D(depth, p);' +                     // r глубина, g небо, b высота дерева, a фаза дерева
       (FN > 0 ? '\n  if (env.b < 0.008 && env.a > 0.004) p -= figWarp(slot, p, env.a);' : ''),   // e1.22: фигура рисунка (маска в альфе, где нет дерева)
     // ветер: чем выше точка дерева, тем сильнее сдвиг; корень неподвижен; у каждого дерева своя фаза и период 5–7 с
+    SWAY ? [   // e1.26: крона тянется по ветру, наветренный край стоит, фон не двигается (см. SWAY выше)
+      '  if (uWindOn > 0.5) {',
+      '    vec4 s0 = swayF(depth, p);',
+      '    if (s0.b > 0.002) {',
+      '      vec2 p0 = p; float q = p0.x, A = 0.0;',
+      '      for (int i = 0; i < 6; i++) { vec4 sq = swayF(depth, vec2(q, p0.y)); A = swayA(sq, q); q = p0.x - A * (A >= 0.0 ? sq.r : sq.g); }',
+      '      vec4 s1 = swayF(depth, vec2(q, p0.y)); float A1 = swayA(s1, q);',
+      '      float err = abs(q + A1 * (A1 >= 0.0 ? s1.r : s1.g) - p0.x);',
+      '      float T1 = clamp(2.0 - s1.r - s1.g, 0.0, 1.0), T0 = clamp(2.0 - s0.r - s0.g, 0.0, 1.0);',
+      '      if (T1 > 0.5 && err < ' + glf(1.5 / FW) + ' && (T0 > 0.5 || env.r < envT(depth, vec2(q, p0.y)).r + 0.08)) { p.x = q; env = envT(depth, p); }',
+      '    }',
+      '  }'
+    ].join('\n') : [
     '  if (uWindOn > 0.5 && env.b > 0.004) {',
     '    float per = 5.0 + 2.0 * fract(env.a * 7.13);',
     GUSTS ? '    p.x += uWindAmp * env.b * sin(uWindG.z * 6.2832 / per + env.a * 19.0) - mix(uWindG.x, uWindG.y, clamp(p.x, 0.0, 1.0)) * env.b * (0.75 + 0.5 * fract(env.a * 3.7));'   // e1.25: качание по фазе порывов + наклон по ветру (порыв приходит слева)
       : '    p.x += uWindAmp * env.b * sin(uTime * 6.2832 / per + env.a * 19.0);',
-    '  }',
+    '  }'].join('\n'),
     // флаги колышутся: небольшая волна только внутри прямоугольника флага
     '  if (flag.z > 0.0 && uWindOn > 0.5 && p.x > flag.x && p.x < flag.x + flag.z && p.y > flag.y && p.y < flag.y + flag.w) {',
     '    p.y += 0.0011 * sin(uTime * 3.4 + p.x * 210.0);',
@@ -606,6 +638,7 @@
     '  gl_FragColor = vec4(c, 1.0);',
     '}'
   ].join('\n');
+  if (SWAY) SCENE_FRAG = SCENE_FRAG.replace(/texture2D\(depth, /g, 'envT(depth, ');   // e1.26: верхний этаж карты окружения
 
   // Второй проход: длинные тени на закате и фонари ночью (тёплый ореол + светлое пятно на земле).
   var POST_FRAG = [
@@ -786,7 +819,7 @@
   function uploadDay(f, r) {
     var steps = [
       function () { f.bgTex = r.ground4 ? texRGBA(r.w, r.h, r.ground4) : texRGB(r.w, r.h, r.ground); },   // земля: кадр с подложкой на месте здания (+ в альфе глубина здания по точкам, если включена)
-      function () { f.depthTex = texRGBA(r.ew, r.eh, r.gpuDepth); },         // R глубина, G небо, B высота дерева, A фаза (вдвое мельче)
+      function () { f.depthTex = texRGBA(r.ew, r.swayRows ? r.eh * 2 : r.eh, r.gpuDepth); },   // R глубина, G небо, B высота дерева, A фаза (вдвое мельче); e1.26 SWAY — двухэтажная (снизу поля качания крон)
       function () { f.bldTex = texRGBA(r.w, r.h, r.bldPm); },                // здание, цвет уже умножен на альфу
       function () { emSetup(f, r); f.emTex = texRGBA(r.ew, f.emH, f.emAll); }   // окна: R/G свет ночью (главное здание/другие здания), B/A сами маски (+ свет на стене, e1.19)
     ];
@@ -1374,6 +1407,7 @@
       NIGHT_WINS: (CONFIG.SCENE || []).map(function (q) { return !!(q && q.nightWins); }),
       NIGHT_MAIN_WINS: CONFIG.NIGHT_MAIN_WINS, NIGHT_EDGE: CONFIG.NIGHT_EDGE, FIG_ON: !!CONFIG.FIGURES
     };
+    if (SWAY) cfg.SWAY_ON = true;   // e1.26: подготовка кадра кладёт поля качания крон в нижний этаж карты окружения
     function viaMain(method, args) {
       if (!mainReadyP) {
         mainReadyP = new Promise(function (res, rej) {
@@ -2682,6 +2716,7 @@
       lf.x += lf.vx * s; lf.y += (lf.vy + Math.sin(tl * 2.1 + lf.ph) * 0.7 * d) * s;
       lf.sp += (0.03 + 0.035 * Math.abs(lf.vx) / d) * s * (0.6 + lf.z);
       if (lf.x > W + 30 * d || lf.y > H + 20 * d || lf.y < -H * 0.3) { leaves.splice(li, 1); continue; }
+      if (LEAF) { drawLeaf(lf, d, nightL, la); continue; }   // e1.26: мелкий чёткий лист по сезону сцены
       var ls = (3 + 4 * lf.z) * d, gC = lf.hue < 0.5 ? [120, 138, 70] : [176, 132, 58], fc = gC.map(function (c) { return Math.round(c * nightL); }).join(',');
       if (Math.abs(lf.vx) > 3 * d) {   // шлейф: при 60 Гц заполняет промежуток между кадрами
         pctx.strokeStyle = 'rgba(' + fc + ',' + (0.18 * la).toFixed(3) + ')'; pctx.lineWidth = ls * 0.7; pctx.lineCap = 'round';
@@ -2694,6 +2729,29 @@
       pctx.beginPath(); pctx.moveTo(-ls, 0); pctx.lineTo(ls, 0); pctx.stroke();
       pctx.restore();
     }
+  }
+
+  // e1.26 (s23, look.gusts.leaves): летящий лист — не размытое пятно-эллипс со шлейфом, а мелкий чёткий листок рисунка:
+  // заострённая форма (две дуги), карандашный контур 0,6 px, жилка и черешок; цвет — из палитры сцены по долям (сезон кадров),
+  // длина size[0..1] css px. Кувыркание — поворот и «сплющивание» (лист поворачивается ребром), без шлейфа.
+  var LEAF = GUSTS && GUSTS.leaves ? GUSTS.leaves : null;
+  function leafColor(h) {
+    var cl = LEAF.colors, tot = 0, i;
+    for (i = 0; i < cl.length; i++) tot += cl[i][3];
+    var t = h * tot;
+    for (i = 0; i < cl.length; i++) { t -= cl[i][3]; if (t <= 0) return cl[i]; }
+    return cl[cl.length - 1];
+  }
+  function drawLeaf(lf, d, nightL, la) {
+    var c = leafColor(lf.hue), L = (LEAF.size[0] + (LEAF.size[1] - LEAF.size[0]) * lf.z) * d * 0.5, W = L * 0.42;
+    var fc = Math.round(c[0] * nightL) + ',' + Math.round(c[1] * nightL) + ',' + Math.round(c[2] * nightL);
+    pctx.save(); pctx.translate(lf.x, lf.y); pctx.rotate(lf.sp); pctx.scale(1, 0.25 + 0.75 * Math.abs(Math.sin(lf.sp * 1.3)));
+    pctx.beginPath(); pctx.moveTo(-L, 0); pctx.quadraticCurveTo(-0.1 * L, -2 * W, L, 0); pctx.quadraticCurveTo(-0.1 * L, 2 * W, -L, 0); pctx.closePath();
+    pctx.fillStyle = 'rgba(' + fc + ',' + (0.95 * la).toFixed(3) + ')'; pctx.fill();
+    pctx.lineWidth = 0.6 * d; pctx.lineJoin = 'round'; pctx.strokeStyle = 'rgba(40,36,30,' + (0.6 * la).toFixed(3) + ')'; pctx.stroke();
+    pctx.beginPath(); pctx.moveTo(-1.45 * L, 0); pctx.lineTo(0.75 * L, 0);   // черешок и жилка
+    pctx.lineWidth = 0.45 * d; pctx.strokeStyle = 'rgba(40,36,30,' + (0.55 * la).toFixed(3) + ')'; pctx.stroke();
+    pctx.restore();
   }
 
   // миниатюры кадров

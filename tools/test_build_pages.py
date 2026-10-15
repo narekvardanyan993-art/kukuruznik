@@ -98,6 +98,10 @@ def main():
         ('14. снег без времени таяния (e1.25)', K, set_(lambda b: b['look'].__setitem__('snow', {'accumS': 35})), 'нет обязательного поля «meltS»', None),
         ('15. порывы: сила не тремя числами (e1.25)', K, set_(lambda b: b['look'].__setitem__('gusts', {'level': [1, 1], 'gap': [5, 11], 'attack': 1, 'hold': 1, 'decay': 3, 'calm': 0.5, 'boost': 1, 'flutter': 1, 'spring': 0.5, 'damp': 0.3, 'leanPx': 6, 'delay': 0.6})), 'look.gusts.level', None),
         ('16. маска снега кадра не да/нет (e1.25)', K, set_(lambda b: b['frames'][0].__setitem__('snowMask', 'yes')), 'snowMask', None),
+        ('17. поля качания крон кадра не да/нет (e1.26)', K, set_(lambda b: b['frames'][0].__setitem__('sway', 1)), 'sway', None),
+        ('18. сдвиг кроны вне 2..40 px (e1.26)', K, set_(lambda b: b['look'].__setitem__('gusts', {'level': [0.3, 0.8, 1], 'gap': [5, 11], 'attack': 1, 'hold': 1, 'decay': 3, 'calm': 0.5, 'boost': 1, 'flutter': 1, 'spring': 0.5, 'damp': 0.3, 'leanPx': 6, 'delay': 0.6, 'swayMaxPx': 90})), 'look.gusts.swayMaxPx', None),
+        ('19. листья без размера (e1.26)', K, set_(lambda b: b['look'].__setitem__('gusts', {'level': [0.3, 0.8, 1], 'gap': [5, 11], 'attack': 1, 'hold': 1, 'decay': 3, 'calm': 0.5, 'boost': 1, 'flutter': 1, 'spring': 0.5, 'damp': 0.3, 'leanPx': 6, 'delay': 0.6, 'leaves': {'colors': [[60, 120, 30, 1]]}})), 'нет обязательного поля «size»', None),
+        ('20. кадр с sway без файла полей (e1.26)', K, set_(lambda b: b['frames'][1].__setitem__('sway', True)), '_sway.png', None),
     ]
     ok_all = True
     print('Испорченные настройки — сборка должна остановиться с понятным текстом:\n')

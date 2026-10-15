@@ -247,7 +247,8 @@ def validate(bdir, b, site):
             if so and k in so and not (isinstance(so[k], (int, float)) and not isinstance(so[k], bool) and 1 <= so[k] <= 600):
                 c.err('look.snow.' + k, 'секунды, число 1..600')
     if look and 'gusts' in look:   # e1.25 (s22): ветер порывами
-        go = c.obj(look['gusts'], 'look.gusts', required=('level', 'gap', 'attack', 'hold', 'decay', 'calm', 'boost', 'flutter', 'spring', 'damp', 'leanPx', 'delay'))
+        go = c.obj(look['gusts'], 'look.gusts', required=('level', 'gap', 'attack', 'hold', 'decay', 'calm', 'boost', 'flutter', 'spring', 'damp', 'leanPx', 'delay'),
+                   optional=('swayMaxPx', 'leaves'))   # e1.26 (s23): крона тянется по ветру без затягивания фона; летящие листья
         if go:
             num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool)
             if not (isinstance(go.get('level'), list) and len(go['level']) == 3 and all(num(v) and 0 <= v <= 2 for v in go['level'])):
@@ -257,6 +258,17 @@ def validate(bdir, b, site):
             for k in ('attack', 'hold', 'decay', 'calm', 'boost', 'flutter', 'spring', 'damp', 'leanPx', 'delay'):
                 if k in go and not (num(go[k]) and 0 <= go[k] <= 60):
                     c.err('look.gusts.' + k, 'число 0..60')
+            if 'swayMaxPx' in go and not (num(go['swayMaxPx']) and 2 <= go['swayMaxPx'] <= 40):
+                c.err('look.gusts.swayMaxPx', 'наибольший сдвиг кроны, px кадра: число 2..40')
+            if 'leaves' in go:   # {colors: [[r,g,b,доля], …], size: [от, до] css px}
+                lo = c.obj(go['leaves'], 'look.gusts.leaves', required=('colors', 'size'))
+                if lo:
+                    cl = lo.get('colors')
+                    if not (isinstance(cl, list) and cl and all(isinstance(q, list) and len(q) == 4 and all(num(t) for t in q) and all(0 <= t <= 255 for t in q[:3]) and 0 < q[3] <= 1 for q in cl)):
+                        c.err('look.gusts.leaves.colors', 'список цветов [r, g, b, доля]: r, g, b 0..255, доля 0..1')
+                    sz = lo.get('size')
+                    if not (isinstance(sz, list) and len(sz) == 2 and all(num(t) and 1 <= t <= 12 for t in sz) and sz[0] <= sz[1]):
+                        c.err('look.gusts.leaves.size', 'длина листа [от, до] в css px, 1..12')
     if look and 'bronzeKeep' in look and look['bronzeKeep'] is not True:
         c.err('look.bronzeKeep', 'только true (бронза не тянется к зелени) или поле не задавать')
     if look and 'nightEdge' in look and look['nightEdge'] != 'solid':
@@ -300,7 +312,7 @@ def validate(bdir, b, site):
         nm = f.get('name') if isinstance(f, dict) else None
         w = 'кадр %d%s' % (i + 1, ' (%s)' % nm if isinstance(nm, str) else '')
         fr = c.obj(f, w, required=('name', 'crop', 'flag', 'cloudShadow', 'wind', 'sky', 'sun', 'life', 'hotspots', 'nightLamps', 'nightHalo', 'lamps'),
-                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'figures', 'snowMask'))
+                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'figures', 'snowMask', 'sway'))
         if not fr:
             continue
         if not (isinstance(nm, str) and re.fullmatch(r'[A-Za-z0-9_\-]+', nm)):
@@ -448,6 +460,8 @@ def validate(bdir, b, site):
             c.boolean(fr['nightWins'], '%s: nightWins' % w)
         if 'snowMask' in fr:      # e1.25 (s22): маска снега кадра <имя>_snow.webp (из зимнего варианта Gemini)
             c.boolean(fr['snowMask'], '%s: snowMask' % w)
+        if 'sway' in fr:          # e1.26 (s23): поля качания крон кадра <имя>_sway.png (tests/lenin/source/s23/sway23.py)
+            c.boolean(fr['sway'], '%s: sway' % w)
         if 'depthRaw' in fr:      # e1.5: карта глубины кадра без растяжки контраста (значения файла = глубина в шейдере)
             c.boolean(fr['depthRaw'], '%s: depthRaw' % w)
         if 'bldDepth' in fr:      # e1.5: здание кадра жёстко на этой глубине (0 — далеко, 1 — близко)
@@ -582,8 +596,10 @@ def validate(bdir, b, site):
                 need.append(('_sunset', 'картинки заката'))
             if has_night:
                 need.append(('_night', 'ночной картинки'))
+            if fr.get('sway') is True:
+                need.append(('_sway.png', 'полей качания крон'))
             for suf, what in need:
-                p = '%s/%s%s.webp' % (base, nm, suf)
+                p = '%s/%s%s' % (base, nm, suf) + ('' if suf.endswith('.png') else '.webp')
                 if not (Path(site) / p).exists():
                     c.err(w, 'нет %s %s' % (what, p) + ('' if suf not in ('_sunset', '_night') else ' (если её нет намеренно — "%s": false у кадра)' % suf[1:]))
     if visible == 0:

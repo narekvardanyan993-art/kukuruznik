@@ -401,12 +401,31 @@
     return { gpuDepth: gd, ew: ew, eh: eh, emis: emis, wins: wins, skyFrac: skyFrac, starQ: starQ, dirty: false, winsT: winsT };
   }
 
+  // e1.26 SWAY (s23, только у зданий с look.gusts.swayMaxPx и кадрами frames[].sway): карта окружения становится двухэтажной —
+  // сверху как была (R глубина, G небо, B высота дерева, A фаза), снизу поля качания крон из <кадр>_sway.png (вдвое мельче кадра,
+  // сам файл — высота ×2: верх R = u, G = v, B = высота h; низ R = фаза): R u, G v, B h, A фаза. Лишнего сэмплера не нужно.
+  // Кадр без файла (или файл не загрузился) — нижний этаж нулевой: деревья кадра стоят (h = 0).
+  function swayEnabled() { return !!CONFIG.SWAY_ON; }   // решает viewer.js (SWAY) — у Кукурузника нет
+  function addSway(env, img) {
+    var en = env.ew * env.eh, out = new Uint8Array(en * 8);
+    out.set(env.gpuDepth);
+    if (img) {
+      var sw = readChannels(img, env.ew, env.eh * 2), b = en * 4;
+      for (var i = 0; i < en; i++) { out[b + i * 4] = sw[i * 4]; out[b + i * 4 + 1] = sw[i * 4 + 1]; out[b + i * 4 + 2] = sw[i * 4 + 2]; out[b + i * 4 + 3] = sw[(en + i) * 4]; }
+    }
+    env.swayRows = true;
+    return out;
+  }
+
   // ---------- один кадр: день ----------
   function prepDay(f, i) {
-    return Promise.all([load(f.color), load(f.depth), load(f.bg.color), load(f.building.color), load(f.env), load(f.win2), f.fig ? load(f.fig) : null]).then(function (imgs) {
+    var swayOn = swayEnabled();
+    return Promise.all([load(f.color), load(f.depth), load(f.bg.color), load(f.building.color), load(f.env), load(f.win2), f.fig ? load(f.fig) : null,
+      swayOn && f.sway ? load(f.sway).catch(function () { return null; }) : null]).then(function (imgs) {
       var depth = prepareDepth(imgs[1], !!f.depthRaw);
       var bld = analyzeBuilding(imgs[3], depth, imgs[0], imgs[2]);
       var env = prepareEnv(imgs[4], imgs[5], depth, bld, i, imgs[6]);
+      if (swayOn) env.gpuDepth = addSway(env, imgs[7]);
       // список окон главного здания (центр и размер, доли кадра) — для «живых» деталей ночью
       var winList = (env.winsT || []).map(function (q) { return { u: q.cx / env.ew, v: q.cy / env.eh, w: q.bw / env.ew, h: q.bh / env.eh }; });
       STATE[i] = { w: bld.w, h: bld.h, alpha: bld.alpha, dayPx: bld.dayPx, plate: bld.plate, ew: env.ew, eh: env.eh, winList: winList };
@@ -414,7 +433,7 @@
       return Promise.resolve(thumb).then(function (tb) {
         var out = {
           w: bld.w, h: bld.h, depth: depth, kB: bld.meanD * 2 - 1, dB: bld.meanD,
-          ground: bld.ground, bldPm: bld.bldPm, gpuDepth: env.gpuDepth, ew: env.ew, eh: env.eh, emis: env.emis,
+          ground: bld.ground, bldPm: bld.bldPm, gpuDepth: env.gpuDepth, swayRows: !!env.swayRows, ew: env.ew, eh: env.eh, emis: env.emis,
           wins: env.wins, skyFrac: env.skyFrac, starQ: env.starQ, winList: winList, thumb: tb
         };
         if (bld.bldD) {   // глубина здания по точкам — в альфе «земли» (лишний сэмплер шейдеру не нужен: на iPhone их ровно 16)
