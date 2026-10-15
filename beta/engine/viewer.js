@@ -223,6 +223,15 @@
   var SPILL = +CONFIG.WIN_SPILL || 0, SPILL_PX = +CONFIG.WIN_SPILL_PX || 7;
   var CF = +CONFIG.CLOUD_FIELD || 0, CFN = +CONFIG.CLOUD_FIELD_NIGHT || 0;
   var MVD = !!CONFIG.MV_DELTA;
+  // e1.25 (s22), только у зданий с настройкой (у Кукурузника нет — шейдер и поведение прежние):
+  // SNOW (look.snow) — снег на поверхностях по маске кадра (<кадр>_snow.webp: «что стало белым» в зимнем варианте Gemini), а не по формуле
+  // из глубины; маска лежит в альфе ночной картинки земли (свободный канал — лишних юнитов текстур не нужно). Снег копится accumS с,
+  // тает meltS с, плавно (кривая с мягким началом и концом). Кадр без маски — старая формула.
+  // GUSTS (look.gusts) — ветер порывами: волны «тише — сильнее — тише» (быстрый разгон, долгое мягкое затухание), деревья гнутся
+  // пружиной (инерция, лёгкий перехлёст) и качаются чаще в порыв, порыв идёт по кадру слева направо, листья летят гроздьями в порыв,
+  // в метель снег кружит и идёт косо.
+  var SNOWM = NI && !!CONFIG.SNOW && FRAMES.some(function (f) { return f.snow; });
+  var GUSTS = CONFIG.GUSTS || null;
   // e1.22 FIGURES (s18): мелкие фигуры рисунка (люди, игроки в нарды, голуби, шарик, листья, трава) чуть движутся на месте — не спрайты,
   // а сдвиг выборки самой картинки внутри мягкой маски фигуры (prep.js кладёт маску в альфу карты окружения там, где нет дерева).
   // Фигура = рамка (доли кадра) + тип + сторона; движение считает CPU (figMotion: по времени, кривые --ios/--out/--in из page.html,
@@ -310,8 +319,8 @@
     'uniform vec2  uFadeZoom;',   // масштаб уходящего/приходящего кадра при переходе
     'uniform float uAspect;',     // ширина/высота экрана
     'uniform float uWindAmp;',    // амплитуда ветра на макушке дерева, в долях картинки
-    'uniform float uWindOn;',     // 1 — ветер включён
-    'uniform vec4 uWeather;',
+    'uniform float uWindOn;' + (GUSTS ? '\nuniform vec3 uWindG;' : ''),     // 1 — ветер включён; e1.25 uWindG: x наклон крон сейчас, y — с задержкой (правый край кадра), z — фаза качания
+    'uniform vec4 uWeather;' + (SNOWM ? '\nuniform vec2 uSnowM;' : ''),   // e1.25: снег по маске у кадра A/B: -1 — формула, 0..1 — маска (проявляется 1,5 с после загрузки)
     'uniform float uFlash;',      // молния: 0..1 — небо и облака вспыхивают (ночью заметнее)     // погода: x пасмурно, y туман, z мокрая земля (дождь), w снег; 0 — как без погоды
     'uniform vec2  uCellPx;',     // размер ячейки звёздной сетки в пикселях экрана
     'uniform vec4  uShoot;',      // падающая звезда: старт xy (экран 0..1), направление xy
@@ -400,7 +409,7 @@
       '}'
     ].join('\n') + '\n' : '') +
     // Готовый цвет пикселя одного кадра: параллакс, ветер, закат, ночь.
-    'vec4 shadeFrame(sampler2D bg, sampler2D depth, sampler2D bld, sampler2D em, vec3 kd, float starQ, vec2 skyRef, vec4 crop, vec4 flag,' + (SPILL > 0 ? ' vec2 ek,' : '') + (NI ? ' sampler2D sg, sampler2D sb, sampler2D ng, sampler2D nb, vec3 has,' : '') + (NI && MVD ? ' mat4 cal,' : '') + (FN > 0 ? ' float slot,' : '') + ' vec2 uv, vec2 sc) {',
+    'vec4 shadeFrame(sampler2D bg, sampler2D depth, sampler2D bld, sampler2D em, vec3 kd, float starQ, vec2 skyRef, vec4 crop, vec4 flag,' + (SPILL > 0 ? ' vec2 ek,' : '') + (NI ? ' sampler2D sg, sampler2D sb, sampler2D ng, sampler2D nb, vec3 has,' : '') + (NI && MVD ? ' mat4 cal,' : '') + (FN > 0 ? ' float slot,' : '') + (SNOWM ? ' float snowM,' : '') + ' vec2 uv, vec2 sc) {',
     '  uv = crop.xy + uv * crop.zw;',   // обрезка белого края бумаги: показываем только внутренний прямоугольник кадра
     // фон и земля: у каждого пикселя свой сдвиг (3 итерации против «резины» на краях)
     '  vec2 p = uv;',
@@ -414,7 +423,8 @@
     // ветер: чем выше точка дерева, тем сильнее сдвиг; корень неподвижен; у каждого дерева своя фаза и период 5–7 с
     '  if (uWindOn > 0.5 && env.b > 0.004) {',
     '    float per = 5.0 + 2.0 * fract(env.a * 7.13);',
-    '    p.x += uWindAmp * env.b * sin(uTime * 6.2832 / per + env.a * 19.0);',
+    GUSTS ? '    p.x += uWindAmp * env.b * sin(uWindG.z * 6.2832 / per + env.a * 19.0) - mix(uWindG.x, uWindG.y, clamp(p.x, 0.0, 1.0)) * env.b * (0.75 + 0.5 * fract(env.a * 3.7));'   // e1.25: качание по фазе порывов + наклон по ветру (порыв приходит слева)
+      : '    p.x += uWindAmp * env.b * sin(uTime * 6.2832 / per + env.a * 19.0);',
     '  }',
     // флаги колышутся: небольшая волна только внутри прямоугольника флага
     '  if (flag.z > 0.0 && uWindOn > 0.5 && p.x > flag.x && p.x < flag.x + flag.z && p.y > flag.y && p.y < flag.y + flag.w) {',
@@ -563,10 +573,12 @@
     '      float cap = clamp((env.r - dUp) / max(env.r, 0.06) * 7.0, 0.0, 1.0);',   // верх предмета; относительная разница — и у дальних крыш                                     // верх предмета: над ним — дальше (крыша, крона, карниз)
     '      float gnd = smoothstep(0.003, 0.015, dDn - dUp) * (1.0 - smoothstep(0.04, 0.09, dDn - dUp));',   // земля: глубина плавно растёт к зрителю
     '      float capB = b.a * clamp(1.0 - texture2D(bld, pb - ey * 1.6).a, 0.0, 1.0);',              // верхний край главного здания
-    '      float sm = max(max(cap, capB), gnd) * (1.0 - sky) * (0.7 + 0.6 * wxNoise(sc * vec2(90.0, 160.0))) * (0.85 + 0.15 * dd);',   // рыхло
-    '      c = mix(c, ' + v3(LK.weather.snowTint) + ' * mix(1.0, 0.35, uNightGnd), clamp(uWeather.w * ' + glf(LK.weather.snowK) + ' * sm, 0.0, 0.92));',
+    '      float sm = max(max(cap, capB), gnd) * (1.0 - sky) * (0.7 + 0.6 * wxNoise(sc * vec2(90.0, 160.0))) * (0.85 + 0.15 * dd);' + (SNOWM ? '\n      if (snowM > -0.5) sm = snowM * mix(texture2D(ng, pc).a, texture2D(ng, clamp(pb, 0.0, 1.0)).a, b.a);' : ''),   // рыхло; // e1.25: маска кадра (Gemini) вместо формулы; snowM — проявление маски 0..1 (пока грузится — 0)
+    SNOWM ? '      c = mix(c, ' + v3(LK.weather.snowTint) + ' * mix(1.0, snowM > -0.5 ? 0.5 : 0.35, uNightGnd) * (snowM > -0.5 ? 0.8 + 0.22 * smoothstep(0.12, 0.65, lw) : 1.0), clamp(uWeather.w * ' + glf(LK.weather.snowK) + ' * sm, 0.0, snowM > -0.5 ? 0.95 : 0.92));'   // по маске: штрих рисунка чуть просвечивает сквозь снег
+      : '      c = mix(c, ' + v3(LK.weather.snowTint) + ' * mix(1.0, 0.35, uNightGnd), clamp(uWeather.w * ' + glf(LK.weather.snowK) + ' * sm, 0.0, 0.92));',
     '      float gn = clamp((c.g - max(c.r, c.b)) * 7.0, 0.0, 1.0) * (1.0 - sky);',                  // зелень (трава, листва) зимой — серо-белая
-    '      c = mix(c, vec3(dot(c, vec3(0.3, 0.59, 0.11))) * vec3(0.98, 1.0, 1.04) * 1.12, uWeather.w * gn * 0.85);',
+    SNOWM ? '      c = mix(c, vec3(dot(c, vec3(0.3, 0.59, 0.11))) * vec3(0.98, 1.0, 1.04) * 1.12, uWeather.w * gn * (snowM > -0.5 ? 0.3 : 0.85));'   // с маской зелень не седеет целиком — снег лежит на кронах сам
+      : '      c = mix(c, vec3(dot(c, vec3(0.3, 0.59, 0.11))) * vec3(0.98, 1.0, 1.04) * 1.12, uWeather.w * gn * 0.85);',
     '      c = mix(c, c * vec3(0.96, 0.98, 1.03), uWeather.w * 0.6);',                             // холодный свет
     '    }',
     '    float wisp = 0.6 * wxNoise(vec2(sc.x * 2.6 - uCloudT * 0.045, sc.y * 7.0)) + 0.4 * wxNoise(vec2(sc.x * 6.0 - uCloudT * 0.08, sc.y * 15.0 + 3.0));',   // полосы тумана плывут
@@ -582,10 +594,10 @@
     '  vec2 uv = vUv * uCoverScale + uCoverOffset;',
     '  uv = 0.5 + (uv - 0.5) / uScale;',
     '  vec2 uvA = 0.5 + (uv - 0.5) / uFadeZoom.x;',
-    '  vec4 sa = shadeFrame(uBgA, uDepthA, uBldA, uEmA, uKdA, uStarQ.x, uSkyRef.xy, uCropA, uFlagA, ' + (SPILL > 0 ? 'uEmKA, ' : '') + (NI ? 'uSGA, uSBA, uNGA, uNBA, uHasA, ' : '') + (NI && MVD ? 'uMvCalA, ' : '') + (FN > 0 ? '0.0, ' : '') + 'uvA, vUv);',
+    '  vec4 sa = shadeFrame(uBgA, uDepthA, uBldA, uEmA, uKdA, uStarQ.x, uSkyRef.xy, uCropA, uFlagA, ' + (SPILL > 0 ? 'uEmKA, ' : '') + (NI ? 'uSGA, uSBA, uNGA, uNBA, uHasA, ' : '') + (NI && MVD ? 'uMvCalA, ' : '') + (FN > 0 ? '0.0, ' : '') + (SNOWM ? 'uSnowM.x, ' : '') + 'uvA, vUv);',
     '  if (uMix > 0.0) {',
     '    vec2 uvB = 0.5 + (uv - 0.5) / uFadeZoom.y;',
-    '    sa = mix(sa, shadeFrame(uBgB, uDepthB, uBldB, uEmB, uKdB, uStarQ.y, uSkyRef.zw, uCropB, uFlagB, ' + (SPILL > 0 ? 'uEmKB, ' : '') + (NI ? 'uSGB, uSBB, uNGB, uNBB, uHasB, ' : '') + (NI && MVD ? 'uMvCalB, ' : '') + (FN > 0 ? '1.0, ' : '') + 'uvB, vUv), uMix);',
+    '    sa = mix(sa, shadeFrame(uBgB, uDepthB, uBldB, uEmB, uKdB, uStarQ.y, uSkyRef.zw, uCropB, uFlagB, ' + (SPILL > 0 ? 'uEmKB, ' : '') + (NI ? 'uSGB, uSBB, uNGB, uNBB, uHasB, ' : '') + (NI && MVD ? 'uMvCalB, ' : '') + (FN > 0 ? '1.0, ' : '') + (SNOWM ? 'uSnowM.y, ' : '') + 'uvB, vUv), uMix);',
     '  }',
     '  vec3 c = sa.rgb;',
     CF > 0 ? '  float shadow = vCloud;' : '  float shadow = cloudShadow(uv, uCloudT);',
@@ -700,7 +712,9 @@
     .concat(NI && MVD ? ['uMvCalA', 'uMvCalB'] : [])
     .concat(SPILL > 0 ? ['uEmKA', 'uEmKB'] : [])
     .concat(FN > 0 ? ['uFigA', 'uFigB', 'uFigN'] : [])
-    .concat(FIGB ? ['uFigBoxA', 'uFigBoxB'] : []);
+    .concat(FIGB ? ['uFigBoxA', 'uFigBoxB'] : [])
+    .concat(GUSTS ? ['uWindG'] : [])
+    .concat(SNOWM ? ['uSnowM'] : []);
 
   var quadBuf = null, gridBuf = null, gridIdx = null, gridN = 0;   // e1.19: четыре вершины (второй проход) и сетка сцены (CLOUD_FIELD)
   function initGLProgram() {   // возвращает Promise: шейдеры компилируются в фоне, приветствие и анимации не замирают
@@ -778,7 +792,27 @@
     ];
     return steps.reduce(function (p, st) { return p.then(function () { st(); return tick(); }); }, Promise.resolve());
   }
+  // e1.25 (s22): маска снега кадра — в альфу ночной картинки земли (одна загрузка, отдельный маленький холст только для чтения)
+  function snowMaskData(url, w, h) {
+    return new Promise(function (res) {
+      var im = new Image(); im.crossOrigin = 'anonymous';
+      im.onload = function () {
+        try { var cv = document.createElement('canvas'); cv.width = w; cv.height = h; var x = cv.getContext('2d', { willReadFrequently: true }); x.drawImage(im, 0, 0, w, h); res(x.getImageData(0, 0, w, h).data); }
+        catch (e) { logErr('snow mask', e); res(null); }
+      };
+      im.onerror = function () { logErr('snow mask', 'не загрузилась'); res(null); };
+      im.src = url;
+    });
+  }
   function uploadState(f, kind, r) {   // kind: 's' закат | 'n' ночь; ground — земля, full — вся картинка (главное здание берётся по альфе дня)
+    if (SNOWM && kind === 'n' && FRAMES[f.idx].snow) {
+      return snowMaskData(FRAMES[f.idx].snow, r.w, r.h).then(function (a) {
+        var n = r.w * r.h, g4 = new Uint8Array(n * 4);
+        for (var i = 0; i < n; i++) { g4[i * 4] = r.ground[i * 3]; g4[i * 4 + 1] = r.ground[i * 3 + 1]; g4[i * 4 + 2] = r.ground[i * 3 + 2]; g4[i * 4 + 3] = a ? a[i * 4] : 0; }
+        f.nG = texRGBA(r.w, r.h, g4); f.snowOk = !!a; f.snowFail = !a; f.snowT = 0;
+        return tick();
+      }).then(function () { f.nB = texRGB(r.w, r.h, r.full); return tick(); });
+    }
     f[kind + 'G'] = texRGB(r.w, r.h, r.ground);
     return tick().then(function () { f[kind + 'B'] = texRGB(r.w, r.h, r.full); return tick(); });
   }
@@ -1227,6 +1261,8 @@
     gl.uniform1f(US.uWindAmp, fx.windAmp);
     gl.uniform1f(US.uWindOn, fx.windOn ? 1 : 0);
     gl.uniform4f(US.uWeather, wx.cur[0], wx.cur[1], wx.cur[2], wx.cover);
+    if (SNOWM) gl.uniform2f(US.uSnowM, snowCode(fa, performance.now()), fb ? snowCode(fb, performance.now()) : -1);
+    if (GUSTS) gl.uniform3f(US.uWindG, fx.leanA, fx.leanB, wx.windPh);
     gl.uniform1f(US.uFlash, wx.flash || 0);
     gl.uniform2f(US.uCellPx, canvas.width / (STAR_CELLS[0] * visW), canvas.height / (STAR_CELLS[1] * visH));
     gl.uniform4f(US.uShoot, fx.shoot[0], fx.shoot[1], fx.shoot[2], fx.shoot[3]);
@@ -1792,7 +1828,7 @@
 
   // ---------- ночные эффекты, ветер, контроль fps ----------
   var fx = {
-    windAmp: 0, windOn: true, zoomA: 1, zoomB: 1,
+    windAmp: 0, windOn: true, zoomA: 1, zoomB: 1, leanA: 0, leanB: 0,
     shoot: [0, 0, 0, 0], shootP: -1, shootLen: 0.3,
     lampH: new Float32Array(48), lampB: new Float32Array(48), lampD: new Float32Array(64)
   };
@@ -2150,6 +2186,11 @@
       fx.windOn = CONFIG.WIND && perfLevel < 2;
       fx.figOn = FN > 0 && !rm;   // e1.22: фигуры стоят при «Уменьшить движение»; e1.23 (s19): от экономии по fps не зависят — они дешёвые (только пиксели фигур), а на телефоне экономия могла их выключить навсегда
       fx.windAmp = CONFIG.WIND_AMP_PX * wx.wind * (fb ? CONFIG.WIND_K[fa.idx] + (CONFIG.WIND_K[fb.idx] - CONFIG.WIND_K[fa.idx]) * mixState : CONFIG.WIND_K[fa.idx]) * (coverUvW / CONFIG.BASE_SCALE) / Math.max(1, stage.clientWidth);
+      if (GUSTS) {   // e1.25: качание сильнее в порыв, наклон крон по ветру (px экрана на макушке -> доли картинки)
+        var kU = (fb ? CONFIG.WIND_K[fa.idx] + (CONFIG.WIND_K[fb.idx] - CONFIG.WIND_K[fa.idx]) * mixState : CONFIG.WIND_K[fa.idx]) * (coverUvW / CONFIG.BASE_SCALE) / Math.max(1, stage.clientWidth);
+        fx.windAmp = CONFIG.WIND_AMP_PX * wx.windEff * kU;
+        fx.leanA = GUSTS.leanPx * wx.lean * kU; fx.leanB = GUSTS.leanPx * wx.leanDel * kU;
+      }
       safe('nightfx', function () { stepNightFx(fa, fb, now); fillLamps(fa, fb, mixState, shiftX, shiftY, zoom, tAmb); });
       stage.classList.toggle('is-night', tod.sky > 0.5);
       var nightNow = tod.night > 0.5 ? '1' : '0';
@@ -2276,7 +2317,8 @@
 
   // ---------- погода и ветер (e1.3) ----------
   // wx.cur — доли эффектов [пасмурно, туман, мокро, снег], плавно идут к wx.to за WEATHER_FADE_MS; wx.wind — множитель качания деревьев.
-  var wx = { cur: [0, 0, 0, 0], from: [0, 0, 0, 0], to: [0, 0, 0, 0], t0: null, label: 'clear', wind: 1, windTo: 1, windFrom: 1, cover: 0, lastNow: 0, flash: 0, rainbowT0: 0 };
+  var wx = { cur: [0, 0, 0, 0], from: [0, 0, 0, 0], to: [0, 0, 0, 0], t0: null, label: 'clear', wind: 1, windTo: 1, windFrom: 1, cover: 0, lastNow: 0, flash: 0, rainbowT0: 0,
+    snowLin: 0, lastNow0: 0, gusts: [], gNext: 0, gLast: 0, gLevel: 0, gust: 0, gRise: 0, windEff: 1, lean: 0, leanV: 0, leanDel: 0, leanHist: [], windPh: 0 };   // e1.25: накопление снега и порывы (только при SNOW/GUSTS)
   // Погода (e1.3): тучи, дождь, снег, туман включаются независимо; ветер — по кругу тихо/ветрено/буря. Всё выключено — ясно.
   // Цель — по каждому эффекту наибольшее из включённых; сочетания дают своё: дождь + буря — гроза (темнее, молнии),
   // снег + буря — метель (снег косо, дымка), дождь выключили днём — радуга. Под значками — название получившейся погоды.
@@ -2289,6 +2331,7 @@
     return k;
   }
   function applyWeather() {
+    if (SNOWM && wxOn.snow) { loadStates(frameIndex); }   // e1.25: маска снега живёт в ночной картинке кадра — грузим сразу
     var to = [0, 0, 0, 0];
     Object.keys(wxOn).forEach(function (k) { if (wxOn[k]) CONFIG.WEATHER[k].forEach(function (v, i) { to[i] = Math.max(to[i], v); }); });
     if (wxOn.rain && windIdx === 2) to[0] = Math.max(to[0], 1);     // гроза: небо тяжелее
@@ -2338,7 +2381,52 @@
     // снежный покров: копится ~15 с, пока идёт снег, тает ~5 с
     var dts = wx.lastNow ? Math.min(0.1, (now - wx.lastNow) / 1000) : 0; wx.lastNow = now;
     var tgt = wx.to[3];
-    wx.cover = tgt > wx.cover ? Math.min(tgt, wx.cover + dts / 15) : Math.max(tgt, wx.cover - dts / 5);
+    if (CONFIG.SNOW) {   // e1.25: копится ~accumS с, тает ~meltS с; в шейдер — кривая с мягким началом и концом (без скачков)
+      dts = wx.lastNow0 ? Math.min(1, (now - wx.lastNow0) / 1000) : 0; wx.lastNow0 = now;
+      var SN = CONFIG.SNOW;
+      wx.snowLin = tgt > wx.snowLin ? Math.min(tgt, wx.snowLin + dts / (SN.accumS || 35)) : Math.max(tgt, wx.snowLin - dts / (SN.meltS || 90));
+      wx.cover = wx.snowLin * wx.snowLin * (3 - 2 * wx.snowLin);
+    } else wx.cover = tgt > wx.cover ? Math.min(tgt, wx.cover + dts / 15) : Math.max(tgt, wx.cover - dts / 5);
+    if (GUSTS) stepGusts(now);
+  }
+  function snowCode(f, now) {   // -1 — у кадра нет маски (старая формула); 0..1 — маска проявляется плавно после загрузки (без скачка)
+    if (!f || !FRAMES[f.idx].snow || f.snowFail) return -1;
+    if (!f.snowOk) return 0;
+    if (!f.snowT) f.snowT = now;
+    var q = Math.min(1, (now - f.snowT) / 1500); return q * q * (3 - 2 * q);
+  }
+  // e1.25 GUSTS: порыв = огибающая (разгон attack с, плато hold, мягкое затухание decay — как кривая --ios), пауза gap; сила по уровню
+  // ветра (level[тихо, ветрено, буря]). Деревья — пружина (частота spring Гц, затухание damp): наклон догоняет порыв с инерцией.
+  // Наклон пишется в историю — правый край кадра получает его на delay с позже (порыв идёт по кадру).
+  function stepGusts(now) {
+    var G = GUSTS, dt = wx.gLast ? Math.min(0.25, (now - wx.gLast) / 1000) : 0; wx.gLast = now;
+    var lvT = G.level[windIdx] || 0;
+    wx.gLevel += (lvT - wx.gLevel) * Math.min(1, dt / 1.2);
+    if (!wx.gNext) wx.gNext = now + 1500;
+    if (now >= wx.gNext) {
+      var R = pRng;
+      wx.gusts.push({ t0: now, a: G.attack * (0.75 + 0.5 * R()), h: G.hold * (0.5 + R()), d: G.decay * (0.8 + 0.4 * R()), k: 0.65 + 0.35 * R() });
+      wx.gNext = now + (G.gap[0] + (G.gap[1] - G.gap[0]) * R()) * 1000;
+    }
+    var e = 0;
+    for (var i = wx.gusts.length - 1; i >= 0; i--) {
+      var g = wx.gusts[i], t = (now - g.t0) / 1000, v;
+      if (t < g.a) { v = 1 - Math.pow(1 - t / g.a, 3); }   // быстрый старт
+      else if (t < g.a + g.h) v = 1;
+      else if (t < g.a + g.h + g.d) { var q = (t - g.a - g.h) / g.d; v = 1 - q * q * (3 - 2 * q); }   // долгое мягкое затухание
+      else { wx.gusts.splice(i, 1); continue; }
+      e = Math.max(e, v * g.k);
+    }
+    e *= 1 + 0.12 * Math.sin(now / 1000 * 5.3) * e;   // внутри порыва ветер «дышит»
+    var gPrev = wx.gust; wx.gust = e * wx.gLevel;
+    wx.gRise = wx.gust > 0.3 && gPrev <= 0.3 ? now : wx.gRise;   // начало порыва — гроздь листьев
+    wx.windEff = wx.wind * (G.calm + G.boost * wx.gust);
+    var w0 = 6.2832 * G.spring, z = G.damp, steps = Math.max(1, Math.ceil(dt / 0.008)), h = dt / steps;
+    for (var s2 = 0; s2 < steps; s2++) { wx.leanV += (w0 * w0 * (wx.gust - wx.lean) - 2 * z * w0 * wx.leanV) * h; wx.lean += wx.leanV * h; }
+    wx.windPh += dt * (G.calm + G.flutter * wx.gust) * (reduced() ? 0 : 1);
+    wx.leanHist.push([now, wx.lean]);
+    while (wx.leanHist.length > 2 && wx.leanHist[1][0] < now - G.delay * 1000) wx.leanHist.shift();
+    wx.leanDel = wx.leanHist[0][1];   // наклон delay с назад — для правого края кадра
   }
 
   // Капли и снежинки — отдельный прозрачный холст над картинкой (под точками-подсказками); создаётся, только когда нужен.
@@ -2432,7 +2520,7 @@
       if (ra0 > 30) { wx.rainbowT0 = 0; showWxName(); }
     }
     wx.flash = 0;
-    if (rainK < 0.01 && snowK < 0.01 && leafK < 0.01 && rbA < 0.01) { if (pc && pc.style.display !== 'none') { pctx.clearRect(0, 0, pc.width, pc.height); pc.style.display = 'none'; } return; }
+    if (rainK < 0.01 && snowK < 0.01 && leafK < 0.01 && rbA < 0.01 && !(GUSTS && leaves.length)) { if (pc && pc.style.display !== 'none') { pctx.clearRect(0, 0, pc.width, pc.height); pc.style.display = 'none'; } return; }
     precipCanvas();
     pc.style.display = '';
     var d = Math.min(window.devicePixelRatio || 1, 1.5), w = stage.clientWidth, h = stage.clientHeight;
@@ -2522,12 +2610,26 @@
       var nSon = Math.round(nS * Math.min(1, snowK * 1.15));   // снег тоже начинается с редких снежинок
       for (var j = 0; j < nSon; j++) {
         var f = flakes[j], bl = windIdx === 2 ? 1 : 0, fv = (0.6 + 1.2 * f.z) * d * s * (1 + 1.2 * bl);
+        if (GUSTS) {   // e1.25: в порыв снег сносит и закручивает: у каждой снежинки свой маленький круг (кружит), в метель — косо и вихрем
+          var gN = wx.gust, om = 2.2 + 1.4 * f.z, rr2 = (0.25 + 0.9 * gN) * (0.35 + 0.65 * bl) * (1.2 + 1.6 * bl);
+          var vx2 = (Math.sin(t * 0.9 + f.ph) * 0.5 + (wx.windEff - 1) * 0.9 * (1 + 1.5 * bl) + Math.sin(f.y / (46 * d) + t * 1.6 + f.ph) * 1.4 * gN * bl + Math.cos(t * om + f.ph) * rr2) * d * s;
+          var vy2 = fv * (1 - 0.45 * gN * bl * (0.5 + 0.5 * Math.sin(t * 1.9 + f.ph))) + Math.sin(t * om + f.ph) * rr2 * d * s;
+          f.x += vx2; f.y += vy2;
+          if (bl && !rm && s > 0) {   // метель: штрих вдоль движения (короткий шлейф)
+            var vl = Math.max(1e-3, Math.sqrt(vx2 * vx2 + vy2 * vy2)), ln2 = (6 + 10 * f.z) * d;
+            pctx.strokeStyle = 'rgba(' + sc[0] + ',' + sc[1] + ',' + sc[2] + ',' + (0.8 * snowK * (0.4 + 0.6 * f.z)).toFixed(3) + ')';
+            pctx.lineWidth = (1 + 1.6 * f.z) * d; pctx.lineCap = 'round';
+            pctx.beginPath(); pctx.moveTo(f.x, f.y); pctx.lineTo(f.x - vx2 / vl * ln2, f.y - vy2 / vl * ln2); pctx.stroke();
+          }
+        } else {
         f.y += fv; f.x += (Math.sin(t * 0.9 + f.ph) * 0.5 + (wx.wind - 1) * 0.9 * (1 + 1.5 * bl)) * d * s;
         if (bl && !rm) {   // метель: снежинка — короткий косой штрих
           pctx.strokeStyle = 'rgba(' + sc[0] + ',' + sc[1] + ',' + sc[2] + ',' + (0.8 * snowK * (0.4 + 0.6 * f.z)).toFixed(3) + ')';
           pctx.lineWidth = (1 + 1.6 * f.z) * d; pctx.lineCap = 'round';
           pctx.beginPath(); pctx.moveTo(f.x, f.y); pctx.lineTo(f.x - (6 + 10 * f.z) * d, f.y - (2 + 3 * f.z) * d); pctx.stroke();
         }
+        }
+        if (f.y < -8 * d) f.y += H + 8 * d;
         if (f.y > H) { f.y = -4 * d; f.x = pRng() * W; }
         if (f.x > W) f.x -= W; if (f.x < 0) f.x += W;
         pctx.fillStyle = 'rgba(' + sc[0] + ',' + sc[1] + ',' + sc[2] + ',' + (sc[3] * snowK * (0.5 + 0.5 * f.z)).toFixed(3) + ')';
@@ -2536,6 +2638,7 @@
         pctx.beginPath(); pctx.arc(f.x, f.y, (1.3 + 2.2 * f.z) * d, 0, 6.2832); pctx.fill(); pctx.stroke();
       }
     }
+    if (GUSTS) { drawGustLeaves(now, s, d, W, H, area, lite, leafK, rm); return; }
     // ветер: листья летят слева направо, кувыркаясь (карандашный контур + зелёно-охристая заливка)
     var nL = Math.round(leafK * 26 * area * lite);
     while (leaves.length < nL) leaves.push({ x: -pRng() * W * 0.5, y: pRng() * H * 0.9, z: 0.4 + 0.6 * pRng(), ph: pRng() * 6.28, sp: pRng() * 6.28, hue: pRng() });
@@ -2549,6 +2652,44 @@
       pctx.save(); pctx.translate(lf.x, lf.y); pctx.rotate(lf.sp); pctx.scale(1, 0.35 + 0.65 * Math.abs(Math.sin(lf.sp * 1.3)));
       pctx.fillStyle = 'rgba(' + gC.map(function (c) { return Math.round(c * nightL); }).join(',') + ',' + (0.85 * leafK).toFixed(3) + ')';
       pctx.strokeStyle = 'rgba(47,42,37,' + (0.7 * leafK).toFixed(3) + ')'; pctx.lineWidth = 0.8 * d;
+      pctx.beginPath(); pctx.ellipse(0, 0, ls, ls * 0.45, 0, 0, 6.2832); pctx.fill(); pctx.stroke();
+      pctx.beginPath(); pctx.moveTo(-ls, 0); pctx.lineTo(ls, 0); pctx.stroke();
+      pctx.restore();
+    }
+  }
+
+  // e1.25 GUSTS: листья гроздьями. В начале порыва (wx.gRise) из-за левого края вылетает стайка 7–16 листьев; каждый лист — тело
+  // с сопротивлением воздуха: скорость тянется к скорости ветра (быстро в порыв, медленно после), в порыв его подхватывает вверх,
+  // без порыва он тормозит и опускается, покачиваясь. Кувыркается тем быстрее, чем быстрее летит; быстрому — короткий шлейф.
+  function drawGustLeaves(now, s, d, W, H, area, lite, leafK, rm) {
+    var tl = now / 1000, nightL = 1 - 0.55 * tod.night, gN = wx.gust, la = 1 - clamp(wx.cur[3] * 1.4, 0, 1);   // снег пошёл — листья, что ещё летят, тают
+    if (la < 0.01) { leaves.length = 0; return; }
+    if (leafK > 0.01 && !rm && wx.gRise && wx.gRise !== wx.gRiseDone) {
+      wx.gRiseDone = wx.gRise;
+      var nC = Math.round((7 + 9 * pRng()) * leafK * Math.min(1.6, area) * lite), cy = H * (0.18 + 0.45 * pRng());
+      for (var c2 = 0; c2 < nC; c2++) leaves.push({ x: -12 * d - pRng() * W * 0.22, y: cy + (pRng() - 0.5) * H * 0.18, vx: 0, vy: 0, z: 0.4 + 0.6 * pRng(), ph: pRng() * 6.28, sp: pRng() * 6.28, hue: pRng() });
+    }
+    if (leafK > 0.01 && !rm && leaves.length < 40 && pRng() < 0.004 * leafK * s)   // между порывами — редкий одиночный лист
+      leaves.push({ x: -12 * d, y: H * (0.2 + 0.5 * pRng()), vx: 0, vy: 0, z: 0.4 + 0.6 * pRng(), ph: pRng() * 6.28, sp: pRng() * 6.28, hue: pRng() });
+    var kD = 1 - Math.pow(1 - 0.05, s);
+    for (var li = leaves.length - 1; li >= 0; li--) {
+      var lf = leaves[li];
+      if (lf.vx === undefined) { lf.vx = 0; lf.vy = 0; }
+      var turb = Math.sin(tl * 1.7 + lf.ph) * 0.6 + Math.sin(tl * 3.1 + lf.ph * 2) * 0.3;
+      var tx = (0.5 + 5.5 * gN) * (0.6 + 0.6 * lf.z) * (1 + 0.25 * turb) * d;
+      var ty = (0.8 - 2.4 * gN * (0.5 + 0.5 * Math.sin(tl * 1.3 + lf.ph))) * (0.6 + 0.4 * lf.z) * d;
+      lf.vx += (tx - lf.vx) * kD; lf.vy += (ty - lf.vy) * kD;
+      lf.x += lf.vx * s; lf.y += (lf.vy + Math.sin(tl * 2.1 + lf.ph) * 0.7 * d) * s;
+      lf.sp += (0.03 + 0.035 * Math.abs(lf.vx) / d) * s * (0.6 + lf.z);
+      if (lf.x > W + 30 * d || lf.y > H + 20 * d || lf.y < -H * 0.3) { leaves.splice(li, 1); continue; }
+      var ls = (3 + 4 * lf.z) * d, gC = lf.hue < 0.5 ? [120, 138, 70] : [176, 132, 58], fc = gC.map(function (c) { return Math.round(c * nightL); }).join(',');
+      if (Math.abs(lf.vx) > 3 * d) {   // шлейф: при 60 Гц заполняет промежуток между кадрами
+        pctx.strokeStyle = 'rgba(' + fc + ',' + (0.18 * la).toFixed(3) + ')'; pctx.lineWidth = ls * 0.7; pctx.lineCap = 'round';
+        pctx.beginPath(); pctx.moveTo(lf.x - lf.vx * 1.4, lf.y - lf.vy * 1.4); pctx.lineTo(lf.x, lf.y); pctx.stroke();
+      }
+      pctx.save(); pctx.translate(lf.x, lf.y); pctx.rotate(lf.sp); pctx.scale(1, 0.35 + 0.65 * Math.abs(Math.sin(lf.sp * 1.3)));
+      pctx.fillStyle = 'rgba(' + fc + ',' + (0.85 * la).toFixed(3) + ')';
+      pctx.strokeStyle = 'rgba(47,42,37,' + (0.7 * la).toFixed(3) + ')'; pctx.lineWidth = 0.8 * d;
       pctx.beginPath(); pctx.ellipse(0, 0, ls, ls * 0.45, 0, 0, 6.2832); pctx.fill(); pctx.stroke();
       pctx.beginPath(); pctx.moveTo(-ls, 0); pctx.lineTo(ls, 0); pctx.stroke();
       pctx.restore();
