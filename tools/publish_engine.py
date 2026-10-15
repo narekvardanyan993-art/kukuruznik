@@ -6,6 +6,7 @@
   python3 tools/publish_engine.py                        # опубликовать: ОДИН коммит в main + пуш (обычный, без --force)
   python3 tools/publish_engine.py --expect-change        # движок НАМЕРЕННО меняет вид живых зданий (новая версия, проверенная на бете)
   python3 tools/publish_engine.py -m "engine: …"         # своё сообщение коммита
+  python3 tools/publish_engine.py --with-building lenin  # s25: движок + УЖЕ живое здание из tests/<имя> одним коммитом (включает --expect-change)
 
 Порядок жизни движка: правка в engine/ → tools/publish_beta.py (бета на beta/engine/) → проверка беты на телефоне →
 tools/publish_engine.py (beta/engine/ → engine/, пересборка страниц всех зданий). Откат = отмена одного коммита (git revert).
@@ -30,6 +31,18 @@ tools/publish_engine.py (beta/engine/ → engine/, пересборка стра
        • в коммит идут только engine/, beta/ (пусто), <здание>/index.html, <здание>/manifest.json — about/history и всё остальное не тронуты;
   6. коммитит ТОЛЬКО beta/, engine/ и <здание>/index.html, <здание>/manifest.json живых зданий — одним коммитом;
   7. в конце ВСЕГДА удаляет временный worktree.
+
+--with-building <slug> (s25): живое здание из tests/<имя> (блок live в building.json), у которого на сайте старая сборка, а исходник уже
+на новых кадрах/настройках. Без флага движок и такое здание не выпустить: publish_engine останавливается на недостающих файлах здания
+(ночь, sway, snow…), publish_building — на «движок на сайте ≠ исходник». С флагом в ОДНУ сборку (та же, что проверенная бета) входят:
+  • движок engine/ = beta/engine/ и страницы + manifest всех живых зданий;
+  • вся папка <slug>/ из исходника (кадры, видео, маски, about, history, gallery, og, card — bp.place_live_files; папка на сайте заменяется целиком);
+  • карточка здания на главной и slug в known у 404.html (bp.place_hub_and_404; любое другое отличие главной от сайта — СТОП);
+  • режим --expect-change включается сам (новый движок намеренно меняет вид живых зданий).
+Защиты те же: бета на сайте = текущий движок, все проверки --expect-change, «живое == проверенная бета» (у <slug> — CONFIG страницы и файлы
+frames/ побайтно с бетой: bp.live_vs_beta_config), в коммит — только beta/, engine/, страницы живых зданий, <slug>/, index.html, 404.html;
+check_site: пиксели у живых зданий, их бета-пар, главной и страниц about/history здания (различия допустимы; ошибки, 404, fps — нет).
+--dry-run печатает полный список файлов коммита (что добавлено/изменено/удалено) и ничего не пушит.
 """
 import argparse
 import subprocess
@@ -45,9 +58,10 @@ import publish_beta as pb  # noqa: E402  git(), remove_worktree(), run_check()
 ROOT = bp.ROOT
 
 
-def allowed_paths(bdirs):
-    """Что этот скрипт имеет право менять в main."""
-    return lambda p: p.startswith('beta/') or p.startswith('engine/') or any(p in ('%s/index.html' % b, '%s/manifest.json' % b) for b in bdirs)
+def allowed_paths(bdirs, building=None):
+    """Что этот скрипт имеет право менять в main. С --with-building — ещё папка здания, главная и 404.html."""
+    return lambda p: (p.startswith('beta/') or p.startswith('engine/') or any(p in ('%s/index.html' % b, '%s/manifest.json' % b) for b in bdirs)
+                      or bool(building and (p.startswith(building + '/') or p in ('index.html', '404.html'))))
 
 
 def main():
@@ -55,10 +69,19 @@ def main():
     ap.add_argument('--dry-run', action='store_true', help='собрать, проверить и показать изменения; без коммита и пуша')
     ap.add_argument('--diff', metavar='FILE', help='записать полный diff того, что уйдёт в main, в файл')
     ap.add_argument('--expect-change', action='store_true', help='движок намеренно меняет вид живых зданий: картинки живых зданий не сравниваются с прежними, взамен — точная проверка «живое == проверенная бета»')
+    ap.add_argument('--with-building', metavar='SLUG', help='выпустить вместе с движком уже живое здание из tests/<имя> (его папку, карточку главной, 404): одним коммитом; включает --expect-change')
     ap.add_argument('--skip-check', action='store_true', help='ОБХОД защитной проверки — только осознанно')
     ap.add_argument('-m', '--message', help='сообщение коммита')
     args = ap.parse_args()
     tag = '[dry-run] ' if args.dry_run else ''
+    wb = args.with_building
+    if wb:
+        tl = bp.test_live_slugs()
+        if wb not in tl:
+            raise SystemExit('СТОП: --with-building %s: нет тестового здания с live.slug = %s. Есть: %s' % (wb, wb, ', '.join(tl) or '—'))
+        if not args.expect_change:
+            args.expect_change = True
+            print('%s--with-building включил режим --expect-change (новый движок намеренно меняет вид живых зданий)' % tag)
 
     pb.git(ROOT, 'fetch', pb.REMOTE, pb.BRANCH)
     base = pb.git(ROOT, 'rev-parse', '%s/%s' % (pb.REMOTE, pb.BRANCH))
@@ -67,7 +90,9 @@ def main():
     try:
         pb.git(ROOT, 'worktree', 'add', '--detach', str(tmp), base)
         bdirs = bp.live_buildings(site=tmp)   # живые здания — те, что уже есть на сайте (включая переведённые из tests/ через publish_building)
-        message = args.message or 'engine: живые здания (%s) на движке %s — %s' % (', '.join(bdirs), bp.engine_version(), time.strftime('%Y-%m-%d %H:%M'))
+        if wb and wb not in bdirs:
+            bdirs = sorted(bdirs + [wb])   # здания ещё нет на сайте — оно появится этой же публикацией
+        message = args.message or 'engine: живые здания (%s) на движке %s%s — %s' % (', '.join(bdirs), bp.engine_version(), (' + здание %s' % wb) if wb else '', time.strftime('%Y-%m-%d %H:%M'))
         st = subprocess.run([sys.executable, str(ROOT / 'tools' / 'test_build_pages.py')], capture_output=True, text=True)
         if st.returncode != 0:
             raise SystemExit('самопроверка сборщика (tools/test_build_pages.py) красная:\n' + st.stdout[-3000:])
@@ -79,11 +104,14 @@ def main():
                              'Сначала tools/publish_beta.py, проверка беты на телефоне — потом этот скрипт.' % ', '.join(diff))
         # 4. сборка: бета (страницы по текущему шаблону), живой движок = проверенный beta/engine/, живые здания
         files = bp.build_beta(tmp)
+        if wb:   # s25: папка здания из исходника (кадры ночи/sway/snow, видео, about, history, gallery, og, card) + карточка главной + 404 — ДО сборки страниц:
+            files += bp.place_live_files(tmp, wb)   # проверка настроек живого здания должна видеть его новые файлы на сайте
+            files += bp.place_hub_and_404(tmp, wb)
         files += bp.build_live(tmp, bdirs, engine_from=tmp / 'beta' / 'engine')
         print('%sсобрано: %d файлов (движок %s, живые здания: %s)' % (tag, len(files), bp.engine_version(), ', '.join(bdirs)))
-        pb.git(tmp, 'add', '-A', 'beta', 'engine', *['%s/index.html' % b for b in bdirs], *['%s/manifest.json' % b for b in bdirs])
+        pb.git(tmp, 'add', '-A', 'beta', 'engine', *['%s/index.html' % b for b in bdirs], *['%s/manifest.json' % b for b in bdirs], *(([wb, 'index.html', '404.html']) if wb else []))
         staged = pb.git(tmp, 'diff', '--cached', '--name-only').splitlines()
-        ok = allowed_paths(bdirs)
+        ok = allowed_paths(bdirs, wb)
         outside = [p for p in staged if not ok(p)]
         if outside:
             raise SystemExit('в коммит попало лишнее: %s — стоп' % outside)
@@ -92,6 +120,12 @@ def main():
             return
         print('%sизменено файлов: %d' % (tag, len(staged)))
         print(pb.git(tmp, 'diff', '--cached', '--stat', '--stat-width=110'))
+        if wb:   # полный список файлов коммита: что добавлено / изменено / удалено
+            ns = pb.git(tmp, 'diff', '--cached', '--name-status').splitlines()
+            kinds = {'A': 'добавлено', 'M': 'изменено', 'D': 'удалено'}
+            print('%sфайлы коммита (%d): %s' % (tag, len(ns), ', '.join('%s %d' % (v, sum(1 for l in ns if l[0] == k)) for k, v in kinds.items())))
+            for l in ns:
+                print('%s  %s %s' % (tag, l[0], l[1:].strip()))
         if args.diff:
             Path(args.diff).write_text(pb.git(tmp, 'diff', '--cached', '--stat', '--stat-width=110') + '\n\n' + pb.git(tmp, 'diff', '--cached'), encoding='utf-8')
             print('%sполный diff: %s' % (tag, args.diff))
@@ -104,10 +138,17 @@ def main():
             if beta_changed:
                 problems.append('beta/ изменилась при пересборке (%d файлов, например %s): бета на сайте — не та, что собирается сейчас' % (len(beta_changed), beta_changed[0]))
             problems += bp.live_vs_beta(tmp, bdirs)
+            if wb:   # здание из tests/<имя>: страницы побайтно не сравнить — CONFIG и файлы кадров с бетой (bp.live_vs_beta_config)
+                problems += bp.live_vs_beta_config(tmp, wb)
             for b in bdirs:
                 old = pb.git(ROOT, 'show', '%s:%s/index.html' % (base, b), check=False)
                 new = (tmp / b / 'index.html').read_text(encoding='utf-8')
-                problems += ['%s: шапка изменилась — %s' % (b, c) for c in (bp.head_changes(old, new) if old else ['на сайте не было страницы'])]
+                hc = [c for c in (bp.head_changes(old, new) if old else ['на сайте не было страницы'])]
+                if b == wb:   # здание обновляется намеренно (новая сборка): шапка — в отчёт, не стоп; превью/canonical сверяет check_site
+                    for c in hc:
+                        print('%sшапка %s (обновляется намеренно): %s' % (tag, b, c))
+                else:
+                    problems += ['%s: шапка изменилась — %s' % (b, c) for c in hc]
             if problems:
                 raise SystemExit('%sпубликация остановлена: живое здание не равно проверенной бете:\n  • %s' % (tag, '\n  • '.join(problems)))
             print('%sживое == проверенная бета (страницы, манифест, движок), шапка прежняя, beta/ не менялась' % tag)
@@ -116,13 +157,20 @@ def main():
             dirty = [l[3:] for l in pb.git(tmp, 'status', '--porcelain', '-uall').splitlines()]
             twins = ['beta/%s' % b for b in pb.LIVE_TWINS]
             exempt = {'%s/index.html' % b for b in list(bdirs) + twins}
+            if wb:   # главная (карточка), 404 (known), about/history здания меняются намеренно — их картинку сверяет check_site
+                exempt |= {'index.html', '404.html', '%s/about.html' % wb, '%s/history.html' % wb}
             extra = [p for p in dirty if not ok(p)]
-            nt = bp.untouched_problems(tmp, set(staged) | set(dirty), exempt)
+            nt = bp.untouched_problems(tmp, set(staged) | set(dirty), exempt, stop={'index.html'} if wb else ())   # главная — ссылка, а не часть страницы
             if extra or nt:
                 raise SystemExit('%sпубликация остановлена: затронуто то, что должно остаться как на main:\n  • %s' % (tag, '\n  • '.join(['вне разрешённых путей: %s' % p for p in extra] + nt)))
             print('%sостальные страницы и их файлы (в т.ч. beta/engine/) побайтно как на main; пиксели снимаются только у %s' % (tag, ', '.join(sorted(set(bdirs) | set(twins)))))
             allow = list(bdirs) + twins
-            if not pb.run_check(tmp, strict=True, allow_extra=allow, only=list(bdirs) + twins):
+            only = list(bdirs) + twins
+            if wb:   # + главная и страницы about/history здания (id как в check_site: hub, <slug>/about, <slug>/history)
+                extra_t = ['hub'] + [bp.check_id(p) for p in ('%s/about.html' % wb, '%s/history.html' % wb) if (tmp / p).is_file()]
+                allow += extra_t
+                only += extra_t
+            if not pb.run_check(tmp, strict=True, allow_extra=allow, only=only):
                 raise SystemExit('%sпубликация остановлена: защитная проверка не зелёная (проблемы, ошибки консоли, fps); обход — только явным --skip-check.' % tag)
         elif not pb.run_check(tmp, strict=True):
             raise SystemExit('%sпубликация остановлена: защитная проверка не зелёная; обход — только явным --skip-check.' % tag)

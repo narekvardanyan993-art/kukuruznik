@@ -979,7 +979,9 @@
   ['pointerdown', 'touchend', 'keydown', 'click'].forEach(function (ev) { window.addEventListener(ev, mvGesture, { passive: true, capture: true }); });
   function mvSetClip(S, j) {
     var C = S.clips[j]; S.ci = j; S.ready = false; S.t = -1;
-    S.v.src = S.base + (S.h264 ? C.src : C.src.replace(/\.mp4$/, '.webm'));   // без H.264 — запасной VP9
+    var vs = String(C.src), vq = vs.match(/[?#].*$/);   // s25: у адреса ролика может быть ?v=<хэш> — .mp4→.webm меняем в пути, запрос возвращаем
+    if (vq) vs = vs.slice(0, vq.index);
+    S.v.src = S.base + (S.h264 ? vs : vs.replace(/\.mp4$/, '.webm')) + (vq ? vq[0] : '');   // без H.264 — запасной VP9
     try { S.v.load(); } catch (e) {}
     S.rate = +C.rate > 0 ? +C.rate : 1;
     try { S.v.defaultPlaybackRate = S.rate; S.v.playbackRate = S.rate; } catch (e) {}

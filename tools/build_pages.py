@@ -61,19 +61,32 @@ def file_hash(path):
     return _HASH_CACHE[key]
 
 
+def video_hash(mp4):
+    """Хэш ролика синемаграфа: mp4 и его запасной webm (движок без H.264 берёт .webm) — любое из двух изменилось, ?v другой."""
+    h1 = file_hash(mp4)
+    h2 = file_hash(Path(mp4).with_suffix('.webm')) if h1 else None
+    return hashlib.sha1((h1 + h2).encode()).hexdigest()[:8] if h1 and h2 else h1
+
+
 def make_stamper(page_dir, site=None, mounts=()):
     """stamp(url) -> url + '?v=<хэш файла>' для адреса относительно страницы page_dir (путь от корня сайта, например 'beta/tests/lenin/').
     Файл ищется: сначала в mounts [(префикс пути на сайте, папка с исходниками)] — свои кадры тестового здания в beta/ ещё не скопированы,
-    они лежат в репозитории; потом в корне сайта site. Файла нет (бета без живых кадров, заглушки) — адрес без изменений. Адрес с ? или # не трогаем."""
+    они лежат в репозитории; потом в корне сайта site. Файла нет (бета без живых кадров, заглушки) — адрес без изменений. Адрес с ? или # не трогаем.
+    Ролики .mp4 (s25) — хэш пары mp4+webm (video_hash); движок срезает ?v перед заменой .mp4 → .webm (viewer.js, mvSetClip)."""
     def stamp(url):
         if '?' in url or '#' in url:
             return url
         sp = posixpath.normpath(posixpath.join(page_dir, url))
+        path = None
         for prefix, d in mounts:
             if sp.startswith(prefix):
-                h = file_hash(Path(d) / sp[len(prefix):])
-                return url + '?v=' + h if h else url
-        h = file_hash(Path(site) / sp) if site else None
+                path = Path(d) / sp[len(prefix):]
+                break
+        else:
+            path = Path(site) / sp if site else None
+        if path is None:
+            return url
+        h = video_hash(path) if path.suffix == '.mp4' else file_hash(path)
         return url + '?v=' + h if h else url
     return stamp
 
@@ -158,8 +171,7 @@ DAY_KEYS = {'skyTop': 'SKY_TOP', 'skyHor': 'SKY_HOR', 'mix': 'MIX', 'greenHue': 
 def make_config(b, frames_url, stamp=None):
     """CONFIG для просмотрщика: движок (engine/config.json) + здание (building.json). Всё про здание — отсюда, в коде движка его нет.
     stamp — функция адрес -> адрес со ?v=<хэш файла> (s24): ею проходят адреса кадров, масок снега/качания/фигур и маски синемаграфа;
-    без неё (verify, publish_kukuruznik) адреса прежние. Видео (motionVideo.clips[].src) хэша не получают: движок меняет .mp4 на .webm
-    регулярным выражением по концу строки (viewer.js, mvSetClip) — запасной VP9-ролик пропал бы; нужна правка engine/."""
+    без неё (verify, publish_kukuruznik) адреса прежние. Ролики (motionVideo.clips[].src, s25) — тоже со ?v=<хэш mp4+webm>: движок (viewer.js, mvSetClip) срезает запрос перед заменой .mp4 → .webm."""
     C = json.loads((ENGINE / 'config.json').read_text(encoding='utf-8'))
     fr = visible_frames(b)
     look = b['look']
@@ -222,7 +234,12 @@ def scene(f, stamp_name=None):
         if k in f:
             sc[k] = f[k]
     if stamp_name and isinstance(sc.get('motionVideo'), dict) and sc['motionVideo'].get('mask'):   # s24: маска синемаграфа — со ?v=<хэш> (движок берёт base + mask)
-        sc['motionVideo'] = dict(sc['motionVideo'], mask=stamp_name(sc['motionVideo']['mask']))
+        mv = dict(sc['motionVideo'], mask=stamp_name(sc['motionVideo']['mask']))
+        if mv.get('src'):   # s25: ролики (clips[].src и старое src) — ?v=<хэш mp4+webm>; движок (mvSetClip) срезает запрос перед .mp4 → .webm и возвращает его
+            mv['src'] = stamp_name(mv['src'])
+        if mv.get('clips'):
+            mv['clips'] = [dict(c, src=stamp_name(c['src'])) if c.get('src') else c for c in mv['clips']]
+        sc['motionVideo'] = mv
     if sun.get('dayDrawn'):
         sc['sunDayDrawn'] = True
     return sc
@@ -497,6 +514,64 @@ def live_vs_beta(site, bdirs):
                 n = next((i for i in range(min(len(la), len(lb))) if la[i] != lb[i]), min(len(la), len(lb)))
                 bad.append('%s/%s: живая страница не равна бете (первое отличие — строка %d)' % (bd, name, n + 1))
     return bad
+
+
+def page_config(html_text):
+    """CONFIG из собранной страницы здания (JSON, вшитый в страницу: var CONFIG = {...})."""
+    a = html_text.index('var CONFIG = ') + len('var CONFIG = ')
+    return json.JSONDecoder().raw_decode(html_text[a:])[0]
+
+
+def live_vs_beta_config(site, slug, root=None):
+    """publish_engine --with-building: живое здание из tests/<имя> == проверенная бета. Побайтно страницы не сравнить (адрес, превью, плашка у живого
+    свои — блок live), поэтому: (1) CONFIG живой и бета-страницы совпадает во всём, кроме ключей, которые блок live переопределяет намеренно
+    (text -> UI_I18N, frames -> FRAMES/SCENE/…); (2) файлы <slug>/frames/* побайтно равны beta/tests/<имя>/frames/*. Возвращает список проблем."""
+    site = Path(site)
+    tl = test_live_slugs(root)
+    if slug not in tl:
+        return ['нет тестового здания с live.slug = %s' % slug]
+    src = tl[slug]
+    over = (load_building(src, root).get('live') or {})
+    allowed = set()
+    if 'text' in over:
+        allowed.add('UI_I18N')
+    if 'frames' in over or 'look' in over or 'tuning' in over:
+        allowed |= {'FRAMES', 'SCENE', 'LOOK', 'DAY'}   # живое здание намеренно рисуется иначе — сверяет check_site
+    bad = []
+    try:
+        live = page_config((site / slug / 'index.html').read_text(encoding='utf-8'))
+        beta = page_config((site / 'beta' / src / 'index.html').read_text(encoding='utf-8'))
+    except (OSError, ValueError) as e:
+        return ['%s: страницу не прочитать (%s)' % (slug, e)]
+    diff = sorted(k for k in set(live) | set(beta) if json.dumps(live.get(k), sort_keys=True) != json.dumps(beta.get(k), sort_keys=True))
+    extra = [k for k in diff if k not in allowed]
+    if extra:
+        bad.append('%s: CONFIG живой страницы не равен бете (ключи: %s)' % (slug, ', '.join(extra)))
+    lf, bf = site / slug / 'frames', site / 'beta' / src / 'frames'
+    ln = {f.name for f in lf.glob('*') if f.is_file()} if lf.is_dir() else set()
+    bn = {f.name for f in bf.glob('*') if f.is_file()} if bf.is_dir() else set()
+    if ln != bn:
+        bad.append('%s/frames: набор файлов не равен бете (только в живом: %s; только в бете: %s)' % (slug, sorted(ln - bn)[:3], sorted(bn - ln)[:3]))
+    for n in sorted(ln & bn):
+        if (lf / n).read_bytes() != (bf / n).read_bytes():
+            bad.append('%s/frames/%s не равен бете побайтно' % (slug, n))
+            break
+    return bad
+
+
+def place_hub_and_404(site, slug, root=None):
+    """Карточка здания на главной и slug в known у 404.html — как в publish_building: главная берётся из исходника, любое её отличие от главной
+    на сайте вне карточки/стопки slug — СТОП (чужие правки главной не уезжают). Возвращает ['index.html', '404.html']."""
+    root, site = Path(root or ROOT), Path(site)
+    new_hub = hub_with_card((root / 'index.html').read_text(encoding='utf-8'), slug, render_card(slug, root), render_stack(slug, root))   # метки обязаны быть
+    old_hub = (site / 'index.html').read_text(encoding='utf-8')
+    problems = hub_outside_diff(old_hub, new_hub, slug)
+    if problems:
+        raise SystemExit('СТОП: главная в ветке отличается от сайта не только карточкой %s:\n  • %s' % (slug, '\n  • '.join(problems)))
+    (site / 'index.html').write_text(new_hub, encoding='utf-8')
+    nf = site / '404.html'
+    nf.write_text(with_404_known(nf.read_text(encoding='utf-8'), slug), encoding='utf-8')
+    return ['index.html', '404.html']
 
 
 _DEP_TOKEN = re.compile(r"[A-Za-z0-9_./~%@+-]+\.(?:html|js|mjs|css|json|webp|png|jpe?g|svg|gif|ico|woff2?|ttf|mp3|ogg|wav|m4a|mp4|webm|txt|webmanifest)\b")

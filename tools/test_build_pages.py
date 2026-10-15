@@ -109,9 +109,10 @@ def check_stamps():
             masks = [s['motionVideo']['mask'] for s in cfg['SCENE'] if s.get('motionVideo')]
             clips = [c['src'] for s in cfg['SCENE'] if s.get('motionVideo') for c in s['motionVideo'].get('clips', [])]
             bad = [u for u in urls + masks if not HEX.search(u)]
-            good = bool(urls) and not bad and all('?' not in c for c in clips)
+            badc = [c for c in clips if not HEX.search(c)]   # s25: ролики тоже со ?v
+            good = bool(urls) and not bad and not badc
             ok &= good
-            out.append('%s  %s: адресов кадров %d, масок %d — все со ?v=<хэш>%s%s' % ('OK   ' if good else 'ОШИБКА', bd, len(urls), len(masks), (', без: ' + ', '.join(bad[:3])) if bad else '', '' if all('?' not in c for c in clips) else ' — НО видео получило ?v (движок ломает запасной .webm)'))
+            out.append('%s  %s: адресов кадров %d, масок %d, роликов %d — все со ?v=<хэш>%s%s' % ('OK   ' if good else 'ОШИБКА', bd, len(urls), len(masks), len(clips), (', без: ' + ', '.join(bad[:3])) if bad else '', (', ролики без ?v: ' + ', '.join(badc[:2])) if badc else ''))
         # хэш = содержимое настоящего файла кадра Ленина, а живая страница Ленина (place_live_files + build_live) получает те же хэши
         cfg = page_config((site / 'beta' / 'tests/lenin' / 'index.html').read_text(encoding='utf-8'))
         fdir = ROOT / 'tests' / 'lenin' / 'frames'
@@ -123,8 +124,14 @@ def check_stamps():
         strings_l = lambda o: list(strings(o))
         same = [(posixpath_name(u), u.split('?v=')[1]) for u in strings_l(live['FRAMES'])] == [(posixpath_name(u), u.split('?v=')[1]) for u in strings_l(cfg['FRAMES'])]
         good = not wrong and same
+        # s25: ролик — ?v у mp4 и тот же в запасном webm; движок (mvSetClip из viewer.js) срезает ?v перед .mp4 → .webm и возвращает; файл webm находится
+        vids = [c['src'] for s in cfg['SCENE'] if s.get('motionVideo') for c in s['motionVideo'].get('clips', [])]
+        vids_ok = bool(vids) and all(HEX.search(v) and (fdir / posixpath_name(v).replace('.mp4', '.webm')).is_file() and (fdir / posixpath_name(v)).is_file() for v in vids)
+        js = engine_js_check(vids[0]) if vids else 'нет роликов'
+        good = good and vids_ok and js is None
         ok &= good
         out.append('%s  хэш = содержимое настоящего файла (tests/lenin/frames); живой Ленин получает ровно те же хэши, что бета%s' % ('OK   ' if good else 'ОШИБКА', (' — не совпали: ' + ', '.join(wrong[:3])) if wrong else ''))
+        out.append('%s  ролики синемаграфа: %d клипов со ?v=<хэш mp4+webm>, mp4 и webm на месте, mvSetClip: с H.264 — .mp4?v, без — .webm?v%s' % ('OK   ' if vids_ok and js is None else 'ОШИБКА', len(vids), (' — ' + js) if js else ''))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     # новый файл с прежним именем -> другой адрес (ради этого всё и делается); соседние файлы — прежние
@@ -145,6 +152,112 @@ def check_stamps():
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     return ok, out
+
+
+def check_with_building():
+    """s25: publish_engine --with-building — новый движок + УЖЕ живое здание (Ленин) в одной сборке. Копия «живого сайта»: старый движок e1.4, старый Ленин
+    (одна заглушка кадра), главная со «старой» карточкой. Без здания сборка живых останавливается (так было до s25); с ним — проходит,
+    ночь/sway/snow/видео попадают в живую папку, живое == бета. Возвращает (ok, строки отчёта)."""
+    import publish_engine as pe
+    out, ok = [], True
+    def rec(name, good, extra=''):
+        nonlocal ok
+        ok &= bool(good)
+        out.append('%s  %s%s' % ('OK   ' if good else 'ОШИБКА', name, (' — ' + extra) if extra else ''))
+    tmp = Path(tempfile.mkdtemp(prefix='chka-test-withb-'))
+    try:
+        site = make_site(tmp, ['kukuruznik'])
+        (site / 'engine').mkdir()
+        (site / 'engine' / 'VERSION').write_text('e1.4\n')
+        (site / 'engine' / 'viewer.js').write_text('// старый движок\n')
+        (site / 'lenin' / 'frames').mkdir(parents=True)
+        (site / 'lenin' / 'index.html').write_text('<html>старый Ленин</html>')
+        (site / 'lenin' / 'frames' / 'lenin_1.webp').write_bytes(b'')
+        hub0 = (ROOT / 'index.html').read_text(encoding='utf-8')
+        old_hub = hub0.replace('Площадь Ленина · Ереван', 'Площадь СТАРАЯ · Ереван')
+        (site / 'index.html').write_text(old_hub, encoding='utf-8')
+        (site / '404.html').write_text((ROOT / '404.html').read_text(encoding='utf-8').replace("lenin: 'lenin/', ", ''), encoding='utf-8')
+        bp.build_beta(site, ['kukuruznik', 'tests/lenin'])
+        bd = bp.live_buildings(site=site)
+        # 1. без здания: старая папка Ленина не годится новой сборке — стоп (то, из-за чего флаг понадобился)
+        try:
+            bp.build_live(site, bd, engine_from=site / 'beta' / 'engine')
+            stop = 'сборка НЕ остановилась'
+        except SystemExit as e:
+            stop = None if 'lenin_1_night.webp' in str(e) else 'не тот текст: ' + str(e)[:150]
+        rec('без --with-building: живой Ленин со старой папкой — сборка останавливается (недостающие кадры ночи/sway)', not stop, stop or '')
+        # 2. с зданием: папка из исходника + карточка главной + 404, потом сборка живых на движке беты
+        files = bp.place_live_files(site, 'lenin') + bp.place_hub_and_404(site, 'lenin')
+        try:
+            bp.build_live(site, bd, engine_from=site / 'beta' / 'engine')
+            err = None
+        except SystemExit as e:
+            err = str(e)[:300]
+        rec('с --with-building: сборка живых зданий проходит настройки без ошибок', err is None, err or '')
+        if err is None:
+            rec('движок в живых = %s' % bp.engine_version(), (site / 'engine' / 'VERSION').read_text().strip() == bp.engine_version() and bp.engine_files(site / 'engine') == bp.engine_files(bp.ENGINE))
+            fr = site / 'lenin' / 'frames'
+            need = ['lenin_1_night.webp', 'lenin_1_sway.png', 'lenin_1_snow.webp', 'lenin_1_motion_1.mp4', 'lenin_1_motion_1.webm', 'lenin_1_motion_mask.png', 'lenin_1_win2.webp']
+            miss = [n for n in need if not (fr / n).is_file()] + [n for n in ('about.html', 'history.html', 'og.jpg', 'card.webp') if not (site / 'lenin' / n).is_file()]
+            rec('в живой папке: ночь, sway, snow, видео mp4+webm, маска, about/history/og/card', not miss, ', '.join(miss))
+            cfg = page_config((site / 'lenin' / 'index.html').read_text(encoding='utf-8'))
+            f0 = cfg['FRAMES'][0]
+            rec('живая страница Ленина ссылается на ночь/sway/snow со ?v', all(k in f0 and '?v=' in f0[k] for k in ('night', 'sway', 'snow')))
+            rec('живое == проверенная бета (CONFIG страницы, файлы frames побайтно)', not bp.live_vs_beta_config(site, 'lenin'), '; '.join(bp.live_vs_beta_config(site, 'lenin')))
+            (fr / 'lenin_1_sway.png').write_bytes(b'x')
+            bad = bp.live_vs_beta_config(site, 'lenin')
+            rec('порча файла живой папки ловится сверкой с бетой', bool(bad) and 'lenin_1_sway.png' in bad[0])
+            rec('главная: карточка Ленина на месте, остальное как было; 404: lenin в known',
+                (site / 'index.html').read_text(encoding='utf-8') == hub0 and "lenin: 'lenin/'" in (site / '404.html').read_text(encoding='utf-8') and files[-2:] == ['index.html', '404.html'])
+        # 3. чужая правка главной вне карточки — стоп
+        (site / 'index.html').write_text(old_hub.replace('<h1>', '<h1 class="x">', 1), encoding='utf-8')
+        try:
+            bp.place_hub_and_404(site, 'lenin')
+            hub_stop = 'не остановилась'
+        except SystemExit as e:
+            hub_stop = None if 'не только карточкой' in str(e) else str(e)[:150]
+        rec('главная на сайте с чужим отличием вне карточки — публикация останавливается', not hub_stop, hub_stop or '')
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    # что скрипт вправе менять в main: с флагом — ещё папка здания, главная, 404; без флага — как раньше
+    a0, a1 = pe.allowed_paths(['kukuruznik']), pe.allowed_paths(['kukuruznik', 'lenin'], 'lenin')
+    good = (a0('engine/viewer.js') and a0('beta/x') and a0('kukuruznik/index.html') and not a0('lenin/frames/a.webp') and not a0('index.html') and not a0('404.html')
+            and a1('lenin/frames/a.webp') and a1('index.html') and a1('404.html') and a1('lenin/index.html') and not a1('kukuruznik/frames/a.webp') and not a1('tools/x.py') and not a1('assets/x.css'))
+    rec('allowed_paths: без флага как раньше; с флагом + папка здания, главная, 404; остальное нельзя', good)
+    # флаг с неизвестным адресом — стоп до любых действий с git
+    old_argv = sys.argv
+    sys.argv = ['publish_engine.py', '--with-building', 'nope', '--dry-run']
+    try:
+        pe.main()
+        why = 'не остановился'
+    except SystemExit as e:
+        why = None if 'нет тестового здания' in str(e) else str(e)[:150]
+    finally:
+        sys.argv = old_argv
+    rec('--with-building с неизвестным адресом — СТОП до git', not why, why or '')
+    return ok, out
+
+
+def engine_js_check(clip_src):
+    """Запускает настоящий mvSetClip из engine/viewer.js (node, заглушка видео): с H.264 адрес = base + mp4?v, без — base + webm?v;
+    старый адрес без ?v ведёт себя как раньше. Возвращает None (всё верно) или текст ошибки."""
+    import subprocess
+    code = r"""
+const src = require('fs').readFileSync(process.argv[1], 'utf8');
+const a = src.indexOf('function mvSetClip(S, j) {'), b = src.indexOf('function mvOpen(', a);
+if (a < 0 || b < 0) { console.log('нет mvSetClip в viewer.js'); process.exit(0); }
+const mvSetClip = new Function('return (' + src.slice(a, b).trim().replace(/\}\s*$/, '}') + ')')();
+const run = (s, h264) => { const S = { clips: [{ src: s }], base: 'B/', h264, v: { load() {} } }; mvSetClip(S, 0); return S.v.src; };
+const q = process.argv[2], bad = [];
+const base = q.split('?')[0], qs = q.slice(base.length), webm = base.replace(/\.mp4$/, '.webm');
+if (run(q, true) !== 'B/' + q) bad.push('H.264: ' + run(q, true));
+if (run(q, false) !== 'B/' + webm + qs) bad.push('без H.264: ' + run(q, false));
+if (run(base, true) !== 'B/' + base) bad.push('старый адрес H.264: ' + run(base, true));
+if (run(base, false) !== 'B/' + webm) bad.push('старый адрес без H.264: ' + run(base, false));
+console.log(bad.join('; '));
+"""
+    r = subprocess.run(['node', '-e', code, str(bp.ENGINE / 'viewer.js'), clip_src], capture_output=True, text=True)
+    return None if r.returncode == 0 and not r.stdout.strip() else (r.stdout.strip() or r.stderr.strip()[-200:])
 
 
 def posixpath_name(u):
@@ -297,6 +410,10 @@ def main():
         ok_all &= not stale
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
+    ok_wb, lines_wb = check_with_building()
+    for l in lines_wb:
+        print(l)
+    ok_all &= ok_wb
     ok_st, lines_st = check_stamps()
     for l in lines_st:
         print(l)
