@@ -23,6 +23,7 @@ tools/publish_engine.py). Сборка живых зданий без смены
 """
 import argparse
 import copy
+import hashlib
 import html
 import json
 import posixpath
@@ -39,6 +40,51 @@ ROOT = Path(__file__).resolve().parent.parent
 ENGINE = ROOT / 'engine'
 LANGS = ('hy', 'ru', 'en')
 LOCAL_DIR = 'tests/local'   # здания только для Mac (в git не идут): tests/local/<имя>/building.json + frames/
+
+
+_HASH_CACHE = {}
+
+
+def file_hash(path):
+    """Короткий хэш содержимого файла (8 знаков sha1) для ?v= в адресах: Safari/iOS держит картинки и маски в кэше по адресу, а не по
+    содержимому — новый файл с прежним именем без смены адреса остаётся старым (s24). Нет файла — None."""
+    p = Path(path)
+    try:
+        st = p.stat()
+    except OSError:
+        return None
+    if not p.is_file():
+        return None
+    key = (str(p), st.st_size, st.st_mtime_ns)
+    if key not in _HASH_CACHE:
+        _HASH_CACHE[key] = hashlib.sha1(p.read_bytes()).hexdigest()[:8]
+    return _HASH_CACHE[key]
+
+
+def make_stamper(page_dir, site=None, mounts=()):
+    """stamp(url) -> url + '?v=<хэш файла>' для адреса относительно страницы page_dir (путь от корня сайта, например 'beta/tests/lenin/').
+    Файл ищется: сначала в mounts [(префикс пути на сайте, папка с исходниками)] — свои кадры тестового здания в beta/ ещё не скопированы,
+    они лежат в репозитории; потом в корне сайта site. Файла нет (бета без живых кадров, заглушки) — адрес без изменений. Адрес с ? или # не трогаем."""
+    def stamp(url):
+        if '?' in url or '#' in url:
+            return url
+        sp = posixpath.normpath(posixpath.join(page_dir, url))
+        for prefix, d in mounts:
+            if sp.startswith(prefix):
+                h = file_hash(Path(d) / sp[len(prefix):])
+                return url + '?v=' + h if h else url
+        h = file_hash(Path(site) / sp) if site else None
+        return url + '?v=' + h if h else url
+    return stamp
+
+
+def stamp_tree(o, stamp):
+    """Все строки-адреса внутри вложенных словарей/списков (адреса кадров в CONFIG.FRAMES) -> со ?v=<хэш>."""
+    if isinstance(o, dict):
+        return {k: stamp_tree(v, stamp) for k, v in o.items()}
+    if isinstance(o, list):
+        return [stamp_tree(v, stamp) for v in o]
+    return stamp(o) if isinstance(o, str) else o
 
 
 def load_building(bdir, root=None):
@@ -109,8 +155,11 @@ def deep_merge(base, over):
 DAY_KEYS = {'skyTop': 'SKY_TOP', 'skyHor': 'SKY_HOR', 'mix': 'MIX', 'greenHue': 'GREEN_HUE', 'greenPull': 'GREEN_PULL', 'greenSat': 'GREEN_SAT'}
 
 
-def make_config(b, frames_url):
-    """CONFIG для просмотрщика: движок (engine/config.json) + здание (building.json). Всё про здание — отсюда, в коде движка его нет."""
+def make_config(b, frames_url, stamp=None):
+    """CONFIG для просмотрщика: движок (engine/config.json) + здание (building.json). Всё про здание — отсюда, в коде движка его нет.
+    stamp — функция адрес -> адрес со ?v=<хэш файла> (s24): ею проходят адреса кадров, масок снега/качания/фигур и маски синемаграфа;
+    без неё (verify, publish_kukuruznik) адреса прежние. Видео (motionVideo.clips[].src) хэша не получают: движок меняет .mp4 на .webm
+    регулярным выражением по концу строки (viewer.js, mvSetClip) — запасной VP9-ролик пропал бы; нужна правка engine/."""
     C = json.loads((ENGINE / 'config.json').read_text(encoding='utf-8'))
     fr = visible_frames(b)
     look = b['look']
@@ -140,14 +189,14 @@ def make_config(b, frames_url):
         'DAY': day,
         'CLOUD_SHADOW': [f['cloudShadow'] for f in fr],
         'WIND_K': [f['wind'] for f in fr],
-        'FRAMES': [dict(frame_files(frames_url, f['name'], f.get('night', True), f.get('sunset', True)), **({'depthRaw': True} if f.get('depthRaw') else {}), **({'fig': frames_url + f['name'] + '_fig.png'} if f.get('figures') else {}), **({'snow': frames_url + f['name'] + '_snow.webp'} if f.get('snowMask') else {}), **({'sway': frames_url + f['name'] + '_sway.png'} if f.get('sway') else {})) for f in fr],
+        'FRAMES': [dict(stamp_tree(dict(frame_files(frames_url, f['name'], f.get('night', True), f.get('sunset', True)), **({'fig': frames_url + f['name'] + '_fig.png'} if f.get('figures') else {}), **({'snow': frames_url + f['name'] + '_snow.webp'} if f.get('snowMask') else {}), **({'sway': frames_url + f['name'] + '_sway.png'} if f.get('sway') else {})), stamp or (lambda u: u)), **({'depthRaw': True} if f.get('depthRaw') else {})) for f in fr],
         'HOTSPOTS': [f['hotspots'] for f in fr],
         'CROP': [f['crop'] for f in fr],
         'FLAGS': [f['flag'] or [0, 0, 0, 0] for f in fr],
         'NIGHT_HALO': [f['nightHalo'] for f in fr],
         'NIGHT_LAMPS': [f['nightLamps'] for f in fr],
         'LAMPS': [f['lamps'] for f in fr],
-        'SCENE': [scene(f) for f in fr],
+        'SCENE': [scene(f, (lambda n: n + stamp(frames_url + n)[len(frames_url + n):]) if stamp else None) for f in fr],
         'PARADE_FRAME': parade[0] if parade else -1,
         'PARADE_STYLES': [('planes' if f.get('parade') is True else f['parade']) if f.get('parade') else None for f in fr],   # e1.3: свой парад на каждом кадре
         'ABOUT_FACTS': b['aboutFacts'],
@@ -162,7 +211,7 @@ def make_config(b, frames_url):
     return C
 
 
-def scene(f):
+def scene(f, stamp_name=None):
     """Живые детали кадра (details.js): что летает, небо, облака, солнце/луна, газон, крупный план."""
     sky, sun = f['sky'], f['sun']
     sc = {'life': f['life'], 'skyBand': sky['band'], 'clouds': sky['clouds'], 'sunDay': sun['day'], 'sunSet': sun['sunset'],
@@ -172,6 +221,8 @@ def scene(f):
     for k in ('bldDepth', 'showBand', 'fountains', 'ambient', 'skyBirds', 'nightWins', 'motionVideo'):   # e1.5: только если заданы у кадра — у остальных зданий настройки страницы не меняются
         if k in f:
             sc[k] = f[k]
+    if stamp_name and isinstance(sc.get('motionVideo'), dict) and sc['motionVideo'].get('mask'):   # s24: маска синемаграфа — со ?v=<хэш> (движок берёт base + mask)
+        sc['motionVideo'] = dict(sc['motionVideo'], mask=stamp_name(sc['motionVideo']['mask']))
     if sun.get('dayDrawn'):
         sc['sunDayDrawn'] = True
     return sc
@@ -283,14 +334,15 @@ def make_manifest(b, bdir, page_dir):
     }, ensure_ascii=False, indent=2) + '\n'
 
 
-def render(b, bdir, page_dir, engine_dir, beta, version=None, own_frames=False):
+def render(b, bdir, page_dir, engine_dir, beta, version=None, own_frames=False, site=None, root=None):
     """HTML страницы здания. page_dir/engine_dir — пути от корня сайта ('beta/kukuruznik/', 'beta/engine/').
     version — версия движка для ?v= в адресах (по умолчанию engine/VERSION исходника)."""
     version = version or engine_version()
     bid = bdir
     t = (ENGINE / 'page.html').read_text(encoding='utf-8')
     frames_to = posixpath.normpath(posixpath.join(page_dir, b['framesDir'])) + '/' if own_frames else site_path(bid, b['framesDir'])   # свои кадры лежат рядом со страницей беты
-    cfg = make_config(b, rel(page_dir, frames_to))
+    mounts = [(posixpath.normpath(frames_to) + '/', Path(root or ROOT) / bdir / b['framesDir'])] if own_frames else []   # свои кадры беты ещё не скопированы — берём из репозитория
+    cfg = make_config(b, rel(page_dir, frames_to), make_stamper(page_dir, site, mounts))   # s24: адреса кадров и масок со ?v=<хэш файла> (кэш Safari)
     js = json.dumps(cfg, ensure_ascii=False, indent=1).replace('</', '<\\/')
     esc = lambda s: html.escape(s, quote=True)
     rep = {
@@ -383,7 +435,7 @@ def build_beta(site, bdirs=None, root=None, with_local=False):
         page_dir = 'beta/%s/' % bd
         out = site / page_dir / 'index.html'
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(render(b, bd, page_dir, 'beta/engine/', beta=True, own_frames=bd in own), encoding='utf-8')
+        out.write_text(render(b, bd, page_dir, 'beta/engine/', beta=True, own_frames=bd in own, site=site, root=root), encoding='utf-8')
         written.append(str(out.relative_to(site)))
         if bd in own:   # кадры здания — рядом со страницей: beta/tests/<имя>/frames/*.webp
             fdir = Path(root or ROOT) / bd / 'frames'   # + синемаграф (e1.13): <кадр>_motion.mp4 и маска
@@ -636,7 +688,7 @@ def build_live(site, bdirs=None, engine_from=None, root=None):
         page_dir = '%s/' % bd
         out = site / page_dir / 'index.html'
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(render(b, bd, page_dir, 'engine/', beta=False, version=version), encoding='utf-8')
+        out.write_text(render(b, bd, page_dir, 'engine/', beta=False, version=version, site=site, root=root), encoding='utf-8')
         written.append(str(out.relative_to(site)))
         (out.parent / 'manifest.json').write_text(make_manifest(b, bd, page_dir), encoding='utf-8')
         written.append(str((out.parent / 'manifest.json').relative_to(site)))

@@ -35,7 +35,7 @@ def make_site(tmp, bdirs):
         base = site / bp.site_path(bd, b['framesDir'])
         base.mkdir(parents=True, exist_ok=True)
         for f in b['frames']:
-            for suf in ('', '_depth', '_bg', '_building', '_env', '_win2', '_sunset', '_night'):
+            for suf in ('', '_depth', '_bg', '_bg_depth', '_building', '_env', '_win2', '_sunset', '_night'):
                 (base / (f['name'] + suf + '.webp')).write_bytes(b'')
     return site
 
@@ -75,6 +75,80 @@ def set_(path_fn):
         path_fn(b)
         return b
     return f
+
+
+def page_config(html_text):
+    """CONFIG из собранной страницы (JSON, вшитый в страницу)."""
+    a = html_text.index('var CONFIG = ') + len('var CONFIG = ')
+    return json.JSONDecoder().raw_decode(html_text[a:])[0]
+
+
+def strings(o):
+    if isinstance(o, dict):
+        for v in o.values():
+            yield from strings(v)
+    elif isinstance(o, list):
+        for v in o:
+            yield from strings(v)
+    elif isinstance(o, str):
+        yield o
+
+
+def check_stamps():
+    """s24: адреса кадров и масок в собранных страницах — со ?v=<хэш содержимого файла> (кэш Safari), у ВСЕХ зданий. Возвращает (ok, строки отчёта)."""
+    out, ok = [], True
+    HEX = re.compile(r'\?v=[0-9a-f]{8}$')
+    tmp = Path(tempfile.mkdtemp(prefix='chka-test-stamp-'))
+    try:
+        bdirs = ['kukuruznik', 'tests/lenin', 'tests/test-1']
+        site = make_site(tmp, bdirs)
+        bp.build_beta(site, bdirs)
+        for bd in bdirs:
+            cfg = page_config((site / 'beta' / bd / 'index.html').read_text(encoding='utf-8'))
+            urls = [u for fr in cfg['FRAMES'] for u in strings(fr) if u.endswith(('.webp', '.png')) or '?v=' in u]
+            masks = [s['motionVideo']['mask'] for s in cfg['SCENE'] if s.get('motionVideo')]
+            clips = [c['src'] for s in cfg['SCENE'] if s.get('motionVideo') for c in s['motionVideo'].get('clips', [])]
+            bad = [u for u in urls + masks if not HEX.search(u)]
+            good = bool(urls) and not bad and all('?' not in c for c in clips)
+            ok &= good
+            out.append('%s  %s: адресов кадров %d, масок %d — все со ?v=<хэш>%s%s' % ('OK   ' if good else 'ОШИБКА', bd, len(urls), len(masks), (', без: ' + ', '.join(bad[:3])) if bad else '', '' if all('?' not in c for c in clips) else ' — НО видео получило ?v (движок ломает запасной .webm)'))
+        # хэш = содержимое настоящего файла кадра Ленина, а живая страница Ленина (place_live_files + build_live) получает те же хэши
+        cfg = page_config((site / 'beta' / 'tests/lenin' / 'index.html').read_text(encoding='utf-8'))
+        fdir = ROOT / 'tests' / 'lenin' / 'frames'
+        wrong = [u for u in strings(cfg['FRAMES']) if '?v=' in u and u.split('?v=')[1] != bp.file_hash(fdir / posixpath_name(u))]
+        bp.place_live_files(site, 'lenin')
+        bp.build_live(site, ['lenin'], engine_from=site / 'beta' / 'engine')
+        live = page_config((site / 'lenin' / 'index.html').read_text(encoding='utf-8'))
+        pair = lambda c: sorted((posixpath_name(u), u.split('?v=')[1]) for u in strings(c['FRAMES']) + strings(c['SCENE']) if '?v=' in u)
+        strings_l = lambda o: list(strings(o))
+        same = [(posixpath_name(u), u.split('?v=')[1]) for u in strings_l(live['FRAMES'])] == [(posixpath_name(u), u.split('?v=')[1]) for u in strings_l(cfg['FRAMES'])]
+        good = not wrong and same
+        ok &= good
+        out.append('%s  хэш = содержимое настоящего файла (tests/lenin/frames); живой Ленин получает ровно те же хэши, что бета%s' % ('OK   ' if good else 'ОШИБКА', (' — не совпали: ' + ', '.join(wrong[:3])) if wrong else ''))
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    # новый файл с прежним именем -> другой адрес (ради этого всё и делается); соседние файлы — прежние
+    tmp = Path(tempfile.mkdtemp(prefix='chka-test-stamp-'))
+    try:
+        site = make_site(tmp, ['kukuruznik'])
+        def urls_of():
+            bp.build_beta(site, ['kukuruznik'])
+            c = page_config((site / 'beta' / 'kukuruznik' / 'index.html').read_text(encoding='utf-8'))
+            return {posixpath_name(u): u for u in strings(c['FRAMES']) if '?v=' in u}
+        a = urls_of()
+        (site / 'kukuruznik' / 'frames' / 'v_angle_0.webp').write_bytes(b'new picture')
+        b2 = urls_of()
+        changed = sorted(k for k in a if a[k] != b2[k])
+        good = changed == ['v_angle_0.webp'] and len(a) > 5
+        ok &= good
+        out.append('%s  файл кадра изменился при том же имени -> другой ?v= только у него (изменились: %s)' % ('OK   ' if good else 'ОШИБКА', ', '.join(changed) or '—'))
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    return ok, out
+
+
+def posixpath_name(u):
+    return u.split('?')[0].rsplit('/', 1)[-1]
 
 
 def main():
@@ -223,6 +297,10 @@ def main():
         ok_all &= not stale
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
+    ok_st, lines_st = check_stamps()
+    for l in lines_st:
+        print(l)
+    ok_all &= ok_st
     # стопка главной: картинка здания встаёт на место силуэта, повтор ничего не меняет, чужое место и вне-диффы ловятся
     hub0 = (ROOT / 'index.html').read_text(encoding='utf-8')
     base = re.sub(r'\s*<!-- stack:lenin .*?<!-- /stack:lenin -->', '\n      <div class="stack-card sc-c"><div class="sc-pic"><svg class="ghost" viewBox="0 0 200 200"><use href="#ghost-statue"/></svg></div></div>', hub0, flags=re.S)
