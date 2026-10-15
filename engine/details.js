@@ -26,7 +26,44 @@
   // clouds (сколько облаков), cloudScale (размер облаков, если задан — одинаковый), sunDay / sunSet / moon ([u, v] на кадре),
   // sunDayDrawn (солнце уже нарисовано на картинке — только ореол), lawn ([u0, v0, u1, v1] — бабочки и светлячки; нет — их нет),
   // closeUp (крупный план: glints — блики в окнах, perch — кромка, куда садятся птицы, mast — мачта флага [u низ, v низ, u верх, v верх]; banner — знамя [u середины, v карниза, v низа, полуширина])
+  // e1.10–e1.11 СПРАЙТЫ библиотеки жизни (engine/sprites/life.webp + life.json; машины и люди — из Gemini (tools/sprites_intake.py), птицы — tools/make_life_sprites.py, docs/ENGINE-LIFE.md «Спрайты»).
+  // Пока не загрузились или кадра нет — рисуется прежний векторный вариант. Ночью — затемнённая копия атласа (птицы не светятся на тёмном).
+  var SPR = { ok: false, img: null, dark: null, meta: null };
+  (function () {
+    var src = (document.currentScript && document.currentScript.src) || '', base = src.replace(/details\.js.*$/, ''), q = src.indexOf('?') >= 0 ? src.slice(src.indexOf('?')) : '';
+    if (!base || !root.fetch) return;
+    root.fetch(base + 'sprites/life.json' + q).then(function (r) { return r.ok ? r.json() : null; }).then(function (m) {
+      if (!m) return;
+      var im = new Image(); im.onload = function () {
+        var c = document.createElement('canvas'); c.width = im.width; c.height = im.height; var x = c.getContext('2d');
+        x.drawImage(im, 0, 0); x.globalCompositeOperation = 'source-atop'; x.fillStyle = 'rgba(18,24,50,0.72)'; x.fillRect(0, 0, c.width, c.height);
+        SPR.img = im; SPR.dark = c; SPR.meta = m; SPR.ok = true;
+      };
+      im.onerror = function () { if (!/png/.test(im.src)) im.src = base + 'sprites/life.png' + q; };
+      im.src = base + 'sprites/life.webp' + q;
+    }).catch(function () {});
+  })();
+  function spr(name, x, y, w, flip, rot, a) {   // кадр атласа шириной w px; якорь кадра — в точке (x, y)
+    if (!SPR.ok) return false; var fr = SPR.meta.frames[name]; if (!fr) return false;
+    var h = fr[3] * w / fr[2], n = NIGHT;
+    ctx.save(); ctx.translate(x, y); if (rot) ctx.rotate(rot); if (flip) ctx.scale(-1, 1);
+    if (n < 0.98) { ctx.globalAlpha = a * (1 - n); ctx.drawImage(SPR.img, fr[0], fr[1], fr[2], fr[3], -fr[4] * w, -fr[5] * h, w, h); }
+    if (n > 0.02) { ctx.globalAlpha = a * n; ctx.drawImage(SPR.dark, fr[0], fr[1], fr[2], fr[3], -fr[4] * w, -fr[5] * h, w, h); }
+    ctx.restore(); return true;
+  }
+  function sprH(name, x, y, h, flip, a) {   // e1.11: кадр высотой h × (свой рост / рост группы) — все кадры группы в одном масштабе
+    if (!SPR.ok) return false; var fr = SPR.meta.frames[name]; if (!fr) return false;
+    var g = SPR.meta.groups && SPR.meta.groups[name.split('_').slice(0, 2).join('_')], hh = h * fr[3] / (g ? g[1] : fr[3]);
+    return spr(name, x, y, hh * fr[2] / fr[3], flip, 0, a);
+  }
+  function pigeonFly(x, y, s, flap, head, a, land) {   // голубь в полёте: спрайт по фазе крыла; s — как у flyBird (размах)
+    var nm = land ? 'pigeon_land' : flap > 0.6 ? 'pigeon_fly_0' : flap > 0.22 ? 'pigeon_fly_1' : flap > 0.08 ? 'pigeon_glide' : flap > -0.45 ? 'pigeon_fly_2' : 'pigeon_fly_3';
+    var c = Math.cos(head);
+    if (!spr(nm, x, y, s * 1.3, c < 0, (c < 0 ? -1 : 1) * Math.sin(head) * 0.35, a)) flyBird(x, y, s, flap, head, '108,114,128', a);
+  }
   function SC(fr) { return (root.CONFIG && root.CONFIG.SCENE && root.CONFIG.SCENE[fr]) || {}; }
+  // e1.5: showBand — своя полоса для парада (доли высоты), если у кадра задана; иначе парад идёт в полосе неба skyBand, как раньше
+  function PB(fr) { var S = SC(fr); return S.showBand || S.skyBand; }
 
   var V = null, cv = null, ctx = null, dpr = 1, W = 0, H = 0;
   var active = [], nextAt = 0, lastKey = null, lastFrame = -1, lastKind = '';
@@ -503,7 +540,527 @@
     ctx.fillRect(b[0] - 2 * s, b[1] - 1, 4 * s, 1.5);
     ctx.restore();
   }
-  function drawCloseUp(now, w, f, c) { cu = c; if (c.glints) drawGlints(now, f, w); if (c.perch) drawPerch(now, f, w); if (c.mast) drawRoofFlag(now, w); }
+  // ---------- ФОНТАНЫ (e1.5; кадр с fountains в настройках здания, у остальных ничего не рисуется) ----------
+  // jets: [[u основания, v основания, высота струи (доля высоты кадра), полуширина (доля ширины)], …]; glints: [[u, v], …] — блики на воде;
+  // squash — сплюснутость кругов ряби (вид сверху). Всё на глубине площади под точкой (как точки-подсказки слоя «фон») — при наклоне на месте.
+  // Стиль рисунка: бледная акварельная струя, тонкие карандашные штрихи бегут вверх, капли по дугам, круги ряби расходятся и тают, блики мерцают.
+  function drawFountains(now, w, f, F) {
+    var t = now / 1000, s0 = sf(), a0 = 1 - 0.6 * w.n, sq = F.squash || 0.38;
+    ctx.save(); ctx.lineCap = 'round';
+    if (F.pool) {   // e1.7: вода бассейна — акварельная синева поверх рисунка (умножением: карандаш остаётся), лёгкие волны-штрихи
+      var pp = F.pool.map(function (q) { return P(q[0], q[1], depthAt(f, q[0], q[1])); });
+      ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = (F.blue || 0.6) * (1 - 0.4 * w.n); ctx.fillStyle = 'rgb(105,165,225)';
+      ctx.beginPath(); pp.forEach(function (q, i) { if (i) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]); }); ctx.closePath(); ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+      var c0 = pp.reduce(function (s, q) { return [s[0] + q[0] / pp.length, s[1] + q[1] / pp.length]; }, [0, 0]), wx0 = Math.abs(pp[1][0] - pp[0][0]) * 0.4;
+      ctx.strokeStyle = 'rgb(255,255,255)'; ctx.lineWidth = Math.max(0.8, 1.1 * s0);
+      for (var wv = 0; wv < 7; wv++) { var ph2 = (t * 0.25 + wv / 7) % 1, wy = c0[1] + (wv - 3) * 4 * s0, wxs = c0[0] + Math.sin(wv * 2.1 + t * 0.4) * wx0; ctx.globalAlpha = a0 * 0.5 * Math.sin(Math.PI * ph2); ln(wxs - 6 * s0, wy, wxs + 6 * s0, wy); }
+    }
+    (F.jets || []).forEach(function (j, k) {
+      var d = depthAt(f, j[0], j[1]), b = P(j[0], j[1], d), tp = P(j[0], j[1] - j[2], d), h = b[1] - tp[1], hw = Math.max(1.5, P(j[0] + j[3], j[1], d)[0] - b[0]);
+      var hh = h * (0.93 + 0.06 * Math.sin(t * 2.3 + k * 1.7) + 0.025 * Math.sin(t * 7.1 + k));
+      ctx.lineWidth = Math.max(0.6, 0.8 * s0);
+      for (var r = 0; r < 3; r++) {   // рябь: три круга от струи
+        var p = (t * 0.42 + r / 3 + k * 0.29) % 1, rx = hw * (1.3 + 3.4 * p);
+        ctx.globalAlpha = a0 * 0.6 * (1 - p) * (1 - p); ctx.strokeStyle = 'rgb(62,88,112)';
+        ctx.beginPath(); ctx.ellipse(b[0], b[1], rx, rx * sq, 0, 0, 6.283); ctx.stroke();
+      }
+      ctx.globalAlpha = a0 * (F.pool ? 0.92 : 0.7); ctx.fillStyle = F.pool ? 'rgb(225,240,255)' : 'rgb(238,247,252)';   // тело струи — бледная акварель
+      ctx.beginPath(); ctx.moveTo(b[0] - hw * 0.5, b[1]);
+      ctx.quadraticCurveTo(b[0] - hw * 0.22, b[1] - hh * 0.6, b[0] - hw * 0.14, b[1] - hh);
+      ctx.quadraticCurveTo(b[0], b[1] - hh * 1.08, b[0] + hw * 0.14, b[1] - hh);
+      ctx.quadraticCurveTo(b[0] + hw * 0.22, b[1] - hh * 0.6, b[0] + hw * 0.5, b[1]); ctx.closePath(); ctx.fill();
+      ctx.setLineDash([3 * s0, 4 * s0]); ctx.lineDashOffset = -t * 26 * s0;   // штрихи бегут вверх
+      ctx.globalAlpha = a0 * 0.45; ctx.strokeStyle = 'rgb(70,96,122)'; ctx.lineWidth = Math.max(0.5, 0.7 * s0);
+      [-0.28, 0, 0.28].forEach(function (o) { ctx.beginPath(); ctx.moveTo(b[0] + hw * o * 1.4, b[1]); ctx.quadraticCurveTo(b[0] + hw * o, b[1] - hh * 0.6, b[0] + hw * o * 0.5, b[1] - hh * 0.98); ctx.stroke(); });
+      ctx.setLineDash([]);
+      for (var i = 0; i < 12; i++) {   // капли падают дугами наружу
+        var ph = (t * 0.85 + i / 12 + k * 0.37) % 1, side = i % 2 ? 1 : -1, sp = hw * (0.7 + 0.9 * ((i * 7) % 5) / 5);
+        var x = b[0] + side * sp * ph, y = b[1] - hh * (1 - 1.15 * ph * ph) + hh * 0.08 * ph;
+        ctx.globalAlpha = a0 * 0.65 * (1 - ph); ctx.fillStyle = i % 3 ? 'rgb(84,112,140)' : 'rgb(255,255,255)';
+        ctx.beginPath(); ctx.arc(x, y, Math.max(0.6, 0.85 * s0), 0, 6.283); ctx.fill();
+      }
+    });
+    (F.glints || []).forEach(function (g, i) {   // блики на воде: короткие белые штрихи мерцают
+      var d = depthAt(f, g[0], g[1]), p = P(g[0], g[1], d), tw = 0.5 + 0.5 * Math.sin(t * (1.2 + (i % 3) * 0.45) + i * 2.1), l = (3 + (i % 3)) * s0;
+      ctx.globalAlpha = a0 * 0.85 * tw * tw; ctx.strokeStyle = 'rgb(255,255,255)'; ctx.lineWidth = Math.max(0.8, 1.3 * s0);
+      ctx.beginPath(); ctx.moveTo(p[0] - l, p[1]); ctx.lineTo(p[0] + l, p[1]); ctx.stroke();
+      ctx.globalAlpha = a0 * 0.3 * tw; ctx.strokeStyle = 'rgb(62,88,112)'; ctx.lineWidth = Math.max(0.5, 0.6 * s0);
+      ctx.beginPath(); ctx.moveTo(p[0] - l * 0.7, p[1] + 1.6 * s0); ctx.lineTo(p[0] + l * 0.9, p[1] + 1.6 * s0); ctx.stroke();
+    });
+    ctx.restore();
+  }
+  // ---------- БИБЛИОТЕКА ЖИЗНИ (e1.8; docs/ENGINE-LIFE.md). Кадр с ambient в настройках здания, у остальных ничего не рисуется ----------
+  // Модули с пресетами (preset задаёт проверенные числа, поля объекта их переопределяют):
+  //   walkers: [{preset: 'far-pedestrians', path, size: [s0, s1], n}]          — мелкие далёкие люди только по тротуарам
+  //   cars:    [{preset: 'soviet-street' | 'trolley-line', path, size, n, loop}]— «Волги», «Москвичи», ЗАЗ, такси, троллейбус — по дорогам
+  //   flocks:  [{preset: 'pigeons', at: [u, v], size, n}]                        — голуби на земле: клюют, взлетают стаей, кружат, садятся
+  //            [{preset: 'sky', band: [v0, v1], size, n, every: [a, b]}]         — стая пролетает через небо, меняет форму
+  //   occluders: [{poly: [[u, v]…], base: v, bld: true?}]                        — дом/дерево/статуя: всё, что дальше base, за ними прячется
+  // Скорости — в ростах (длинах) в секунду, поэтому дальние идут медленнее сами. Всё — на глубине земли под точкой (при наклоне на месте).
+  // Правила Нарека (07.10.2026): никаких крупных людей; на крупном плане людей нет; пути только по нарисованным дорогам и тротуарам;
+  // ларьки и стоящие машины рисуются в саму картинку, не движком.
+  var NIGHT = 0;   // e1.10: ночь для модулей жизни (голуби спят, стаи не летают)
+  var LIFE_PRESETS = {
+    walkers: { 'far-pedestrians': { bps: 0.62, n: 3, gap: [2, 9] } },
+    cars: { 'soviet-street': { bps: 1.7, n: 2, gap: [1.5, 6], kinds: ['volga', 'moskvich', 'volga', 'zaz', 'taxi'] },
+            'trolley-line': { bps: 1.1, n: 1, gap: [6, 14], kinds: ['trolley'], lane: 0.3 },
+            'soviet-1950s': { bps: 1.5, n: 2, gap: [3, 9], kinds: ['pobeda', 'pobeda', 'pobeda', 'volga'], lane: 0.3 },   // e1.11: эпоха 1950–60-х, машин мало
+            'watering': { bps: 0.8, n: 1, gap: [12, 30], kinds: ['water'], lane: 0.3 } },
+    flocks: { pigeons: { n: 9, rest: [7, 18], fly: [4, 8], radius: 0.06 }, sky: { n: 11, every: [9, 22], size: 0.012 } }
+  };
+  function lp(kind, o) { if (o._p) return o._p; var b = (LIFE_PRESETS[kind] || {})[o.preset] || {}, r = {}, k; for (k in b) r[k] = b[k]; for (k in o) r[k] = o[k]; o._p = r; return r; }
+  var STAND_SEQ = { manhat: [0, 1, 0, 1, 2, 3], reader: [0, 0, 1, 0, 2, 3], woman: [0, 1, 2, 3, 1] };   // e1.11: какие кадры стойки и как часто
+  var WALKERS = ['mancoat', 'woman', 'mansuit'];   // e1.11: пешеходы-спрайты из Gemini (walk_<кто>_<фаза>)
+  var COATS = ['105,115,128', '128,98,84', '96,108,90', '120,112,130', '146,128,96', '84,92,104', '130,86,80'];
+  var CARS = { volga: ['214,206,184', '162,176,160', '146,160,178', '120,128,138', '190,168,150'], moskvich: ['176,64,56', '96,128,150', '200,190,150', '110,140,110'], zaz: ['226,214,170', '150,170,200', '196,96,70'], taxi: ['232,214,150'], trolley: ['224,204,140'], pobeda: ['176,190,176'], water: ['96,120,90'] };
+  function aspect() { var FS = root.CONFIG.FRAME_SIZE || [768, 1365]; return FS[0] / FS[1]; }
+  function chaikin(pts, loop) {   // e1.11: плавные повороты — путь сглаживается (2 прохода Чайкина); tools/check_roads.py проверяет тот же сглаженный путь
+    for (var it = 0; it < 2; it++) {
+      var out = [], n = pts.length, i;
+      if (!loop) out.push(pts[0]);
+      for (i = 0; i < (loop ? n : n - 1); i++) { var A = pts[i], B = pts[(i + 1) % n]; out.push([A[0] * 0.75 + B[0] * 0.25, A[1] * 0.75 + B[1] * 0.25], [A[0] * 0.25 + B[0] * 0.75, A[1] * 0.25 + B[1] * 0.75]); }
+      if (!loop) out.push(pts[n - 1]);
+      pts = out;
+    }
+    return pts;
+  }
+  function pathOf(o) {   // ломаная; длина — в долях высоты кадра (u переводится по пропорции кадра)
+    if (o._L) return o._L;
+    var P0 = o.smooth === false ? o.path.slice() : chaikin(o.path, o.loop), ar = aspect(); if (o.loop) P0.push(P0[0]);
+    var L = [0]; for (var i = 1; i < P0.length; i++) L.push(L[i - 1] + Math.hypot((P0[i][0] - P0[i - 1][0]) * ar, P0[i][1] - P0[i - 1][1]));
+    o._P = P0; o._L = L; return L;
+  }
+  function along(o, s) {
+    var L = pathOf(o), P0 = o._P, tot = L[L.length - 1], x = clamp(s, 0, 1) * tot, i = 1;
+    while (i < L.length - 1 && L[i] < x) i++;
+    var k = (x - L[i - 1]) / Math.max(1e-6, L[i] - L[i - 1]), a = P0[i - 1], b = P0[i];
+    return { u: a[0] + (b[0] - a[0]) * k, v: a[1] + (b[1] - a[1]) * k, du: b[0] - a[0], dv: b[1] - a[1] };
+  }
+  function gd(f, u, v) { return depthAt(f, clamp(u, 0, 1), clamp(v, 0, 1)); }
+  function ground(f, u, v) { return P(u, v, gd(f, u, v)); }
+  function sizePx(f, u, v, s) { var d = gd(f, u, v), a = P(u, v, d), b = P(u, v - s, d); return Math.abs(a[1] - b[1]); }
+  function ln(x0, y0, x1, y1) { ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); }
+  function occClip(f, A, v) {   // вырезать из рисования всё, что закрывают ближние дом/дерево/статуя (их base ниже точки предмета)
+    var oc = (A.occluders || []).filter(function (o) { return o.base > v; }); if (!oc.length) return false;
+    ctx.save(); ctx.beginPath(); ctx.rect(-10, -10, W + 20, H + 20);
+    oc.forEach(function (o) {
+      o.poly.forEach(function (q, i) { var p = o.bld && V.projectB ? V.projectB(f, q[0], q[1]) : ground(f, q[0], q[1]); if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); });
+      ctx.closePath();
+    });
+    ctx.clip('evenodd'); return true;
+  }
+  function tinyPerson(x, y, h, step, coat, col, a, dir) {   // далёкий человек: голова, пальто пятном, ноги — два штриха; без деталей
+    if (SPR.ok && SPR.meta.coats) { var ci = Math.max(0, COATS.indexOf(coat)) % SPR.meta.coats.length, ph = ((Math.floor(step / 1.5708) % 4) + 4) % 4, fr = SPR.meta.frames['walk_' + SPR.meta.coats[ci] + '_' + ph];
+      if (fr && spr('walk_' + SPR.meta.coats[ci] + '_' + ph, x, y, h * fr[2] / fr[3], dir < 0, 0, a)) return; }   // спрайт из Gemini, если он есть в атласе
+    var lw = Math.max(0.55, h * 0.09), sw = Math.sin(step) * h * 0.1;
+    ctx.globalAlpha = a * 0.8; ctx.fillStyle = 'rgb(' + coat + ')';
+    ctx.beginPath(); ctx.ellipse(x, y - h * 0.58, h * 0.13, h * 0.24, 0, 0, 6.283); ctx.fill();
+    ctx.globalAlpha = a * 0.9; ctx.strokeStyle = 'rgb(' + col + ')'; ctx.fillStyle = 'rgb(' + col + ')'; ctx.lineWidth = lw;
+    ctx.beginPath(); ctx.arc(x, y - h * 0.9, h * 0.1, 0, 6.283); ctx.fill();
+    ln(x - h * 0.04, y - h * 0.38, x - h * 0.04 + sw, y); ln(x + h * 0.04, y - h * 0.38, x + h * 0.04 - sw, y);
+  }
+  function car(x, y, len, ang, kind, body, col, a, lights, now, i) {   // машина эпохи сверху-сбоку: кузов акварелью, крыша, стёкла, контур карандашом
+    var SM = { pobeda: 'pobeda', volga: 'volga', taxi: 'volga', trolley: 'trolley', water: 'water' }[kind], gr = SM && SPR.ok && SPR.meta.groups && SPR.meta.groups['car_' + SM];
+    if (gr) {   // e1.11: спрайт из Gemini — вид по направлению на экране: бок / 3/4 спереди (едет к зрителю) / 3/4 сзади; машина стоит ровно, не крутится
+      var cs = Math.cos(ang), sn0 = Math.sin(ang), view = Math.abs(sn0) < 0.42 ? 'side' : (sn0 > 0 ? 'front' : 'rear'), nm = 'car_' + SM + '_' + view + '_' + (cs >= 0 ? 'r' : 'l'), fr = SPR.meta.frames[nm];
+      // e1.13: ракурс по касательной к дороге — спрайт доворачивается от своего «родного» направления (бок 0°, 3/4 ±40°) к направлению пути на экране;
+      // лёгкое покачивание на ходу
+      var nat = view === 'side' ? (cs >= 0 ? 0 : Math.PI) : (view === 'front' ? (cs >= 0 ? 0.7 : Math.PI - 0.7) : (cs >= 0 ? -0.7 : -Math.PI + 0.7));
+      var dr = Math.atan2(Math.sin(ang - nat), Math.cos(ang - nat)), rot = clamp(dr, view === 'side' ? -0.45 : -0.3, view === 'side' ? 0.45 : 0.3);
+      var bob = Math.sin(now * 0.013 + i * 1.7) * len * 0.012; rot += Math.sin(now * 0.0095 + i * 2.3) * 0.012;
+      if (fr) {
+        var sw = len * fr[2] / gr[0], sh = fr[3] * sw / fr[2];
+        var sdx = (root.CONFIG.SUN_SIDE === 'left' ? 1 : -1) * sw * 0.07;   // тень от солнца в сторону
+        ctx.save(); ctx.globalAlpha = a * 0.3 * (1 - 0.6 * lights); ctx.fillStyle = 'rgb(40,35,30)'; ctx.translate(x + sdx, y + sh * 0.02); ctx.rotate(rot); ctx.beginPath(); ctx.ellipse(0, 0, sw * 0.5, Math.max(1, sh * 0.16), 0, 0, 6.283); ctx.fill(); ctx.restore();
+        spr(nm, x, y + bob, sw, false, rot, a);
+        if (kind === 'water' && lights < 0.6) waterSpray(x, y - sh * 0.12, len, ang, a * (1 - lights), now, i);
+        if (lights > 0.05) { ctx.save(); ctx.translate(x, y - sh * 0.3); ctx.rotate(ang); carLights(len * (view === 'side' ? 1 : 0.7), len * 0.43, kind, a, lights, true); ctx.restore(); }
+        return;
+      }
+    }
+    var shape = { volga: [0.43, 0.42, 0.34], moskvich: [0.44, 0.3, 0.36], zaz: [0.5, 0.5, 0.4], taxi: [0.43, 0.42, 0.34], trolley: [0.27, 0.1, 0.0] }[kind] || [0.43, 0.4, 0.34];
+    var wd = len * shape[0], r = wd * shape[1];
+    ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+    var sn = SPR.ok && ('car_' + kind + '_' + Math.max(0, (CARS[kind] || []).indexOf(body))), sf2 = sn && SPR.meta.frames[sn];
+    if (sf2) {   // спрайт из Gemini, если он есть в атласе: видимый борт всегда к зрителю (внизу)
+      if (Math.cos(ang) < 0) ctx.scale(1, -1);
+      var sh = sf2[3] * len / sf2[2], n = NIGHT;
+      if (n < 0.98) { ctx.globalAlpha = a * (1 - n); ctx.drawImage(SPR.img, sf2[0], sf2[1], sf2[2], sf2[3], -sf2[4] * len, -sf2[5] * sh, len, sh); }
+      if (n > 0.02) { ctx.globalAlpha = a * n; ctx.drawImage(SPR.dark, sf2[0], sf2[1], sf2[2], sf2[3], -sf2[4] * len, -sf2[5] * sh, len, sh); }
+      if (kind === 'trolley') { ctx.globalAlpha = a * 0.8; ctx.strokeStyle = 'rgb(' + col + ')'; ctx.lineWidth = Math.max(0.5, len * 0.018); ln(-len * 0.1, -wd * 0.12, -len * 0.48, -wd * 1.6); ln(-len * 0.1, wd * 0.12, -len * 0.48, -wd * 1.2); }
+      if (lights > 0.05) carLights(len, wd, kind, a, lights);
+      ctx.restore(); return;
+    }
+    ctx.globalAlpha = a * 0.22; ctx.fillStyle = 'rgb(40,35,30)'; ctx.beginPath(); ctx.ellipse(len * 0.04, wd * 0.18, len * 0.52, wd * 0.62, 0, 0, 6.283); ctx.fill();   // тень
+    ctx.globalAlpha = a * 0.92; ctx.fillStyle = 'rgb(' + body + ')';
+    ctx.beginPath(); ctx.moveTo(-len / 2 + r, -wd / 2); ctx.lineTo(len / 2 - r, -wd / 2); ctx.quadraticCurveTo(len / 2, -wd / 2, len / 2, -wd / 2 + r); ctx.lineTo(len / 2, wd / 2 - r); ctx.quadraticCurveTo(len / 2, wd / 2, len / 2 - r, wd / 2); ctx.lineTo(-len / 2 + r, wd / 2); ctx.quadraticCurveTo(-len / 2, wd / 2, -len / 2, wd / 2 - r); ctx.lineTo(-len / 2, -wd / 2 + r); ctx.quadraticCurveTo(-len / 2, -wd / 2, -len / 2 + r, -wd / 2); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = a * (1 - 0.7 * lights); ctx.strokeStyle = 'rgb(' + col + ')'; ctx.lineWidth = Math.max(0.5, len * 0.04); ctx.stroke();   // ночью светлый карандаш почти не виден — машина тёмная
+    if (kind === 'trolley') {
+      ctx.globalAlpha = a * 0.45; ctx.fillStyle = 'rgb(' + col + ')'; for (var k = 0; k < 6; k++) ctx.fillRect(-len * 0.44 + k * len * 0.15, -wd * 0.3, len * 0.09, wd * 0.6);
+      ctx.globalAlpha = a * 0.8; ctx.lineWidth = Math.max(0.5, len * 0.018); ln(-len * 0.1, -wd * 0.12, -len * 0.48, -wd * 1.6); ln(-len * 0.1, wd * 0.12, -len * 0.48, -wd * 1.2);
+      if (Math.sin(now * 0.0031 + i * 2.3) > 0.985) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a; ctx.fillStyle = 'rgb(170,205,255)'; ctx.beginPath(); ctx.arc(-len * 0.48, -wd * 1.6, wd * 0.3, 0, 6.283); ctx.fill(); ctx.globalCompositeOperation = 'source-over'; }
+    } else {
+      ctx.globalAlpha = a * 0.55; ctx.fillStyle = 'rgb(70,84,100)'; ctx.fillRect(-len * 0.2, -wd * 0.34, len * 0.44, wd * 0.68);   // стёкла
+      ctx.globalAlpha = a * 0.85; ctx.fillStyle = 'rgb(' + body + ')'; ctx.fillRect(-len * 0.12, -wd * 0.3, len * 0.26, wd * 0.6);       // крыша
+      if (kind === 'taxi') { for (var q = 0; q < 4; q++) { ctx.fillStyle = q % 2 ? 'rgb(250,244,220)' : 'rgb(' + col + ')'; ctx.fillRect(-len * 0.24 + q * len * 0.1, wd * 0.38, len * 0.1, wd * 0.12); } }
+    }
+    if (lights > 0.05) carLights(len, wd, kind, a, lights);
+    ctx.restore();
+  }
+  // e1.12 поливальная машина: веер воды в обе стороны от задней части, капли летят дугой и гаснут; поливает не всё время
+  function waterSpray(x, y, len, ang, a, now, i) {
+    var t = now * 0.001, on = Math.sin(t * 0.21 + i * 1.7) > -0.35;
+    if (!on || a < 0.05) return;
+    var cs = Math.cos(ang), sn = Math.sin(ang), rx = x - cs * len * 0.3, ry = y - sn * len * 0.3 * 0.6;
+    ctx.save(); ctx.lineCap = 'round';
+    [-1, 1].forEach(function (sd) {
+      var nx = -sn * sd, ny = cs * sd * 0.55;                              // поперёк движения, сжато перспективой
+      var ex = rx + nx * len * 0.95 - cs * len * 0.25, ey = ry + ny * len * 0.95 + len * 0.12;
+      var g = ctx.createLinearGradient(rx, ry, ex, ey);
+      g.addColorStop(0, 'rgba(226,238,246,' + 0.55 * a + ')'); g.addColorStop(1, 'rgba(226,238,246,0)');
+      ctx.globalAlpha = 1; ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(rx, ry);
+      ctx.quadraticCurveTo(rx + nx * len * 0.5, ry + ny * len * 0.5 - len * 0.18, ex - cs * len * 0.12, ey - len * 0.06);
+      ctx.lineTo(ex + cs * len * 0.12, ey + len * 0.06); ctx.closePath(); ctx.fill();
+      for (var k = 0; k < 9; k++) {                                         // капли: по дуге, каждая со своим временем
+        var ph = ((t * 2.2 + k * 0.137 + i * 0.31) % 1), px = rx + nx * len * 0.95 * ph - cs * len * 0.25 * ph, py = ry + ny * len * 0.95 * ph - Math.sin(Math.PI * ph) * len * 0.16 + len * 0.12 * ph;
+        ctx.globalAlpha = a * 0.75 * (1 - ph); ctx.fillStyle = 'rgb(236,244,250)';
+        ctx.beginPath(); ctx.arc(px + Math.sin(k * 7.1) * len * 0.05, py, Math.max(0.5, len * 0.022), 0, 6.283); ctx.fill();
+      }
+    });
+    ctx.globalAlpha = a * 0.16; ctx.fillStyle = 'rgb(70,80,92)';           // мокрый асфальт позади
+    ctx.beginPath(); ctx.ellipse(rx - cs * len * 0.5, ry - sn * len * 0.3 + len * 0.06, len * 0.6, len * 0.16, Math.atan2(sn * 0.6, cs), 0, 6.283); ctx.fill();
+    ctx.restore();
+  }
+  // e1.17 (s11): искусственные фары по трекам видео (e1.15) удалены — «фары ехали отдельно от машин»; ночью фары и огни — из ночных роликов Flow.
+  function carLights(len, wd, kind, a, L, noBody) {   // e1.10 ночь: кузов в темноте, лучи фар ложатся на дорогу, красные задние огни; троллейбус — тёплый салон
+    if (!noBody) { ctx.globalAlpha = a * 0.6 * L; ctx.fillStyle = 'rgb(16,20,40)'; ctx.fillRect(-len / 2, -wd / 2, len, wd); }
+    ctx.globalCompositeOperation = 'lighter';
+    var g = ctx.createLinearGradient(len / 2, 0, len / 2 + len * 2.4, 0);
+    g.addColorStop(0, 'rgba(255,228,170,' + 0.34 * L * a + ')'); g.addColorStop(1, 'rgba(255,228,170,0)');
+    ctx.globalAlpha = 1; ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(len / 2, -wd * 0.36); ctx.lineTo(len / 2 + len * 2.4, -wd * 1.25); ctx.lineTo(len / 2 + len * 2.4, wd * 1.25); ctx.lineTo(len / 2, wd * 0.36); ctx.closePath(); ctx.fill();
+    var rg = ctx.createRadialGradient(len * 1.1, 0, 0, len * 1.1, 0, len * 0.9);   // e1.12: отблеск фар на асфальте — тёплое пятно перед машиной
+    rg.addColorStop(0, 'rgba(255,214,150,' + 0.22 * L * a + ')'); rg.addColorStop(1, 'rgba(255,214,150,0)');
+    ctx.globalAlpha = 1; ctx.fillStyle = rg; ctx.save(); ctx.scale(1, 0.55); ctx.beginPath(); ctx.arc(len * 1.1, 0, len * 0.9, 0, 6.283); ctx.fill(); ctx.restore();
+    var tg = ctx.createRadialGradient(-len * 0.75, 0, 0, -len * 0.75, 0, len * 0.4);   // и красный отблеск задних огней
+    tg.addColorStop(0, 'rgba(255,40,30,' + 0.2 * L * a + ')'); tg.addColorStop(1, 'rgba(255,40,30,0)');
+    ctx.fillStyle = tg; ctx.save(); ctx.scale(1, 0.55); ctx.beginPath(); ctx.arc(-len * 0.75, 0, len * 0.4, 0, 6.283); ctx.fill(); ctx.restore();
+    ctx.globalAlpha = a * L; ctx.fillStyle = 'rgb(255,244,210)'; ctx.beginPath(); ctx.arc(len / 2, -wd * 0.3, wd * 0.12, 0, 6.283); ctx.arc(len / 2, wd * 0.3, wd * 0.12, 0, 6.283); ctx.fill();
+    ctx.fillStyle = 'rgb(255,46,34)'; ctx.globalAlpha = a * 0.95 * L; ctx.beginPath(); ctx.arc(-len / 2, -wd * 0.32, wd * 0.11, 0, 6.283); ctx.arc(-len / 2, wd * 0.32, wd * 0.11, 0, 6.283); ctx.fill();
+    ctx.globalAlpha = a * 0.3 * L; ctx.beginPath(); ctx.arc(-len / 2, -wd * 0.32, wd * 0.3, 0, 6.283); ctx.arc(-len / 2, wd * 0.32, wd * 0.3, 0, 6.283); ctx.fill();
+    if (kind === 'trolley' && !noBody) { ctx.globalAlpha = a * 0.5 * L; ctx.fillStyle = 'rgb(255,214,140)'; for (var k = 0; k < 6; k++) ctx.fillRect(-len * 0.44 + k * len * 0.15, -wd * 0.3, len * 0.09, wd * 0.6); }
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  function flyBird(x, y, s, flap, head, col, a) {   // птица в полёте: тело, голова, хвост, крылья — заливкой с карандашным краем
+    var c = Math.cos(head), sn = Math.sin(head), wy = -flap * s * 0.75, mid = -flap * s * 0.25 - s * 0.08;
+    ctx.save(); ctx.translate(x, y); ctx.scale(c < 0 ? -1 : 1, 1);
+    ctx.globalAlpha = a; ctx.fillStyle = 'rgb(' + col + ')'; ctx.strokeStyle = 'rgb(' + col + ')'; ctx.lineWidth = Math.max(0.5, s * 0.12); ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.ellipse(0, 0, s * 0.42, s * 0.13, sn * 0.3, 0, 6.283); ctx.fill();                 // тело
+    ctx.beginPath(); ctx.arc(s * 0.42, -s * 0.05, s * 0.1, 0, 6.283); ctx.fill();                            // голова
+    ctx.beginPath(); ctx.moveTo(-s * 0.36, 0); ctx.lineTo(-s * 0.62, -s * 0.08); ctx.lineTo(-s * 0.6, s * 0.1); ctx.closePath(); ctx.fill();   // хвост
+    ctx.globalAlpha = a * 0.85;
+    ctx.beginPath(); ctx.moveTo(-s * 0.12, -s * 0.04); ctx.quadraticCurveTo(-s * 0.35, mid - s * 0.1, -s * 0.55, wy - s * 0.25); ctx.quadraticCurveTo(-s * 0.2, mid + s * 0.05, s * 0.12, -s * 0.02); ctx.closePath(); ctx.fill();   // дальнее крыло
+    ctx.globalAlpha = a;
+    ctx.beginPath(); ctx.moveTo(-s * 0.08, 0); ctx.quadraticCurveTo(s * 0.0, mid - s * 0.15, s * 0.15, wy - s * 0.35); ctx.quadraticCurveTo(s * 0.18, mid + s * 0.02, s * 0.2, -s * 0.02); ctx.closePath(); ctx.fill();   // ближнее крыло
+    ctx.restore();
+  }
+  function pigeon(x, y, s, face, peck, col, a) {   // голубь на земле: сизое тело акварелью, тёмное крыло и голова, тонкий карандашный контур
+    if (spr(peck ? 'pigeon_peck' : 'pigeon_sit', x, y, s * 10.6, face < 0, 0, a)) return;
+    var hy = peck ? s * 0.9 : 0;
+    ctx.save(); ctx.translate(x, y); ctx.scale(face, 1); ctx.lineWidth = Math.max(0.45, s * 0.35); ctx.strokeStyle = 'rgb(' + col + ')';
+    ctx.globalAlpha = a * 0.9; ctx.fillStyle = 'rgb(150,156,168)';
+    ctx.beginPath(); ctx.ellipse(-s * 0.4, -s * 2.0, s * 3.0, s * 1.75, -0.12, 0, 6.283); ctx.fill();
+    ctx.globalAlpha = a * 0.55; ctx.stroke();
+    ctx.globalAlpha = a * 0.75; ctx.fillStyle = 'rgb(108,114,128)';
+    ctx.beginPath(); ctx.ellipse(-s * 1.0, -s * 2.3, s * 1.9, s * 0.9, -0.2, 0, 6.283); ctx.fill();   // крыло
+    ctx.beginPath(); ctx.moveTo(-s * 3.2, -s * 2.1); ctx.lineTo(-s * 4.8, -s * 1.5); ctx.lineTo(-s * 3.1, -s * 1.3); ctx.closePath(); ctx.fill();   // хвост
+    ctx.globalAlpha = a * 0.9; ctx.fillStyle = 'rgb(118,124,138)';
+    ctx.beginPath(); ctx.arc(s * 2.6, -s * 3.4 + hy, s * 1.05, 0, 6.283); ctx.fill();   // голова
+    ctx.fillStyle = 'rgb(205,170,120)'; ctx.beginPath(); ctx.moveTo(s * 3.5, -s * 3.4 + hy); ctx.lineTo(s * 4.4, -s * 3.0 + hy); ctx.lineTo(s * 3.4, -s * 2.95 + hy); ctx.fill();   // клюв
+    ctx.globalAlpha = a * 0.7; ln(-s * 0.2, -s * 0.4, -s * 0.2, s * 0.2); ln(s * 0.7, -s * 0.4, s * 0.7, s * 0.2);   // лапки
+    ctx.restore();
+  }
+  function wingOf(b, t) {   // свой ритм крыльев: взмахи сериями, между ними — планирование (крылья чуть подняты)
+    var seg = Math.sin(t * b.gr + b.gp) + 0.35 * Math.sin(t * b.gr * 2.3 + b.gp * 1.7);
+    if (seg < b.glide) return 0.15 + 0.05 * Math.sin(t * 2 + b.gp);
+    return Math.sin(t * b.wf + b.gp);
+  }
+  function newBird(i) { return { wf: rnd(15, 21), gr: rnd(0.5, 1.1), gp: rnd(0, 6.28), glide: rnd(-0.6, 0.1), ox: rnd(-1, 1), oy: rnd(-1, 1), fx: rnd(0.3, 0.9), fy: rnd(0.3, 0.9), ph: rnd(0, 6.28), size: rnd(0.85, 1.15), gx: rnd(-1, 1), gy: rnd(-0.4, 0.4), delay: rnd(0, 0.8), face: Math.random() < 0.5 ? 1 : -1 }; }
+  function drawPigeons(f, o, t, dt, col, a0, light) {   // голуби на земле: живая стая, без одинаковых циклов
+    var S = o._st || (o._st = { mode: 'ground', t0: t, next: t + rnd(o.rest[0] * 0.4, o.rest[1] * 0.6), birds: [] });
+    while (S.birds.length < o.n) S.birds.push(newBird(S.birds.length));
+    var base = ground(f, o.at[0], o.at[1]), unit = Math.max(2.2, sizePx(f, o.at[0], o.at[1], o.size));
+    if (NIGHT > 0.5 && S.mode === 'ground') S.next = Math.max(S.next, t + 2);   // ночью голуби спят на земле
+    if (S.mode === 'ground' && t > S.next) { S.mode = 'fly'; S.t0 = t; S.dur = rnd(o.fly[0], o.fly[1]); S.cx = rnd(-1, 1); S.dir = Math.random() < 0.5 ? 1 : -1; S.birds.forEach(function (b) { b.delay = rnd(0, 0.7); }); }
+    if (S.mode === 'fly' && t > S.t0 + S.dur + 1.6) { S.mode = 'ground'; S.next = t + rnd(o.rest[0], o.rest[1]); S.birds.forEach(function (b) { b.gx = rnd(-1, 1); b.gy = rnd(-0.4, 0.4); }); }
+    var R = o.radius * W, inkA = light ? 0.55 : 0.62, bc = '92,98,112';   // голуби всегда сизые, не чёрные кляксы
+    S.birds.forEach(function (b, i) {
+      var gx = base[0] + b.gx * unit * 4.5, gy = base[1] + b.gy * unit * 2;
+      if (S.mode === 'ground' || t < S.t0 + b.delay) {
+        var awake = NIGHT < 0.5, peck = awake && Math.sin(t * (2.2 + b.fx) + b.ph) > 0.75 ? 1.4 : 0, walk = awake ? Math.sin(t * 0.35 * b.fx + b.ph) * unit * 0.6 : 0;
+        pigeon(gx + walk, gy, unit / 9, b.face, peck, bc, (light ? 0.75 : 1) * a0);
+        return;
+      }
+      var k = (t - S.t0 - b.delay) / S.dur, k2 = clamp(k, 0, 1.25), up = Math.sin(Math.PI * clamp(k2, 0, 1));
+      var ang = S.dir * (k2 * 4.2 + b.ph * 0.15), spread = 0.55 + 0.45 * Math.sin(t * 0.9 + b.ph) * Math.sin(t * 0.37);   // стая то собирается, то расходится
+      var cx = base[0] + Math.cos(ang) * R * up * (1 + 0.3 * S.cx), cy = base[1] - up * R * 0.9 + Math.sin(ang) * R * 0.3 * up;
+      var x = cx + (b.ox * spread + 0.2 * Math.sin(t * b.fx + b.ph)) * unit * 6 * up, y = cy + (b.oy * spread + 0.2 * Math.cos(t * b.fy + b.ph)) * unit * 3.5 * up;
+      if (k > 1) { var l = clamp((k - 1) / 0.25, 0, 1); x = x + (gx - x) * l; y = y + (gy - y) * l; }   // посадка на новое место
+      var landing = k > 0.85, fl = landing ? 0.3 + 0.7 * Math.sin(t * 24 + b.ph) : wingOf(b, t);
+      pigeonFly(x, y, unit * 0.9 * b.size, fl, S.dir * (ang + Math.PI / 2), inkA * a0 * 1.15, landing && k > 0.95);
+    });
+  }
+  function drawSkyFlock(f, o, t, col, a0, light) {   // стая пролетает через небо: форма меняется, птицы машут каждая в своём ритме
+    var S = o._st || (o._st = { next: t + rnd(2, o.every[0]), run: null, birds: [] });
+    if (!S.run && t > S.next && NIGHT > 0.5) S.next = t + 3;   // ночью стаи не летают
+    if (!S.run && t > S.next) { S.run = { t0: t, dur: rnd(9, 15), dir: Math.random() < 0.5 ? 1 : -1, v: o.band[0] + (o.band[1] - o.band[0]) * Math.random(), n: Math.round(o.n * rnd(0.6, 1.2)), wob: rnd(0.4, 1) }; S.birds = []; for (var i = 0; i < S.run.n; i++) S.birds.push(newBird(i)); }
+    if (!S.run) return;
+    var r = S.run, k = (t - r.t0) / r.dur; if (k > 1) { S.run = null; S.next = t + rnd(o.every[0], o.every[1]); return; }
+    var s0 = o.size * H, cu = r.dir > 0 ? -0.12 + 1.24 * k : 1.12 - 1.24 * k, cv = r.v + 0.02 * Math.sin(k * 6 * r.wob);
+    var stretch = 1 + 0.6 * Math.sin(k * 5 + r.wob), inkA = light ? 0.5 : 0.8, bc = light ? '92,98,112' : col;
+    S.birds.forEach(function (b) {
+      var u = cu - r.dir * (b.ox + 1) * 0.06 * stretch + 0.008 * Math.sin(t * b.fx + b.ph), v = cv + b.oy * 0.022 / stretch + 0.006 * Math.cos(t * b.fy + b.ph);
+      var p = P(u, v, 0.3); flyBird(p[0], p[1], s0 * b.size, wingOf(b, t), r.dir > 0 ? 0 : Math.PI, bc, inkA * a0);
+    });
+  }
+  // ---------- e1.10 МЕЛОЧИ ДЛЯ КРУПНЫХ ПЛАНОВ (ambient.details; docs/ENGINE-LIFE.md): голубь садится на статую, воробьи на карнизах,
+  // листья срываются с крон, ласточки, блик солнца по бронзе. Ночью птиц нет (спят), листья тусклее. ----------
+  function DP(f, q, bld) { return bld && V.projectB ? V.projectB(f, q[0], q[1]) : P(q[0], q[1], gd(f, q[0], q[1])); }
+  function DS(f, q, sz, bld) { var a = DP(f, q, bld), b = DP(f, [q[0], q[1] - sz], bld); return Math.max(1, Math.abs(a[1] - b[1])); }
+  function sparrow(x, y, s, face, peck, col, a) {   // воробей: бурое тело, светлое брюшко, тёмная шапочка, хвостик торчком
+    if (spr(peck ? 'sparrow_peck' : 'sparrow_sit', x, y, s * 10.5, face < 0, 0, a)) return;
+    ctx.save(); ctx.translate(x, y); ctx.scale(face, 1); ctx.globalAlpha = a;
+    ctx.fillStyle = 'rgb(140,108,78)'; ctx.beginPath(); ctx.ellipse(0, -2.3 * s, 3.1 * s, 2.0 * s, -0.25, 0, 6.283); ctx.fill();
+    ctx.fillStyle = 'rgb(214,198,168)'; ctx.beginPath(); ctx.ellipse(0.6 * s, -1.6 * s, 2.0 * s, 1.1 * s, -0.2, 0, 6.283); ctx.fill();
+    ctx.fillStyle = 'rgb(96,74,56)'; ctx.beginPath(); ctx.ellipse(-0.8 * s, -2.9 * s, 1.9 * s, 0.9 * s, -0.35, 0, 6.283); ctx.fill();   // крыло
+    ctx.beginPath(); ctx.moveTo(-2.6 * s, -2.6 * s); ctx.lineTo(-5.2 * s, -3.9 * s); ctx.lineTo(-4.6 * s, -2.7 * s); ctx.closePath(); ctx.fill();   // хвост
+    ctx.fillStyle = 'rgb(120,94,70)'; ctx.beginPath(); ctx.arc(2.5 * s, -3.9 * s + peck * s, 1.35 * s, 0, 6.283); ctx.fill();
+    ctx.fillStyle = 'rgb(118,116,116)'; ctx.beginPath(); ctx.arc(2.4 * s, -4.5 * s + peck * s, 0.8 * s, 3.3, 6.1); ctx.fill();   // серая шапочка
+    ctx.fillStyle = 'rgb(40,34,30)'; ctx.beginPath(); ctx.moveTo(3.7 * s, -4.0 * s + peck * s); ctx.lineTo(4.6 * s, -3.7 * s + peck * s); ctx.lineTo(3.6 * s, -3.5 * s + peck * s); ctx.fill();
+    ctx.globalAlpha = a * 0.5; ctx.strokeStyle = 'rgb(' + col + ')'; ctx.lineWidth = Math.max(0.4, s * 0.3);
+    ctx.beginPath(); ctx.ellipse(0, -2.3 * s, 3.1 * s, 2.0 * s, -0.25, 0, 6.283); ctx.stroke();
+    ln(-0.3 * s, -0.4 * s, -0.4 * s, 0.2 * s); ln(0.8 * s, -0.4 * s, 0.8 * s, 0.2 * s);
+    ctx.restore();
+  }
+  function swallow(x, y, s, flap, dir, a) {   // ласточка: тёмно-синяя птица с острыми крыльями и раздвоенным хвостом (крылья всегда раскрыты)
+    flyBird(x, y, s, 0.35 + 0.65 * flap, dir > 0 ? 0 : Math.PI, '30,36,64', a);
+    ctx.save(); ctx.translate(x, y); ctx.scale(dir, 1); ctx.globalAlpha = a; ctx.strokeStyle = 'rgb(30,36,64)'; ctx.lineWidth = Math.max(0.6, s * 0.06);
+    ctx.beginPath(); ctx.moveTo(-s * 0.5, -s * 0.02); ctx.lineTo(-s * 0.9, -s * 0.16); ctx.moveTo(-s * 0.5, s * 0.02); ctx.lineTo(-s * 0.88, s * 0.12); ctx.stroke();
+    ctx.restore();
+  }
+  function leaf(x, y, s, rot, flip, green, a) {   // лист: заострённый, с жилкой; переворачивается в полёте (flip — сжатие по ширине)
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(1, Math.max(0.15, Math.abs(flip))); ctx.globalAlpha = a;
+    ctx.fillStyle = green ? 'rgb(112,146,72)' : 'rgb(196,160,70)';
+    ctx.beginPath(); ctx.moveTo(-s, 0); ctx.quadraticCurveTo(0, -s * 0.62, s, 0); ctx.quadraticCurveTo(0, s * 0.62, -s, 0); ctx.fill();
+    ctx.globalAlpha = a * 0.55; ctx.strokeStyle = 'rgb(70,64,40)'; ctx.lineWidth = Math.max(0.4, s * 0.1); ln(-s, 0, s * 0.9, 0);
+    ctx.restore();
+  }
+  function drawDetails(now, w, f, D) {
+    var t = now / 1000, col = ink(), day = 1 - sstep(0.45, 0.8, w.n), S = D._st || (D._st = { birds: [], sp: [], lv: [], sw: null, swNext: t + rnd(2, 6), gl: null, glNext: t + rnd(2, 5), lvNext: t });
+    ctx.save(); ctx.lineCap = 'round';
+    // листья: раз в 1–3 с с кроны срывается лист, кружит по ветру и опускается
+    (function () {
+      var L = D.leaves; if (!L) return;
+      var wind = wxNow().wind;
+      if (t > S.lvNext && S.lv.length < (L.n || 6)) { var ar = L.areas[(Math.random() * L.areas.length) | 0]; S.lv.push({ u: rnd(ar[0], ar[2]), v: rnd(ar[1], ar[3]), t0: t, dur: rnd(4.5, 7.5), fall: (L.fall || 0.1) * rnd(0.7, 1.2), dx: rnd(0.02, 0.06) * (Math.random() < 0.3 ? -1 : 1), ph: rnd(0, 6.28), sp: rnd(2.2, 3.6), g: Math.random() < 0.65, sz: (L.size || 0.006) * rnd(0.8, 1.2) }); S.lvNext = t + rnd(0.8, 2.6) / Math.max(0.6, wind); }
+      for (var i = S.lv.length - 1; i >= 0; i--) {
+        var q = S.lv[i], k = (t - q.t0) / q.dur; if (k >= 1) { S.lv.splice(i, 1); continue; }
+        var u = q.u + q.dx * k * wind + 0.012 * Math.sin(k * 7 + q.ph), v = q.v + q.fall * k;
+        var p = P(u, v, gd(f, clamp(u, 0, 1), clamp(q.v, 0, 1))), sz = DS(f, [q.u, q.v], q.sz, false);
+        leaf(p[0], p[1], sz, Math.sin(t * q.sp + q.ph) * 0.9 + q.ph, Math.cos(t * q.sp * 1.3 + q.ph), q.g, (0.4 + 0.5 * day) * Math.min(1, k * 6, (1 - k) * 4));
+      }
+    })();
+    if (day < 0.03) { ctx.restore(); return; }
+    // блик солнца скользит по бронзе (раз в 7–13 с), только днём
+    // e1.13 пятна света сквозь листву (D.dapple {areas: [[u0, v0, u1, v1]], n, size}): тёплые мягкие пятна дрожат и плывут с ветром; только днём
+    if (D.dapple && day > 0.05) {
+      var DA = D.dapple;
+      if (!S.dp) { S.dp = []; for (var di = 0; di < (DA.n || 14); di++) { var ar = DA.areas[di % DA.areas.length]; S.dp.push({ u: rnd(ar[0], ar[2]), v: rnd(ar[1], ar[3]), r: rnd(0.6, 1.4), ph: rnd(0, 6.28), sp: rnd(0.4, 1.1) }); } }
+      var wd = wxNow().wind || 0.3;
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      S.dp.forEach(function (q) {
+        var sw = Math.sin(t * q.sp * (0.6 + wd) + q.ph), p = DP(f, [q.u + 0.004 * sw, q.v + 0.002 * Math.cos(t * q.sp + q.ph)], false), rr = Math.max(2, DS(f, [q.u, q.v], (DA.size || 0.012) * q.r, false));
+        var al = (0.10 + 0.08 * Math.sin(t * q.sp * 2.1 + q.ph * 3)) * day;
+        var gg = ctx.createRadialGradient(p[0], p[1], 0, p[0], p[1], rr); gg.addColorStop(0, 'rgba(255,236,190,' + al.toFixed(3) + ')'); gg.addColorStop(1, 'rgba(255,236,190,0)');
+        ctx.fillStyle = gg; ctx.beginPath(); ctx.ellipse(p[0], p[1], rr, rr * 0.55, 0, 0, 6.283); ctx.fill();
+      });
+      ctx.restore();
+    }
+    // e1.13 пылинки в луче (D.motes {beam: [u верх, v верх, u низ, v низ], width, n}): едва видный наклонный луч и медленно плывущие искорки; только днём
+    if (D.motes && day > 0.05) {
+      var MO = D.motes, b0 = DP(f, [MO.beam[0], MO.beam[1]], false), b1 = DP(f, [MO.beam[2], MO.beam[3]], false), bw = Math.abs(DP(f, [MO.beam[0] + (MO.width || 0.1), MO.beam[1]], false)[0] - b0[0]);
+      if (!S.mo) { S.mo = []; for (var mi = 0; mi < (MO.n || 26); mi++) S.mo.push({ k: Math.random(), o: rnd(-0.5, 0.5), ph: rnd(0, 6.28), sp: rnd(0.01, 0.03) }); }
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      var bx = b1[0] - b0[0], by = b1[1] - b0[1], bl = Math.hypot(bx, by) || 1, nx = -by / bl, ny = bx / bl;
+      var bg = ctx.createLinearGradient(b0[0], b0[1], b1[0], b1[1]); bg.addColorStop(0, 'rgba(255,240,205,' + (0.07 * day).toFixed(3) + ')'); bg.addColorStop(1, 'rgba(255,240,205,0)');
+      ctx.fillStyle = bg; ctx.beginPath(); ctx.moveTo(b0[0] - nx * bw * 0.4, b0[1] - ny * bw * 0.4); ctx.lineTo(b0[0] + nx * bw * 0.4, b0[1] + ny * bw * 0.4);
+      ctx.lineTo(b1[0] + nx * bw * 0.6, b1[1] + ny * bw * 0.6); ctx.lineTo(b1[0] - nx * bw * 0.6, b1[1] - ny * bw * 0.6); ctx.closePath(); ctx.fill();
+      S.mo.forEach(function (q) {
+        q.k = (q.k + q.sp * 0.016) % 1; var kk = q.k, off = (q.o + 0.12 * Math.sin(t * 0.7 + q.ph)) * bw * (0.4 + 0.2 * kk);
+        var x = b0[0] + bx * kk + nx * off, y = b0[1] + by * kk + ny * off, tw = 0.5 + 0.5 * Math.sin(t * 2.3 + q.ph * 5);
+        ctx.globalAlpha = day * (0.25 + 0.55 * tw) * Math.sin(Math.PI * kk); ctx.fillStyle = 'rgb(255,246,220)';
+        ctx.beginPath(); ctx.arc(x, y, Math.max(0.6, bw * 0.012), 0, 6.283); ctx.fill();
+      });
+      ctx.restore(); ctx.globalAlpha = 1;
+    }
+    if (D.glint && w.n < 0.4) {
+      var G = D.glint;
+      if (!S.gl && t > S.glNext) S.gl = { t0: t, dur: rnd(1.6, 2.4) };
+      if (S.gl) {
+        var kg = (t - S.gl.t0) / S.gl.dur;
+        if (kg >= 1) { S.gl = null; S.glNext = t + rnd((G.every || [7, 13])[0], (G.every || [7, 13])[1]); }
+        else {
+          var pts = G.poly.map(function (q) { return DP(f, q, G.bld !== false); }), x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+          pts.forEach(function (p) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); });
+          ctx.save(); ctx.beginPath(); pts.forEach(function (p, j) { if (j) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); }); ctx.closePath(); ctx.clip();
+          var cx = x0 - (x1 - x0) * 0.3 + (x1 - x0) * 1.6 * kg, bw = Math.max(6, (x1 - x0) * 0.13), e = Math.sin(Math.PI * kg), hh = (y1 - y0);
+          ctx.translate(cx, (y0 + y1) / 2); ctx.rotate(0.38);   // наклонная полоса света
+          var gg = ctx.createLinearGradient(-bw, 0, bw, 0); gg.addColorStop(0, 'rgba(255,240,200,0)'); gg.addColorStop(0.5, 'rgba(255,240,200,' + (G.k || 0.3) * e * day + ')'); gg.addColorStop(1, 'rgba(255,240,200,0)');
+          ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = gg; ctx.fillRect(-bw, -hh, 2 * bw, 2 * hh);
+          ctx.restore();
+        }
+      }
+    }
+    // ласточки: 2–4 проносятся дугой с нырком, раз в 5–12 с
+    if (D.swallows) {
+      var SW = D.swallows;
+      if (!S.sw && t > S.swNext && w.n < 0.4) { var n = Math.round(rnd(2, SW.n || 4)), dir = Math.random() < 0.5 ? 1 : -1, b0 = SW.band[0] + (SW.band[1] - SW.band[0]) * Math.random(); S.sw = { t0: t, dur: rnd(2.4, 3.6), dir: dir, v: b0, b: [] }; for (var j = 0; j < n; j++) S.sw.b.push({ d: rnd(0, 0.35), dv: rnd(-0.03, 0.03), ph: rnd(0, 6.28), dip: rnd(0.03, 0.08), wf: rnd(18, 26) }); }
+      if (S.sw) {
+        var r = S.sw, kk = (t - r.t0) / r.dur;
+        if (kk > 1.4) { S.sw = null; S.swNext = t + rnd((SW.every || [5, 12])[0], (SW.every || [5, 12])[1]); }
+        else r.b.forEach(function (b) {
+          var k = kk - b.d; if (k < 0 || k > 1) return;
+          var u = r.dir > 0 ? -0.1 + 1.2 * k : 1.1 - 1.2 * k, v = r.v + b.dv + b.dip * Math.sin(Math.PI * k) - 0.02 * Math.sin(k * 9 + b.ph);
+          var p = P(u, v, 0.3), fl = Math.sin(t * b.wf + b.ph) * (Math.sin(t * 2 + b.ph) > 0.2 ? 1 : 0.15);
+          swallow(p[0], p[1], (SW.size || 0.014) * H, fl, r.dir, 0.9 * day);
+        });
+      }
+    }
+    // воробьи прыгают по карнизу/постаменту, клюют, иногда перелетают
+    if (D.sparrows) {
+      var SP = D.sparrows, Lg = SP.ledges;
+      while (S.sp.length < (SP.n || 4)) S.sp.push({ L: (Math.random() * Lg.length) | 0, k: Math.random(), face: Math.random() < 0.5 ? 1 : -1, hop: null, next: t + rnd(0.3, 2), peck: 0, fly: null });
+      S.sp.forEach(function (b) {
+        var g = Lg[b.L], lb = function (q) { return q.length > 4 ? !!q[4] : !!SP.bld; }, pos = function (L, k) { var q = Lg[L]; return DP(f, [q[0] + (q[2] - q[0]) * k, q[1] + (q[3] - q[1]) * k], lb(q)); };
+        var sz = DS(f, [g[0], g[1]], SP.size || 0.008, lb(g)) / 5;
+        if (b.fly) {   // перелёт на другой карниз
+          var kf = (t - b.fly.t0) / b.fly.dur;
+          if (kf >= 1) { b.L = b.fly.L; b.k = b.fly.k; b.fly = null; b.next = t + rnd(0.5, 2); }
+          else { var A0 = pos(b.fly.L0, b.fly.k0), A1 = pos(b.fly.L, b.fly.k), e = kf * kf * (3 - 2 * kf); flyBird(A0[0] + (A1[0] - A0[0]) * e, A0[1] + (A1[1] - A0[1]) * e - Math.sin(Math.PI * kf) * sz * 14, sz * 7, Math.sin(t * 30), A1[0] > A0[0] ? 0 : Math.PI, '120,94,70', 0.9 * day); return; }
+        }
+        if (!b.hop && t > b.next) {
+          if (Math.random() < 0.08 && Lg.length) { var L2 = (Math.random() * Lg.length) | 0; b.fly = { t0: t, dur: rnd(0.8, 1.4), L0: b.L, k0: b.k, L: L2, k: Math.random() }; return; }
+          if (Math.random() < 0.55) { var nk = clamp(b.k + rnd(-0.08, 0.08), 0.02, 0.98); b.face = nk > b.k ? 1 : -1; b.hop = { t0: t, k0: b.k, k1: nk }; }
+          else b.peck = t + rnd(0.4, 1.2);
+          b.next = t + rnd(0.4, 1.8);
+        }
+        var p, lift = 0;
+        if (b.hop) { var kh = (t - b.hop.t0) / 0.22; if (kh >= 1) { b.k = b.hop.k1; b.hop = null; } else { b.k = b.hop.k0 + (b.hop.k1 - b.hop.k0) * kh; lift = Math.sin(Math.PI * kh) * sz * 3; } }
+        p = pos(b.L, b.k);
+        sparrow(p[0], p[1] - lift, sz, b.face, t < b.peck && Math.sin(t * 18) > 0 ? 1.2 : 0, col, 0.95 * day);
+      });
+    }
+    // голуби садятся на голову/плечо/руку статуи: прилёт, посадка с поднятыми крыльями, сидит (вертит головой), взлёт
+    if (D.perches) {
+      var PR = D.perches, spots = PR.spots;
+      while (S.birds.length < (PR.n || 1)) S.birds.push({ st: 'wait', t0: t, wait: rnd(1, 5) + S.birds.length * 4 });
+      S.birds.forEach(function (b) {
+        if (b.st === 'wait') { if (t - b.t0 < b.wait) return; var used = S.birds.map(function (o) { return o.spot; }), sp; do { sp = (Math.random() * spots.length) | 0; } while (used.indexOf(sp) >= 0 && spots.length > S.birds.length); b.spot = sp; b.st = 'in'; b.t0 = t; b.dur = rnd(2.2, 3.0); b.left = Math.random() < 0.5; b.sit = rnd(6, 14); b.ph = rnd(0, 6.28); }
+        var q = spots[b.spot], tgt = DP(f, q, PR.bld !== false), sz = DS(f, q, PR.size || 0.012, PR.bld !== false) / 4.6, k = (t - b.t0) / b.dur;
+        if (b.st === 'in') {
+          if (k >= 1) { b.st = 'sit'; b.t0 = t; }
+          else {
+            var from = DP(f, [b.left ? -0.15 : 1.15, q[1] - 0.18], PR.bld !== false), e = 1 - Math.pow(1 - k, 2.4);
+            var x = from[0] + (tgt[0] - from[0]) * e, y = from[1] + (tgt[1] - from[1]) * e - Math.sin(Math.PI * k) * sz * 18;
+            var landing = k > 0.82, fl = landing ? 0.9 + 0.1 * Math.sin(t * 30) : Math.sin(t * (14 + 6 * k) + b.ph);
+            pigeonFly(x, y - (landing ? sz * 2 : 0), sz * 9, fl, b.left ? 0 : Math.PI, 0.95 * day, landing);
+          }
+        }
+        if (b.st === 'sit') {
+          var ks = t - b.t0;
+          if (ks > b.sit) { b.st = 'out'; b.t0 = t; b.dur = rnd(1.8, 2.4); }
+          else { var look = Math.sin(ks * 1.3 + b.ph) > 0.4 ? (b.left ? 1 : -1) : (b.left ? -1 : 1), bob = Math.sin(ks * 2.2 + b.ph) > 0.85 ? 0.8 : 0; pigeon(tgt[0], tgt[1], sz, look, bob, col, 0.95 * day); }
+        }
+        if (b.st === 'out') {
+          if (k >= 1) { b.st = 'wait'; b.t0 = t; b.wait = rnd(3, 10); b.spot = -1; }
+          else { var e2 = k * k, dx = (b.left ? 1 : -1) * 0.4 * e2; var pt = DP(f, [q[0] + dx, q[1] - 0.22 * e2], PR.bld !== false); pigeonFly(pt[0], pt[1], sz * 9, Math.sin(t * 26 + b.ph), b.left ? 0 : Math.PI, 0.95 * day * (1 - sstep(0.75, 1, k))); }
+        }
+      });
+    }
+    ctx.restore();
+  }
+  // e1.14: синемаграф рисует движок картинки (viewer.js, видео — часть рисунка земли в шейдере, и днём, и ночью); здесь — только выключить спрайты
+  function perspAt(P2, v) {   // ambient.persp [[v, длина машины], …] — длина машины по высоте кадра (перспектива рисунка)
+    if (v <= P2[0][0]) return P2[0][1];
+    for (var k = 1; k < P2.length; k++) if (v <= P2[k][0]) return P2[k - 1][1] + (P2[k][1] - P2[k - 1][1]) * (v - P2[k - 1][0]) / (P2[k][0] - P2[k - 1][0]);
+    return P2[P2.length - 1][1];
+  }
+  function drawAmbientLife(now, w, f, A) {
+    var t = now / 1000, col = ink(), night = w.n, a0 = 1 - 0.35 * night, ar = aspect(), Q = []; NIGHT = night;
+    var dt = A._t != null ? clamp(t - A._t, 0, 0.1) : 0; A._t = t;
+    ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    (A.walkers || []).forEach(function (o0, gi) {   // мелкие люди: идут по пути с перерывами, скорость — в ростах в секунду
+      var o = lp('walkers', o0), n = Math.round(o.n * (1 - 0.85 * night)), st = o0._st || (o0._st = []);   // ночью людей почти нет
+      for (var i = 0; i < n; i++) {
+        var m = st[i] || (st[i] = { s: Math.random(), dir: Math.random() < 0.5 ? 1 : -1, wait: 0, sp: rnd(0.85, 1.15), coat: COATS[(i * 3 + gi) % COATS.length], who: WALKERS[(i + gi) % WALKERS.length] });
+        if (m.wait > 0) { m.wait -= dt; continue; }
+        var L = pathOf(o0), tot = L[L.length - 1], sz = o.size[0] + (o.size[1] - o.size[0]) * m.s;
+        m.s += m.dir * o.bps * m.sp * sz * dt / Math.max(1e-6, tot);
+        if (m.s > 1 || m.s < 0) { m.dir = Math.random() < 0.5 ? 1 : -1; m.s = m.dir > 0 ? 0 : 1; m.wait = rnd(o.gap[0], o.gap[1]); continue; }
+        var q = along(o0, m.s), e = Math.min(1, m.s / 0.04, (1 - m.s) / 0.04);
+        (function (q, sz, e, m) { Q.push({ v: q.v, d: function () { var h = sizePx(f, q.u, q.v, sz), p = ground(f, q.u, q.v); if (h < 1.5) return; var ph = Math.floor(t * 4.4 * m.sp + m.s * 30) % 4; if (!sprH('walk_' + m.who + '_' + ph, p[0], p[1], h, m.dir < 0, a0 * e)) tinyPerson(p[0], p[1], h, t * 7 * m.sp + m.s * 40, m.coat, col, a0 * e, m.dir); } }); })(q, sz, e, m);
+      }
+    });
+    (A.cars || []).forEach(function (o0, gi) {   // машины: по дорогам, с перерывами; скорость — в длинах машины в секунду
+      var o = lp('cars', o0), n = Math.max(1, Math.round(o.n * (1 - 0.4 * night))), st = o0._st || (o0._st = []);
+      for (var i = 0; i < n; i++) {
+        var kinds = o.kinds, m = st[i] || (st[i] = { s: o.loop ? i / n : Math.random(), dir: o.loop ? 1 : (i % 2 ? -1 : 1), wait: 0, sp: rnd(0.85, 1.2), kind: kinds[Math.floor(Math.random() * kinds.length)] });
+        if (!m.body) m.body = CARS[m.kind][Math.floor(Math.random() * CARS[m.kind].length)];
+        if (m.wait > 0) { m.wait -= dt; continue; }
+        var L = pathOf(o0), tot = L[L.length - 1], sz = A.persp ? perspAt(A.persp, along(o0, m.s).v) : o.size[0] + (o.size[1] - o.size[0]) * m.s;   // e1.13: масштаб по глубине (ambient.persp)
+        m.s += m.dir * o.bps * m.sp * sz * dt / Math.max(1e-6, tot);
+        if (o.loop) m.s = (m.s % 1 + 1) % 1;
+        else if (m.s > 1 || m.s < 0) { m.s = m.dir > 0 ? 0 : 1; m.wait = rnd(o.gap[0], o.gap[1]); m.kind = kinds[Math.floor(Math.random() * kinds.length)]; m.body = CARS[m.kind][Math.floor(Math.random() * CARS[m.kind].length)]; continue; }
+        var q = along(o0, m.s), e = o.loop ? 1 : Math.min(1, m.s / 0.03, (1 - m.s) / 0.03);
+        if (o.lane) {   // e1.11: правостороннее движение — машина держится своей полосы, справа от середины дороги
+          var dxl = q.du * ar * m.dir, dyl = q.dv * m.dir, Ll = Math.hypot(dxl, dyl) || 1, off = o.lane * sz;
+          q = { u: q.u - dyl / Ll * off / ar, v: q.v + dxl / Ll * off, du: q.du, dv: q.dv };
+        }
+        (function (q, sz, e, m, i) { Q.push({ v: q.v, d: function () {
+          var d = gd(f, q.u, q.v), p = P(q.u, q.v, d), ah = P(q.u + q.du * 0.01 * m.dir, q.v + q.dv * 0.01 * m.dir, d), len = sizePx(f, q.u, q.v, sz) * (m.kind === 'trolley' ? 2.6 : m.kind === 'zaz' ? 0.8 : m.kind === 'water' ? 1.3 : 1);
+          if (len < 2) return; car(p[0], p[1], len, Math.atan2(ah[1] - p[1], ah[0] - p[0]), m.kind, m.body, col, a0 * e, night, now, i);
+        } }); })(q, sz, e, m, i);
+      }
+    });
+    // e1.11 стоящие люди: живая стойка из 4 кадров (вес с ноги на ногу, поворот головы, жест, газета) — кадры меняются в своём ритме, не по кругу
+    (A.standers && A.standers.spots || []).forEach(function (sp0, j) {
+      var S = A.standers, st = S._st || (S._st = []), m = st[j] || (st[j] = { fr: 0, next: t + rnd(0.5, 3) });
+      if (t > m.next) { var who = sp0[2] || 'manhat', seq = STAND_SEQ[who] || STAND_SEQ.manhat; m.fr = seq[(Math.random() * seq.length) | 0]; m.next = t + rnd(1.2, 4.5); }
+      var q = { u: sp0[0], v: sp0[1] }, a1 = a0 * (1 - night);
+      if (a1 < 0.03) return;
+      Q.push({ v: q.v, d: function () { var h = sizePx(f, q.u, q.v, S.size || 0.012), p = ground(f, q.u, q.v); if (h >= 2) sprH('stand_' + (sp0[2] || 'manhat') + '_' + m.fr, p[0], p[1], h, (sp0[3] || 1) < 0, a1); } });
+    });
+    // e1.11 сценки: двое на скамье, чистильщик обуви, старик кормит голубей — два кадра, свой темп
+    (A.scenes && A.scenes.items || []).forEach(function (it, j) {
+      var S = A.scenes, st = S._st || (S._st = []), m = st[j] || (st[j] = { fr: 0, next: t + rnd(0.3, 2) }), kind = it[2] || 'bench2';
+      if (t > m.next) { m.fr = 1 - m.fr; m.next = t + (kind === 'shine' ? rnd(0.3, 0.45) : kind === 'feeder' ? rnd(0.8, 1.8) : rnd(1.4, 3.5)); }
+      var q = { u: it[0], v: it[1] }, a1 = a0 * (1 - night);
+      if (a1 < 0.03) return;
+      Q.push({ v: q.v, d: function () { var h = sizePx(f, q.u, q.v, S.size || 0.012), p = ground(f, q.u, q.v); if (h >= 2) sprH('sit_' + kind + '_' + m.fr, p[0], p[1], h, (it[3] || 1) < 0, a1); } });
+    });
+    Q.sort(function (x, y) { return x.v - y.v; });
+    Q.forEach(function (q) { var c = occClip(f, A, q.v); q.d(); if (c) ctx.restore(); ctx.globalAlpha = 1; });
+    var light = !!A.lightBirds;
+    if (A.details) drawDetails(now, w, f, A.details);
+    (A.flocks || []).forEach(function (o0) {
+      var o = lp('flocks', o0);
+      if (o.preset === 'sky' || o.band) drawSkyFlock(f, o0._p ? o : o, t, col, a0 * (1 - 0.8 * night), light);
+      else { var aP = o.night === false ? a0 * (1 - night) : a0 * (1 - 0.8 * night); if (aP < 0.01) return;   // e1.24 (s20): night false — ночью голубей нет (Ленин); без настройки — как было
+        var c = occClip(f, A, o.at[1]); drawPigeons(f, o, t, dt, col, aP, light); if (c) ctx.restore(); }
+    });
+    ctx.restore();
+  }
+  function drawCloseUp(now, w, f, c) { cu = c; var am = SC(V.frame()).ambient; if (c.glints) drawGlints(now, f, w); if (c.perch && !(am && am.details && am.details.perches)) drawPerch(now, f, w); if (c.mast) drawRoofFlag(now, w); }
 
   // ---------- ПАРАД: три истребителя плотным строем слева направо, дымные следы 15–20 с: красный, синий, абрикосовый — флаг Армении ----------
   var PC = [{ day: '214,20,36', night: '255,84,96' }, { day: '32,72,196', night: '104,150,255' }, { day: '242,168,0', night: '255,196,64' }];   // сверху вниз
@@ -520,7 +1077,7 @@
   }
   function startParade(onEnd, style) {
     var fr = V.frame(); if (par || V.fading() || !V.entry(fr)) return false;
-    var band = SC(fr).skyBand, vc = band[0] + (band[1] - band[0]) * 0.30, now = performance.now();
+    var band = PB(fr), vc = band[0] + (band[1] - band[0]) * 0.30, now = performance.now();
     style = style || 'planes';
     var behind = /:behind$/.test(style) || (!!SC(fr).closeUp && style !== 'banner'); style = style.replace(/:behind$/, '');
     var skyOnly = style === 'balloons' || style === 'fireworks';   // шары и ракеты поднимаются из-за города
@@ -561,6 +1118,7 @@
       stepParade(now, w);
       if (!so) occlude(fr);
       else { var m = skyMaskD(fr), f = V.entry(fr); if (m && f) { var a0 = V.project(f, 0, 0, 0), a1 = V.project(f, 1, 1, 0); ctx.save(); ctx.globalCompositeOperation = 'destination-in'; ctx.drawImage(m, a0[0], a0[1], a1[0] - a0[0], a1[1] - a0[1]); ctx.restore(); } }
+      if (so && par.behind) occlude(fr);   // e1.5: салют/шары на кадре «за зданием» — ещё и за вырезкой (маска неба у Ленина по подложке, где здания нет)
     } finally { ctx = main; }
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(lay, 0, 0); ctx.restore();
   }
@@ -684,7 +1242,8 @@
       ctx.fillStyle = lg; ctx.fillRect(x0 - 2, y0 - 2, x1 - x0 + 4, y1 - y0 + 4);
       if (lamp) {   // свет источника ложится на ткань пятном и гаснет с расстоянием
         var rg = ctx.createRadialGradient(lamp[0], lamp[1], 0, lamp[0], lamp[1], lamp[2]);
-        rg.addColorStop(0, 'rgba(255,232,190,' + (0.5 * nn * a).toFixed(3) + ')'); rg.addColorStop(0.5, 'rgba(255,220,170,' + (0.2 * nn * a).toFixed(3) + ')'); rg.addColorStop(1, 'rgba(255,220,170,0)');
+        var lk = root.CONFIG.SHOW_NIGHT === 'bright' ? 1.5 : (root.CONFIG.SHOW_NIGHT === 'toned' ? 0.45 : 1);   // e1.15 'toned': свет снизу слабый
+        rg.addColorStop(0, 'rgba(255,232,190,' + (0.5 * lk * nn * a).toFixed(3) + ')'); rg.addColorStop(0.5, 'rgba(255,220,170,' + (0.2 * lk * nn * a).toFixed(3) + ')'); rg.addColorStop(1, 'rgba(255,220,170,0)');
         ctx.fillStyle = rg; ctx.fillRect(x0 - 2, y0 - 2, x1 - x0 + 4, y1 - y0 + 4);
       }
     }
@@ -724,7 +1283,9 @@
   }
   function stepHeli(now, w) {
     var tt = (now - par.t0) / 1000, nn = wts().n, s0 = sf(), kill = par.abort ? clamp((now - par.abort) / 700, 0, 1) : 0;
-    var uv = heliPath(tt), p = P(uv[0], uv[1], 0), S = 5.4 * s0, col = nn > 0.5 ? '170,178,200' : ink();
+    var BRN = root.CONFIG.SHOW_NIGHT === 'bright';   // e1.13: шоу ночью ярче и контрастнее (только у зданий с look.showNight; Кукурузник — как на сайте)
+    var TON = root.CONFIG.SHOW_NIGHT === 'toned';    // e1.15 (s9, Ленин): флаг ночью в тон ночи (цвета видны, но тёмные), слабый тёплый свет снизу, не белое пятно
+    var uv = heliPath(tt), p = P(uv[0], uv[1], 0), S = 5.4 * s0, col = nn > 0.5 ? (BRN ? '232,236,250' : (TON ? '120,128,152' : '170,178,200')) : ink();
     var a = (1 - kill) * clamp(tt / 0.8, 0, 1) * (1 - clamp((tt - 25) / 1, 0, 1));
     // трос отклонён назад набегающим потоком (~29°); порывы слегка качают — маятник с затуханием, от времени кадра
     var gust = 0.06 * Math.sin(tt * 0.35) + 0.025 * Math.sin(tt * 1.1 + 1), thT = -0.5 + gust;
@@ -743,13 +1304,14 @@
     pt.N = N;
     if (nn > 0.3) {   // ночью прожектор из-под брюха: мягкий конус света в воздухе к флагу
       ctx.globalCompositeOperation = 'lighter'; var tip = pt(N * 0.45, 3), gl = ctx.createRadialGradient(ax0, ay0, 0, ax0, ay0, fw * 0.6);
-      gl.addColorStop(0, 'rgba(255,240,210,' + (0.16 * a * nn).toFixed(3) + ')'); gl.addColorStop(1, 'rgba(255,240,210,0)'); ctx.fillStyle = gl;
+      gl.addColorStop(0, 'rgba(255,240,210,' + ((BRN ? 0.34 : (TON ? 0.08 : 0.16)) * a * nn).toFixed(3) + ')'); gl.addColorStop(1, 'rgba(255,240,210,0)'); ctx.fillStyle = gl;
       ctx.beginPath(); ctx.moveTo(ax0, ay0); ctx.lineTo(tip[0] - S * 2, tip[1] + S * 2); ctx.lineTo(B[0] + S * 2.5, B[1] + S * 2); ctx.closePath(); ctx.fill();
       ctx.globalCompositeOperation = 'source-over';
     }
     ctx.strokeStyle = 'rgba(' + col + ',' + (0.75 * a).toFixed(3) + ')'; ctx.lineWidth = 0.7;
     ctx.beginPath(); ctx.moveTo(ax0, ay0); ctx.lineTo(A[0], A[1]); ctx.stroke();
-    clothFlag(pt, nn, a, nn > 0.3 ? [ax0, ay0 + S, fw * 0.6] : null, 0.82);
+    var fb = pt(N * 0.5, 3);   // TON: тёплый свет города снизу — пятно под нижней кромкой середины полотнища
+    clothFlag(pt, nn, a, nn > 0.3 ? (TON ? [fb[0], fb[1] + S * 2.2, fw * 0.55] : [ax0, ay0 + S, fw * (BRN ? 0.9 : 0.6)]) : null, BRN ? 0.3 : (TON ? 0.7 : 0.82));   // e1.13 look.showNight 'bright': флаг ночью в луче — цвета флага, а не тёмная тряпка
     ctx.strokeStyle = 'rgba(' + col + ',' + (0.9 * a).toFixed(3) + ')'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke();   // кромка на тросе
     ctx.fillStyle = 'rgba(' + col + ',' + (0.95 * a).toFixed(3) + ')'; ctx.beginPath(); ctx.ellipse(B[0], B[1] + S * 0.25, S * 0.28, S * 0.36, -h.th, 0, 6.283); ctx.fill();   // груз
     ctx.translate(p[0], p[1]); ctx.rotate(tilt); heliBody(S, col, a, tt, nn);
@@ -789,7 +1351,7 @@
     return [pH[0] + (pT[0] - pH[0]) * ke + Math.sin(kk * 14 + f.u * 50) * 1.2 * s0, pH[1] + (pT[1] - pH[1]) * ke];
   }
   function stepFireworks(now, w) {
-    var t = (now - par.t0) / 1000, nn = wts().n, s0 = sf(), kill = par.abort ? clamp((now - par.abort) / 700, 0, 1) : 0, band = SC(par.fr).skyBand;
+    var t = (now - par.t0) / 1000, nn = wts().n, s0 = sf(), kill = par.abort ? clamp((now - par.abort) / 700, 0, 1) : 0, band = PB(par.fr);
     var night = nn > 0.5, bh = band[1] - band[0];
     if (!par.fw) {
       par.fw = [];
@@ -932,7 +1494,7 @@
     ctx.restore();
   }
   function stepBalloons(now, w) {
-    var t = (now - par.t0) / 1000, nn = wts().n, s0 = sf(), kill = par.abort ? clamp((now - par.abort) / 700, 0, 1) : 0, band = SC(par.fr).skyBand;
+    var t = (now - par.t0) / 1000, nn = wts().n, s0 = sf(), kill = par.abort ? clamp((now - par.abort) / 700, 0, 1) : 0, band = PB(par.fr);
     if (!par.bl) {
       par.bl = [];
       var sets = [[0, 1, 2]];   // у всех шаров — флаг Армении сверху вниз: красный, синий, абрикосовый
@@ -1073,7 +1635,9 @@
       nextKite = now + rnd(14000, 22000);
     }
     UNIT = unit();
-    if (key && !par && now >= nextAt && active.length < 2) { spawn(fr, key); nextAt = now + rnd(8000, 15000); }
+    // e1.21 (s17): life.nightRare [мин, макс] с — ночью не больше ОДНОГО события (огонёк самолёта) и редко; без настройки — как было
+    var nRare = key === 'night' && SC(fr).life && SC(fr).life.nightRare;
+    if (key && !par && now >= nextAt && active.length < (nRare ? 1 : 2)) { spawn(fr, key); nextAt = now + (nRare ? rnd(nRare[0], nRare[1]) * 1000 : rnd(8000, 15000)); }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H); drawn = true;
     var w = wts();
@@ -1081,8 +1645,15 @@
     drawClouds(now, w, wx);
     var fz = V.weather && V.weather().flash;
     if (fz > 0.02) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; cloudMul = Math.min(1, fz * 1.4); drawClouds(now, w, wx); cloudMul = 1; ctx.restore(); }   // гроза: облака светятся изнутри
-    drawAmbientBirds(now, w);
+    if (SC(fr).skyBirds !== false) drawAmbientBirds(now, w);   // e1.8: кадр может выключить три одиночные птицы (свои стаи в ambient.flocks)
     if (SC(fr).closeUp) drawCloseUp(now, w, f, SC(fr).closeUp);
+    if (SC(fr).fountains) drawFountains(now, w, f, SC(fr).fountains);
+    var MV = SC(fr).motionVideo, mvOn = MV && V.motionOn && V.motionOn(fr);
+    if (SC(fr).ambient) {   // e1.14: на кадре с синемаграфом спрайтовых машин, людей и сценок нет (2D-картинки поверх видео); птицы и мелочи остаются
+      var AM = SC(fr).ambient;
+      if (mvOn && MV.hideLife !== false) AM = MV._A || (MV._A = { flocks: AM.flocks, details: AM.details, occluders: AM.occluders, lightBirds: AM.lightBirds });
+      drawAmbientLife(now, w, f, AM);
+    }
     for (var i = active.length - 1; i >= 0; i--) {
       var e = active[i], t = (now - e.t0) / e.dur;
       if (t >= 1) { active.splice(i, 1); continue; }

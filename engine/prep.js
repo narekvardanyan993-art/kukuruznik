@@ -125,7 +125,7 @@
   // (плоскость фокуса всегда в середине диапазона), затем размываем
   // 3 проходами бокс-блюра (~CONFIG.DEPTH_BLUR_PX) — резкие ступеньки
   // глубины на границе здания и неба иначе рвут картинку.
-  function prepareDepth(img) {
+  function prepareDepth(img, raw) {   // raw (e1.5, frame.depthRaw): карта уже в нужном диапазоне — контраст не растягивать
     var fit = fitToCap(img), w = fit.w, h = fit.h;
     var c = mkCanvas();
     c.width = w; c.height = h;
@@ -138,7 +138,7 @@
     for (i = 0; i < 256; i++) { acc += hist[i]; if (acc >= n * 0.02) { lo = i; break; } }
     acc = 0;
     for (i = 255; i >= 0; i--) { acc += hist[i]; if (acc >= n * 0.02) { hi = i; break; } }
-    if (hi - lo < 8) { lo = 0; hi = 255; }
+    if (hi - lo < 8 || raw) { lo = 0; hi = 255; }
     var span = hi - lo;
     for (i = 0; i < n; i++) a[i] = clamp(Math.round((a[i] - lo) * 255 / span), 0, 255);
     var r = Math.max(1, Math.round(CONFIG.DEPTH_BLUR_PX / 2)), tmp = new Uint8Array(n);
@@ -329,10 +329,10 @@
         if (y < h - 1 && !lab[p + w] && mask[p + w] > thr) { lab[p + w] = nl; stack[sp++] = p + w; }
       }
       var bw = x1 - x0 + 1, bh = y1 - y0 + 1, aspect = bw / bh, fill = list.length / (bw * bh);
-      if (list.length < 6 || bw * bh > 3000 || aspect > opt.amax || aspect < opt.amin || fill < opt.fill) continue;
+      if (list.length < (opt.min || 6) || bw * bh > 3000 || aspect > opt.amax || aspect < opt.amin || fill < opt.fill) continue;
       // Овал по рамке найденного пятна: свет строго внутри эллипса (мягкий край внутрь), ничего за контуром.
       // Пятно должно быть похоже на овал (заполнение ~0.6–0.95 рамки), иначе считаем распознавание неуверенным.
-      if (fill > 0.97) continue;
+      if (fill > 0.97 && !opt.rect) continue;   // e1.12: окна из маски Gemini (nightWins) — прямоугольники, их берём
       var cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, rx = bw / 2 + 0.3, ry = bh / 2 + 0.3;
       var idx = [], val = [], yr, xr;
       for (yr = y0; yr <= y1; yr++) for (xr = x0; xr <= x1; xr++) {
@@ -347,9 +347,10 @@
   }
 
   // Окружение кадра для GPU: карта глубины+небо+деревья (RGBA), окна с состояниями, звёзды, лампы.
-  function prepareEnv(imgEnv, imgWin2, depth, bld, frameIdx) {
+  function prepareEnv(imgEnv, imgWin2, depth, bld, frameIdx, imgFig) {
     var w = depth.w, h = depth.h, n = w * h, i;
     var env = readChannels(imgEnv, w, h), w2px = readChannels(imgWin2, w, h);
+    var fig = imgFig ? readChannels(imgFig, w, h) : null;   // e1.22: маска фигур кадра (R)
     var ew = (w + 1) >> 1, eh = (h + 1) >> 1, en = ew * eh;
     // GPU-текстура: R глубина, G небо, B высота дерева, A фаза (вдвое мельче)
     var gd = new Uint8Array(en * 4), x, y, skyCount = 0;
@@ -359,6 +360,9 @@
       gd[o * 4 + 1] = (env[s0 * 4] + env[s1 * 4]) >> 1;
       gd[o * 4 + 2] = (env[s0 * 4 + 1] + env[s1 * 4 + 1]) >> 1;
       gd[o * 4 + 3] = env[s0 * 4 + 2];
+      // e1.22 FIGURES: где нет дерева (высота дерева ≤ 2), фаза ветра не нужна — там в альфе маска фигур (или 0, если у кадра фигур нет);
+      // шейдер сдвигает выборку только при env.b < 0,008 и env.a > 0. Без фигур у здания (FIG_ON false) — как было.
+      if (CONFIG.FIG_ON && gd[o * 4 + 2] <= 2) gd[o * 4 + 3] = fig ? (fig[s0 * 4] + fig[s1 * 4]) >> 1 : 0;
       if (gd[o * 4 + 1] > 127) skyCount++;
     }
     var skyFrac = skyCount / en;
@@ -376,7 +380,11 @@
     var areas = winsT.map(function (q) { return q.bw * q.bh; }).sort(function (a, b) { return a - b; });
     var a85 = areas.length ? areas[Math.floor(areas.length * 0.85)] : 0;
     winsT = winsT.filter(function (q) { var a = q.bw * q.bh; return q.bw >= 0.55 * med && a >= 0.4 * a85 && a <= 1.9 * a85; });
-    var winsO = labelWindows(maskO, ew, eh, 100, { amin: 0.6, amax: 2.6, fill: 0.7 });
+    // e1.18 (s14): NIGHT_MAIN_WINS false — у главного слоя кадра окон нет (памятник): тёмная табличка/капитель постамента
+    // не попадает в окна и не «зажигается» жёлтым пятном при переключении окон ночью
+    if (CONFIG.NIGHT_MAIN_WINS === false) winsT = [];
+    var gw = CONFIG.NIGHT_WINS && CONFIG.NIGHT_WINS[frameIdx];   // e1.12: окна других зданий из маски Gemini — мелкие и прямоугольные
+    var winsO = labelWindows(maskO, ew, eh, 100, gw ? { amin: 0.25, amax: 4, fill: 0.45, min: 2, rect: true } : { amin: 0.6, amax: 2.6, fill: 0.7 });
     var wins = [];
     [[winsT, 0, CONFIG.NIGHT_MAIN_LIT], [winsO, 1, CONFIG.NIGHT_OTHER_LIT]].forEach(function (g) {
       var frac = g[2][0] + (g[2][1] - g[2][0]) * hsh(seed, 1000 + g[1]);
@@ -393,12 +401,31 @@
     return { gpuDepth: gd, ew: ew, eh: eh, emis: emis, wins: wins, skyFrac: skyFrac, starQ: starQ, dirty: false, winsT: winsT };
   }
 
+  // e1.26 SWAY (s23, только у зданий с look.gusts.swayMaxPx и кадрами frames[].sway): карта окружения становится двухэтажной —
+  // сверху как была (R глубина, G небо, B высота дерева, A фаза), снизу поля качания крон из <кадр>_sway.png (вдвое мельче кадра,
+  // сам файл — высота ×2: верх R = u, G = v, B = высота h; низ R = фаза): R u, G v, B h, A фаза. Лишнего сэмплера не нужно.
+  // Кадр без файла (или файл не загрузился) — нижний этаж нулевой: деревья кадра стоят (h = 0).
+  function swayEnabled() { return !!CONFIG.SWAY_ON; }   // решает viewer.js (SWAY) — у Кукурузника нет
+  function addSway(env, img) {
+    var en = env.ew * env.eh, out = new Uint8Array(en * 8);
+    out.set(env.gpuDepth);
+    if (img) {
+      var sw = readChannels(img, env.ew, env.eh * 2), b = en * 4;
+      for (var i = 0; i < en; i++) { out[b + i * 4] = sw[i * 4]; out[b + i * 4 + 1] = sw[i * 4 + 1]; out[b + i * 4 + 2] = sw[i * 4 + 2]; out[b + i * 4 + 3] = sw[(en + i) * 4]; }
+    }
+    env.swayRows = true;
+    return out;
+  }
+
   // ---------- один кадр: день ----------
   function prepDay(f, i) {
-    return Promise.all([load(f.color), load(f.depth), load(f.bg.color), load(f.building.color), load(f.env), load(f.win2)]).then(function (imgs) {
-      var depth = prepareDepth(imgs[1]);
+    var swayOn = swayEnabled();
+    return Promise.all([load(f.color), load(f.depth), load(f.bg.color), load(f.building.color), load(f.env), load(f.win2), f.fig ? load(f.fig) : null,
+      swayOn && f.sway ? load(f.sway).catch(function () { return null; }) : null]).then(function (imgs) {
+      var depth = prepareDepth(imgs[1], !!f.depthRaw);
       var bld = analyzeBuilding(imgs[3], depth, imgs[0], imgs[2]);
-      var env = prepareEnv(imgs[4], imgs[5], depth, bld, i);
+      var env = prepareEnv(imgs[4], imgs[5], depth, bld, i, imgs[6]);
+      if (swayOn) env.gpuDepth = addSway(env, imgs[7]);
       // список окон главного здания (центр и размер, доли кадра) — для «живых» деталей ночью
       var winList = (env.winsT || []).map(function (q) { return { u: q.cx / env.ew, v: q.cy / env.eh, w: q.bw / env.ew, h: q.bh / env.eh }; });
       STATE[i] = { w: bld.w, h: bld.h, alpha: bld.alpha, dayPx: bld.dayPx, plate: bld.plate, ew: env.ew, eh: env.eh, winList: winList };
@@ -406,7 +433,7 @@
       return Promise.resolve(thumb).then(function (tb) {
         var out = {
           w: bld.w, h: bld.h, depth: depth, kB: bld.meanD * 2 - 1, dB: bld.meanD,
-          ground: bld.ground, bldPm: bld.bldPm, gpuDepth: env.gpuDepth, ew: env.ew, eh: env.eh, emis: env.emis,
+          ground: bld.ground, bldPm: bld.bldPm, gpuDepth: env.gpuDepth, swayRows: !!env.swayRows, ew: env.ew, eh: env.eh, emis: env.emis,
           wins: env.wins, skyFrac: env.skyFrac, starQ: env.starQ, winList: winList, thumb: tb
         };
         if (bld.bldD) {   // глубина здания по точкам — в альфе «земли» (лишний сэмплер шейдеру не нужен: на iPhone их ровно 16)
@@ -501,9 +528,26 @@
       var hole = alpha.slice();
       boxBlur(hole, w, h, 3);
       var ground = new Uint8Array(n * 3);
+      // e1.18 (s14), только при NIGHT_EDGE "solid" (Ленин): подложка под зданием подгоняется по МЕСТНОМУ тону (ночь/день вокруг точки,
+      // окно ~50 px только вне здания), а не одним числом на кольцо. Общий коэффициент кольца (небо + кроны + постамент) делал подложку
+      // у силуэта статуи светлее ночного неба — при наклоне она выглядывает из-под края: почти невидимая светлая «обводка» (G, A, C).
+      // Кроме того подложка не заходит наружу за край вырезки (у Кукурузника — как было).
+      var loc = null;
+      if (CONFIG.NIGHT_EDGE === 'solid' && kind === 'night') {
+        var R = Math.max(8, Math.round(w / 15)), mo = new Float32Array(n);
+        for (q = 0; q < n; q++) mo[q] = near[q] === 0 ? 1 : 0;
+        var mb = mo.slice(); boxBlurF(mb, w, h, R); boxBlurF(mb, w, h, R);
+        loc = [0, 1, 2].map(function (z) {
+          var a1 = new Float32Array(n), a2 = new Float32Array(n);
+          for (q = 0; q < n; q++) { a1[q] = mo[q] * np[q * 4 + z]; a2[q] = mo[q] * D[q * 4 + z]; }
+          boxBlurF(a1, w, h, R); boxBlurF(a1, w, h, R); boxBlurF(a2, w, h, R); boxBlurF(a2, w, h, R);
+          for (q = 0; q < n; q++) a1[q] = mb[q] > 0.02 && a2[q] > 1 ? clamp(a1[q] / a2[q], 0.05, 1.6) : ratio[z];
+          return a1;
+        });
+      }
       for (q = 0; q < n; q++) {
-        var ha = Math.min(255, hole[q] * 3) / 255;
-        for (k = 0; k < 3; k++) ground[q * 3 + k] = ha > 0 ? np[q * 4 + k] * (1 - ha) + P[q * 4 + k] * ratio[k] * ha : np[q * 4 + k];
+        var ha = loc ? (alpha[q] > 0 ? Math.min(255, hole[q] * 3) / 255 : 0) : Math.min(255, hole[q] * 3) / 255;
+        for (k = 0; k < 3; k++) ground[q * 3 + k] = ha > 0 ? np[q * 4 + k] * (1 - ha) + P[q * 4 + k] * (loc ? loc[k][q] : ratio[k]) * ha : np[q * 4 + k];
       }
       return { ground: ground, full: full, lit: lit, w: w, h: h };
     });
