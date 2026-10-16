@@ -262,11 +262,14 @@ def check_postcard():
             rec('%s — postcard.js подключён раньше viewer.js' % bd, 0 <= a < b)
             rec('%s — файл открытки %s' % (bd, cfg.get('POSTCARD_FILE')), str(cfg.get('POSTCARD_FILE', '')).endswith('.png'))
             ui = cfg['UI_I18N']
-            miss = [k for k in ('postcard', 'fullscreen', 'cardTitle', 'cardLang', 'cardLine', 'cardFilm', 'cardSave', 'cardReady', 'cardHint', 'cardGrpDate', 'cardGrpSign', 'cardToday', 'cardMyYear', 'cardExhibit', 'cardRare', 'cardRareB', 'sizeNormal', 'sizeLarge', 'cardGrpMoment', 'cardGrpBack', 'cardDawn', 'cardBlue', 'cardRainbow', 'cardHoldOn', 'cardHoldOff', 'cardAim', 'cardBack', 'cardBackHint', 'cardCode') if not all((ui.get(k) or {}).get(l) for l in ('hy', 'ru', 'en'))]
+            miss = [k for k in ('postcard', 'fullscreen', 'cardTitle', 'cardLang', 'cardLine', 'cardFilm', 'cardSave', 'cardReady', 'cardHint', 'cardGrpDate', 'cardGrpSign', 'cardToday', 'cardMyYear', 'cardExhibit', 'cardRare', 'cardRareB', 'sizeNormal', 'sizeLarge', 'cardGrpMoment', 'cardGrpBack', 'cardDawn', 'cardBlue', 'cardBack', 'cardBackHint', 'cardCode', 'cardShow', 'cardTo') if not all((ui.get(k) or {}).get(l) for l in ('hy', 'ru', 'en'))]
             rec('%s — тексты кнопок и окна на hy/ru/en' % bd, not miss, ', '.join(miss))
-            ids = [i for i in ('cardBtn', 'fsBtn', 'pActs', 'cardCfg', 'cardPrev', 'cardPrevOld', 'cardLine', 'cardFilm', 'cardGo', 'cardToast', 'cardFlash', 'cardDateSeg', 'cardYear', 'cardNo', 'cardRareB', 'sizeSeg', 'cardTod', 'cardTime', 'cardWx', 'cardHoldBtn', 'cardHold', 'cardBack', 'cardPrevBack') if 'id="%s"' % i not in html_text]
+            ids = [i for i in ('cardBtn', 'fsBtn', 'pActs', 'cardCfg', 'cardPrev', 'cardLine', 'cardFilm', 'cardGo', 'cardToast', 'cardFlash', 'cardDateSeg', 'cardYear', 'cardNo', 'cardRareB', 'sizeSeg', 'cardTod', 'cardTime', 'cardWx', 'cardBack', 'cardPrevB', 'cardShow', 'cardTo', 'cardLine') if 'id="%s"' % i not in html_text]
             rec('%s — пара кнопок, окно (превью, «Сохранить», дата, подпись) и плашка в странице' % bd, not ids, ', '.join(ids))
-            rec('%s — отдельной кнопки «Настроить» нет (e1.28)' % bd, 'id="cardCfgBtn"' not in html_text)
+            rec('%s — отдельной кнопки «Настроить» нет (e1.28), «Свой ракурс» убран (e1.30)' % bd, 'id="cardCfgBtn"' not in html_text and 'cardHold' not in html_text and 'cardAim' not in html_text)
+            cwx = re.findall(r'data-cwx="(\w+)"', html_text)
+            rec('%s — в «Моменте» только заметные эффекты: снег, дождь, туман (замер s30)' % bd, cwx == ['snow', 'rain', 'fog'], str(cwx))
+            rec('%s — своя строка и «Кому» — в группе «Оборот»' % bd, html_text.find('data-grp="back"') < html_text.find('id="cardLine"') and html_text.find('data-grp="back"') < html_text.find('id="cardTo"') and 'maxlength="30"' in html_text)
             grp = re.findall(r'<section class="cc-grp" data-grp="(\w+)"( hidden)?', html_text)
             rec('%s — группы окна (e1.29): Момент, Дата, Подпись, Оборот — все видны, по порядку' % bd, grp == [('moment', ''), ('date', ''), ('sign', ''), ('back', '')], str(grp))
             rec('%s — номер экспоната в странице (%s)' % (bd, pc.get('no')), isinstance(pc.get('no'), int) and pc['no'] >= 1)
@@ -311,9 +314,9 @@ def check_card_check():
         rec('настоящий Chrome: зелёная и красные случаи (test_card_check.mjs)', r.returncode == 0, '' if r.returncode == 0 else (r.stdout + r.stderr).strip()[-300:])
     vj, pj = (ROOT / 'engine' / 'viewer.js').read_text(encoding='utf-8'), (ROOT / 'engine' / 'postcard.js').read_text(encoding='utf-8')
     rec('viewer.js передаёт карту здания в открытку', 'function cardBuildingMask' in vj and 'cfg.mask = cardBuildingMask()' in vj and 'cfg.mask : cardBuildingMask()' in vj and "projectB(f, 0, 0)" in vj)
-    rec('viewer.js: «табло» при смене языка, ракурс в цикле кадра, Момент ведёт время суток движка (e1.29)',
-        'function tabloSwap' in vj and 'tabloSwap(function () {' in vj and 'if (tiltHold) { shiftX = tiltHold.sx;' in vj and 'todAnim = null; applyTod(p);' in vj and 'moment: true' in vj and 'back: true }' in vj)
-    rec('postcard.js: оборот, время на штемпеле, личный номер (e1.29)', 'function composeBack' in pj and 'o.time' in pj and 'function code(seed)' in pj and 'composeBack: composeBack' in pj)
+    rec('viewer.js: «табло» при смене языка; «Свой ракурс» убран из цикла кадра; «Показать» снимает сцену и возвращает её; лицо без своей строки (e1.30)',
+        'function tabloSwap' in vj and 'tabloSwap(function () {' in vj and 'tiltHold' not in vj and 'function shoot(w)' in vj and 'sceneRestore(S)' in vj and "o.line = '';" in vj and "CWX = ['snow', 'rain', 'fog']" in vj)
+    rec('postcard.js: оборот с «Кому», выходными данными и «редкой»; лицо без номера/кода/«редкой» (e1.30)', 'function composeBack' in pj and 'o.to' in pj and 'o.time' in pj and 'function code(seed)' in pj and 'function topLine' not in pj and 'rareLabel' in pj)
     rec('postcard.js: карта здания, три размера таблички, запасные места штемпеля', 'function bldMap' in pj and all(k in pj for k in ('PQ.full', 'PQ.compact', 'PQ.mini')) and 'function stampPlace' in pj and 'waves: waves' in pj)
     return ok, out
 
