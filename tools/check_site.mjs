@@ -45,6 +45,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
+import { SHARE_HOOK, CARD_DETERMINISM, phoneCardStep } from './card_check.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const KITCHEN = path.join(os.homedir(), 'Documents', 'chka-kitchen');
@@ -240,7 +241,8 @@ async function newPage(browser, origin, vp, { virtual = true, mobile = false, ds
     if (!/ERR_ABORTED/.test((r.failure() || {}).errorText || '')) problems.push({ type: 'не загрузился', msg: r.url().replace(origin, '') + ' ' + ((r.failure() || {}).errorText || '') }); });
   await page.setViewport({ width: vp.width, height: vp.height, deviceScaleFactor: dsf, isMobile: mobile, hasTouch: mobile });
   if (keepAnimations) await page.evaluateOnNewDocument(() => { window.__keepAnimations = true; });
-  if (virtual) await page.evaluateOnNewDocument(INIT_SCRIPT);
+  if (virtual) { await page.evaluateOnNewDocument(INIT_SCRIPT); await page.evaluateOnNewDocument(CARD_DETERMINISM); }
+  if (mobile) await page.evaluateOnNewDocument(SHARE_HOOK);   // телефон: открытка уходит через navigator.share (tools/card_check.mjs)
   return { page, problems, get external() { return external; }, close: () => ctx.close().catch(() => {}) };
 }
 
@@ -459,7 +461,17 @@ async function captureWalk(browser, origin, target, vpName, outDir) {
     } else if (await page.evaluate((s) => { const b = document.querySelector(s); return b && !b.hidden; }, flag)) problems.push({ type: 'прогулка', msg: 'у здания нет парада, а кнопка видна' });
     // открытка
     await openSheet();
-    await page.evaluate(() => { window.__lastImageBlob = null; window.__download = null; });
+    await page.evaluate(() => { window.__lastImageBlob = null; window.__download = null; window.__shares = []; });
+    const story = await page.evaluate(() => !!window.ChkaPostcard);   // e1.27+: «открытка в сторис»; у старых страниц — прежний путь (PNG-скачивание)
+    if (phone && story) {
+      // Телефон: одно нажатие → navigator.share (перехватчик SHARE_HOOK) с файлом image/jpeg 1080×1920 за 20 с; иначе красное (tools/card_check.mjs)
+      const cs = await phoneCardStep(page, { click, sleep });
+      problems.push(...cs.problems);
+      if (cs.png) {
+        fs.writeFileSync(path.join(outDir, 'walk-10-postcard.png'), cs.png);   // что именно ушло в share (после JPEG), как PNG — для сравнения двух копий сайта
+        shots['walk-10-postcard'] = { sha: shotSha(PNG.sync.read(cs.png).data), bytes: cs.size, regions: [], file: cs.name };
+      }
+    } else {
     await click('#cardBtn');
     let got = null;
     for (let i = 0; i < 100 && !got; i++) { await sleep(200);   // картинка ~1000×1750 кодируется в PNG в фоне — бывает дольше 6 с
@@ -470,6 +482,7 @@ async function captureWalk(browser, origin, target, vpName, outDir) {
       const buf = Buffer.from(r.b64, 'base64');
       fs.writeFileSync(path.join(outDir, 'walk-10-postcard.png'), buf);
       shots['walk-10-postcard'] = { sha: shotSha(PNG.sync.read(buf).data), bytes: buf.length, regions: [], file: r.name };
+    }
     }
     await closeSheet();
     shots._welcomeMs = welcomeMs;

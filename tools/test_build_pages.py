@@ -272,6 +272,39 @@ def check_postcard():
     return ok, out
 
 
+def check_card_check():
+    """s27: проверка открытки на телефоне (check_site → «прогулка») и размещение по зданию. (1) Тексты кода: перехватчик share ставится на телефоне ДО
+    загрузки, шаг проверяет JPEG 1080×1920 и один вызов; путь ПК (PNG-скачивание) на месте; Date.now для postcard.js подменяется (одинаковые открытки у
+    двух копий сайта). (2) Настоящий Chrome на странице-подделке: зелёная и пять красных (нет файла / не тот размер / PNG / два вызова / без файла) —
+    tools/test_card_check.mjs; нет Chrome — пропуск. (3) Размещение: viewer.js передаёт карту здания в postcard.js, у postcard.js три размера таблички
+    и запасные места штемпеля. Возвращает (ok, строки отчёта)."""
+    import subprocess
+    out, ok = [], True
+    def rec(name, good, extra=''):
+        nonlocal ok
+        ok &= bool(good)
+        out.append('%s  открытка/проверка: %s%s' % ('OK   ' if good else 'ОШИБКА', name, (' — ' + extra) if extra else ''))
+    T = ROOT / 'tools'
+    cs, cc = (T / 'check_site.mjs').read_text(encoding='utf-8'), (T / 'card_check.mjs').read_text(encoding='utf-8')
+    rec('check_site: share подменяется на телефоне до загрузки, шаг общий с быстрой проверкой',
+        "from './card_check.mjs'" in cs and 'if (mobile) await page.evaluateOnNewDocument(SHARE_HOOK)' in cs and 'phoneCardStep(page' in cs and 'CARD_DETERMINISM' in cs)
+    rec('check_site: путь ПК (скачивание PNG, blob + a.download) без изменений', "window.__lastImageBlob && window.__download ? true : null" in cs and "'walk-10-postcard.png'" in cs)
+    rec('шаг телефона: JPEG, 1080×1920, один вызов, файл за 20 с', "'image/jpeg'" in cc and 'r.w !== 1080 || r.h !== 1920' in cc and 'r.n !== 1' in cc and 'shareMs = 20000' in cc)
+    rec('check_card_phone.mjs — быстрая проверка одной страницы на том же шаге', "phoneCardStep" in (T / 'check_card_phone.mjs').read_text(encoding='utf-8'))
+    for f in ('card_check.mjs', 'check_card_phone.mjs', 'test_card_check.mjs', 'check_site.mjs'):
+        r = subprocess.run(['node', '--check', str(T / f)], capture_output=True, text=True)
+        rec('node --check tools/%s' % f, r.returncode == 0, r.stderr.strip()[-150:])
+    r = subprocess.run(['node', str(T / 'test_card_check.mjs')], capture_output=True, text=True, timeout=180)
+    if r.returncode == 2:
+        out.append('ПРОПУЩЕНО  открытка/проверка: нет Chrome для puppeteer — зелёная/красные случаи не прогнаны (%s)' % r.stdout.strip()[-100:])
+    else:
+        rec('настоящий Chrome: зелёная и красные случаи (test_card_check.mjs)', r.returncode == 0, '' if r.returncode == 0 else (r.stdout + r.stderr).strip()[-300:])
+    vj, pj = (ROOT / 'engine' / 'viewer.js').read_text(encoding='utf-8'), (ROOT / 'engine' / 'postcard.js').read_text(encoding='utf-8')
+    rec('viewer.js передаёт карту здания в открытку', 'function cardBuildingMask' in vj and 'mask: cardBuildingMask()' in vj and "projectB(f, 0, 0)" in vj)
+    rec('postcard.js: карта здания, три размера таблички, запасные места штемпеля', 'function bldMap' in pj and all(k in pj for k in ('PQ.full', 'PQ.compact', 'PQ.mini')) and 'function stampPlace' in pj and 'waves: waves' in pj)
+    return ok, out
+
+
 def engine_js_check(clip_src):
     """Запускает настоящий mvSetClip из engine/viewer.js (node, заглушка видео): с H.264 адрес = base + mp4?v, без — base + webm?v;
     старый адрес без ?v ведёт себя как раньше. Возвращает None (всё верно) или текст ошибки."""
@@ -460,6 +493,10 @@ def main():
     for l in lines_pc:
         print(l)
     ok_all &= ok_pc
+    ok_cc, lines_cc = check_card_check()
+    for l in lines_cc:
+        print(l)
+    ok_all &= ok_cc
     # стопка главной: картинка здания встаёт на место силуэта, повтор ничего не меняет, чужое место и вне-диффы ловятся
     hub0 = (ROOT / 'index.html').read_text(encoding='utf-8')
     base = re.sub(r'\s*<!-- stack:lenin .*?<!-- /stack:lenin -->', '\n      <div class="stack-card sc-c"><div class="sc-pic"><svg class="ghost" viewBox="0 0 200 200"><use href="#ghost-statue"/></svg></div></div>', hub0, flags=re.S)

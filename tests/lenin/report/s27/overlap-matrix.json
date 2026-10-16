@@ -1,0 +1,354 @@
+{
+ "kukuruznik-day-f0-hy": {
+  "building_px": 239174,
+  "building_pct": 11.5,
+  "before": {
+   "overlay_px": 141744,
+   "on_building_px": 54256,
+   "within12_px": 60487,
+   "outside_safe_px": 0
+  },
+  "after": {
+   "overlay_px": 48566,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  }
+ },
+ "kukuruznik-day-f1-hy": {
+  "building_px": 232514,
+  "building_pct": 11.2,
+  "before": {
+   "overlay_px": 135094,
+   "on_building_px": 60113,
+   "within12_px": 65297,
+   "outside_safe_px": 0
+  },
+  "after": {
+   "overlay_px": 54679,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  }
+ },
+ "kukuruznik-day-f2-hy": {
+  "building_px": 255533,
+  "building_pct": 12.3,
+  "before": {
+   "overlay_px": 134459,
+   "on_building_px": 29426,
+   "within12_px": 34019,
+   "outside_safe_px": 0
+  },
+  "after": {
+   "overlay_px": 51991,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  }
+ },
+ "kukuruznik-day-f3-hy": {
+  "building_px": 223403,
+  "building_pct": 10.8,
+  "before": {
+   "overlay_px": 135922,
+   "on_building_px": 39554,
+   "within12_px": 45138,
+   "outside_safe_px": 0
+  },
+  "after": {
+   "overlay_px": 59504,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  }
+ },
+ "kukuruznik-day-f4-hy": {
+  "building_px": 180156,
+  "building_pct": 8.7,
+  "before": {
+   "overlay_px": 126227,
+   "on_building_px": 1652,
+   "within12_px": 3013,
+   "outside_safe_px": 0
+  },
+  "after": {
+   "overlay_px": 84419,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  }
+ },
+ "kukuruznik-day-f5-hy": {
+  "building_px": 1331561,
+  "building_pct": 64.2,
+  "before": {
+   "overlay_px": 129718,
+   "on_building_px": 129718,
+   "within12_px": 129718,
+   "outside_safe_px": 0
+  },
+  "after": {
+   "overlay_px": 47904,
+   "on_building_px": 47904,
+   "within12_px": 47904,
+   "outside_safe_px": 0
+  }
+ },
+ "kukuruznik-night-f0-hy": {
+  "building_px": 229937,
+  "building_pct": 11.1,
+  "before": {
+   "overlay_px": 130992,
+   "on_building_px": 50887,
+   "within12_px": 57158,
+   "outside_safe_px": 0
+  },
+  "after": {
+   "overlay_px": 53307,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  }
+ },
+ "kukuruznik-night-f1-hy": {
+  "building_px": 226670,
+  "building_pct": 10.9,
+  "before": {
+   "overlay_px": 131021,
+   "on_building_px": 43278,
+   "within12_px": 48187,
+   "outside_safe_px": 0
+  },
+  "after": {
+   "overlay_px": 53413,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  }
+ },
+ "kukuruznik-night-f2-hy": {
+  "building_px": 245343,
+  "building_pct": 11.8,
+  "before": {
+   "overlay_px": 129555,
+   "on_building_px": 28251,
+   "within12_px": 33299,
+   "outside_safe_px": 0
+  },
+  "after": {
+   "overlay_px": 47864,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  }
+ },
+ "kukuruznik-night-f3-hy": {
+  "building_px": 218526,
+  "building_pct": 10.5,
+  "before": {
+   "overlay_px": 131382,
+   "on_building_px": 35454,
+   "within12_px": 41027,
+   "outside_safe_px": 0
+  },
+  "after": {
+   "overlay_px": 53332,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  }
+ },
+ "kukuruznik-night-f4-hy": {
+  "building_px": 173968,
+  "building_pct": 8.4,
+  "before": {
+   "overlay_px": 131823,
+   "on_building_px": 1310,
+   "within12_px": 2515,
+   "outside_safe_px": 0
+  },
+  "after": {
+   "overlay_px": 85881,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  }
+ },
+ "kukuruznik-night-f5-hy": {
+  "building_px": 1310753,
+  "building_pct": 63.2,
+  "before": {
+   "overlay_px": 131305,
+   "on_building_px": 131305,
+   "within12_px": 131305,
+   "outside_safe_px": 0
+  },
+  "after": {
+   "overlay_px": 44110,
+   "on_building_px": 44110,
+   "within12_px": 44110,
+   "outside_safe_px": 0
+  }
+ },
+ "lenin-day-f0-hy": {
+  "building_px": 571308,
+  "building_pct": 27.6,
+  "before": {
+   "overlay_px": 152271,
+   "on_building_px": 31917,
+   "within12_px": 39664,
+   "outside_safe_px": 0
+  },
+  "after": {
+   "overlay_px": 58173,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  }
+ },
+ "lenin-day-f1-hy": {
+  "building_px": 12904,
+  "building_pct": 0.6,
+  "before": {
+   "overlay_px": 149754,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  },
+  "after": {
+   "overlay_px": 150511,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  }
+ },
+ "lenin-day-f2-hy": {
+  "building_px": 342053,
+  "building_pct": 16.5,
+  "before": {
+   "overlay_px": 145895,
+   "on_building_px": 63459,
+   "within12_px": 69729,
+   "outside_safe_px": 0
+  },
+  "after": {
+   "overlay_px": 48321,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  }
+ },
+ "lenin-day-f3-hy": {
+  "building_px": 1085887,
+  "building_pct": 52.4,
+  "before": {
+   "overlay_px": 124869,
+   "on_building_px": 76508,
+   "within12_px": 79411,
+   "outside_safe_px": 0
+  },
+  "after": {
+   "overlay_px": 36595,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  }
+ },
+ "lenin-day-f4-hy": {
+  "building_px": 90255,
+  "building_pct": 4.4,
+  "before": {
+   "overlay_px": 152961,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  },
+  "after": {
+   "overlay_px": 153378,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  }
+ },
+ "lenin-night-f0-hy": {
+  "building_px": 559840,
+  "building_pct": 27.0,
+  "before": {
+   "overlay_px": 140386,
+   "on_building_px": 26026,
+   "within12_px": 33360,
+   "outside_safe_px": 0
+  },
+  "after": {
+   "overlay_px": 51525,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  }
+ },
+ "lenin-night-f1-hy": {
+  "building_px": 11609,
+  "building_pct": 0.6,
+  "before": {
+   "overlay_px": 139277,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  },
+  "after": {
+   "overlay_px": 139277,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  }
+ },
+ "lenin-night-f2-hy": {
+  "building_px": 334312,
+  "building_pct": 16.1,
+  "before": {
+   "overlay_px": 141226,
+   "on_building_px": 61606,
+   "within12_px": 68322,
+   "outside_safe_px": 0
+  },
+  "after": {
+   "overlay_px": 47597,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  }
+ },
+ "lenin-night-f3-hy": {
+  "building_px": 1080454,
+  "building_pct": 52.1,
+  "before": {
+   "overlay_px": 141579,
+   "on_building_px": 78297,
+   "within12_px": 82652,
+   "outside_safe_px": 0
+  },
+  "after": {
+   "overlay_px": 44170,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  }
+ },
+ "lenin-night-f4-hy": {
+  "building_px": 78493,
+  "building_pct": 3.8,
+  "before": {
+   "overlay_px": 137966,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  },
+  "after": {
+   "overlay_px": 137966,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  }
+ }
+}

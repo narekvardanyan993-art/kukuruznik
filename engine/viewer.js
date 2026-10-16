@@ -2868,9 +2868,42 @@
     if (kq > 1) { canvas.width = W0; canvas.height = H0; }   // следующий кадр цикла перерисует холст
     return out;
   }
+  // Карта «здание» для открытки (s27): альфа слоя здания кадра (тот же файл, что у движка — из кэша), спроецированная в открытку 108×192
+  // тем же сдвигом, что на экране (projectB). По ней штемпель и табличка обходят памятник. Слои грузятся заранее, в простое; не загрузился — null.
+  var cardBld = {};   // индекс кадра → { c: холст-альфа 144 px } | 'loading' | null
+  function cardBldLoad(i) {
+    var F = FRAMES[i];
+    if (i in cardBld || !F || !F.building || !F.building.color) return;
+    cardBld[i] = 'loading';
+    var im = new Image(); im.crossOrigin = 'anonymous';
+    im.onload = function () {
+      try { var w = 144, h = Math.max(1, Math.round(w * im.naturalHeight / im.naturalWidth)), c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(im, 0, 0, w, h); cardBld[i] = { c: c }; }
+      catch (e) { cardBld[i] = null; }
+    };
+    im.onerror = function () { cardBld[i] = null; };
+    im.src = F.building.color;
+  }
+  function cardBuildingMask() {
+    if (!lastDraw) return null;
+    var d = lastDraw, PW = ChkaPostcard.W, PH = ChkaPostcard.H, MW = 108, MH = 192, cw = stage.clientWidth, ch = stage.clientHeight;
+    var s = Math.max(PW / cw, PH / ch), sx = (cw - PW / s) / 2, sy = (ch - PH / s) / 2;   // тот же cover-вырез, что у captureView (в px сцены)
+    var cv = document.createElement('canvas'); cv.width = MW; cv.height = MH;
+    var x = cv.getContext('2d', { willReadFrequently: true }), out = new Uint8Array(MW * MH), any = false;
+    [d.fa, d.mix > 0.02 ? d.fb : null].forEach(function (f) {
+      if (!f) return;
+      var m = cardBld[f.idx]; cardBldLoad(f.idx);
+      if (!m || m === 'loading') return;
+      var p0 = window.__viewer.projectB(f, 0, 0), p1 = window.__viewer.projectB(f, 1, 1);
+      x.clearRect(0, 0, MW, MH);
+      x.drawImage(m.c, (p0[0] - sx) * s * MW / PW, (p0[1] - sy) * s * MH / PH, (p1[0] - p0[0]) * s * MW / PW, (p1[1] - p0[1]) * s * MH / PH);
+      var a = x.getImageData(0, 0, MW, MH).data;
+      for (var i = 0; i < out.length; i++) if (a[i * 4 + 3] > out[i]) { out[i] = a[i * 4 + 3]; any = true; }
+    });
+    return any ? out : null;
+  }
   function composeCard(src, extra) {
     var lang = cardLang(), info = cardInfo(lang);
-    var o = { lang: lang, name: info.name, years: info.years, url: info.url, line: cardSet.line.trim(), film: cardSet.film, font: CARD_FONT };
+    var o = { lang: lang, name: info.name, years: info.years, url: info.url, line: cardSet.line.trim(), film: cardSet.film, font: CARD_FONT, mask: cardBuildingMask() };
     if (extra) Object.keys(extra).forEach(function (k) { o[k] = extra[k]; });
     return ChkaPostcard.compose(src, o);
   }
@@ -2975,7 +3008,7 @@
     });
   }
   // шрифты открытки — в простое после загрузки страницы (нажатие потом не ждёт сеть)
-  setTimeout(function () { (window.requestIdleCallback || function (f) { setTimeout(f, 1) })(function () { cardFontsLoad(); }); }, 4000);
+  setTimeout(function () { (window.requestIdleCallback || function (f) { setTimeout(f, 1) })(function () { cardFontsLoad(); FRAMES.forEach(function (F, i) { setTimeout(function () { cardBldLoad(i); }, 300 * i); }); }); }, 4000);
   window.__card = {   // для проверки (report s26): открытка с заданными настройками без «Поделиться»; dataURL JPEG/PNG
     make: function (o) { var src = captureView(); if (!src) return null; o = o || {};
       var keep = { lang: cardSet.lang, line: cardSet.line, film: cardSet.film };
@@ -2983,7 +3016,7 @@
       var cv = composeCard(src, { seed: o.seed != null ? o.seed : 26, date: o.date ? new Date(o.date) : undefined, grain: o.grain });
       cardSet.lang = keep.lang; cardSet.line = keep.line; cardSet.film = keep.film;
       return { url: cv.toDataURL(o.png ? 'image/png' : 'image/jpeg', 0.9), boxes: cv.__boxes, src: o.src ? src.toDataURL(o.png ? 'image/png' : 'image/jpeg', 0.9) : null }; },
-    fontsReady: function (l) { return cardFontsReady(l || cardLang()); }, fontsLoad: cardFontsLoad, safe: function () { return ChkaPostcard.SAFE; }
+    fontsReady: function (l) { return cardFontsReady(l || cardLang()); }, fontsLoad: cardFontsLoad, bldLoad: function () { FRAMES.forEach(function (F, i) { cardBldLoad(i); }); return new Promise(function (res) { var n = 0; (function w() { if (FRAMES.every(function (F, i) { return cardBld[i] !== 'loading'; }) || ++n > 100) res(); else setTimeout(w, 100); })(); }); }, mask: cardBuildingMask, safe: function () { return ChkaPostcard.SAFE; }
   };
 
   // размер текста: крупный (по умолчанию) / обычный

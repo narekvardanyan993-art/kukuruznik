@@ -1,0 +1,66 @@
+{
+ "kukuruznik-night-f2-hy": {
+  "building_px": 245343,
+  "building_pct": 11.8,
+  "before": {
+   "overlay_px": 129495,
+   "on_building_px": 28247,
+   "within12_px": 33294,
+   "outside_safe_px": 0
+  },
+  "after": {
+   "overlay_px": 47829,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  }
+ },
+ "kukuruznik-night-f2-ru-line": {
+  "building_px": 245343,
+  "building_pct": 11.8,
+  "before": {
+   "overlay_px": 206974,
+   "on_building_px": 65999,
+   "within12_px": 76271,
+   "outside_safe_px": 0
+  },
+  "after": {
+   "overlay_px": 61968,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  }
+ },
+ "lenin-day-f3-hy": {
+  "building_px": 1085906,
+  "building_pct": 52.4,
+  "before": {
+   "overlay_px": 125546,
+   "on_building_px": 76378,
+   "within12_px": 79280,
+   "outside_safe_px": 0
+  },
+  "after": {
+   "overlay_px": 36937,
+   "on_building_px": 0,
+   "within12_px": 0,
+   "outside_safe_px": 0
+  }
+ },
+ "lenin-day-f3-ru-line": {
+  "building_px": 1086087,
+  "building_pct": 52.4,
+  "before": {
+   "overlay_px": 182855,
+   "on_building_px": 128729,
+   "within12_px": 132020,
+   "outside_safe_px": 0
+  },
+  "after": {
+   "overlay_px": 50235,
+   "on_building_px": 4343,
+   "within12_px": 6562,
+   "outside_safe_px": 0
+  }
+ }
+}
