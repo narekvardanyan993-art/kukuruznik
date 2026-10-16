@@ -13,7 +13,7 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#f5ecda">
 <meta name="viewer-version" content="test">
-<meta name="engine-version" content="e1.26">
+<meta name="engine-version" content="e1.27">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Չկա">
 <meta property="og:url" content="https://chka.am/beta/tests/lenin/">
@@ -29,20 +29,20 @@
 <title>Լենինի արձանը, Երևան | Չկա</title>
 <script>/* ?motion=1 — показать всё движение, даже если в системе включено «Уменьшить движение» (для проверки) */
 (function () { if (/[?&]motion=1/.test(location.search)) document.documentElement.setAttribute('data-motion', 'on'); })();</script>
-<link rel="preload" href="../../engine/welcome-loader.js?v=e1.26" as="script">
-<link rel="preload" href="../../engine/welcome-letters.js?v=e1.26" as="script">
-<link rel="preload" href="../../engine/fonts/NotoSerif-latin.woff2?v=e1.26" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.26" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.26" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../../engine/welcome-loader.js?v=e1.27" as="script">
+<link rel="preload" href="../../engine/welcome-letters.js?v=e1.27" as="script">
+<link rel="preload" href="../../engine/fonts/NotoSerif-latin.woff2?v=e1.27" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.27" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.27" as="font" type="font/woff2" crossorigin>
 <style>
   /* Один шрифт для hy/ru/en — Noto Serif: латиница и кириллица (Noto Serif) и армянский (Noto Serif Armenian)
      из одной системы дизайна, лицензия OFL (fonts/LICENSE.txt). Подключён локально, один вес 400–700. */
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../../engine/fonts/NotoSerif-latin.woff2?v=e1.26) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    src: url(../../engine/fonts/NotoSerif-latin.woff2?v=e1.27) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.26) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+    src: url(../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.27) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.26) format("woff2"); unicode-range: U+0308, U+0530-058F, U+2010, U+2024, U+25CC, U+FB13-FB17; }
+    src: url(../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.27) format("woff2"); unicode-range: U+0308, U+0530-058F, U+2010, U+2024, U+25CC, U+FB13-FB17; }
   :root {
     --font: "Chka Serif", "Noto Serif", serif;
     --paper: #f5ecda; --paper-2: #ede0c2; --ink: #2f2a25;
@@ -830,13 +830,73 @@
   .cur-load.on { opacity: 1; }
   .cur-load path { fill: none; stroke: #2f2a25; stroke-width: 2.2; stroke-linecap: round; stroke-dasharray: 1; animation: curDraw 1.3s var(--ease) infinite; filter: drop-shadow(0 0 1.2px rgba(255,252,244,0.95)); }
   @keyframes curDraw { 0% { stroke-dashoffset: 1; } 60% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -1; } }
+
+  /* ---------- e1.27 (s26): открытка «в сторис» — кнопка, «Настроить», окно настроек, плашка «готово», вспышка ----------
+     Анимации по docs/ANIMATION.md: только transform/opacity, открытие --spring 520 мс, закрытие — зеркало, короче (300 мс, --in),
+     переходы (а не ключевые кадры) — прерываются с текущего положения. */
+  .p-acts { display: flex; }   /* полный экран | открытка + «Настроить»; спрятанный «полный экран» не оставляет дыры */
+  .p-acts > .act { flex: 1 1 0; min-width: 0; }
+  .p-acts > .act-card { flex: 2 1 0; display: grid; grid-template-columns: 1.35fr 1fr; gap: 6px; }
+  .p-acts .chip-cfg span { font-weight: 600; }
+  #cardBtn { border-width: 2px; border-color: rgba(47,42,37,0.55); }
+  #cardBtn svg { overflow: visible; }
+  #cardBtn .i-story, #cardBtn .i-ok { transition: opacity 240ms var(--out), transform 420ms var(--spring); transform-box: view-box; transform-origin: 16px 16px; }
+  #cardBtn .i-ok { opacity: 0; transform: scale(0.6); stroke: #4f8a3f; }
+  #cardBtn.done .i-story { opacity: 0; transform: scale(0.85); }
+  #cardBtn.done .i-ok { opacity: 1; transform: scale(1); }
+  .i-plq { stroke: currentColor; opacity: 0.7; }
+  .i-knob { fill: var(--paper); stroke: currentColor; }
+  .chip.on .i-knob { fill: var(--ink); stroke: var(--paper); }
+  #cardFlash { position: absolute; inset: 0; z-index: 4; background: #fffaf0; opacity: 0; pointer-events: none; }
+  #cardScrim { position: fixed; inset: 0; z-index: 88; background: rgba(20,16,8,0.4); opacity: 0; pointer-events: none; transition: opacity 260ms var(--in); }
+  body.card-open #cardScrim { opacity: 1; pointer-events: auto; transition: opacity 360ms var(--out); }
+  #cardCfg {
+    position: fixed; z-index: 89; left: 50%; bottom: calc(var(--safe-b) + 12px); width: min(440px, calc(100vw - 24px)); max-height: calc(100% - var(--safe-t) - var(--safe-b) - 24px);
+    margin-left: calc(min(440px, 100vw - 24px) / -2); padding: 14px 16px 16px; overflow: auto; overscroll-behavior: contain;
+    display: flex; flex-direction: column; gap: 12px;
+    opacity: 0; transform: translateY(28px) scale(0.97); visibility: hidden; pointer-events: none; will-change: transform, opacity;
+    transition: transform 300ms var(--in), opacity 240ms var(--in), visibility 0s linear 300ms;
+  }
+  body.card-open #cardCfg { opacity: 1; transform: none; visibility: visible; pointer-events: auto; transition: transform 520ms var(--spring), opacity 300ms var(--out), visibility 0s; }
+  @media (min-width: 1024px) { #cardCfg { top: 50%; bottom: auto; margin-top: -240px; max-height: calc(100% - 32px); } }
+  @media (min-width: 1024px) and (max-height: 640px) { #cardCfg { top: 16px; margin-top: 0; } }
+  .cc-head { display: flex; align-items: center; justify-content: space-between; }
+  .cc-head h3 { margin: 0; font: 700 20px/1.2 var(--font); }
+  .cc-x { width: 44px; height: 44px; margin: -6px -8px -6px 0; border: 0; background: transparent; color: var(--ink); display: grid; place-items: center; cursor: var(--cp); border-radius: 50%; }
+  .cc-x svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+  .cc-body { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: start; }
+  #cardPrev { width: 128px; height: 228px; border-radius: 6px; background: var(--paper-2); box-shadow: 0 6px 16px rgba(47,42,37,0.28), 0 0 0 1px rgba(47,42,37,0.25); }
+  @media (min-width: 400px) and (min-height: 700px) { #cardPrev { width: 150px; height: 267px; } }
+  @media (min-width: 1024px) { #cardPrev { width: 180px; height: 320px; } }
+  .cc-ctl { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .cc-lbl { display: flex; justify-content: space-between; align-items: baseline; font: 600 13px/1.2 var(--font); color: rgba(47,42,37,0.8); }
+  .cc-lbl i { font: italic 500 12px/1 var(--font); color: rgba(47,42,37,0.55); }
+  .cc-ctl .chips-text .chip { min-height: 44px; font-size: 14px; }
+  #cardLine { width: 100%; min-height: 44px; padding: 8px 10px; border: 1.5px solid rgba(47,42,37,0.4); border-radius: 10px 5px 10px 5px / 5px 10px 5px 10px;
+    background: rgba(255,252,244,0.9); color: var(--ink); font: 400 16px/1.2 var(--font); user-select: text; -webkit-user-select: text; outline: none; }
+  #cardLine:focus { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(47,42,37,0.12); }
+  .cc-film { flex-direction: row; justify-content: flex-start; gap: 8px; min-height: 48px; padding: 6px 12px; }
+  .cc-film span { font-size: 14px; }
+  .cc-go { background: var(--ink); color: var(--paper); }
+  #cardToast {
+    position: fixed; z-index: 92; left: 50%; bottom: calc(var(--safe-b) + 24px); max-width: calc(100vw - 32px); min-height: 48px; padding: 10px 18px;
+    border: 2px solid var(--ink); border-radius: 14px 7px 14px 7px / 7px 14px 7px 14px; background: var(--ink); color: var(--paper);
+    font: 700 15px/1.25 var(--font); box-shadow: 0 10px 24px rgba(20,16,8,0.35); cursor: var(--cp);
+    opacity: 0; transform: translate(-50%, 20px) scale(0.96); pointer-events: none; visibility: hidden;
+    transition: transform 280ms var(--in), opacity 220ms var(--in), visibility 0s linear 280ms;
+  }
+  #cardToast.on { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; visibility: visible; transition: transform 520ms var(--spring), opacity 300ms var(--out), visibility 0s; }
+  @media (prefers-reduced-motion: reduce) {
+    #cardCfg, body.card-open #cardCfg, #cardToast, #cardToast.on { transform: none; }
+    #cardToast, #cardToast.on { transform: translate(-50%, 0); }
+  }
 </style>
 </head>
 <body>
 <script>try { if (localStorage.getItem('chka-panel') === 'collapsed') document.body.classList.add('panel-collapsed'); } catch (e) {}   /* панель, свёрнутая в прошлый раз, — сразу свёрнутой, без анимации закрытия */</script>
 
-<script src="../../engine/welcome-letters.js?v=e1.26"></script>
-<script src="../../engine/welcome-loader.js?v=e1.26"></script>
+<script src="../../engine/welcome-letters.js?v=e1.27"></script>
+<script src="../../engine/welcome-loader.js?v=e1.27"></script>
 <script>
 /* ===================== CONFIG =====================
    Все параметры эффекта «3D-фото» собраны здесь, ничего похожего
@@ -1087,9 +1147,44 @@ var CONFIG = {
    "hy": "լայնէկրան"
   },
   "postcard": {
-   "ru": "Сохранить открытку",
-   "en": "Save postcard",
-   "hy": "պահպանել"
+   "ru": "Открытка в сторис",
+   "en": "Story postcard",
+   "hy": "Բացիկ սթորիի համար"
+  },
+  "postcardCfg": {
+   "ru": "Настроить",
+   "en": "Customize",
+   "hy": "Կարգավորել"
+  },
+  "cardTitle": {
+   "ru": "Открытка",
+   "en": "Postcard",
+   "hy": "Բացիկ"
+  },
+  "cardLang": {
+   "ru": "Язык подписи",
+   "en": "Caption language",
+   "hy": "Մակագրության լեզուն"
+  },
+  "cardLine": {
+   "ru": "Своя строка",
+   "en": "Your line",
+   "hy": "Ձեր տողը"
+  },
+  "cardFilm": {
+   "ru": "Старая плёнка",
+   "en": "Old film",
+   "hy": "Հին ժապավեն"
+  },
+  "cardSave": {
+   "ru": "Сохранить",
+   "en": "Save",
+   "hy": "Պահպանել"
+  },
+  "cardReady": {
+   "ru": "Открытка готова — нажмите, чтобы сохранить",
+   "en": "Postcard ready — tap to save",
+   "hy": "Բացիկը պատրաստ է․ սեղմեք՝ պահպանելու համար"
   },
   "textSize": {
    "ru": "Размер текста",
@@ -4572,6 +4667,15 @@ var CONFIG = {
   "removed"
  ],
  "POSTCARD_FILE": "lenin-1980s.png",
+ "POSTCARD": {
+  "name": {
+   "hy": "Լենինի արձանը",
+   "ru": "Памятник Ленину",
+   "en": "Lenin Monument"
+  },
+  "years": "1940–1991",
+  "url": "chka.am/lenin"
+ },
  "I18N": {
   "sculptor": {
    "hy": "Արձանի հեղինակը քանդակագործ Սերգեյ Մերկուրովն է։",
@@ -4590,12 +4694,12 @@ var CONFIG = {
   }
  }
 };
-CONFIG.ENGINE_V = 'e1.26';
+CONFIG.ENGINE_V = 'e1.27';
 /* e1.15 (s9): Safari на iPhone показывал старую страницу из кэша (восстановленная вкладка) — со старыми настройками при новом движке
    (у Ленина всплыли отменённые круги с цифрами). Страница сверяет свою версию с engine/VERSION (без кэша) при открытии, при возврате
    из кэша вкладок и после 10+ мин в фоне; новее — один раз перезагружается на свежий адрес. */
 (function () {
-  var V = 'e1.26', E = '../../engine/', hid = 0;
+  var V = 'e1.27', E = '../../engine/', hid = 0;
   function chk() {
     if (!window.fetch) return;
     fetch(E + 'VERSION?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
@@ -4678,7 +4782,7 @@ window.__wl = WelcomeLoader.create({
     </section>
     <section class="p-sec p-acts">
       <div class="act"><button type="button" id="fsBtn" class="chip chip-act"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 12V6h6M26 12V6h-6M6 20v6h6M26 20v6h-6"/></svg><span data-i18n="fullscreen">Полный экран</span></button></div>
-      <div class="act"><button type="button" id="cardBtn" class="chip chip-act"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="5" y="8" width="22" height="16" rx="2.5"/><path class="i-cardsun" d="M9 20l5-5 4 4 3-3 3 4"/><circle class="i-cardsun2" cx="21" cy="12.5" r="1.6"/></svg><span data-i18n="postcard">Сохранить открытку</span></button></div>
+      <div class="act act-card"><button type="button" id="cardBtn" class="chip chip-act"><svg viewBox="0 0 32 32" aria-hidden="true"><g class="i-story"><path d="M10.4 3.6 Q16 3.2 21.8 3.7 Q23.6 3.8 23.6 5.8 Q24 16 23.5 26.4 Q23.4 28.3 21.5 28.3 Q16 28.7 10.3 28.2 Q8.5 28.1 8.5 26.2 Q8.1 16 8.6 5.6 Q8.7 3.7 10.4 3.6Z"/><path d="M9.9 5.2 Q16 4.8 22 5.3 M22.2 6.4 Q22.5 16 22.1 26.6" stroke-width="0.8" opacity=".5"/><path class="i-cardsun" d="M10.6 19.6 l3.6-3.4 2.9 2.4 2.3-2 2.2 2.4"/><circle class="i-cardsun2" cx="19.2" cy="10.6" r="1.7"/><path class="i-plq" d="M11.2 23.4 h6.6 M11.2 25.6 h4.2" stroke-width="1.4"/></g><path class="i-ok" d="M10 16.6 l4.2 4.2 7.8-8.6" stroke-width="2.6"/></svg><span data-i18n="postcard">Открытка в сторис</span></button><button type="button" id="cardCfgBtn" class="chip chip-act chip-cfg"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5.5 9.2 Q16 8.6 26.5 9.4 M5.6 16.1 Q16 15.6 26.4 16.3 M5.4 23 Q16 22.5 26.6 23.2"/><circle class="i-knob" cx="11.5" cy="9.1" r="2.7"/><circle class="i-knob" cx="20.6" cy="16.1" r="2.7"/><circle class="i-knob" cx="14" cy="23" r="2.7"/></svg><span data-i18n="postcardCfg">Настроить</span></button></div>
     </section>
     <section class="p-sec p-grp">
       <div class="grp-h"><h3 data-i18n="textSize">Размер текста</h3></div>
@@ -4730,6 +4834,22 @@ document.querySelectorAll('.chips').forEach(function (g) { g.querySelectorAll('.
 </script>
 <button type="button" id="panelBtn" aria-label="Menu"><svg class="ic-wheel" viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="20" cy="20" r="16.5" stroke-width="2.2"/><circle cx="20" cy="20" r="14.2" stroke-width="0.8" opacity=".55"/><g class="arms"><g transform="rotate(0 20 20)"><path class="arm" style="--i:0" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(45 20 20)"><path class="arm" style="--i:1" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(90 20 20)"><path class="arm" style="--i:2" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(135 20 20)"><path class="arm" style="--i:3" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(180 20 20)"><path class="arm" style="--i:4" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(225 20 20)"><path class="arm" style="--i:5" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(270 20 20)"><path class="arm" style="--i:6" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g><g transform="rotate(315 20 20)"><path class="arm" style="--i:7" pathLength="1" d="M22.6 20 C26.4 19.7 31.2 19.1 32.7 14.3 q0.9 -1.6 -0.5 -2.7" stroke-width="1.8"/></g></g><circle cx="20" cy="20" r="2.7" stroke-width="1.7"/></g></svg><span class="pb-tag" aria-hidden="true"><svg class="pb-bg" viewBox="0 0 66 58" preserveAspectRatio="none"><path class="pb-fill" d="M7.5 6.2 Q33 3.4 58.6 5.4 Q61.2 29 59.6 52.4 Q33 55.2 6.4 52.9 Q4.4 29 7.5 6.2Z"/><path class="pb-line" d="M7.5 6.2 Q33 3.4 58.6 5.4 Q61.2 29 59.6 52.4 Q33 55.2 6.4 52.9 Q4.4 29 7.5 6.2Z"/><path class="pb-line2" d="M8.6 7.6 Q33 5.2 57.2 6.8 M58.4 8 Q59.6 30 58.2 50.6 M7.6 51.2 Q33 53.8 57.6 51.4"/><circle class="pb-hole" cx="13.5" cy="12.5" r="2.3"/></svg><svg class="pb-ic" viewBox="0 0 26 18"><g fill="none" stroke="currentColor" stroke-linecap="round"><path d="M3.4 3.6 h.01 M3.2 9.2 h.01 M3.5 14.9 h.01" stroke-width="3.2"/><path d="M8.2 3.4 Q15.4 2.7 23.2 3.8" stroke-width="2.1"/><path d="M8 9 Q15.2 8.4 23.4 9.4" stroke-width="2.1"/><path d="M8.3 14.8 Q15.6 14.1 22.8 15.2" stroke-width="2.1"/><path d="M8.9 4.3 Q15.6 3.7 22.4 4.6 M8.7 9.9 Q15.4 9.3 22.6 10.2 M9 15.6 Q15.8 15 22 15.9" stroke-width="0.7" opacity=".5"/></g></svg><span class="pb-txt">Меню</span><svg class="pb-arrow" viewBox="0 0 60 60"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path class="pa1" pathLength="1" d="M44 6 Q50 26 30 38 Q22 43 14 46" stroke-width="2.2"/><path class="pa2" pathLength="1" d="M20.5 40.5 L13.5 46.2 L22.4 49" stroke-width="2.2"/></g></svg></span></button>
 <div id="scrim"></div>
+<div id="cardScrim"></div>
+<div id="cardCfg" class="sketch" role="dialog" aria-modal="true" aria-labelledby="cardCfgH" hidden>
+  <div class="cc-head"><h3 id="cardCfgH" data-i18n="cardTitle">Открытка</h3><button type="button" id="cardCfgClose" class="cc-x" aria-label="Закрыть" data-i18n-title="close"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M9 9l14 14M23 9L9 23"/></svg></button></div>
+  <div class="cc-body">
+    <canvas id="cardPrev" width="180" height="320" aria-hidden="true"></canvas>
+    <div class="cc-ctl">
+      <div class="cc-lbl" data-i18n="cardLang">Язык подписи</div>
+      <div class="chips chips-one chips-text" role="group"><button type="button" class="chip" data-clang="hy"><b>Հայ</b></button><button type="button" class="chip" data-clang="ru"><b>Рус</b></button><button type="button" class="chip" data-clang="en"><b>Eng</b></button></div>
+      <label class="cc-lbl" for="cardLine"><span data-i18n="cardLine">Своя строка</span> <i id="cardLineN">0 / 40</i></label>
+      <input type="text" id="cardLine" maxlength="40" autocomplete="off" enterkeyhint="done">
+      <button type="button" id="cardFilm" class="chip cc-film" aria-pressed="false"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7.4 5.6 Q16 5.1 24.6 5.7 Q25.2 16 24.5 26.4 Q16 26.9 7.5 26.3 Q6.9 16 7.4 5.6Z"/><path d="M11 6v20.4M21 5.8v20.6" stroke-width="1.2"/><path class="i-holes" d="M9.2 9h.01M9.2 13.4h.01M9.2 17.8h.01M9.2 22.2h.01M22.8 9h.01M22.8 13.4h.01M22.8 17.8h.01M22.8 22.2h.01" stroke-width="2.4"/><path d="M13.6 19.4 l2.1-2.6 1.7 1.6 1.6-1.8" stroke-width="1.3"/></svg><span data-i18n="cardFilm">Старая плёнка</span></button>
+    </div>
+  </div>
+  <button type="button" id="cardGo" class="p-btn cc-go"><span data-i18n="cardSave">Сохранить</span></button>
+</div>
+<button type="button" id="cardToast"><span></span></button>
 <button type="button" id="immExit" aria-label="Выйти" data-i18n-title="close"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M11 5H5v6M21 5h6v6M11 27H5v-6M21 27h6v-6"/></svg></button>
 <div id="bottomBar"><button type="button" id="flagBtnB" class="flag-btn sh-btn" aria-label="Парад" data-i18n-title="flag"><span class="pb-tag sh-tag" aria-hidden="true"><svg class="pb-bg" viewBox="0 0 58 58" preserveAspectRatio="none"><path class="pb-fill" d="M29 4.6 C43.4 3.9 53.9 14.3 53.6 28.8 C53.3 43.6 43 53.7 28.6 53.4 C14.1 53.1 4.3 42.8 4.6 28.6 C4.9 14.5 15 5.3 29 4.6Z"/><path class="pb-line" d="M29 4.6 C43.4 3.9 53.9 14.3 53.6 28.8 C53.3 43.6 43 53.7 28.6 53.4 C14.1 53.1 4.3 42.8 4.6 28.6 C4.9 14.5 15 5.3 29 4.6Z"/><path class="pb-line2" d="M30.4 6.4 C42.6 6.6 51.4 15.4 51.6 27.6 M50.8 33 C48.6 44 40 51.2 29.4 51.6 M8.2 21.6 C10.6 13.4 17.6 7.8 25.4 6.9"/></svg><svg class="sh-ic" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><g class="sh-play"><path d="M5.6 27 L18.9 13.4" stroke-width="3.3"/><path d="M6.9 27.9 L19.9 14.6" stroke-width="0.8" opacity=".5"/><path d="M15.2 15.5 L17.7 18" stroke-width="1.3" opacity=".7"/><path class="sh-star" d="M23.4 3 Q24.2 7.6 28.8 8.6 Q24.2 9.6 23.4 14.2 Q22.6 9.6 18 8.6 Q22.6 7.6 23.4 3Z" fill="currentColor" fill-opacity=".2" stroke-width="1.8"/><path class="sh-sp1" d="M27.6 17 Q27.9 18.5 29.4 18.8 Q27.9 19.1 27.6 20.6 Q27.3 19.1 25.8 18.8 Q27.3 18.5 27.6 17Z" stroke-width="1.1"/><path class="sh-sp2" d="M10.6 5.4 Q10.8 6.6 12 6.8 Q10.8 7 10.6 8.2 Q10.4 7 9.2 6.8 Q10.4 6.6 10.6 5.4Z" stroke-width="1"/><path d="M15.4 3.6 h.01 M29.6 12.8 h.01" stroke-width="2"/></g><g class="sh-stop"><path d="M9 9 Q16 8.4 23 9 Q23.6 16 23 23 Q16 23.6 9 23 Q8.4 16 9 9Z" fill="currentColor" fill-opacity=".16" stroke-width="2.2"/><path d="M10.2 10.3 Q16 9.8 21.8 10.2 M21.9 10.8 Q22.3 16 21.8 21.4" stroke-width="0.8" opacity=".5"/></g></g></svg><svg class="sh-bar" viewBox="0 0 66 8" preserveAspectRatio="none"><path class="rt" pathLength="3" d="M12 4 Q33 2.6 54 4"/><path class="rs rs0" pathLength="3" d="M12 4 Q33 2.6 54 4"/><path class="rs rs1" pathLength="3" d="M12 4 Q33 2.6 54 4"/><path class="rs rs2" pathLength="3" d="M12 4 Q33 2.6 54 4"/></svg><svg class="sh-arrow" viewBox="0 0 70 60"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path class="pa1" pathLength="1" d="M6 6 Q8 30 30 40 Q40 44 52 46" stroke-width="2.6"/><path class="pa2" pathLength="1" d="M44 40.4 L52.6 46.2 L43.6 50.6" stroke-width="2.6"/><path class="pa3" pathLength="1" d="M7.4 9.6 Q10 30 30.8 38.6" stroke-width="0.8" opacity=".5"/></g></svg></span></button><div id="barTitle"></div><a id="homeBtn" class="arrow-btn" href="../../../" aria-label="На главную"><svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6.2 20.8 Q13 14.4 20 8.4 Q27 14.6 33.8 20.6" stroke-width="2.8"/><path d="M26.4 13.6 V8.2 h3.4 V16.6" stroke-width="2.2"/><path d="M28.6 5.6 q-1.6 -1.6 0.2 -3.2" stroke-width="1.1" opacity=".6"/><path d="M11 18.6 Q10.8 25.6 11.1 32.2 H29 Q29.3 25.4 29 18.4" stroke-width="2.8"/><path d="M17.2 32 V24.4 Q20 23.6 22.8 24.4 V32" stroke-width="2.3"/><path d="M13.6 21 h2.6 v2.6 h-2.6z" stroke-width="1.4"/><path d="M7.3 21.6 Q13.6 15.6 20.4 9.6 M12 19.6 Q11.9 26 12.1 32.9 H29.6" stroke-width="1.05" opacity=".5"/></g></svg></a></div>
 <main id="view">
@@ -4737,6 +4857,7 @@ document.querySelectorAll('.chips').forEach(function (g) { g.querySelectorAll('.
 <button type="button" id="prevSide" class="arrow-btn nav-side" aria-label="Предыдущий кадр"><svg viewBox="0 0 40 40" width="42" height="42" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21.6 10.4C18.8 14.8 15.6 18.4 12.6 20.2c3.1 1.8 6.6 5.2 9.6 9.6" stroke-width="3"/><path d="M13.4 20.3 Q20.6 19.6 28.4 20.4" stroke-width="2.6"/><path d="M22.7 11.5C19.4 15.7 16.4 18.9 13.8 20.6c2.9 1.9 6.1 5 8.9 8.8 M14.6 21.4 Q21.2 20.9 27.4 21.6" stroke-width="1.1" opacity=".5"/><path d="M29.6 18.6 q1.6 1.7 0 3.6" stroke-width="1.2" opacity=".6"/></g></svg></button>
 <div id="stage" class="loading">
   <canvas id="gl"></canvas>
+  <div id="cardFlash" aria-hidden="true"></div>
   <div id="fallback" hidden></div>
   <button id="prevBtn" class="arrow-btn nav-btn" type="button" aria-label="Предыдущий кадр"><svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21.6 10.4C18.8 14.8 15.6 18.4 12.6 20.2c3.1 1.8 6.6 5.2 9.6 9.6" stroke-width="3"/><path d="M13.4 20.3 Q20.6 19.6 28.4 20.4" stroke-width="2.6"/><path d="M22.7 11.5C19.4 15.7 16.4 18.9 13.8 20.6c2.9 1.9 6.1 5 8.9 8.8 M14.6 21.4 Q21.2 20.9 27.4 21.6" stroke-width="1.1" opacity=".5"/><path d="M29.6 18.6 q1.6 1.7 0 3.6" stroke-width="1.2" opacity=".6"/></g></svg></button>
   <button id="nextBtn" class="arrow-btn nav-btn nav-next" type="button" aria-label="Следующий кадр"><svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21.6 10.4C18.8 14.8 15.6 18.4 12.6 20.2c3.1 1.8 6.6 5.2 9.6 9.6" stroke-width="3"/><path d="M13.4 20.3 Q20.6 19.6 28.4 20.4" stroke-width="2.6"/><path d="M22.7 11.5C19.4 15.7 16.4 18.9 13.8 20.6c2.9 1.9 6.1 5 8.9 8.8 M14.6 21.4 Q21.2 20.9 27.4 21.6" stroke-width="1.1" opacity=".5"/><path d="M29.6 18.6 q1.6 1.7 0 3.6" stroke-width="1.2" opacity=".6"/></g></svg></button>
@@ -4750,9 +4871,10 @@ document.querySelectorAll('.chips').forEach(function (g) { g.querySelectorAll('.
 </main>
 </div>
 
-<script src="../../engine/wall-data.js?v=e1.26" defer></script>
-<script src="../../engine/wall.js?v=e1.26" defer></script>
-<script src="../../engine/viewer.js?v=e1.26" defer>
+<script src="../../engine/wall-data.js?v=e1.27" defer></script>
+<script src="../../engine/wall.js?v=e1.27" defer></script>
+<script src="../../engine/postcard.js?v=e1.27" defer></script>
+<script src="../../engine/viewer.js?v=e1.27" defer>
 </script>
 <script>
 // e1.13: курсор ПК — чернильный кружок у острия плавно растёт над кликабельным, при загрузке рядом рисует себя чернильный круг
