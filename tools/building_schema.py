@@ -221,7 +221,7 @@ def validate(bdir, b, site):
         c.err('postcardFile', 'имя файла открытки должно оканчиваться на .png')
     # открытка «в сторис» (e1.27, s26): музейная табличка — название, годы, адрес chka.am/<здание>; без блока — название из панели
     if 'postcard' in b:
-        pc = c.obj(b['postcard'], 'postcard', required=('name', 'years', 'url'))
+        pc = c.obj(b['postcard'], 'postcard', required=('name', 'years', 'url'), optional=('no',))
         if pc:
             c.i18n(pc['name'], 'postcard.name')
             if isinstance(pc['name'], dict):
@@ -241,6 +241,9 @@ def validate(bdir, b, site):
                     c.err('postcard.years', 'годы длиннее 32 знаков: %r' % v)
             if c.string(pc['url'], 'postcard.url') and not re.fullmatch(r'chka\.am(/[a-z0-9-]+)?', pc['url']):
                 c.err('postcard.url', 'адрес на открытке — вида chka.am/<здание> (латиница, без https:// и слеша в конце), а не %r' % pc['url'])
+            # e1.28 (9б-1): номер экспоната на табличке («ЭКСПОНАТ № 001») — целое 1…999, у каждого здания свой
+            if 'no' in pc and (isinstance(pc['no'], bool) or not isinstance(pc['no'], int) or not 1 <= pc['no'] <= 999):
+                c.err('postcard.no', 'номер экспоната — целое число от 1 до 999, а не %r' % (pc['no'],))
 
     # --- тексты ---
     tx = c.obj(b['text'], 'text', required=('title', 'pageTitle', 'plaque', 'panelTitle', 'welcome'))

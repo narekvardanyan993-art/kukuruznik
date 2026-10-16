@@ -147,12 +147,35 @@
   }
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitTitle).catch(function () {});
 
+  // Смена языка и размера текста (e1.28, docs/ANIMATION.md): текст гаснет за 120 мс (--in) и чуть уходит вверх, меняется, проявляется снизу
+  // (--out / --spring). Только opacity/transform (классы tx-* на <html>, CSS в page.html). Новое нажатие посреди смены сразу применяет
+  // отложенную и начинает свою — без мигания и возврата.
+  var txT = [], txApply = null;
+  function textSwap(kind, apply) {
+    var root = document.documentElement;
+    txT.forEach(clearTimeout); txT = [];
+    if (txApply) { var f0 = txApply; txApply = null; f0(); }
+    root.classList.remove('tx-pre', 'tx-lang', 'tx-size');
+    root.classList.add('tx-run', 'tx-' + kind, 'tx-out');
+    txApply = apply;
+    txT.push(setTimeout(function () {
+      var f = txApply; txApply = null; if (f) f();
+      root.classList.add('tx-pre'); root.classList.remove('tx-out'); void root.offsetWidth;
+      root.classList.remove('tx-pre');
+      txT.push(setTimeout(function () { root.classList.remove('tx-run', 'tx-lang', 'tx-size'); }, 700));   // после конца переходов (460 мс), с запасом
+    }, 130));
+  }
   langButtons.forEach(function (b) {
     b.addEventListener('click', function () {
-      currentLang = b.getAttribute('data-lang');
-      try { localStorage.setItem('chka-lang', currentLang); } catch (e) {}
-      applyLang();
+      var l = b.getAttribute('data-lang');
       closePopup();
+      if (l === currentLang) return;
+      langButtons.forEach(function (x) { x.classList.toggle('on', x === b); });   // отметка — сразу, текст — мягко
+      textSwap('lang', function () {
+        currentLang = l;
+        try { localStorage.setItem('chka-lang', currentLang); } catch (e) {}
+        applyLang();
+      });
     });
   });
   applyLang();
@@ -2816,21 +2839,40 @@
   document.addEventListener('fullscreenchange', onFullscreenChange);
   document.addEventListener('webkitfullscreenchange', onFullscreenChange);
 
-  // ---------- открытка «в сторис» (e1.27, s26): один тап — 1080×1920 в Фото; «Настроить» — язык подписи, своя строка, старая плёнка ----------
-  // Кадр — ровно то, что на экране (время суток, погода, снег, облака, птицы): холст рисуется ещё раз крупнее и обрезается «cover» под 9:16.
-  // Табличка, штемпель и подпись — engine/postcard.js, только в безопасной зоне TikTok/Instagram. На телефоне — системное «Поделиться» с файлом
-  // (там «Сохранить изображение»), на ПК и без Web Share — скачивание PNG. Share вызывается СИНХРОННО в обработчике нажатия (toDataURL, без
-  // ожиданий) — иначе iOS теряет «жест пользователя» и не открывает меню; не вышло — плашка «Открытка готова» со вторым нажатием.
-  var cardBtn = document.getElementById('cardBtn'), cardCfgBtn = document.getElementById('cardCfgBtn');
-  var cardCfg = document.getElementById('cardCfg'), cardPrev = document.getElementById('cardPrev'), cardLineIn = document.getElementById('cardLine');
+  // ---------- открытка «в сторис» (e1.27 s26 → e1.28 9б-1) ----------
+  // Кнопка «Открытка» (пара с «Во весь экран») открывает окно: на телефоне — шторка снизу (тянется вниз за ручку — закрыть), на ПК — по центру.
+  // В окне — живое превью (кадр с экрана в момент открытия: время суток, погода, снег, облака, птицы; табличка, штемпель — engine/postcard.js),
+  // большая «Сохранить» (телефон — системное «Поделиться» с JPEG, там «Сохранить изображение»; ПК и без Web Share — PNG) и настройки группами:
+  // «Дата» (сегодня / мой год — год на штемпеле), «Подпись» (язык, своя строка, старая плёнка). Группы «Момент» и «Оборот» — 9б-2 (CARD_GROUPS).
+  // Номер экспоната — building.json → postcard.no; редкая открытка — особая погода (ночь + снег, закат + дождь/снег, ночь + туман, метель, парад)
+  // или «повезло» (1 из 15 по зерну окна): красный штемпель и «✦ РЕДКАЯ» на табличке.
+  // «Сохранить» отдаёт ГОТОВУЮ открытку из превью СИНХРОННО в обработчике нажатия (toDataURL, без ожиданий) — иначе iOS теряет «жест» и не
+  // открывает меню; не вышло (шрифты не успели) — плашка «Открытка готова» со вторым нажатием.
+  var cardBtn = document.getElementById('cardBtn'), cardGo = document.getElementById('cardGo');
+  var cardCfg = document.getElementById('cardCfg'), cardPrev = document.getElementById('cardPrev'), cardPrevOld = document.getElementById('cardPrevOld'), cardLineIn = document.getElementById('cardLine');
   var cardToast = document.getElementById('cardToast'), cardFlash = document.getElementById('cardFlash');
+  var cardYearIn = document.getElementById('cardYear'), cardYearOut = document.getElementById('cardYearOut');
   var CARD_FONT = '"Chka Serif", "Noto Serif", serif';
   var CARD_SAMPLE = { hy: 'Երևան Կուկուռուզնիկ 0123', ru: 'Ереван Памятник 0123', en: 'Yerevan Monument 0123' };
+  var CARD_GROUPS = { date: true, sign: true, moment: false, back: false };   // 9б-2: «Момент» (ползунок рассвет→ночь, погода), «Оборот» — пока скрыты
+  Object.keys(CARD_GROUPS).forEach(function (k) { var g = cardCfg && cardCfg.querySelector('[data-grp="' + k + '"]'); if (g) g.hidden = !CARD_GROUPS[k]; });
   if (!useGL || !window.ChkaPostcard) { cardBtn.hidden = true; cardBtn.parentNode.hidden = true; }
+  (function () { var a = document.getElementById('pActs'); if (a) a.classList.toggle('solo', !!(fsBtn.parentNode.hidden || cardBtn.parentNode.hidden)); })();   // одна кнопка — во всю ширину
+  var CARD_YEARS = (function () {   // «мой год» — в пределах жизни здания (годы с таблички), не позже текущего
+    var y = (CONFIG.POSTCARD || {}).years, now = new Date().getFullYear();
+    y = y && typeof y === 'object' ? (y.en || y.ru || y.hy) : y;
+    var m = /(\d{4})\D+(\d{4})/.exec(String(y || ''));
+    var a = m ? +m[1] : 1900, b = m ? Math.min(+m[2], now) : now;
+    return b > a ? [a, b] : [1900, now];
+  })();
   var cardSet = (function () { var s = null; try { s = JSON.parse(lsGet('chka-card') || 'null'); } catch (e) {} s = s && typeof s === 'object' ? s : {};
-    return { lang: CONFIG.LANGS.indexOf(s.lang) >= 0 ? s.lang : null, line: typeof s.line === 'string' ? s.line.slice(0, 40) : '', film: !!s.film }; })();
+    var yr = Math.round(+s.year); yr = yr >= CARD_YEARS[0] && yr <= CARD_YEARS[1] ? yr : null;
+    return { lang: CONFIG.LANGS.indexOf(s.lang) >= 0 ? s.lang : null, line: typeof s.line === 'string' ? s.line.slice(0, 40) : '', film: !!s.film,
+      date: s.date === 'year' ? 'year' : 'today', year: yr }; })();
   function cardSave() { lsSet('chka-card', JSON.stringify(cardSet)); }
   function cardLang() { return cardSet.lang || currentLang; }
+  function cardYear() { return cardSet.year || Math.round((CARD_YEARS[0] + CARD_YEARS[1]) / 2); }
+  function cardNo() { var n = Math.round(+(CONFIG.POSTCARD || {}).no); return n > 0 ? (n < 10 ? '00' : n < 100 ? '0' : '') + n : ''; }
   var shareOK = !!(navigator.share && navigator.canShare) && window.matchMedia('(pointer: coarse)').matches;   // ПК — скачивание файла
   function cardFontsReady(lang) {
     if (!document.fonts || !document.fonts.check) return true;
@@ -2840,13 +2882,18 @@
   function cardFontsLoad() {   // шрифты всех трёх письменностей — заранее, чтобы нажатие не ждало сети
     if (!document.fonts || !document.fonts.load) return Promise.resolve();
     var all = [];
-    CONFIG.LANGS.forEach(function (l) { ['400', '500', '700'].forEach(function (w) { all.push(document.fonts.load(w + ' 40px ' + CARD_FONT, CARD_SAMPLE[l] || '').catch(function () {})); }); });
+    CONFIG.LANGS.forEach(function (l) { ['400', '500', '600', '700'].forEach(function (w) { all.push(document.fonts.load(w + ' 40px ' + CARD_FONT, CARD_SAMPLE[l] || '').catch(function () {})); }); });
     return Promise.all(all);
   }
   function cardInfo(lang) {   // данные таблички — из building.json (postcard); старое здание без них — название из панели
     var P = CONFIG.POSTCARD || {};
     var tx = function (v) { return v && typeof v === 'object' ? (v[lang] || v.en || '') : (v || ''); };
     return { name: tx(P.name) || CONFIG.UI_I18N.panelTitle[lang], years: tx(P.years), url: P.url || 'chka.am' };
+  }
+  function cardTodName() { var b = document.querySelector('#todSeg .chip.on'); return b ? b.getAttribute('data-tod') : 'day'; }
+  function sceneRare() {   // особая погода — редкая открытка
+    var t = cardTodName(), n = t === 'night', ss = t === 'sunset';
+    return !!((n && wxOn.snow) || (ss && (wxOn.snow || wxOn.rain)) || (n && wxOn.fog) || (wxOn.snow && windIdx === 2) || paradeBusy || (window.Details && window.Details.paradeBusy && window.Details.paradeBusy()));
   }
   // кадр с экрана → холст 1080×1920 (cover). null — рисовать нечем (нет WebGL / потерян контекст / первый кадр ещё не нарисован)
   function captureView() {
@@ -2901,10 +2948,13 @@
     });
     return any ? out : null;
   }
+  var cfg = { src: null, mask: null, seed: undefined, rare: false, card: null, t: 0, pend: false };   // окно: снимок кадра, зерно, редкость — одни на всё окно
   function composeCard(src, extra) {
-    var lang = cardLang(), info = cardInfo(lang);
-    var o = { lang: lang, name: info.name, years: info.years, url: info.url, line: cardSet.line.trim(), film: cardSet.film, font: CARD_FONT, mask: cardBuildingMask() };
-    if (extra) Object.keys(extra).forEach(function (k) { o[k] = extra[k]; });
+    var lang = cardLang(), info = cardInfo(lang), U = CONFIG.UI_I18N;
+    var o = { lang: lang, name: info.name, years: info.years, url: info.url, line: cardSet.line.trim(), film: cardSet.film, font: CARD_FONT,
+      mask: cfg.mask !== null ? cfg.mask : cardBuildingMask(), no: cardNo(), noLabel: U.cardExhibit[lang], rare: cfg.rare, rareLabel: U.cardRare[lang],
+      year: cardSet.date === 'year' ? cardYear() : null, seed: cfg.seed };
+    if (extra) Object.keys(extra).forEach(function (k) { if (extra[k] !== undefined) o[k] = extra[k]; });
     return ChkaPostcard.compose(src, o);
   }
   function cardName(ext) { return String(CONFIG.POSTCARD_FILE || 'chka.png').replace(/\.png$/i, '') + ext; }
@@ -2942,84 +2992,141 @@
     }
     cv.toBlob(function (blob) { if (blob) downloadBlob(blob, cardName('.png')); }, 'image/png');
   }
-  function cardFeedback() {   // вспышка над картинкой и галочка на кнопке — отклик в тот же миг, что нажатие
-    if (cardFlash && cardFlash.animate) cardFlash.animate([{ opacity: reduced() ? 0.35 : 0.75 }, { opacity: 0 }], { duration: reduced() ? 380 : 620, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' });
-    cardBtn.classList.add('done'); clearTimeout(cardBtn.__t); cardBtn.__t = setTimeout(function () { cardBtn.classList.remove('done'); }, 1600);
-  }
-  function makeCard(after) {   // after(canvas) — сразу, если шрифты готовы; иначе после загрузки шрифтов (тогда share уже без жеста)
-    var src = captureView(); if (!src) return false;
-    var lang = cardLang();
-    if (cardFontsReady(lang)) { after(composeCard(src), true); return true; }
-    cardFontsLoad().then(function () { after(composeCard(src), false); });
-    return true;
-  }
-  cardBtn.addEventListener('click', function () {
-    if (!window.ChkaPostcard) return;
-    if (!makeCard(function (cv, sync) {
-      if (sync || !shareOK) deliverCard(cv);
-      else showToast(fileFromCanvas(cv));
-    })) return;
-    cardFeedback();
-  });
+  function cardFlashNow() { if (cardFlash && cardFlash.animate) cardFlash.animate([{ opacity: reduced() ? 0.35 : 0.75 }, { opacity: 0 }], { duration: reduced() ? 380 : 620, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' }); }
+  function goDone() { cardGo.classList.add('done'); clearTimeout(cardGo.__t); cardGo.__t = setTimeout(function () { cardGo.classList.remove('done'); }, 1600); }
   if (cardToast) cardToast.addEventListener('click', function () { if (toastFile) shareFile(toastFile); });
 
-  // «Настроить»: окно поверх страницы — превью открытки (снимок экрана в момент открытия), язык подписи, своя строка, плёнка, «Сохранить»
-  var cfgSrc = null, cfgCard = null, cfgT = 0;
+  // окно: отметки, превью (новое проявляется поверх старого), год
   function cfgMarks() {
     cardCfg.querySelectorAll('[data-clang]').forEach(function (b) { var on = b.getAttribute('data-clang') === cardLang(); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+    cardCfg.querySelectorAll('[data-cdate]').forEach(function (b) { var on = b.getAttribute('data-cdate') === cardSet.date; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+    cardCfg.classList.toggle('cc-yr', cardSet.date === 'year');
     var fb = document.getElementById('cardFilm'); fb.classList.toggle('on', cardSet.film); fb.setAttribute('aria-pressed', cardSet.film ? 'true' : 'false');
     var cn = document.getElementById('cardLineN'); if (cn) cn.textContent = cardSet.line.length + ' / 40';
+    if (cardYearIn) { cardYearIn.min = CARD_YEARS[0]; cardYearIn.max = CARD_YEARS[1]; cardYearIn.value = cardYear(); }
+    if (cardYearOut) cardYearOut.textContent = cardYear();
   }
-  function cfgRender() {
-    if (!cfgSrc) return;
-    cfgCard = composeCard(cfgSrc);
+  function cfgMeta() {   // плашки под «Сохранить»: номер экспоната (язык страницы), «редкая»
+    var U = CONFIG.UI_I18N, no = cardNo(), nb = document.getElementById('cardNo'), rb = document.getElementById('cardRareB');
+    if (nb) { nb.hidden = !no; nb.textContent = no ? U.cardExhibit[currentLang] + ' № ' + no : ''; }
+    if (rb) { var was = !rb.hidden; rb.hidden = !cfg.rare; if (cfg.rare && !was) { rb.classList.remove('pop'); void rb.offsetWidth; rb.classList.add('pop'); } }
+  }
+  function cfgRender(fade) {
+    cfg.pend = false; clearTimeout(cfg.t);
+    if (!cfg.src) return;
+    if (!cardFontsReady(cardLang())) { cardFontsLoad().then(function () { if (bodyEl.classList.contains('card-open')) cfgRender(fade); }); return; }
+    cfg.card = composeCard(cfg.src);
+    var pw = cardPrev.width, ph = cardPrev.height;
+    if (fade && cardPrevOld && cardPrevOld.animate) {   // старое превью гаснет поверх нового — смена без мигания
+      var ox = cardPrevOld.getContext('2d'); ox.clearRect(0, 0, pw, ph); ox.drawImage(cardPrev, 0, 0);
+      cardPrevOld.animate([{ opacity: 1 }, { opacity: 0 }], { duration: reduced() ? 160 : 300, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' });
+    }
     var px = cardPrev.getContext('2d'); px.imageSmoothingQuality = 'high';
-    px.drawImage(cfgCard, 0, 0, cardPrev.width, cardPrev.height);
+    px.drawImage(cfg.card, 0, 0, pw, ph);
   }
-  function cfgLater() { clearTimeout(cfgT); cfgT = setTimeout(cfgRender, 120); }
+  function cfgLater() { cfg.pend = true; clearTimeout(cfg.t); cfg.t = setTimeout(function () { cfgRender(true); }, 140); }
+  var cfgHideT = 0;
   function openCfg() {
     if (!window.ChkaPostcard) return;
-    cfgSrc = captureView();
+    var src = captureView(); if (!src) return;
+    cfg.src = src; cfg.mask = cardBuildingMask(); cfg.card = null;
+    cfg.seed = ChkaPostcard.seed ? ChkaPostcard.seed() : undefined;
+    cfg.rare = sceneRare() || !!(ChkaPostcard.luck && ChkaPostcard.luck(cfg.seed));
     var dp = Math.min(2, window.devicePixelRatio || 1);
-    cardPrev.width = Math.round(180 * dp); cardPrev.height = Math.round(320 * dp);
-    cardLineIn.value = cardSet.line; cfgMarks();
+    [cardPrev, cardPrevOld].forEach(function (c) { if (c) { c.width = Math.round(180 * dp); c.height = Math.round(320 * dp); } });
+    cardLineIn.value = cardSet.line; cfgMarks(); cfgMeta();
     hideToast();
     document.documentElement.classList.add('panel-anim');
+    clearTimeout(cfgHideT); cardCfg.classList.remove('cc-fling', 'cc-drag-on'); cardCfg.style.transform = '';
     cardCfg.hidden = false; void cardCfg.offsetWidth;   // переход с текущего положения (закрыли посреди открытия — откроется от того места)
     bodyEl.classList.add('card-open');
-    if (cardFontsReady(cardLang())) cfgRender(); else cardFontsLoad().then(cfgRender);
+    cardFlashNow();   // «щёлк» — снимок кадра взят
+    cfgRender(false);
   }
-  function closeCfg() { bodyEl.classList.remove('card-open'); clearTimeout(cfgT); }
-  if (cardCfgBtn && cardCfg) {
-    cardCfgBtn.addEventListener('click', openCfg);
-    document.getElementById('cardCfgClose').addEventListener('click', closeCfg);
-    document.getElementById('cardScrim').addEventListener('click', closeCfg);
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && bodyEl.classList.contains('card-open')) closeCfg(); });
-    cardCfg.querySelectorAll('[data-clang]').forEach(function (b) {
-      b.addEventListener('click', function () { cardSet.lang = b.getAttribute('data-clang'); cardSave(); cfgMarks(); if (cardFontsReady(cardLang())) cfgRender(); else cardFontsLoad().then(cfgRender); });
-    });
-    document.getElementById('cardFilm').addEventListener('click', function () { cardSet.film = !cardSet.film; cardSave(); cfgMarks(); cfgRender(); });
-    cardLineIn.addEventListener('input', function () { cardSet.line = cardLineIn.value.replace(/[\r\n]+/g, ' ').slice(0, 40); cardSave(); cfgMarks(); cfgLater(); });
-    document.getElementById('cardGo').addEventListener('click', function () {   // сохранить ту открытку, что в превью (с текущими настройками)
-      if (!cfgSrc) return;
-      clearTimeout(cfgT); cfgRender();
-      deliverCard(cfgCard);
-      cardFeedback();
-    });
+  function closeCfg(fling) {
+    if (!bodyEl.classList.contains('card-open')) return;
+    cardCfg.classList.remove('cc-drag-on'); cardCfg.classList.toggle('cc-fling', !!fling);
+    cardCfg.style.transform = '';
+    bodyEl.classList.remove('card-open'); clearTimeout(cfg.t); cfg.pend = false;
+    clearTimeout(cfgHideT); cfgHideT = setTimeout(function () { cardCfg.classList.remove('cc-fling'); }, 400);
+    if (cardLineIn === document.activeElement) cardLineIn.blur();
   }
+  cardBtn.addEventListener('click', openCfg);
+  document.getElementById('cardCfgClose').addEventListener('click', function () { closeCfg(); });
+  document.getElementById('cardScrim').addEventListener('click', function () { closeCfg(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && bodyEl.classList.contains('card-open')) closeCfg(); });
+  // телефон: шторку тянут вниз за ручку/заголовок — палец ведёт её 1:1 (вверх — с сопротивлением); отпустили ниже 110 px или быстрым
+  // движением — уезжает (от текущего положения, с затуханием), иначе пружиной возвращается
+  (function () {
+    var zone = cardCfg.querySelector('.cc-drag'), y0 = null, dy = 0, hist = [];
+    if (!zone) return;
+    zone.addEventListener('pointerdown', function (e) {
+      if (desktopMQ.matches || !bodyEl.classList.contains('card-open') || (e.target.closest && e.target.closest('button'))) return;
+      y0 = e.clientY; dy = 0; hist = [[e.timeStamp, e.clientY]];
+      cardCfg.classList.add('cc-drag-on');
+      try { zone.setPointerCapture(e.pointerId); } catch (_) {}
+    });
+    zone.addEventListener('pointermove', function (e) {
+      if (y0 === null) return;
+      dy = e.clientY - y0; hist.push([e.timeStamp, e.clientY]); if (hist.length > 6) hist.shift();
+      cardCfg.style.transform = 'translateY(' + (dy > 0 ? dy : -Math.sqrt(-dy) * 2) + 'px)';
+    });
+    function end() {
+      if (y0 === null) return;
+      y0 = null;
+      var a = hist[0], b = hist[hist.length - 1], v = b && a && b[0] > a[0] ? (b[1] - a[1]) / (b[0] - a[0]) : 0;   // px/мс
+      if (dy > 110 || (v > 0.5 && dy > 16)) closeCfg(true);
+      else { cardCfg.classList.remove('cc-drag-on'); cardCfg.style.transform = ''; }
+    }
+    zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end);
+  })();
+  cardCfg.querySelectorAll('[data-clang]').forEach(function (b) {
+    b.addEventListener('click', function () { cardSet.lang = b.getAttribute('data-clang'); cardSave(); cfgMarks(); cfgRender(true); });
+  });
+  cardCfg.querySelectorAll('[data-cdate]').forEach(function (b) {
+    b.addEventListener('click', function () { cardSet.date = b.getAttribute('data-cdate'); cardSave(); cfgMarks(); cfgRender(true); });
+  });
+  function setYear(v, now) {
+    v = clamp(Math.round(v), CARD_YEARS[0], CARD_YEARS[1]);
+    var ch = v !== cardYear() || cardSet.date !== 'year';
+    cardSet.year = v; cardSet.date = 'year'; cardSave(); cfgMarks();   // тронули год — значит «мой год»
+    if (cardYearOut && ch) { cardYearOut.classList.remove('tick'); void cardYearOut.offsetWidth; cardYearOut.classList.add('tick'); }
+    if (ch) { if (now) cfgRender(true); else cfgLater(); }
+  }
+  if (cardYearIn) {
+    cardYearIn.addEventListener('input', function () { setYear(+cardYearIn.value); });
+    document.getElementById('cardYearDn').addEventListener('click', function () { setYear(cardYear() - 1); });
+    document.getElementById('cardYearUp').addEventListener('click', function () { setYear(cardYear() + 1); });
+  }
+  document.getElementById('cardFilm').addEventListener('click', function () { cardSet.film = !cardSet.film; cardSave(); cfgMarks(); cfgRender(true); });
+  cardLineIn.addEventListener('input', function () { cardSet.line = cardLineIn.value.replace(/[\r\n]+/g, ' ').slice(0, 40); cardSave(); cfgMarks(); cfgLater(); });
+  cardLineIn.addEventListener('keydown', function (e) { if (e.key === 'Enter') cardLineIn.blur(); });
+  cardGo.addEventListener('click', function () {   // сохранить ту открытку, что в превью (с текущими настройками) — синхронно в нажатии
+    if (!cfg.src) return;
+    if ((cfg.pend || !cfg.card) && cardFontsReady(cardLang())) cfgRender(false);
+    if (!cfg.card) {   // шрифты не готовы — дождаться; share уже без жеста → плашка «готово»
+      cardFontsLoad().then(function () { cfgRender(false); if (!cfg.card) return; if (shareOK) showToast(fileFromCanvas(cfg.card)); else deliverCard(cfg.card); });
+      return;
+    }
+    deliverCard(cfg.card);
+    cardFlashNow(); goDone();
+  });
   // шрифты открытки — в простое после загрузки страницы (нажатие потом не ждёт сеть)
   setTimeout(function () { (window.requestIdleCallback || function (f) { setTimeout(f, 1) })(function () { cardFontsLoad(); FRAMES.forEach(function (F, i) { setTimeout(function () { cardBldLoad(i); }, 300 * i); }); }); }, 4000);
-  window.__card = {   // для проверки (report s26): открытка с заданными настройками без «Поделиться»; dataURL JPEG/PNG
+  window.__card = {   // для проверки (report s26/s28): открытка с заданными настройками без «Поделиться»; dataURL JPEG/PNG
     make: function (o) { var src = captureView(); if (!src) return null; o = o || {};
-      var keep = { lang: cardSet.lang, line: cardSet.line, film: cardSet.film };
+      var keep = { lang: cardSet.lang, line: cardSet.line, film: cardSet.film, date: cardSet.date, year: cardSet.year }, kr = cfg.rare, km = cfg.mask;
       if (o.lang) cardSet.lang = o.lang; if (o.line != null) cardSet.line = o.line; if (o.film != null) cardSet.film = !!o.film;
+      if (o.year) { cardSet.date = 'year'; cardSet.year = o.year; } else cardSet.date = 'today';
+      cfg.rare = !!o.rare; cfg.mask = null;
       var cv = composeCard(src, { seed: o.seed != null ? o.seed : 26, date: o.date ? new Date(o.date) : undefined, grain: o.grain });
-      cardSet.lang = keep.lang; cardSet.line = keep.line; cardSet.film = keep.film;
+      cardSet.lang = keep.lang; cardSet.line = keep.line; cardSet.film = keep.film; cardSet.date = keep.date; cardSet.year = keep.year; cfg.rare = kr; cfg.mask = km;
       return { url: cv.toDataURL(o.png ? 'image/png' : 'image/jpeg', 0.9), boxes: cv.__boxes, src: o.src ? src.toDataURL(o.png ? 'image/png' : 'image/jpeg', 0.9) : null }; },
-    fontsReady: function (l) { return cardFontsReady(l || cardLang()); }, fontsLoad: cardFontsLoad, bldLoad: function () { FRAMES.forEach(function (F, i) { cardBldLoad(i); }); return new Promise(function (res) { var n = 0; (function w() { if (FRAMES.every(function (F, i) { return cardBld[i] !== 'loading'; }) || ++n > 100) res(); else setTimeout(w, 100); })(); }); }, mask: cardBuildingMask, safe: function () { return ChkaPostcard.SAFE; }
+    fontsReady: function (l) { return cardFontsReady(l || cardLang()); }, fontsLoad: cardFontsLoad, bldLoad: function () { FRAMES.forEach(function (F, i) { cardBldLoad(i); }); return new Promise(function (res) { var n = 0; (function w() { if (FRAMES.every(function (F, i) { return cardBld[i] !== 'loading'; }) || ++n > 100) res(); else setTimeout(w, 100); })(); }); }, mask: cardBuildingMask, safe: function () { return ChkaPostcard.SAFE; },
+    open: openCfg, close: closeCfg, state: function () { return { open: bodyEl.classList.contains('card-open'), rare: cfg.rare, seed: cfg.seed, years: CARD_YEARS, set: JSON.parse(JSON.stringify(cardSet)), no: cardNo() }; }
   };
 
-  // размер текста: крупный (по умолчанию) / обычный
+  // размер текста: крупный (по умолчанию) / обычный. Нажатие — отметка сразу, текст меняется мягко (textSwap)
   function setTextSize(v) {
     v = v === 'normal' ? 'normal' : 'large';
     document.documentElement.setAttribute('data-textsize', v);
@@ -3027,7 +3134,12 @@
     lsSet('chka-textsize', v);
   }
   document.querySelectorAll('#sizeSeg button').forEach(function (b) {
-    b.addEventListener('click', function () { setTextSize(b.getAttribute('data-size')); });
+    b.addEventListener('click', function () {
+      var v = b.getAttribute('data-size');
+      if (document.documentElement.getAttribute('data-textsize') === (v === 'normal' ? 'normal' : 'large')) return;
+      segMark('sizeSeg', 'data-size', v);
+      textSwap('size', function () { setTextSize(v); });
+    });
   });
   setTextSize(lsGet('chka-textsize'));
 

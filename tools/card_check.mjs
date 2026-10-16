@@ -22,6 +22,34 @@ export const CARD_DETERMINISM = () => {
   Date.now = function () { try { if (/postcard\.js/.test(new Error().stack || '')) return 1789000000000; } catch (e) {} return dn(); };
 };
 
+// e1.28 (9б-1): «Открытка» открывает окно (body.card-open), открытку отдаёт кнопка #cardGo в окне. У страниц e1.27 нажатие #cardBtn отдаёт
+// открытку сразу — окна нет. cardTapSave: нажать #cardBtn; если за ≤3 с открылось окно — дождаться, пока «Сохранить» встанет на место (шторка
+// в облачном Chrome доезжает секундами: два одинаковых замера подряд, урок s26), и нажать её. Иначе — путь e1.27 (открытка уже ушла/уходит).
+export async function cardTapSave(page, { click, sleep, openMs = 3000 }) {
+  await page.evaluate(() => { window.__cardSheet = null; });
+  await click('#cardBtn');
+  let open = false;
+  for (let i = 0; i < openMs / 150 && !open; i++) {
+    open = await page.evaluate(() => document.body.classList.contains('card-open'));
+    if (open) break;
+    if (await page.evaluate(() => !!((window.__shares && window.__shares.length) || window.__download))) return { sheet: false };
+    await sleep(150);
+  }
+  if (!open) return { sheet: false };
+  let prev = null;
+  for (let i = 0; i < 60; i++) {
+    const r = await page.evaluate(() => { const b = document.getElementById('cardGo'); if (!b) return null; const q = b.getBoundingClientRect(); return [q.x, q.y, q.width, q.height].map(Math.round).join(','); });
+    if (r && r === prev) break;
+    prev = r; await sleep(200);
+  }
+  await click('#cardGo');
+  return { sheet: true };
+}
+// закрыть окно открытки после шага (иначе затемнение окна перехватит следующие нажатия прогулки)
+export async function cardSheetClose(page, sleep) {
+  if (await page.evaluate(() => { if (!document.body.classList.contains('card-open')) return false; const b = document.getElementById('cardCfgClose'); if (b) b.click(); return true; })) await sleep(600);
+}
+
 // Шаг «открытка» телефонной прогулки. page — страница с SHARE_HOOK; click(sel) — нажатие (у check_site с виртуальным временем); sleep(ms).
 // Возвращает { problems: [{type, msg}], png?: Buffer (что ушло в share, после JPEG), size?, name? }.
 export async function phoneCardStep(page, { click, sleep, shareMs = 20000, fontsMs = 10000 }) {   // shareMs/fontsMs — пределы ожидания (в проверке сайта — 20 и 10 с; короче — только в самопроверке)
@@ -35,11 +63,12 @@ export async function phoneCardStep(page, { click, sleep, shareMs = 20000, fonts
   // карта здания для обхода памятника грузится в простое (до ~6 с после загрузки); ждём её (≤10 с), чтобы открытка двух копий сайта не зависела от того, успела ли она
   await page.evaluate(() => (window.__card && window.__card.bldLoad ? window.__card.bldLoad() : null));
   await page.evaluate(() => { window.__shares = []; window.__lastImageBlob = null; window.__download = null; });
-  await click('#cardBtn');
+  const tap = await cardTapSave(page, { click, sleep });
+  out.sheet = tap.sheet;
   let sh = 0;
   for (let i = 0; i < shareMs / 200 && !sh; i++) { await sleep(200); sh = await page.evaluate(() => window.__shares.length); }
   if (!sh) {
-    const d = await page.evaluate(() => ({ shares: window.__shares.length, dl: window.__download, blob: !!window.__lastImageBlob, toast: !!document.getElementById('cardToast') && document.getElementById('cardToast').classList.contains('on'), share: typeof navigator.share, coarse: matchMedia('(pointer: coarse)').matches, fonts: window.__card ? window.__card.fontsReady() : null, btn: (() => { const b = document.getElementById('cardBtn'); return b ? { hidden: b.hidden, r: b.getBoundingClientRect().toJSON() } : null; })() }));
+    const d = await page.evaluate(() => ({ shares: window.__shares.length, dl: window.__download, blob: !!window.__lastImageBlob, toast: !!document.getElementById('cardToast') && document.getElementById('cardToast').classList.contains('on'), sheet: document.body.classList.contains('card-open'), share: typeof navigator.share, coarse: matchMedia('(pointer: coarse)').matches, fonts: window.__card ? window.__card.fontsReady() : null, btn: (() => { const b = document.getElementById('cardBtn'); return b ? { hidden: b.hidden, r: b.getBoundingClientRect().toJSON() } : null; })() }));
     P(`открытка не ушла в share (нет файла за ${shareMs / 1000} с): ` + JSON.stringify(d));
     return out;
   }

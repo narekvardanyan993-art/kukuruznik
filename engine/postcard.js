@@ -2,6 +2,9 @@
    Только рисование на 2D-холсте — без WebGL и без чтения холста, который уходит в текстуру (урок s15). Вызывается по нажатию, в цикле кадра не работает.
 
    ChkaPostcard.compose(src, o) → новый холст 1080×1920
+     e1.28 (9б-1): o.no — номер экспоната («001») и o.noLabel («Экспонат»), o.rare — редкая открытка (красный штемпель и «✦ РЕДКАЯ» на табличке,
+     o.rareLabel), o.year — «мой год» (на штемпеле вместо сегодняшней даты). ChkaPostcard.seed() — новое зерно (Date.now здесь, а не в viewer.js:
+     check_site подменяет Date.now только для postcard.js — открытки двух копий сайта одинаковые), ChkaPostcard.luck(seed) — «повезло»: редкая 1 из 15.
      src — холст 1080×1920 с картинкой (готовый кадр с экрана, уже обрезанный под 9:16 — viewer.js, captureView)
      o   — { lang, name, years, line, url, film, date, seed, font, mask }   (mask — карта слоя здания 108×192, 255 = здание: по ней табличка и штемпель обходят памятник, e1.27 s27)
    ChkaPostcard.SAFE — безопасная зона TikTok + Instagram Stories (px открытки 1080×1920): всё, что рисуется поверх кадра, — внутри неё.
@@ -11,7 +14,7 @@
   'use strict';
   var W = 1080, H = 1920;
   var SAFE = { l: 64, t: 250, r: 150, b: 500 };   // отступы от краёв
-  var INK = '#2b2622', PAPER = '#f3ead6';
+  var INK = '#2b2622', PAPER = '#f3ead6', RARE = '#a3271f', LUCK = 1 / 15;
   // Штемпель: верхняя дуга всегда «ԵՐԵՎԱՆ», нижняя — страна на языке подписи.
   var STAMP_TOP = 'ԵՐԵՎԱՆ';
   var STAMP_BOTTOM = { hy: 'ՀԱՅԱՍՏԱՆ', ru: 'АРМЕНИЯ', en: 'ARMENIA' };
@@ -115,23 +118,45 @@
   }
   // Два размера таблички: обычный и компактный (для крупных планов, где свободного места нет). g — масштаб промежутков между строками.
   var PQ = {
-    full: { pad: 36, maxW: 660, tMax: 54, tMin: 32, tLines: 2, yearsPx: 32, lMax: 30, lMin: 22, lLines: 2, urlPx: 24, g: 1, minW: 400 },
-    compact: { pad: 26, maxW: 560, tMax: 44, tMin: 28, tLines: 2, yearsPx: 26, lMax: 24, lMin: 18, lLines: 1, urlPx: 20, g: 0.7, minW: 330 },
-    mini: { pad: 20, maxW: 250, tMax: 32, tMin: 24, tLines: 2, yearsPx: 26, lMax: 20, lMin: 16, lLines: 2, urlPx: 20, g: 0.6, minW: 190 }   // крайний случай: памятник на всю ширину кадра
+    full: { pad: 36, maxW: 660, tMax: 54, tMin: 32, tLines: 2, yearsPx: 32, lMax: 30, lMin: 22, lLines: 2, urlPx: 24, noPx: 21, g: 1, minW: 400 },
+    compact: { pad: 26, maxW: 560, tMax: 44, tMin: 28, tLines: 2, yearsPx: 26, lMax: 24, lMin: 18, lLines: 1, urlPx: 20, noPx: 18, g: 0.7, minW: 330 },
+    mini: { pad: 20, maxW: 250, tMax: 32, tMin: 24, tLines: 2, yearsPx: 26, lMax: 20, lMin: 16, lLines: 2, urlPx: 20, noPx: 16, g: 0.6, minW: 190 }   // крайний случай: памятник на всю ширину кадра
   };
+  // Верхняя строка таблички (e1.28): «ЭКСПОНАТ № 001», у редкой — ещё звёздочка и «РЕДКАЯ» красным. Не влезает — короче: «№ 001 ✦ РЕДКАЯ», «№ 001 ✦».
+  function topLine(x, o, V, inner) {
+    var no = o.no ? '№ ' + o.no : '', rare = o.rare ? String(o.rareLabel || 'RARE').toUpperCase() : '';
+    if (!no && !o.rare) return null;
+    var px = V.noPx, LS = 'letterSpacing' in x, ls = LS ? Math.round(px * 0.12) : 0, star = Math.round(px * 0.95), gap = Math.round(px * 0.6);
+    x.font = fnt(o, 600, px);
+    var w = function (t) { return t ? x.measureText(t).width + ls * t.length : 0; };
+    var forms = [[o.noLabel && no ? String(o.noLabel).toUpperCase() + ' ' + no : no, rare], [no, rare], [no, '']], res = null;
+    for (var i = 0; i < forms.length; i++) {
+      var a = forms[i][0], b = forms[i][1], st = o.rare, wa = w(a), tw = wa + (st ? (a ? gap : 0) + star + (b ? gap * 0.5 + w(b) : 0) : 0);
+      res = { a: a, b: b, st: st, wa: wa, w: tw, px: px, ls: ls, star: star, gap: gap };
+      if (tw <= inner) break;
+    }
+    return res;
+  }
+  function spaced(x, t, px0, y, ls) { if (ls) { x.letterSpacing = ls + 'px'; x.fillText(t, px0, y); x.letterSpacing = '0px'; } else x.fillText(t, px0, y); }
+  function starPath(x, cx, cy, R) {   // четырёхлучевая звёздочка — рисуем сами (в шрифте «✦» может не быть)
+    x.beginPath();
+    for (var k = 0; k < 8; k++) { var a = -Math.PI / 2 + k * Math.PI / 4, rr = k % 2 ? R * 0.34 : R; x[k ? 'lineTo' : 'moveTo'](cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); }
+    x.closePath();
+  }
   function plaquePlan(x, o, V) {   // размеры: тексты по ширине, высота, ширина — рисовать пока не нужно
     var inner = V.maxW - V.pad * 2, g = V.g;
+    var TL = topLine(x, o, V, inner);
     var T = fitLines(x, o.name, 650, V.tMax, V.tMin, inner, V.tLines, o);
     var L = o.line ? fitLines(x, o.line, 400, V.lMax, V.lMin, inner, V.lLines, o) : null;
     // высота: заголовок, годы, своя строка, черта, адрес
-    var h = V.pad + T.lines.length * T.px * 1.18 + (o.years ? 12 * g + V.yearsPx * 1.2 : 0) + (L ? 18 * g + L.lines.length * L.px * 1.3 : 0) + 26 * g + 2 + 18 * g + V.urlPx + V.pad - 6;
+    var h = V.pad + (TL ? TL.px * 1.25 + 10 * g : 0) + T.lines.length * T.px * 1.18 + (o.years ? 12 * g + V.yearsPx * 1.2 : 0) + (L ? 18 * g + L.lines.length * L.px * 1.3 : 0) + 26 * g + 2 + 18 * g + V.urlPx + V.pad - 6;
     // ширина — по самому длинному тексту (табличка не шире нужного), но не уже minW
-    var need = 0;
+    var need = TL ? TL.w : 0;
     x.font = fnt(o, 650, T.px); T.lines.forEach(function (l) { need = Math.max(need, x.measureText(l).width); });
     if (o.years) { x.font = fnt(o, 400, V.yearsPx); need = Math.max(need, x.measureText(o.years).width + V.yearsPx * 0.08 * o.years.length); }
     if (L) { x.font = fnt(o, 400, L.px); L.lines.forEach(function (l) { need = Math.max(need, x.measureText(l).width); }); }
     x.font = fnt(o, 500, V.urlPx); need = Math.max(need, x.measureText(o.url).width);   // адрес не должен вылезать за табличку
-    return { V: V, T: T, L: L, h: h, w: Math.min(V.maxW, Math.max(V.minW, Math.ceil(need) + V.pad * 2)) };
+    return { V: V, T: T, L: L, TL: TL, h: h, w: Math.min(V.maxW, Math.max(V.minW, Math.ceil(need) + V.pad * 2)) };
   }
   // Где табличка: низ безопасной зоны; слева или справа (где меньше рисунка), обычная; если на её месте здание/памятник — компактная,
   // и снова слева/справа/по центру; потом мини (≈ 250 px). Всё ещё мешает — поднимаем табличку выше (до 300 px, шаг 60) и повторяем.
@@ -166,8 +191,19 @@
     x.strokeStyle = 'rgba(43,38,34,0.28)'; x.lineWidth = 1; x.strokeRect(px0 + 0.5, py0 + 0.5, w - 1, h - 1);
     pencilRect(x, px0 + 12, py0 + 12, w - 24, h - 24, r);
     // тексты
-    var y = py0 + pad + 4;
+    var y = py0 + pad + 4, TL = pl.TL;
     x.fillStyle = INK; x.textAlign = 'left'; x.textBaseline = 'top';
+    if (TL) {   // «ЭКСПОНАТ № 001 ✦ РЕДКАЯ»
+      var tx = px0 + pad;
+      x.font = fnt(o, 600, TL.px); x.fillStyle = 'rgba(43,38,34,0.62)';
+      if (TL.a) { spaced(x, TL.a, tx, y, TL.ls); tx += TL.wa + TL.gap; }
+      if (TL.st) {
+        starPath(x, tx + TL.star / 2, y + TL.px * 0.46, TL.star / 2); x.fillStyle = RARE; x.fill(); tx += TL.star + TL.gap * 0.5;
+        if (TL.b) spaced(x, TL.b, tx, y, TL.ls);
+      }
+      y += TL.px * 1.25 + 10 * g;
+      x.fillStyle = INK;
+    }
     x.font = fnt(o, 650, T.px);
     T.lines.forEach(function (l) { x.fillText(l, px0 + pad, y); y += T.px * 1.18; });
     if (o.years) {
@@ -217,8 +253,8 @@
     var d = o.date || new Date();
     x.lineWidth = 2.2;   // дата между двумя чертами (как на советских штемпелях)
     x.beginPath(); x.moveTo(cx - 66, cy - 22); x.lineTo(cx + 66, cy - 22); x.moveTo(cx - 66, cy + 22); x.lineTo(cx + 66, cy + 22); x.stroke();
-    x.font = fnt(o, 700, 27);
-    x.fillText(pad2(d.getDate()) + '.' + pad2(d.getMonth() + 1) + '.' + d.getFullYear(), cx, cy + 1);
+    if (o.year) { x.font = fnt(o, 700, 36); x.fillText(String(o.year), cx, cy + 2); }   // «мой год» (e1.28) — год крупно, без дня и месяца
+    else { x.font = fnt(o, 700, 27); x.fillText(pad2(d.getDate()) + '.' + pad2(d.getMonth() + 1) + '.' + d.getFullYear(), cx, cy + 1); }
     // износ: ссадины краски (штемпель бьётся неровно) — «вырезаем» пятнышки
     x.save(); x.globalCompositeOperation = 'destination-out';
     for (var k = 0; k < 900; k++) { x.globalAlpha = 0.25 + r() * 0.6; x.beginPath(); x.arc(r() * S, r() * S, 0.6 + r() * 1.9, 0, 6.283); x.fill(); }
@@ -337,7 +373,7 @@
   function postmark(x, o, r, pl) {
     var cx = pl.cx, cy = pl.cy, dir = pl.dir, k = pl.k || 1, rot = dir < 0 ? -0.2 : 0.16;
     // чернила: тёмно-фиолетовые почтовые; на тёмном (ночь) — светлые, иначе штемпеля не видно
-    var dark = pl.L < 0.42, ink = dark ? 'rgb(238,228,206)' : 'rgb(44,48,88)';
+    var dark = pl.L < 0.42, ink = dark ? (o.rare ? 'rgb(255,200,184)' : 'rgb(238,228,206)') : (o.rare ? 'rgb(156,38,34)' : 'rgb(44,48,88)');   // редкая — красный штемпель
     var lay = mk(W, 440), lx = lay.getContext('2d');   // гашение рисуем на своём слое — ссадины не режут картинку
     lx.translate(0, -(cy - 220));
     lx.save(); lx.translate(cx, cy); lx.rotate(rot); lx.scale(k, k); lx.translate(-cx, -cy);
@@ -370,5 +406,7 @@
     return c;
   }
 
-  window.ChkaPostcard = { W: W, H: H, SAFE: SAFE, compose: compose };
+  function newSeed() { return Date.now() & 0xffffff; }   // зерно открытки: одно на окно (превью и сохранённая — одна и та же картинка)
+  function luck(seed) { var r = rng(((seed >>> 0) ^ 0x9e3779b9) >>> 0); r(); return r() < LUCK; }   // «повезло» — редкая открытка без особой погоды
+  window.ChkaPostcard = { W: W, H: H, SAFE: SAFE, compose: compose, seed: newSeed, luck: luck };
 })();

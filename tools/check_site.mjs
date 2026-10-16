@@ -45,7 +45,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
-import { SHARE_HOOK, CARD_DETERMINISM, phoneCardStep } from './card_check.mjs';
+import { SHARE_HOOK, CARD_DETERMINISM, phoneCardStep, cardTapSave, cardSheetClose } from './card_check.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const KITCHEN = path.join(os.homedir(), 'Documents', 'chka-kitchen');
@@ -472,7 +472,7 @@ async function captureWalk(browser, origin, target, vpName, outDir) {
         shots['walk-10-postcard'] = { sha: shotSha(PNG.sync.read(cs.png).data), bytes: cs.size, regions: [], file: cs.name };
       }
     } else {
-    await click('#cardBtn');
+    await cardTapSave(page, { click, sleep });   // e1.28: «Открытка» → окно → «Сохранить»; e1.27 — сразу
     let got = null;
     for (let i = 0; i < 100 && !got; i++) { await sleep(200);   // картинка ~1000×1750 кодируется в PNG в фоне — бывает дольше 6 с
       got = await page.evaluate(() => window.__lastImageBlob && window.__download ? true : null); }
@@ -484,6 +484,7 @@ async function captureWalk(browser, origin, target, vpName, outDir) {
       shots['walk-10-postcard'] = { sha: shotSha(PNG.sync.read(buf).data), bytes: buf.length, regions: [], file: r.name };
     }
     }
+    await cardSheetClose(page, sleep);
     await closeSheet();
     shots._welcomeMs = welcomeMs;
   } catch (e) {

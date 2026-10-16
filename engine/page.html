@@ -813,50 +813,112 @@
   /* ---------- e1.27 (s26): открытка «в сторис» — кнопка, «Настроить», окно настроек, плашка «готово», вспышка ----------
      Анимации по docs/ANIMATION.md: только transform/opacity, открытие --spring 520 мс, закрытие — зеркало, короче (300 мс, --in),
      переходы (а не ключевые кадры) — прерываются с текущего положения. */
-  .p-acts { display: flex; }   /* полный экран | открытка + «Настроить»; спрятанный «полный экран» не оставляет дыры */
-  .p-acts > .act { flex: 1 1 0; min-width: 0; }
-  .p-acts > .act-card { flex: 2 1 0; display: grid; grid-template-columns: 1.35fr 1fr; gap: 6px; }
-  .p-acts .chip-cfg span { font-weight: 600; }
-  #cardBtn { border-width: 2px; border-color: rgba(47,42,37,0.55); }
-  #cardBtn svg { overflow: visible; }
-  #cardBtn .i-story, #cardBtn .i-ok { transition: opacity 240ms var(--out), transform 420ms var(--spring); transform-box: view-box; transform-origin: 16px 16px; }
-  #cardBtn .i-ok { opacity: 0; transform: scale(0.6); stroke: #4f8a3f; }
-  #cardBtn.done .i-story { opacity: 0; transform: scale(0.85); }
-  #cardBtn.done .i-ok { opacity: 1; transform: scale(1); }
+  /* e1.28 (9б-1): «Во весь экран» и «Открытка» — пара одинаковых кнопок (один размер, одна форма, рисованные значки); настройки — внутри окна открытки */
+  .p-acts.solo .act:not([hidden]) { grid-column: 1 / -1; }
+  .p-acts .act-pair { min-height: 68px; gap: 5px; border-width: 1.5px; border-color: rgba(47,42,37,0.4); }
+  .act-pair svg { width: 32px; height: 32px; overflow: visible; }
+  .act-pair span { font-size: 13px; font-weight: 700; }
+  .i-fs path { transition: transform 420ms var(--spring); transform-box: view-box; }
+  .i-fs-in { transform-origin: 16px 16px; }
+  .i-story { transition: transform 420ms var(--spring); transform-box: view-box; transform-origin: 16px 28px; }
+  @media (hover: hover) and (pointer: fine) {
+    .act-pair:hover .i-fs .c1 { transform: translate(-1.2px, -1.2px); } .act-pair:hover .i-fs .c2 { transform: translate(1.2px, -1.2px); }
+    .act-pair:hover .i-fs .c3 { transform: translate(1.2px, 1.2px); } .act-pair:hover .i-fs .c4 { transform: translate(-1.2px, 1.2px); }
+    .act-pair:hover .i-story { transform: rotate(-6deg); }
+  }
   .i-plq { stroke: currentColor; opacity: 0.7; }
   .i-knob { fill: var(--paper); stroke: currentColor; }
   .chip.on .i-knob { fill: var(--ink); stroke: var(--paper); }
+  /* размер текста — маленький переключатель «Aa | Aa» в строке заголовка (зона нажатия 46 px по высоте) */
+  .p-size .grp-h { align-items: center; margin: 0; }
+  .size-mini { display: inline-grid; grid-auto-columns: 48px; gap: 2px; padding: 3px; border-radius: 14px; flex: none; }
+  .size-mini .chip { min-height: 40px; padding: 0; border-radius: 11px; gap: 0; }
+  .size-mini .chip::before { content: ''; position: absolute; inset: -3px -1px; }
+  .aa { font-family: var(--font); font-weight: 700; line-height: 1; }
+  .aa-s { font-size: 13px; } .aa-l { font-size: 19px; }
+  /* смена языка и размера текста (e1.28): текст гаснет 120 мс → меняется → проявляется снизу; только opacity/transform, прерывается */
+  html.tx-run.tx-lang :is([data-i18n], #aboutText, .pb-txt, #wxName), html.tx-run.tx-size :is(.panel-scroll, #plaque, #hsText) {
+    transition: opacity 300ms var(--out), transform 460ms var(--spring); }
+  html.tx-run.tx-size .panel-scroll { transform-origin: 50% 0; }
+  html.tx-lang.tx-out :is([data-i18n], #aboutText, .pb-txt, #wxName) { opacity: 0; transform: translateY(-4px); transition: opacity 120ms var(--in), transform 120ms var(--in); }
+  html.tx-lang.tx-pre :is([data-i18n], #aboutText, .pb-txt, #wxName) { opacity: 0; transform: translateY(6px); transition: none; }
+  html.tx-size.tx-out :is(.panel-scroll, #plaque, #hsText) { opacity: 0; transform: scale(0.985); transition: opacity 120ms var(--in), transform 120ms var(--in); }
+  html.tx-size.tx-pre :is(.panel-scroll, #plaque, #hsText) { opacity: 0; transform: translateY(6px) scale(0.98); transition: none; }
+  @media (prefers-reduced-motion: reduce) { html:not([data-motion="on"]).tx-run :is([data-i18n], #aboutText, .pb-txt, #wxName, .panel-scroll, #plaque, #hsText) { transform: none !important; } }
   #cardFlash { position: absolute; inset: 0; z-index: 4; background: #fffaf0; opacity: 0; pointer-events: none; }
   #cardScrim { position: fixed; inset: 0; z-index: 88; background: rgba(20,16,8,0.4); opacity: 0; pointer-events: none; transition: opacity 260ms var(--in); }
   body.card-open #cardScrim { opacity: 1; pointer-events: auto; transition: opacity 360ms var(--out); }
+  /* Окно открытки (e1.28): телефон — шторка снизу (выезжает --ios 560 мс, уходит --in 340 мс; тянется вниз за ручку/заголовок — закрыть),
+     ПК — по центру (--spring 520 / 300 мс). Только transform/opacity; закрыли посреди открытия — едет от текущего положения. */
   #cardCfg {
-    position: fixed; z-index: 89; left: 50%; bottom: calc(var(--safe-b) + 12px); width: min(440px, calc(100vw - 24px)); max-height: calc(100% - var(--safe-t) - var(--safe-b) - 24px);
-    margin-left: calc(min(440px, 100vw - 24px) / -2); padding: 14px 16px 16px; overflow: auto; overscroll-behavior: contain;
-    display: flex; flex-direction: column; gap: 12px;
-    opacity: 0; transform: translateY(28px) scale(0.97); visibility: hidden; pointer-events: none; will-change: transform, opacity;
-    transition: transform 300ms var(--in), opacity 240ms var(--in), visibility 0s linear 300ms;
+    position: fixed; z-index: 89; left: 0; right: 0; bottom: 0; max-height: calc(100% - var(--safe-t) - 24px);
+    padding: 6px 16px calc(var(--safe-b) + 18px); overflow: auto; overscroll-behavior: contain;
+    display: flex; flex-direction: column; gap: 14px;
+    border-width: 2px 0 0; border-radius: 24px 24px 0 0; box-shadow: 0 -12px 32px rgba(20,16,8,0.22); outline: none;
+    transform: translateY(calc(100% + 40px)); visibility: hidden; pointer-events: none; will-change: transform;
+    transition: transform 340ms var(--in), visibility 0s linear 340ms;
   }
-  body.card-open #cardCfg { opacity: 1; transform: none; visibility: visible; pointer-events: auto; transition: transform 520ms var(--spring), opacity 300ms var(--out), visibility 0s; }
-  @media (min-width: 1024px) { #cardCfg { top: 50%; bottom: auto; margin-top: -240px; max-height: calc(100% - 32px); } }
-  @media (min-width: 1024px) and (max-height: 640px) { #cardCfg { top: 16px; margin-top: 0; } }
+  body.card-open #cardCfg { transform: none; visibility: visible; pointer-events: auto; transition: transform 560ms var(--ios), visibility 0s; }
+  #cardCfg.cc-fling { transition: transform 300ms cubic-bezier(0.2, 0.7, 0.3, 1), visibility 0s linear 300ms; }
+  body.card-open #cardCfg.cc-drag-on { transition: none; }
+  @media (min-width: 1024px) {
+    #cardCfg { left: 50%; right: auto; top: 50%; bottom: auto; width: 540px; max-height: calc(100% - 48px); padding: 14px 22px 22px;
+      border-width: 2px; border-radius: 22px 8px 18px 10px / 10px 18px 8px 22px; box-shadow: 0 12px 32px rgba(60,45,20,0.24), 3px 4px 0 rgba(47,42,37,0.14);
+      opacity: 0; transform: translate(-50%, -50%) translateY(18px) scale(0.97);
+      transition: transform 300ms var(--in), opacity 220ms var(--in), visibility 0s linear 300ms; }
+    body.card-open #cardCfg { opacity: 1; transform: translate(-50%, -50%); transition: transform 520ms var(--spring), opacity 300ms var(--out), visibility 0s; }
+  }
+  .cc-drag { position: sticky; top: -6px; z-index: 2; margin: -6px -16px 0; padding: 6px 16px 2px; background: var(--paper); touch-action: none; }
+  .cc-grab { width: 42px; height: 5px; border-radius: 3px; background: rgba(47,42,37,0.28); margin: 3px auto 8px; }
+  @media (min-width: 1024px) { .cc-drag { position: static; margin: 0; padding: 0; touch-action: auto; } .cc-grab { display: none; } }
   .cc-head { display: flex; align-items: center; justify-content: space-between; }
   .cc-head h3 { margin: 0; font: 700 20px/1.2 var(--font); }
   .cc-x { width: 44px; height: 44px; margin: -6px -8px -6px 0; border: 0; background: transparent; color: var(--ink); display: grid; place-items: center; cursor: var(--cp); border-radius: 50%; }
   .cc-x svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
-  .cc-body { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: start; }
-  #cardPrev { width: 128px; height: 228px; border-radius: 6px; background: var(--paper-2); box-shadow: 0 6px 16px rgba(47,42,37,0.28), 0 0 0 1px rgba(47,42,37,0.25); }
-  @media (min-width: 400px) and (min-height: 700px) { #cardPrev { width: 150px; height: 267px; } }
-  @media (min-width: 1024px) { #cardPrev { width: 180px; height: 320px; } }
-  .cc-ctl { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .cc-top { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: center; }
+  .cc-prev { position: relative; width: 126px; height: 224px; flex: none; }
+  @media (min-width: 400px) and (min-height: 760px) { .cc-prev { width: 144px; height: 256px; } }
+  @media (min-width: 1024px) { .cc-prev { width: 180px; height: 320px; } }
+  .cc-prev canvas { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 6px; }
+  #cardPrev { background: var(--paper-2); box-shadow: 0 6px 16px rgba(47,42,37,0.28), 0 0 0 1px rgba(47,42,37,0.25); }
+  #cardPrevOld { opacity: 0; pointer-events: none; }
+  .cc-main { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .cc-go { min-height: 64px; gap: 10px; font-size: 19px; background: var(--ink); color: var(--paper); border-radius: 16px 8px 16px 8px / 8px 16px 8px 16px;
+    box-shadow: 0 6px 16px rgba(47,42,37,0.3); transition: transform 180ms var(--spring), box-shadow 220ms var(--out); }
+  .cc-go:active { transform: scale(0.96); box-shadow: 0 2px 6px rgba(47,42,37,0.3); }
+  .cc-go svg { width: 26px; height: 26px; flex: none; overflow: visible; fill: none; stroke: currentColor; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
+  .cc-go .i-save, .cc-go .i-ok { transition: opacity 240ms var(--out), transform 420ms var(--spring); transform-box: view-box; transform-origin: 16px 16px; }
+  .cc-go .i-ok { opacity: 0; transform: scale(0.6); stroke: #9fd28a; stroke-width: 2.8; }
+  .cc-go.done .i-save { opacity: 0; transform: translateY(5px) scale(0.85); }
+  .cc-go.done .i-ok { opacity: 1; transform: none; }
+  .cc-hint { font: 500 13px/1.3 var(--font); color: rgba(47,42,37,0.62); }
+  .cc-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cc-meta > span { display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; border-radius: 999px; border: 1.2px solid rgba(47,42,37,0.3); font: 700 12.5px/1 var(--font); letter-spacing: 0.02em; }
+  .cc-meta > span[hidden] { display: none; }
+  #cardRareB { color: #9c261f; border-color: rgba(156,38,31,0.5); background: rgba(156,38,31,0.07); }
+  #cardRareB svg { width: 13px; height: 13px; fill: currentColor; }
+  #cardRareB.pop { animation: rarePop 560ms var(--spring) both; }
+  @keyframes rarePop { 0% { opacity: 0; transform: scale(0.6) rotate(-8deg); } 100% { opacity: 1; transform: none; } }
+  .cc-grp { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px dashed rgba(47,42,37,0.25); }
+  .cc-grp[hidden] { display: none; }
+  .cc-gh { margin: 0; font: 700 16px/1.2 var(--font); }
   .cc-lbl { display: flex; justify-content: space-between; align-items: baseline; font: 600 13px/1.2 var(--font); color: rgba(47,42,37,0.8); }
   .cc-lbl i { font: italic 500 12px/1 var(--font); color: rgba(47,42,37,0.55); }
-  .cc-ctl .chips-text .chip { min-height: 44px; font-size: 14px; }
+  #cardCfg .chips-text .chip { min-height: 44px; font-size: 14px; }
+  .cc-year { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto 44px; gap: 8px; align-items: center; transition: opacity 260ms var(--out); }
+  #cardCfg:not(.cc-yr) .cc-year { opacity: 0.45; }
+  .cc-step { width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid rgba(47,42,37,0.35); background: rgba(255,252,244,0.85); color: var(--ink);
+    font: 700 22px/1 var(--font); cursor: var(--cp); padding: 0; transition: transform 160ms var(--spring); }
+  .cc-step:active { transform: scale(0.9); }
+  #cardYear { width: 100%; height: 44px; margin: 0; accent-color: var(--ink); cursor: var(--cp); }
+  #cardYearOut { min-width: 3ch; text-align: center; font: 700 22px/1 var(--font); font-variant-numeric: tabular-nums; }
+  #cardYearOut.tick { animation: yearTick 320ms var(--spring); }
+  @keyframes yearTick { 0% { transform: translateY(-3px); opacity: 0.4; } 100% { transform: none; opacity: 1; } }
   #cardLine { width: 100%; min-height: 44px; padding: 8px 10px; border: 1.5px solid rgba(47,42,37,0.4); border-radius: 10px 5px 10px 5px / 5px 10px 5px 10px;
     background: rgba(255,252,244,0.9); color: var(--ink); font: 400 16px/1.2 var(--font); user-select: text; -webkit-user-select: text; outline: none; }
   #cardLine:focus { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(47,42,37,0.12); }
   .cc-film { flex-direction: row; justify-content: flex-start; gap: 8px; min-height: 48px; padding: 6px 12px; }
   .cc-film span { font-size: 14px; }
-  .cc-go { background: var(--ink); color: var(--paper); }
   #cardToast {
     position: fixed; z-index: 92; left: 50%; bottom: calc(var(--safe-b) + 24px); max-width: calc(100vw - 32px); min-height: 48px; padding: 10px 18px;
     border: 2px solid var(--ink); border-radius: 14px 7px 14px 7px / 7px 14px 7px 14px; background: var(--ink); color: var(--paper);
@@ -866,9 +928,13 @@
   }
   #cardToast.on { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; visibility: visible; transition: transform 520ms var(--spring), opacity 300ms var(--out), visibility 0s; }
   @media (prefers-reduced-motion: reduce) {
-    #cardCfg, body.card-open #cardCfg, #cardToast, #cardToast.on { transform: none; }
-    #cardToast, #cardToast.on { transform: translate(-50%, 0); }
+    html:not([data-motion="on"]) #cardCfg { transform: none; opacity: 0; transition: opacity 200ms var(--in), visibility 0s linear 200ms; }
+    html:not([data-motion="on"]) body.card-open #cardCfg { opacity: 1; transition: opacity 260ms var(--out), visibility 0s; }
   }
+  @media (prefers-reduced-motion: reduce) and (min-width: 1024px) {
+    html:not([data-motion="on"]) #cardCfg, html:not([data-motion="on"]) body.card-open #cardCfg { transform: translate(-50%, -50%); }
+  }
+  @media (prefers-reduced-motion: reduce) { #cardToast, #cardToast.on { transform: translate(-50%, 0); } }
 </style>
 </head>
 <body>
@@ -967,15 +1033,16 @@ window.__wl = WelcomeLoader.create({
       <h3 data-i18n="frames">Кадры</h3>
       <div id="thumbs"></div>
     </section>
-    <section class="p-sec p-acts">
-      <div class="act"><button type="button" id="fsBtn" class="chip chip-act"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 12V6h6M26 12V6h-6M6 20v6h6M26 20v6h-6"/></svg><span data-i18n="fullscreen">Полный экран</span></button></div>
-      <div class="act act-card"><button type="button" id="cardBtn" class="chip chip-act"><svg viewBox="0 0 32 32" aria-hidden="true"><g class="i-story"><path d="M10.4 3.6 Q16 3.2 21.8 3.7 Q23.6 3.8 23.6 5.8 Q24 16 23.5 26.4 Q23.4 28.3 21.5 28.3 Q16 28.7 10.3 28.2 Q8.5 28.1 8.5 26.2 Q8.1 16 8.6 5.6 Q8.7 3.7 10.4 3.6Z"/><path d="M9.9 5.2 Q16 4.8 22 5.3 M22.2 6.4 Q22.5 16 22.1 26.6" stroke-width="0.8" opacity=".5"/><path class="i-cardsun" d="M10.6 19.6 l3.6-3.4 2.9 2.4 2.3-2 2.2 2.4"/><circle class="i-cardsun2" cx="19.2" cy="10.6" r="1.7"/><path class="i-plq" d="M11.2 23.4 h6.6 M11.2 25.6 h4.2" stroke-width="1.4"/></g><path class="i-ok" d="M10 16.6 l4.2 4.2 7.8-8.6" stroke-width="2.6"/></svg><span data-i18n="postcard">Открытка в сторис</span></button><button type="button" id="cardCfgBtn" class="chip chip-act chip-cfg"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5.5 9.2 Q16 8.6 26.5 9.4 M5.6 16.1 Q16 15.6 26.4 16.3 M5.4 23 Q16 22.5 26.6 23.2"/><circle class="i-knob" cx="11.5" cy="9.1" r="2.7"/><circle class="i-knob" cx="20.6" cy="16.1" r="2.7"/><circle class="i-knob" cx="14" cy="23" r="2.7"/></svg><span data-i18n="postcardCfg">Настроить</span></button></div>
+    <section class="p-sec p-acts" id="pActs">
+      <div class="act"><button type="button" id="fsBtn" class="chip chip-act act-pair"><svg viewBox="0 0 32 32" aria-hidden="true"><g class="i-fs"><path class="c1" d="M5.7 12.6 Q5.3 8.6 5.8 5.9 Q8.6 5.4 12.4 5.7"/><path class="c2" d="M19.6 5.6 Q23.6 5.3 26.2 5.8 Q26.7 8.6 26.4 12.5"/><path class="c3" d="M26.4 19.5 Q26.8 23.5 26.2 26.2 Q23.4 26.7 19.6 26.4"/><path class="c4" d="M12.4 26.5 Q8.5 26.8 5.8 26.2 Q5.3 23.4 5.7 19.6"/><path class="i-fs-in" d="M11.4 11.7 Q16 11.3 20.6 11.6 Q20.9 16 20.5 20.4 Q16 20.8 11.5 20.5 Q11.1 16 11.4 11.7Z" stroke-width="1.2" opacity=".5"/></g></svg><span data-i18n="fullscreen">Во весь экран</span></button></div>
+      <div class="act act-card"><button type="button" id="cardBtn" class="chip chip-act act-pair" aria-haspopup="dialog"><svg viewBox="0 0 32 32" aria-hidden="true"><g class="i-story"><path d="M10.4 3.6 Q16 3.2 21.8 3.7 Q23.6 3.8 23.6 5.8 Q24 16 23.5 26.4 Q23.4 28.3 21.5 28.3 Q16 28.7 10.3 28.2 Q8.5 28.1 8.5 26.2 Q8.1 16 8.6 5.6 Q8.7 3.7 10.4 3.6Z"/><path d="M9.9 5.2 Q16 4.8 22 5.3 M22.2 6.4 Q22.5 16 22.1 26.6" stroke-width="0.8" opacity=".5"/><path class="i-cardsun" d="M10.6 19.6 l3.6-3.4 2.9 2.4 2.3-2 2.2 2.4"/><circle class="i-cardsun2" cx="19.2" cy="10.6" r="1.7"/><path class="i-plq" d="M11.2 23.4 h6.6 M11.2 25.6 h4.2" stroke-width="1.4"/></g></svg><span data-i18n="postcard">Открытка</span></button></div>
     </section>
-    <section class="p-sec p-grp">
-      <div class="grp-h"><h3 data-i18n="textSize">Размер текста</h3></div>
-      <div class="chips chips-one" id="sizeSeg" role="group">
-        <button type="button" class="chip" data-size="normal"><svg viewBox="0 0 32 32" aria-hidden="true"><text x="16" y="21" text-anchor="middle" font-size="12">Aa</text></svg><span data-i18n="sizeNormal">Обычный</span></button>
-        <button type="button" class="chip on" data-size="large"><svg viewBox="0 0 32 32" aria-hidden="true"><text x="16" y="23" text-anchor="middle" font-size="18">Aa</text></svg><span data-i18n="sizeLarge">Крупный</span></button>
+    <section class="p-sec p-grp p-size">
+      <div class="grp-h"><h3 data-i18n="textSize">Размер текста</h3>
+        <div class="chips chips-one size-mini" id="sizeSeg" role="group">
+          <button type="button" class="chip" data-size="normal" data-i18n-title="sizeNormal" aria-label="Обычный"><b class="aa aa-s" aria-hidden="true">Aa</b></button>
+          <button type="button" class="chip on" data-size="large" data-i18n-title="sizeLarge" aria-label="Крупный"><b class="aa aa-l" aria-hidden="true">Aa</b></button>
+        </div>
       </div>
     </section>
     <section class="p-sec p-grp">
@@ -1023,18 +1090,33 @@ document.querySelectorAll('.chips').forEach(function (g) { g.querySelectorAll('.
 <div id="scrim"></div>
 <div id="cardScrim"></div>
 <div id="cardCfg" class="sketch" role="dialog" aria-modal="true" aria-labelledby="cardCfgH" hidden>
-  <div class="cc-head"><h3 id="cardCfgH" data-i18n="cardTitle">Открытка</h3><button type="button" id="cardCfgClose" class="cc-x" aria-label="Закрыть" data-i18n-title="close"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M9 9l14 14M23 9L9 23"/></svg></button></div>
-  <div class="cc-body">
-    <canvas id="cardPrev" width="180" height="320" aria-hidden="true"></canvas>
-    <div class="cc-ctl">
-      <div class="cc-lbl" data-i18n="cardLang">Язык подписи</div>
-      <div class="chips chips-one chips-text" role="group"><button type="button" class="chip" data-clang="hy"><b>Հայ</b></button><button type="button" class="chip" data-clang="ru"><b>Рус</b></button><button type="button" class="chip" data-clang="en"><b>Eng</b></button></div>
-      <label class="cc-lbl" for="cardLine"><span data-i18n="cardLine">Своя строка</span> <i id="cardLineN">0 / 40</i></label>
-      <input type="text" id="cardLine" maxlength="40" autocomplete="off" enterkeyhint="done">
-      <button type="button" id="cardFilm" class="chip cc-film" aria-pressed="false"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7.4 5.6 Q16 5.1 24.6 5.7 Q25.2 16 24.5 26.4 Q16 26.9 7.5 26.3 Q6.9 16 7.4 5.6Z"/><path d="M11 6v20.4M21 5.8v20.6" stroke-width="1.2"/><path class="i-holes" d="M9.2 9h.01M9.2 13.4h.01M9.2 17.8h.01M9.2 22.2h.01M22.8 9h.01M22.8 13.4h.01M22.8 17.8h.01M22.8 22.2h.01" stroke-width="2.4"/><path d="M13.6 19.4 l2.1-2.6 1.7 1.6 1.6-1.8" stroke-width="1.3"/></svg><span data-i18n="cardFilm">Старая плёнка</span></button>
+  <div class="cc-drag"><div class="cc-grab" aria-hidden="true"></div>
+  <div class="cc-head"><h3 id="cardCfgH" data-i18n="cardTitle">Открытка</h3><button type="button" id="cardCfgClose" class="cc-x" aria-label="Закрыть" data-i18n-title="close"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M9 9l14 14M23 9L9 23"/></svg></button></div></div>
+  <div class="cc-top">
+    <div class="cc-prev"><canvas id="cardPrev" width="180" height="320" aria-hidden="true"></canvas><canvas id="cardPrevOld" width="180" height="320" aria-hidden="true"></canvas></div>
+    <div class="cc-main">
+      <button type="button" id="cardGo" class="p-btn cc-go"><svg viewBox="0 0 32 32" aria-hidden="true"><g class="i-save"><path d="M16.1 4.8 Q15.8 11.6 16 19.2"/><path d="M10.4 14.2 Q13.4 16.9 16 19.7 Q18.7 16.8 21.6 14.1"/><path d="M6.3 18.4 Q5.9 23.2 6.5 26.3 Q16 26.9 25.5 26.3 Q26.1 23.2 25.7 18.4"/></g><path class="i-ok" d="M9.4 16.8 l4.6 4.5 8.4-9.2"/></svg><span data-i18n="cardSave">Сохранить</span></button>
+      <div class="cc-hint" data-i18n="cardHint">Картинка для сторис</div>
+      <div class="cc-meta"><span id="cardNo" hidden></span><span id="cardRareB" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.2 L9.6 6.4 L14.8 8 L9.6 9.6 L8 14.8 L6.4 9.6 L1.2 8 L6.4 6.4Z"/></svg><span data-i18n="cardRareB">Редкая открытка</span></span></div>
     </div>
   </div>
-  <button type="button" id="cardGo" class="p-btn cc-go"><span data-i18n="cardSave">Сохранить</span></button>
+  <section class="cc-grp" data-grp="date">
+    <h4 class="cc-gh" data-i18n="cardGrpDate">Дата</h4>
+    <div class="chips chips-one chips-text" role="group" id="cardDateSeg"><button type="button" class="chip" data-cdate="today"><b data-i18n="cardToday">Сегодня</b></button><button type="button" class="chip" data-cdate="year"><b data-i18n="cardMyYear">Мой год</b></button></div>
+    <div class="cc-year" id="cardYearRow"><button type="button" class="cc-step" id="cardYearDn" aria-label="−1">−</button><input type="range" id="cardYear" step="1" min="1900" max="2026" value="1990" aria-labelledby="cardYearOut"><output id="cardYearOut" for="cardYear">1990</output><button type="button" class="cc-step" id="cardYearUp" aria-label="+1">+</button></div>
+  </section>
+  <section class="cc-grp" data-grp="sign">
+    <h4 class="cc-gh" data-i18n="cardGrpSign">Подпись</h4>
+    <div class="cc-lbl" data-i18n="cardLang">Язык подписи</div>
+    <div class="chips chips-one chips-text" role="group"><button type="button" class="chip" data-clang="hy"><b>Հայ</b></button><button type="button" class="chip" data-clang="ru"><b>Рус</b></button><button type="button" class="chip" data-clang="en"><b>Eng</b></button></div>
+    <label class="cc-lbl" for="cardLine"><span data-i18n="cardLine">Своя строка</span> <i id="cardLineN">0 / 40</i></label>
+    <input type="text" id="cardLine" maxlength="40" autocomplete="off" enterkeyhint="done">
+    <button type="button" id="cardFilm" class="chip cc-film" aria-pressed="false"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7.4 5.6 Q16 5.1 24.6 5.7 Q25.2 16 24.5 26.4 Q16 26.9 7.5 26.3 Q6.9 16 7.4 5.6Z"/><path d="M11 6v20.4M21 5.8v20.6" stroke-width="1.2"/><path class="i-holes" d="M9.2 9h.01M9.2 13.4h.01M9.2 17.8h.01M9.2 22.2h.01M22.8 9h.01M22.8 13.4h.01M22.8 17.8h.01M22.8 22.2h.01" stroke-width="2.4"/><path d="M13.6 19.4 l2.1-2.6 1.7 1.6 1.6-1.8" stroke-width="1.3"/></svg><span data-i18n="cardFilm">Старая плёнка</span></button>
+  </section>
+  <!-- 9б-2: «Момент» (время суток ползунком рассвет→ночь, погода на открытке) и «Оборот» (обратная сторона открытки) — место в окне;
+       в интерфейсе скрыто, включается в viewer.js (CARD_GROUPS) -->
+  <section class="cc-grp" data-grp="moment" hidden></section>
+  <section class="cc-grp" data-grp="back" hidden></section>
 </div>
 <button type="button" id="cardToast"><span></span></button>
 <button type="button" id="immExit" aria-label="Выйти" data-i18n-title="close"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M11 5H5v6M21 5h6v6M11 27H5v-6M21 27h6v-6"/></svg></button>

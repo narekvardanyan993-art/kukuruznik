@@ -262,11 +262,17 @@ def check_postcard():
             rec('%s — postcard.js подключён раньше viewer.js' % bd, 0 <= a < b)
             rec('%s — файл открытки %s' % (bd, cfg.get('POSTCARD_FILE')), str(cfg.get('POSTCARD_FILE', '')).endswith('.png'))
             ui = cfg['UI_I18N']
-            miss = [k for k in ('postcard', 'postcardCfg', 'cardTitle', 'cardLang', 'cardLine', 'cardFilm', 'cardSave', 'cardReady') if not all((ui.get(k) or {}).get(l) for l in ('hy', 'ru', 'en'))]
+            miss = [k for k in ('postcard', 'fullscreen', 'cardTitle', 'cardLang', 'cardLine', 'cardFilm', 'cardSave', 'cardReady', 'cardHint', 'cardGrpDate', 'cardGrpSign', 'cardToday', 'cardMyYear', 'cardExhibit', 'cardRare', 'cardRareB', 'sizeNormal', 'sizeLarge') if not all((ui.get(k) or {}).get(l) for l in ('hy', 'ru', 'en'))]
             rec('%s — тексты кнопок и окна на hy/ru/en' % bd, not miss, ', '.join(miss))
-            ids = [i for i in ('cardBtn', 'cardCfgBtn', 'cardCfg', 'cardPrev', 'cardLine', 'cardFilm', 'cardGo', 'cardToast', 'cardFlash') if 'id="%s"' % i not in html_text]
-            rec('%s — кнопка, «Настроить», окно и плашка в странице' % bd, not ids, ', '.join(ids))
+            ids = [i for i in ('cardBtn', 'fsBtn', 'pActs', 'cardCfg', 'cardPrev', 'cardPrevOld', 'cardLine', 'cardFilm', 'cardGo', 'cardToast', 'cardFlash', 'cardDateSeg', 'cardYear', 'cardNo', 'cardRareB', 'sizeSeg') if 'id="%s"' % i not in html_text]
+            rec('%s — пара кнопок, окно (превью, «Сохранить», дата, подпись) и плашка в странице' % bd, not ids, ', '.join(ids))
+            rec('%s — отдельной кнопки «Настроить» нет (e1.28)' % bd, 'id="cardCfgBtn"' not in html_text)
+            grp = re.findall(r'<section class="cc-grp" data-grp="(\w+)"( hidden)?', html_text)
+            rec('%s — группы окна: дата и подпись видны, «Момент» и «Оборот» есть, но скрыты (9б-2)' % bd, dict(grp) == {'date': '', 'sign': '', 'moment': ' hidden', 'back': ' hidden'}, str(grp))
+            rec('%s — номер экспоната в странице (%s)' % (bd, pc.get('no')), isinstance(pc.get('no'), int) and pc['no'] >= 1)
         rec('postcard.js скопирован в beta/engine/', (site / 'beta' / 'engine' / 'postcard.js').is_file())
+        nos = [page_config((site / 'beta' / bd / 'index.html').read_text(encoding='utf-8')).get('POSTCARD', {}).get('no') for bd in bdirs]
+        rec('номера экспонатов разные у разных зданий (%s)' % nos, len(set(nos)) == len(nos))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     return ok, out
@@ -289,6 +295,8 @@ def check_card_check():
     rec('check_site: share подменяется на телефоне до загрузки, шаг общий с быстрой проверкой',
         "from './card_check.mjs'" in cs and 'if (mobile) await page.evaluateOnNewDocument(SHARE_HOOK)' in cs and 'phoneCardStep(page' in cs and 'CARD_DETERMINISM' in cs)
     rec('check_site: путь ПК (скачивание PNG, blob + a.download) без изменений', "window.__lastImageBlob && window.__download ? true : null" in cs and "'walk-10-postcard.png'" in cs)
+    rec('шаг «Открытка → окно → Сохранить» общий для телефона и ПК (e1.28), окно закрывается после шага',
+        'export async function cardTapSave' in cc and 'await cardTapSave(page, { click, sleep })' in cs and 'cardTapSave(page, { click, sleep })' in cc and 'await cardSheetClose(page, sleep)' in cs)
     rec('шаг телефона: JPEG, 1080×1920, один вызов, файл за 20 с', "'image/jpeg'" in cc and 'r.w !== 1080 || r.h !== 1920' in cc and 'r.n !== 1' in cc and 'shareMs = 20000' in cc)
     rec('check_card_phone.mjs — быстрая проверка одной страницы на том же шаге', "phoneCardStep" in (T / 'check_card_phone.mjs').read_text(encoding='utf-8'))
     for f in ('card_check.mjs', 'check_card_phone.mjs', 'test_card_check.mjs', 'check_site.mjs'):
@@ -300,7 +308,7 @@ def check_card_check():
     else:
         rec('настоящий Chrome: зелёная и красные случаи (test_card_check.mjs)', r.returncode == 0, '' if r.returncode == 0 else (r.stdout + r.stderr).strip()[-300:])
     vj, pj = (ROOT / 'engine' / 'viewer.js').read_text(encoding='utf-8'), (ROOT / 'engine' / 'postcard.js').read_text(encoding='utf-8')
-    rec('viewer.js передаёт карту здания в открытку', 'function cardBuildingMask' in vj and 'mask: cardBuildingMask()' in vj and "projectB(f, 0, 0)" in vj)
+    rec('viewer.js передаёт карту здания в открытку', 'function cardBuildingMask' in vj and 'cfg.mask = cardBuildingMask()' in vj and 'cfg.mask : cardBuildingMask()' in vj and "projectB(f, 0, 0)" in vj)
     rec('postcard.js: карта здания, три размера таблички, запасные места штемпеля', 'function bldMap' in pj and all(k in pj for k in ('PQ.full', 'PQ.compact', 'PQ.mini')) and 'function stampPlace' in pj and 'waves: waves' in pj)
     return ok, out
 
@@ -360,6 +368,8 @@ def main():
         ('22. открытка: адрес с https:// (e1.27)', K, set_(lambda b: b['postcard'].__setitem__('url', 'https://chka.am/kukuruznik/')), 'postcard.url', None),
         ('23. открытка: нет годов (e1.27)', K, set_(lambda b: b['postcard'].pop('years')), 'postcard: нет обязательного поля «years»', None),
         ('24. открытка: опечатка в поле (e1.27)', K, set_(lambda b: b['postcard'].__setitem__('yaers', '1979')), 'неизвестное поле «yaers»', None),
+        ('25. открытка: номер экспоната строкой (e1.28)', K, set_(lambda b: b['postcard'].__setitem__('no', '1')), 'postcard.no', None),
+        ('26. открытка: номер экспоната 0 (e1.28)', K, set_(lambda b: b['postcard'].__setitem__('no', 0)), 'postcard.no', None),
     ]
     ok_all = True
     print('Испорченные настройки — сборка должна остановиться с понятным текстом:\n')

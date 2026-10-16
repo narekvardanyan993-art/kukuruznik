@@ -12,17 +12,21 @@ import { fileURLToPath } from 'url';
 import { SHARE_HOOK, CARD_DETERMINISM, phoneCardStep } from './card_check.mjs';
 const ENGINE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'engine');
 
-const PAGE = (mode) => `<!doctype html><meta charset=utf-8><body><button id=cardBtn style="width:120px;height:60px">card</button><script>
+// e1.28: нажатие «Открытка» открывает окно (body.card-open) с #cardGo, открытку отдаёт #cardGo; режим legacy — старая страница e1.27 (сразу share).
+const PAGE = (mode) => `<!doctype html><meta charset=utf-8><style>#cardGo{display:none}body.card-open #cardGo{display:block}</style><body><button id=cardBtn style="width:120px;height:60px">card</button><button id=cardGo style="width:120px;height:60px">save</button><button id=cardCfgClose>x</button><script>
 window.ChkaPostcard = {}; window.__card = { fontsReady: () => ${mode === 'fonts' ? 'false' : 'true'} };
 const mk = (w, h, type) => new Promise((res) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); x.fillStyle = '#c96'; x.fillRect(0, 0, w, h); c.toBlob((b) => res(new File([b], type === 'image/png' ? 'c.png' : 'c.jpg', { type })), type, 0.9); });
-document.getElementById('cardBtn').onclick = async () => {
+const send = async () => {
   const m = ${JSON.stringify(mode)};
   if (m === 'none') return;
   if (m === 'nofile') { navigator.share({}); return; }
   const f = await mk(m === 'small' ? 540 : 1080, m === 'small' ? 960 : 1920, m === 'png' ? 'image/png' : 'image/jpeg');
   navigator.share({ files: [f] });
   if (m === 'twice') navigator.share({ files: [f] });
-};</script>`;
+};
+document.getElementById('cardBtn').onclick = () => { if (${JSON.stringify(mode)} === 'legacy') send(); else document.body.classList.add('card-open'); };
+document.getElementById('cardGo').onclick = () => { if (${JSON.stringify(mode)} !== 'mute') send(); };
+document.getElementById('cardCfgClose').onclick = () => document.body.classList.remove('card-open');</script>`;
 const srv = http.createServer((q, r) => {
   if (q.url.startsWith('/engine/postcard.js')) { r.writeHead(200, { 'Content-Type': 'text/javascript' }); r.end(fs.readFileSync(path.join(ENGINE, 'postcard.js'))); return; }
   if (q.url.startsWith('/determinism')) { r.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); r.end('<!doctype html><meta charset=utf-8><script src="/engine/postcard.js"></script>'); return; }
@@ -33,7 +37,7 @@ const port = srv.address().port;
 let browser;
 try { browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] }); } catch (e) { console.log('ПРОПУЩЕНО: нет Chrome для puppeteer (' + String(e.message).slice(0, 80) + ')'); srv.close(); process.exit(2); }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const cases = [['ok', null], ['small', '540×960'], ['png', 'тип image/png'], ['none', 'не ушла в share'], ['nofile', 'без файла'], ['twice', '2 раз'], ['fonts', 'шрифты открытки']];
+const cases = [['ok', null], ['legacy', null], ['mute', 'не ушла в share'], ['small', '540×960'], ['png', 'тип image/png'], ['none', 'не ушла в share'], ['nofile', 'без файла'], ['twice', '2 раз'], ['fonts', 'шрифты открытки']];
 let bad = 0;
 for (const [mode, want] of cases) {
   const page = await browser.newPage();
