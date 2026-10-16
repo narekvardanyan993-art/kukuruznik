@@ -1089,6 +1089,8 @@
   }
   function endParade() { var f = par && par.onEnd; par = null; if (f) f(); }
   function abortParade() { if (par && !par.abort) par.abort = performance.now(); }
+  function freezeParade(sec) { if (par) par.fix = sec == null ? null : sec * 1000; }   // sec — секунда показа; null — снова идти по часам
+  function stopParadeNow() { if (par) endParade(); }   // оборвать сразу (без растворения): снимок для открытки сделан
   // ---- варианты парада (e1.3): дроны складываются во флаг; вертолёт несёт флаг. На кадре с крупным планом — пролёт за зданием ----
   var FLAGC = ['217,0,18', '28,76,192', '242,168,0'];
   function bldSprite(fr) {
@@ -1107,6 +1109,7 @@
     im.onerror = function () { skyM[fr] = null; }; im.src = F.env; return null;
   }
   function paradeLayer(now, w) {
+    if (par.fix != null) now = par.t0 + par.fix;   // e1.31 (9г): кадр показа «заморожен» на нужной секунде — открытка снимает парад в самый эффектный момент
     if (!par.behind && !par.skyOnly) { stepParade(now, w); return; }
     if (!lay) lay = document.createElement('canvas');
     if (lay.width !== cv.width || lay.height !== cv.height) { lay.width = cv.width; lay.height = cv.height; }
@@ -1672,6 +1675,9 @@
     },
     parade: startParade,          // Details.parade(onEnd) -> true, если показ начался; onEnd — когда следы растаяли
     paradeAbort: abortParade,
+    paradeFreeze: freezeParade,
+    paradeStop: stopParadeNow,
+    paradeDur: function (style) { var st = String(style || 'planes').replace(/:behind$/, ''); return (({ drones: 22000, heli: 26000, fireworks: 23500, balloons: 20000, banner: 22000 })[st] || 11000) / 1000; },
     paradeBusy: function () { return !!par; },
     paradeProgress: function (now) { return par ? clamp((now - par.t0) / (par.total || par.dur), 0, 1) : -1; },   // для кольца на кнопке флага
     // выключить всё (fps ниже порога или «уменьшение движения»): очистить холст, парад прервать
