@@ -250,6 +250,11 @@
    "en": "To whom (optional)",
    "hy": "Ում (ըստ ցանկության)"
   },
+  "cardShowOn": {
+   "ru": "Во время шоу",
+   "en": "During the show",
+   "hy": "Շոուի ժամանակ"
+  },
   "cardGrpMoment": {
    "ru": "Момент",
    "en": "Moment",

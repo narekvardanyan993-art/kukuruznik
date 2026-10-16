@@ -18,6 +18,7 @@ from pathlib import Path
 FIG_TYPES = ('sit', 'stand', 'chess', 'pigeon', 'balloon', 'leaf', 'grass')   # e1.22 FIGURES — тот же порядок, что в engine/viewer.js
 FIG_MAX = 25
 PARADE_KINDS = ('planes', 'drones', 'heli', 'fireworks', 'balloons', 'banner')   # виды парада (details.js): самолёты с дымом, дроны-флаг, вертолёт с флагом, салют, воздушные шары, знамя на фасаде (крупный план)
+PARADE_SECONDS = {'planes': 26, 'drones': 22, 'heli': 26, 'fireworks': 23.5, 'balloons': 20, 'banner': 22}   # длина показа (details.js: dur / total), секунды
 
 LANGS = ('hy', 'ru', 'en')
 ENGINE = Path(__file__).resolve().parent.parent / 'engine'
@@ -221,7 +222,7 @@ def validate(bdir, b, site):
         c.err('postcardFile', 'имя файла открытки должно оканчиваться на .png')
     # открытка «в сторис» (e1.27, s26): музейная табличка — название, годы, адрес chka.am/<здание>; без блока — название из панели
     if 'postcard' in b:
-        pc = c.obj(b['postcard'], 'postcard', required=('name', 'years', 'url'), optional=('no',))
+        pc = c.obj(b['postcard'], 'postcard', required=('name', 'years', 'url'), optional=('no', 'show'))
         if pc:
             c.i18n(pc['name'], 'postcard.name')
             if isinstance(pc['name'], dict):
@@ -244,6 +245,19 @@ def validate(bdir, b, site):
             # e1.28 (9б-1): номер экспоната на табличке («ЭКСПОНАТ № 001») — целое 1…999, у каждого здания свой
             if 'no' in pc and (isinstance(pc['no'], bool) or not isinstance(pc['no'], int) or not 1 <= pc['no'] <= 999):
                 c.err('postcard.no', 'номер экспоната — целое число от 1 до 999, а не %r' % (pc['no'],))
+            # e1.31 (9г): «во время шоу» — самый эффектный момент парада для открытки: кадр (номер среди видимых, с 0) и секунда показа;
+            # night — свой момент для ночи (необязательно). Проверка вида кадра и длины показа — ниже, когда известны кадры
+            if 'show' in pc:
+                sh = c.obj(pc['show'], 'postcard.show', required=('frame', 't'), optional=('night',))
+                if sh:
+                    for where, v in (('postcard.show', sh), ('postcard.show.night', sh.get('night'))):
+                        if v is None:
+                            continue
+                        v = c.obj(v, where, required=('frame', 't'))
+                        if v and (isinstance(v['frame'], bool) or not isinstance(v['frame'], int) or v['frame'] < 0):
+                            c.err(where + '.frame', 'номер кадра — целое число от 0 (среди видимых кадров), а не %r' % (v['frame'],))
+                        if v:
+                            c.number(v['t'], where + '.t', 0, 30)
 
     # --- тексты ---
     tx = c.obj(b['text'], 'text', required=('title', 'pageTitle', 'plaque', 'panelTitle', 'welcome'))
@@ -629,6 +643,24 @@ def validate(bdir, b, site):
                     c.err(w, 'нет %s %s' % (what, p) + ('' if suf not in ('_sunset', '_night') else ' (если её нет намеренно — "%s": false у кадра)' % suf[1:]))
     if visible == 0:
         c.err('frames', 'все кадры скрыты — нечего показывать')
+    # e1.31: postcard.show — кадр должен быть видимым и с парадом, секунда — внутри длительности показа этого вида
+    sh = (b.get('postcard') or {}).get('show') if isinstance(b.get('postcard'), dict) else None
+    if isinstance(sh, dict):
+        vis = [f for f in frames if isinstance(f, dict) and not f.get('hidden')]
+        for where, v in (('postcard.show', sh), ('postcard.show.night', sh.get('night'))):
+            if not isinstance(v, dict) or not isinstance(v.get('frame'), int) or isinstance(v.get('frame'), bool) or not is_num(v.get('t')):
+                continue
+            if not 0 <= v['frame'] < len(vis):
+                c.err(where + '.frame', 'кадра %d нет среди видимых (их %d, нумерация с 0)' % (v['frame'], len(vis)))
+                continue
+            pv = vis[v['frame']].get('parade')
+            if not pv:
+                c.err(where + '.frame', 'на кадре %d нет парада (parade) — снимать нечего' % v['frame'])
+                continue
+            kind = 'planes' if pv is True else str(pv).split(':')[0]
+            dur = PARADE_SECONDS.get(kind, 11)
+            if v['t'] > dur:
+                c.err(where + '.t', 'секунда %s позже конца показа «%s» (%s с)' % (v['t'], kind, dur))
 
     # --- tuning: переопределение чисел движка ---
     if 'tuning' in b:

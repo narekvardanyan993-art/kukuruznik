@@ -11,7 +11,7 @@
      своя строка «от руки»); seed() = время + случайность (check_site подменяет и Date.now, и Math.random — только для вызовов из postcard.js). ChkaPostcard.seed() — новое зерно (Date.now здесь, а не в viewer.js:
      check_site подменяет Date.now только для postcard.js — открытки двух копий сайта одинаковые), ChkaPostcard.luck(seed) — «повезло»: редкая 1 из 15.
      src — холст 1080×1920 с картинкой (готовый кадр с экрана, уже обрезанный под 9:16 — viewer.js, captureView)
-     o   — { lang, name, years, line, url, film, date, seed, font, mask }   (mask — карта слоя здания 108×192, 255 = здание: по ней табличка и штемпель обходят памятник, e1.27 s27)
+     o   — { lang, name, years, line, url, film, date, seed, font, mask }   (mask — карта слоя здания 108×192, 255 = здание: по ней табличка и штемпель обходят памятник, e1.27 s27; keep — такая же карта того, что нарисовало «шоу»: штемпель его не закрывает, e1.31)
    ChkaPostcard.SAFE — безопасная зона TikTok + Instagram Stories (px открытки 1080×1920): всё, что рисуется поверх кадра, — внутри неё.
      Сверху 250 (полоса прогресса и имя в Stories), снизу 500 (подпись, звук и ник в TikTok — 484, поле ответа в Stories — 250),
      справа 150 (столбик лайков/комментариев TikTok — 140), слева 64 (TikTok — 44). Разметка зон — tests/lenin/report/s26/zones.png. */
@@ -313,7 +313,7 @@
   // Штемпель: круг + волнистые линии сбоку. С картой здания — четыре угла и сетка запасных мест по всей безопасной зоне. Порядок вариантов:
   // полный (1) → 0,8 → без волн (1) → без волн (0,8): берём первый, для которого нашлось место, где под кругом и линиями нет здания (с запасом);
   // внутри варианта — где меньше рисунка. Нет такого места нигде — там, где здания закрыто меньше всего. Без карты — четыре угла и полный, как раньше.
-  function stampPlace(map, bm, avoid) {
+  function stampPlace(map, bm, avoid, kp) {
     var best = null, R = 118;
     var cand = [[W - SAFE.r - 124, SAFE.t + 140, -1, 0], [SAFE.l + 124, SAFE.t + 140, 1, 0.02], [W - SAFE.r - 124, SAFE.t + 400, -1, 0.05], [SAFE.l + 124, SAFE.t + 400, 1, 0.06]];
     if (bm) [188, 330, 497, 664, 806].forEach(function (cx) {
@@ -330,6 +330,7 @@
         if (!boxInside(g.box) || (avoid && hit(g.box, { x: avoid.x - 24, y: avoid.y - 24, w: avoid.w + 48, h: avoid.h + 48 }))) return;
         var cells = 0, wb = 0;
         if (bm) cells = bm.disc(cx, cy, R * k) + g.pts.reduce(function (n, q) { return n + bm.cells(q[0] - 6, q[1] - 6, q[0] + 6, q[1] + 6); }, 0);
+        if (kp) cells += 6 * (kp.disc(cx, cy, R * k) + g.pts.reduce(function (n, q) { return n + kp.cells(q[0] - 6, q[1] - 6, q[0] + 6, q[1] + 6); }, 0));   // e1.31: «шоу» (лента дыма, знамя) — главное на кадре, штемпель его не закрывает
         g.pts.forEach(function (q) { wb += map.busy(q[0] - 8, q[1] - 8, q[0] + 8, q[1] + 8); });
         var sc = map.busy(cx - R * k, cy - R * k, cx + R * k, cy + R * k) + (g.pts.length ? 0.5 * wb / g.pts.length : 0) + c[3];   // верх и правый край — чуть предпочтительнее
         var better = !best;
@@ -371,7 +372,7 @@
     var bm = bldMap(o.mask);   // здание/памятник из слоя здания (может не быть — тогда только «занятость»)
     // сначала табличка (низ зоны), потом штемпель — вне плашки и вне здания
     var ppos = plaquePlace(x, o, map, bm, [plaquePlan(x, o, PQ.full), plaquePlan(x, o, PQ.compact), plaquePlan(x, o, PQ.mini)]);
-    var spl = stampPlace(map, bm, { x: ppos.x, y: ppos.y, w: ppos.pl.w, h: ppos.pl.h });
+    var spl = stampPlace(map, bm, { x: ppos.x, y: ppos.y, w: ppos.pl.w, h: ppos.pl.h }, bldMap(o.keep));
     var boxes = { postmark: postmark(x, o, r, spl), plaque: plaque(x, o, r, ppos) };
     boxes.bld = { plaqueCells: ppos.cells, stampCells: spl.cells, haveMask: !!bm };
     if (o.grain !== false) { if (o.film) grain(x, r, 0.2); else grain(x, r, 0.06); }   // лёгкое зерно и без плёнки: табличка и штемпель «лежат» в одной фактуре с рисунком
@@ -438,7 +439,7 @@
     hand(x, o, o.line && o.line.trim() ? o.line.trim() : T.hi, mx0, T0 + 220, mW, 54, r, 76);
     // красный резиновый штамп «РЕДКАЯ» (только у редкой)
     if (o.rare) {
-      var rt = String(o.rareLabel || 'RARE').toUpperCase(), rx = R0 - 170, ry = T0 + 370;
+      var rt = String(o.rareLabel || 'RARE').toUpperCase(), rx = R0 - 190, ry = T0 + 400;
       x.save(); x.translate(rx, ry); x.rotate(-0.12); x.globalAlpha = 0.82;
       x.font = fnt(o, 700, 30); if (LS) x.letterSpacing = '5px';
       var rw = x.measureText(rt).width + 44;
@@ -450,13 +451,13 @@
       x.restore();
     }
     // тонкая линейка между письмом и адресом
-    var ay = T0 + 440;
+    var ay = T0 + 540;
     rule(x, L0 + 40, ay, R0 - 40, 1);
     // место марки: пунктирная рамка, в ней марка — кусок кадра в перфорации
     var sw0 = 186, sh0 = 228, sx0 = R0 - 46 - sw0, sy0 = ay + 36;
     x.save(); x.setLineDash([6, 5]); x.strokeStyle = RULE; x.lineWidth = 1; x.strokeRect(sx0 - 10, sy0 - 10, sw0 + 20, sh0 + 20); x.restore();
-    x.font = fnt(o, 500, 15); x.fillStyle = 'rgba(52,44,36,0.55)'; x.textAlign = 'center'; x.textBaseline = 'bottom';
-    x.fillText(T.stamp, sx0 + sw0 / 2, sy0 - 14);
+    x.font = fnt(o, 500, 15); x.fillStyle = 'rgba(52,44,36,0.55)'; x.textAlign = 'center'; x.textBaseline = 'top';
+    x.fillText(T.stamp, sx0 + sw0 / 2, sy0 + sh0 + 16);
     x.save(); x.translate(sx0 + sw0 / 2, sy0 + sh0 / 2); x.rotate(0.02); x.translate(-sw0 / 2, -sh0 / 2);
     x.save(); x.shadowColor = 'rgba(0,0,0,0.18)'; x.shadowBlur = 4; x.shadowOffsetY = 1; x.fillStyle = '#fbf7ec'; perfRect(x, 0, 0, sw0, sh0, 6); x.fill('evenodd'); x.restore();
     var iw = sw0 - 28, ih = sh0 - 70, cropW = src.width * 0.6, cropH = cropW * ih / iw;
@@ -469,17 +470,17 @@
     // адрес: «Куда» + 2 линейки, «Кому» + линейка — подписи типографские, текст «от руки»
     x.textAlign = 'left'; x.textBaseline = 'alphabetic';
     var lx0 = L0 + 46, lxE = sx0 - 40, lxF = R0 - 46;
-    var rows = [[T.where, ay + 100, lxE], [null, ay + 170, lxE], [null, ay + 240, lxE], [T.to, ay + 340, lxF], [null, ay + 410, lxF]];
+    var rows = [[T.where, ay + 120, lxE], [null, ay + 200, lxE], [null, ay + 280, lxE], [T.to, ay + 390, lxF], [null, ay + 470, lxF]];
     rows.forEach(function (rw) {
       var lx = lx0;
       if (rw[0]) { x.font = fnt(o, 600, 26); x.fillStyle = PRINT; x.fillText(rw[0], lx0, rw[1]); lx = lx0 + x.measureText(rw[0]).width + 14; }
       rule(x, lx, rw[1] + 6, rw[2], 1.2);
     });
     x.font = fnt(o, 600, 26); var wW = x.measureText(T.where).width + 24;
-    hand(x, o, 'Երևան, ' + (o.name || ''), lx0 + wW, ay + 94, lxE - lx0 - wW - 10, 40, r, 70);
-    if (o.to && String(o.to).trim()) { x.font = fnt(o, 600, 26); var tW = x.measureText(T.to).width + 24; hand(x, o, String(o.to).trim(), lx0 + tW, ay + 334, lxF - lx0 - tW - 10, 42, r, 70); }
+    hand(x, o, 'Երևան, ' + (o.name || ''), lx0 + wW, ay + 114, lxE - lx0 - wW - 10, 40, r, 80);
+    if (o.to && String(o.to).trim()) { x.font = fnt(o, 600, 26); var tW = x.measureText(T.to).width + 24; hand(x, o, String(o.to).trim(), lx0 + tW, ay + 384, lxF - lx0 - tW - 10, 42, r, 80); }
     // индекс: подпись мелко и шесть клеточек
-    var iy = ay + 470;
+    var iy = ay + 540;
     x.font = fnt(o, 500, 17); x.fillStyle = 'rgba(52,44,36,0.6)'; x.fillText(T.idx, lx0, iy - 10);
     for (var k = 0; k < 6; k++) { x.strokeStyle = PRINT; x.lineWidth = 1.4; x.strokeRect(lx0 + k * 46, iy, 36, 50); }
     // штемпель поверх марки

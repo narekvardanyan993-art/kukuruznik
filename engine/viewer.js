@@ -2925,7 +2925,7 @@
   var cardSet = (function () { var s = null; try { s = JSON.parse(lsGet('chka-card') || 'null'); } catch (e) {} s = s && typeof s === 'object' ? s : {};
     var yr = Math.round(+s.year); yr = yr >= CARD_YEARS[0] && yr <= CARD_YEARS[1] ? yr : null;
     return { lang: CONFIG.LANGS.indexOf(s.lang) >= 0 ? s.lang : null, line: typeof s.line === 'string' ? s.line.slice(0, 40) : '', film: !!s.film,
-      date: s.date === 'year' ? 'year' : 'today', year: yr, back: !!s.back, to: typeof s.to === 'string' ? s.to.slice(0, 30) : '' }; })();
+      date: s.date === 'year' ? 'year' : 'today', year: yr, back: !!s.back, to: typeof s.to === 'string' ? s.to.slice(0, 30) : '', show: !!s.show }; })();
   function cardSave() { lsSet('chka-card', JSON.stringify(cardSet)); }
   function cardLang() { return cardSet.lang || currentLang; }
   function cardYear() { return cardSet.year || Math.round((CARD_YEARS[0] + CARD_YEARS[1]) / 2); }
@@ -3015,18 +3015,19 @@
   function sceneWant() {   // что сейчас на сцене — в виде настроек окна
     var w = { s: momFromP(todAnim ? todAnim.p1 : tod.p), wx: {} };
     CWX.forEach(function (k) { w.wx[k] = k === 'wind' ? windIdx === 2 : k === 'rainbow' ? !!wx.rainbowT0 : !!wxOn[k]; });
+    w.show = !!cardSet.show && !!cardShowCfg(w);   // «Во время шоу» — только если у здания есть момент шоу и устройство его тянет
     return w;
   }
-  function wantKey(w) { return (w.p != null ? 'p' + w.p : w.s.toFixed(2)) + '|' + Object.keys(w.wx).filter(function (k) { return w.wx[k]; }).sort().join('+'); }
+  function wantKey(w) { return (w.p != null ? 'p' + w.p : w.s.toFixed(2)) + '|' + Object.keys(w.wx).filter(function (k) { return w.wx[k]; }).sort().join('+') + (w.show ? '|show' : ''); }
   function wantP(w) { return w.p != null ? w.p : momTab('p', w.s); }
   function cardTime(w) { var m = Math.round(w && w.p == null ? momTab('min', w.s) : 780), h = Math.floor(m / 60) % 24, mm = m % 60; return (h < 10 ? '0' : '') + h + ':' + (mm < 10 ? '0' : '') + mm; }
   function wantRare(w) {   // особая погода — редкая открытка
     var p = wantP(w), n = p > 1.6, ss = p > 0.55 && p <= 1.6, x = w.wx;
-    return !!((n && x.snow) || (ss && (x.snow || x.rain)) || (n && x.fog) || (x.snow && x.wind) || paradeBusy || (window.Details && window.Details.paradeBusy && window.Details.paradeBusy()));
+    return !!((n && x.snow) || (ss && (x.snow || x.rain)) || (n && x.fog) || (x.snow && x.wind) || paradeBusy || (window.Details && window.Details.paradeBusy && window.Details.paradeBusy()) || (w.show && !!cardShowCfg(w)));   // шоу — всегда редкая (парад)
   }
   function luck() { return !!(ChkaPostcard.luck && ChkaPostcard.luck(cfg.seed)); }
   // окно: снимок кадра (src) и для каких настроек сцены он снят (srcKey), желаемые настройки (want), зерно, личный номер, готовые открытки
-  var cfg = { src: null, mask: null, srcKey: '', want: null, seed: undefined, rare: false, code: '', card: null, back: null, busy: false, dirty: false };
+  var cfg = { src: null, mask: null, keep: null, srcKey: '', want: null, seed: undefined, rare: false, code: '', card: null, back: null, busy: false, dirty: false };
   // Сцена «на минутку»: применить настройки сразу (без плавных переходов движка), дождаться картинок заката/ночи и пары кадров, снять, вернуть как было
   function nextFrames(n) { return new Promise(function (res) { (function f(k) { if (k <= 0) res(); else requestAnimationFrame(function () { f(k - 1); }); })(n); }); }
   function wxInstant() {
@@ -3059,19 +3060,68 @@
     applyWeather(); wxInstant(); if (CONFIG.SNOW) wx.snowLin = S.snow;
     wx.rainbowT0 = S.rb; showWxName();
   }
-  function shoot(w) {   // → Promise<{ src, mask }>
-    var S = sceneSnap(), p = sceneApply(w);
-    var wait = p > 0.05 ? Promise.race([loadStates(frameIndex), new Promise(function (r) { setTimeout(r, 8000); })]) : Promise.resolve();
-    return wait.then(function () { return nextFrames(3); }).then(function () {
-      var r = { src: captureView(), mask: cardBuildingMask() };
-      sceneRestore(S);
-      return r;
-    }, function (e) { sceneRestore(S); throw e; });
+  // «Во время шоу» (e1.31, 9г): парад («Чудо») на кадре и секунде из building.json (postcard.show { frame, t } — самый эффектный момент, измерен
+  // настоящим рендером, tests/lenin/report/s31/show.md). Сцена на минуту переезжает на кадр парада, парад стартует и замораживается на секунде t,
+  // кадр снимается, потом парад обрывается, кадр и время суток/погода возвращаются как были. Время суток и погода из «Момента» ложатся поверх.
+  function cardShowCfg(w) {   // { frame, t, style } или null — у здания шоу для открытки нет / слабое устройство / «уменьшить движение»
+    var S = (w && w.showCfg) || (CONFIG.POSTCARD || {}).show, st = S && PARADE_STYLES[S.frame];
+    if (!S || !st || !useGL || glLost || perfLevel >= 1 || reduced() || !window.Details || !window.Details.parade) return null;
+    var night = !!w && wantP(w) > 1.6, alt = night && S.night && PARADE_STYLES[S.night.frame] ? S.night : S;   // ночью может быть свой момент (S.night)
+    return { frame: alt.frame, t: alt.t, style: PARADE_STYLES[alt.frame], base: !!(w && w.showCfg && w.showCfg.base) };
   }
+  // Шоу — главное на кадре (лента дыма, знамя): штемпель его не закрывает. Карта «шоу» = то, что парад изменил в кадре
+  // (снимок с парадом минус тот же кадр без него, 108×192, края +1 ячейка); у здания своя карта (cardBuildingMask).
+  function showMaskOf(base, cur) {
+    var MW = 108, MH = 192, ca = document.createElement('canvas'), cb = document.createElement('canvas'); ca.width = cb.width = MW; ca.height = cb.height = MH;
+    var xa = ca.getContext('2d', { willReadFrequently: true }), xb = cb.getContext('2d', { willReadFrequently: true });
+    xa.drawImage(base, 0, 0, MW, MH); xb.drawImage(cur, 0, 0, MW, MH);
+    var a = xa.getImageData(0, 0, MW, MH).data, b = xb.getImageData(0, 0, MW, MH).data, m = new Uint8Array(MW * MH), out = new Uint8Array(MW * MH), i, x, y;
+    for (i = 0; i < m.length; i++) if (Math.abs(a[i * 4] - b[i * 4]) + Math.abs(a[i * 4 + 1] - b[i * 4 + 1]) + Math.abs(a[i * 4 + 2] - b[i * 4 + 2]) > 45) m[i] = 1;
+    for (y = 0; y < MH; y++) for (x = 0; x < MW; x++) {
+      if (!m[y * MW + x]) continue;
+      for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) { var xx = x + dx, yy = y + dy; if (xx >= 0 && yy >= 0 && xx < MW && yy < MH) out[yy * MW + xx] = 255; }
+    }
+    return out;
+  }
+  function waitFade() { return new Promise(function (res) { var k = 0; (function f() { if (!fade || ++k > 60) res(); else requestAnimationFrame(f); })(); }); }
+  function frameJump(i) {   // мгновенно (без перехода): показать кадр i, как будто переход уже закончился
+    if (i === frameIndex && !fade) return Promise.resolve();
+    return loadDay(i).then(function () { fade = null; frameIndex = i; mixState = 0; fx.zoomA = 1; fx.zoomB = 1; markDot(i); });
+  }
+  function shootRun(w, ts) {   // → Promise<[{ src, mask }]>; ts — секунды показа (по возрастанию), по умолчанию одна — из настроек
+    var S = sceneSnap(), sh = w.show ? cardShowCfg(w) : null, out = [];
+    S.frame = frameIndex;
+    var p = sceneApply(w);
+    if (sh) { stopParade(); if (window.Details.paradeBusy()) window.Details.paradeStop(); }
+    var go = sh ? waitFade().then(function () { return frameJump(sh.frame); }) : Promise.resolve();
+    return go.then(function () {
+      return p > 0.05 ? Promise.race([loadStates(frameIndex), new Promise(function (r) { setTimeout(r, 8000); })]) : null;
+    }).then(function () { return nextFrames(3); }).then(function () {
+      if (!sh) { out.push({ src: captureView(), mask: cardBuildingMask() }); return; }
+      if (sh.base) { out.push({ src: captureView(), mask: cardBuildingMask(), t: -1 }); return; }   // замер: тот же кадр без парада
+      var plain = captureView();   // тот же кадр без парада — для карты «занято шоу»
+      if (!window.Details.parade(function () {}, sh.style)) { out.push({ src: captureView(), mask: cardBuildingMask(), noShow: true }); return; }
+      var list = ts || [sh.t], chain = Promise.resolve();
+      list.forEach(function (t) {
+        chain = chain.then(function () { window.Details.paradeFreeze(t); return nextFrames(2); }).then(function () {
+          var cur = captureView(), bm = cardBuildingMask();
+          out.push({ src: cur, mask: bm, keep: cur && plain ? showMaskOf(plain, cur) : null, t: t });
+        });
+      });
+      return chain.then(function () { window.Details.paradeStop(); });
+    }).then(function () {
+      if (sh && window.Details.paradeBusy()) window.Details.paradeStop();
+      return sh ? frameJump(S.frame) : null;
+    }).then(function () { sceneRestore(S); return nextFrames(1); }).then(function () { return out; }, function (e) {
+      try { if (window.Details && window.Details.paradeBusy()) window.Details.paradeStop(); } catch (_) {}
+      return (S.frame !== frameIndex ? frameJump(S.frame) : Promise.resolve()).then(function () { sceneRestore(S); throw e; });
+    });
+  }
+  function shoot(w) { return shootRun(w).then(function (r) { return r[0]; }); }   // { src, mask, keep }   // → Promise<{ src, mask }>
   function composeCard(src, extra) {
     var lang = cardLang(), info = cardInfo(lang), U = CONFIG.UI_I18N, w = cfg.want || sceneWant();
     var o = { lang: lang, name: info.name, years: info.years, url: info.url, line: cardSet.line.trim(), to: cardSet.to.trim(), film: cardSet.film, font: CARD_FONT,
-      mask: cfg.mask !== null ? cfg.mask : cardBuildingMask(), no: cardNo(), noLabel: U.cardExhibit[lang], rare: cfg.rare, rareLabel: U.cardRare[lang],
+      mask: cfg.mask !== null ? cfg.mask : cardBuildingMask(), keep: cfg.keep, no: cardNo(), noLabel: U.cardExhibit[lang], rare: cfg.rare, rareLabel: U.cardRare[lang],
       year: cardSet.date === 'year' ? cardYear() : null, seed: cfg.seed, code: cfg.code, time: cardTime(w) };
     if (extra) Object.keys(extra).forEach(function (k) { if (extra[k] !== undefined) o[k] = extra[k]; });
     if (o.back) return ChkaPostcard.composeBack(src, o);
@@ -3134,6 +3184,8 @@
     });
     cardCfg.classList.toggle('cc-yr', cardSet.date === 'year');
     var fb = document.getElementById('cardFilm'); fb.classList.toggle('on', cardSet.film); fb.setAttribute('aria-pressed', cardSet.film ? 'true' : 'false');
+    var so = document.getElementById('cardShowOn');   // «Во время шоу»: есть только у зданий с моментом шоу и на устройстве, которое тянет парад
+    if (so) { var sc = cardShowCfg(w); so.hidden = !sc; so.classList.toggle('on', !!w.show); so.setAttribute('aria-pressed', w.show ? 'true' : 'false'); }
     var bb = document.getElementById('cardBack'); if (bb) { bb.classList.toggle('on', cardSet.back); bb.setAttribute('aria-pressed', cardSet.back ? 'true' : 'false'); }
     cardCfg.classList.toggle('cc-back-on', cardSet.back);
     var cn = document.getElementById('cardLineN'); if (cn) cn.textContent = cardSet.line.length + ' / 40';
@@ -3174,7 +3226,7 @@
     if (key === cfg.srcKey) return fonts.then(cfgCompose);
     busy(true);
     return fonts.then(function () { return shoot(cfg.want); }).then(function (r) {
-      if (r.src) { cfg.src = r.src; cfg.mask = r.mask; cfg.srcKey = key; }
+      if (r.src) { cfg.src = r.src; cfg.mask = r.mask; cfg.keep = r.keep || null; cfg.srcKey = key; }
       busy(false); cfgCompose(); cardFlashNow();
     }, function () { busy(false); });
   }
@@ -3182,7 +3234,7 @@
   function openCfg() {
     if (!window.ChkaPostcard) return;
     var src = captureView(); if (!src) return;
-    cfg.want = sceneWant(); cfg.src = src; cfg.mask = cardBuildingMask(); cfg.srcKey = wantKey(cfg.want);
+    cfg.want = sceneWant(); cfg.src = src; cfg.mask = cardBuildingMask(); cfg.keep = null; cfg.srcKey = wantKey(cfg.want);
     cfg.card = cfg.back = null; cfg.busy = false;
     cfg.seed = ChkaPostcard.seed ? ChkaPostcard.seed() : undefined;
     cfg.code = ChkaPostcard.code ? ChkaPostcard.code(cfg.seed) : '';
@@ -3278,6 +3330,13 @@
       dirty();
     });
   });
+  var showOnBtn = document.getElementById('cardShowOn');
+  if (showOnBtn) showOnBtn.addEventListener('click', function () {
+    if (!cfg.want) return;
+    cardSet.show = !cardSet.show; cardSave();
+    cfg.want.show = cardSet.show && !!cardShowCfg(cfg.want);
+    dirty();
+  });
   document.getElementById('cardFilm').addEventListener('click', function () { cardSet.film = !cardSet.film; cardSave(); dirty(); });
   var backBtn = document.getElementById('cardBack');
   if (backBtn) backBtn.addEventListener('click', function () { cardSet.back = !cardSet.back; cardSave(); dirty(); });
@@ -3315,9 +3374,12 @@
     fontsReady: function (l) { return cardFontsReady(l || cardLang()); }, fontsLoad: cardFontsLoad, bldLoad: function () { FRAMES.forEach(function (F, i) { cardBldLoad(i); }); return new Promise(function (res) { var n = 0; (function w() { if (FRAMES.every(function (F, i) { return cardBld[i] !== 'loading'; }) || ++n > 100) res(); else setTimeout(w, 100); })(); }); }, mask: cardBuildingMask, safe: function () { return ChkaPostcard.SAFE; },
     open: openCfg, close: closeCfg, show: showNow,
     want: function (w) { if (w) { cfg.want = w; dirty(); } return cfg.want; },
-    state: function () { return { open: bodyEl.classList.contains('card-open'), rare: cfg.rare, seed: cfg.seed, code: cfg.code, time: cfg.want ? cardTime(cfg.want) : '', want: cfg.want, srcKey: cfg.srcKey, dirty: cfg.dirty, busy: cfg.busy, back: !!cfg.back, years: CARD_YEARS, set: JSON.parse(JSON.stringify(cardSet)), no: cardNo(), mom: MOM.map(function (m) { return m.k; }), wx: CWX }; },
+    state: function () { return { open: bodyEl.classList.contains('card-open'), rare: cfg.rare, seed: cfg.seed, code: cfg.code, time: cfg.want ? cardTime(cfg.want) : '', want: cfg.want, srcKey: cfg.srcKey, dirty: cfg.dirty, busy: cfg.busy, back: !!cfg.back, years: CARD_YEARS, set: JSON.parse(JSON.stringify(cardSet)), no: cardNo(), mom: MOM.map(function (m) { return m.k; }), wx: CWX, showOn: !!(cfg.want && cfg.want.show) }; },
     // замер «Момента» (s30): применить { p | s, wx }, снять кадр без табличек, вернуть сцену; ответ — маленькая копия 270×480 PNG
-    probe: function (w) { return shoot(w).then(function (r) { if (!r.src) return null; var c = document.createElement('canvas'); c.width = 270; c.height = 480; c.getContext('2d').drawImage(r.src, 0, 0, 270, 480); return c.toDataURL('image/png'); }); }
+    probe: function (w) { return shoot(w).then(function (r) { if (!r.src) return null; var c = document.createElement('canvas'); c.width = 270; c.height = 480; c.getContext('2d').drawImage(r.src, 0, 0, 270, 480); return c.toDataURL('image/png'); }); },
+    // замер шоу (s31): w как у probe + show: true; ts — секунды показа; ответ — список копий 270×480 PNG (или полного размера, если full)
+    probeShow: function (w, ts, full) { return shootRun(w, ts).then(function (r) { return r.map(function (q) { if (!q.src) return null; var c = document.createElement('canvas'); c.width = full ? 1080 : 270; c.height = full ? 1920 : 480; c.getContext('2d').drawImage(q.src, 0, 0, c.width, c.height); return { t: q.t, noShow: !!q.noShow, url: c.toDataURL('image/png') }; }); }); },
+    showCfg: function (w) { return cardShowCfg(w); }
   };
 
   // размер текста: крупный (по умолчанию) / обычный. Нажатие — отметка сразу, текст меняется мягко (textSwap)
