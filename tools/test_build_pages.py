@@ -262,13 +262,13 @@ def check_postcard():
             rec('%s — postcard.js подключён раньше viewer.js' % bd, 0 <= a < b)
             rec('%s — файл открытки %s' % (bd, cfg.get('POSTCARD_FILE')), str(cfg.get('POSTCARD_FILE', '')).endswith('.png'))
             ui = cfg['UI_I18N']
-            miss = [k for k in ('postcard', 'fullscreen', 'cardTitle', 'cardLang', 'cardLine', 'cardFilm', 'cardSave', 'cardReady', 'cardHint', 'cardGrpDate', 'cardGrpSign', 'cardToday', 'cardMyYear', 'cardExhibit', 'cardRare', 'cardRareB', 'sizeNormal', 'sizeLarge') if not all((ui.get(k) or {}).get(l) for l in ('hy', 'ru', 'en'))]
+            miss = [k for k in ('postcard', 'fullscreen', 'cardTitle', 'cardLang', 'cardLine', 'cardFilm', 'cardSave', 'cardReady', 'cardHint', 'cardGrpDate', 'cardGrpSign', 'cardToday', 'cardMyYear', 'cardExhibit', 'cardRare', 'cardRareB', 'sizeNormal', 'sizeLarge', 'cardGrpMoment', 'cardGrpBack', 'cardDawn', 'cardBlue', 'cardRainbow', 'cardHoldOn', 'cardHoldOff', 'cardAim', 'cardBack', 'cardBackHint', 'cardCode') if not all((ui.get(k) or {}).get(l) for l in ('hy', 'ru', 'en'))]
             rec('%s — тексты кнопок и окна на hy/ru/en' % bd, not miss, ', '.join(miss))
-            ids = [i for i in ('cardBtn', 'fsBtn', 'pActs', 'cardCfg', 'cardPrev', 'cardPrevOld', 'cardLine', 'cardFilm', 'cardGo', 'cardToast', 'cardFlash', 'cardDateSeg', 'cardYear', 'cardNo', 'cardRareB', 'sizeSeg') if 'id="%s"' % i not in html_text]
+            ids = [i for i in ('cardBtn', 'fsBtn', 'pActs', 'cardCfg', 'cardPrev', 'cardPrevOld', 'cardLine', 'cardFilm', 'cardGo', 'cardToast', 'cardFlash', 'cardDateSeg', 'cardYear', 'cardNo', 'cardRareB', 'sizeSeg', 'cardTod', 'cardTime', 'cardWx', 'cardHoldBtn', 'cardHold', 'cardBack', 'cardPrevBack') if 'id="%s"' % i not in html_text]
             rec('%s — пара кнопок, окно (превью, «Сохранить», дата, подпись) и плашка в странице' % bd, not ids, ', '.join(ids))
             rec('%s — отдельной кнопки «Настроить» нет (e1.28)' % bd, 'id="cardCfgBtn"' not in html_text)
             grp = re.findall(r'<section class="cc-grp" data-grp="(\w+)"( hidden)?', html_text)
-            rec('%s — группы окна: дата и подпись видны, «Момент» и «Оборот» есть, но скрыты (9б-2)' % bd, dict(grp) == {'date': '', 'sign': '', 'moment': ' hidden', 'back': ' hidden'}, str(grp))
+            rec('%s — группы окна (e1.29): Момент, Дата, Подпись, Оборот — все видны, по порядку' % bd, grp == [('moment', ''), ('date', ''), ('sign', ''), ('back', '')], str(grp))
             rec('%s — номер экспоната в странице (%s)' % (bd, pc.get('no')), isinstance(pc.get('no'), int) and pc['no'] >= 1)
         rec('postcard.js скопирован в beta/engine/', (site / 'beta' / 'engine' / 'postcard.js').is_file())
         nos = [page_config((site / 'beta' / bd / 'index.html').read_text(encoding='utf-8')).get('POSTCARD', {}).get('no') for bd in bdirs]
@@ -296,8 +296,10 @@ def check_card_check():
         "from './card_check.mjs'" in cs and 'if (mobile) await page.evaluateOnNewDocument(SHARE_HOOK)' in cs and 'phoneCardStep(page' in cs and 'CARD_DETERMINISM' in cs)
     rec('check_site: путь ПК (скачивание PNG, blob + a.download) без изменений', "window.__lastImageBlob && window.__download ? true : null" in cs and "'walk-10-postcard.png'" in cs)
     rec('шаг «Открытка → окно → Сохранить» общий для телефона и ПК (e1.28), окно закрывается после шага',
-        'export async function cardTapSave' in cc and 'await cardTapSave(page, { click, sleep })' in cs and 'cardTapSave(page, { click, sleep })' in cc and 'await cardSheetClose(page, sleep)' in cs)
-    rec('шаг телефона: JPEG, 1080×1920, один вызов, файл за 20 с', "'image/jpeg'" in cc and 'r.w !== 1080 || r.h !== 1920' in cc and 'r.n !== 1' in cc and 'shareMs = 20000' in cc)
+        'export async function cardTapSave' in cc and 'await cardTapSave(page, { click, sleep })' in cs and 'cardTapSave(page, { click, sleep, back })' in cc and 'await cardSheetClose(page, sleep)' in cs)
+    rec('шаг телефона: без оборота 1 файл, с оборотом 2 (e1.29); check_card_phone проверяет оба случая; Math.random для postcard.js подменяется',
+        'back: true' in (T / 'check_card_phone.mjs').read_text(encoding='utf-8') and 'Math.random = function' in cc and "backCases" in (T / 'test_card_check.mjs').read_text(encoding='utf-8'))
+    rec('шаг телефона: JPEG, 1080×1920, один вызов, файл за 20 с', "'image/jpeg'" in cc and 'f.w !== 1080 || f.h !== 1920' in cc and 'const need = back ? 2 : 1' in cc and 'r.n !== 1' in cc and 'shareMs = 20000' in cc)
     rec('check_card_phone.mjs — быстрая проверка одной страницы на том же шаге', "phoneCardStep" in (T / 'check_card_phone.mjs').read_text(encoding='utf-8'))
     for f in ('card_check.mjs', 'check_card_phone.mjs', 'test_card_check.mjs', 'check_site.mjs'):
         r = subprocess.run(['node', '--check', str(T / f)], capture_output=True, text=True)
@@ -309,6 +311,9 @@ def check_card_check():
         rec('настоящий Chrome: зелёная и красные случаи (test_card_check.mjs)', r.returncode == 0, '' if r.returncode == 0 else (r.stdout + r.stderr).strip()[-300:])
     vj, pj = (ROOT / 'engine' / 'viewer.js').read_text(encoding='utf-8'), (ROOT / 'engine' / 'postcard.js').read_text(encoding='utf-8')
     rec('viewer.js передаёт карту здания в открытку', 'function cardBuildingMask' in vj and 'cfg.mask = cardBuildingMask()' in vj and 'cfg.mask : cardBuildingMask()' in vj and "projectB(f, 0, 0)" in vj)
+    rec('viewer.js: «табло» при смене языка, ракурс в цикле кадра, Момент ведёт время суток движка (e1.29)',
+        'function tabloSwap' in vj and 'tabloSwap(function () {' in vj and 'if (tiltHold) { shiftX = tiltHold.sx;' in vj and 'todAnim = null; applyTod(p);' in vj and 'moment: true' in vj and 'back: true }' in vj)
+    rec('postcard.js: оборот, время на штемпеле, личный номер (e1.29)', 'function composeBack' in pj and 'o.time' in pj and 'function code(seed)' in pj and 'composeBack: composeBack' in pj)
     rec('postcard.js: карта здания, три размера таблички, запасные места штемпеля', 'function bldMap' in pj and all(k in pj for k in ('PQ.full', 'PQ.compact', 'PQ.mini')) and 'function stampPlace' in pj and 'waves: waves' in pj)
     return ok, out
 

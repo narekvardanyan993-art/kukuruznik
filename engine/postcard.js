@@ -3,7 +3,10 @@
 
    ChkaPostcard.compose(src, o) → новый холст 1080×1920
      e1.28 (9б-1): o.no — номер экспоната («001») и o.noLabel («Экспонат»), o.rare — редкая открытка (красный штемпель и «✦ РЕДКАЯ» на табличке,
-     o.rareLabel), o.year — «мой год» (на штемпеле вместо сегодняшней даты). ChkaPostcard.seed() — новое зерно (Date.now здесь, а не в viewer.js:
+     o.rareLabel), o.year — «мой год» (на штемпеле вместо сегодняшней даты).
+     e1.29 (9б-2): o.time — «ЧЧ:ММ» под датой на штемпеле (по ползунку «Момент»), o.code — личный номер открытки («4F2K», ChkaPostcard.code(seed))
+     рядом с номером экспоната. ChkaPostcard.composeBack(src, o) — оборот советской почтовой карточки 1080×1920 (адрес «Երևան, …», марка, штемпель,
+     своя строка «от руки»); seed() = время + случайность (check_site подменяет и Date.now, и Math.random — только для вызовов из postcard.js). ChkaPostcard.seed() — новое зерно (Date.now здесь, а не в viewer.js:
      check_site подменяет Date.now только для postcard.js — открытки двух копий сайта одинаковые), ChkaPostcard.luck(seed) — «повезло»: редкая 1 из 15.
      src — холст 1080×1920 с картинкой (готовый кадр с экрана, уже обрезанный под 9:16 — viewer.js, captureView)
      o   — { lang, name, years, line, url, film, date, seed, font, mask }   (mask — карта слоя здания 108×192, 255 = здание: по ней табличка и штемпель обходят памятник, e1.27 s27)
@@ -125,11 +128,12 @@
   // Верхняя строка таблички (e1.28): «ЭКСПОНАТ № 001», у редкой — ещё звёздочка и «РЕДКАЯ» красным. Не влезает — короче: «№ 001 ✦ РЕДКАЯ», «№ 001 ✦».
   function topLine(x, o, V, inner) {
     var no = o.no ? '№ ' + o.no : '', rare = o.rare ? String(o.rareLabel || 'RARE').toUpperCase() : '';
-    if (!no && !o.rare) return null;
+    if (!no && !o.rare && !o.code) return null;
     var px = V.noPx, LS = 'letterSpacing' in x, ls = LS ? Math.round(px * 0.12) : 0, star = Math.round(px * 0.95), gap = Math.round(px * 0.6);
     x.font = fnt(o, 600, px);
     var w = function (t) { return t ? x.measureText(t).width + ls * t.length : 0; };
-    var forms = [[o.noLabel && no ? String(o.noLabel).toUpperCase() + ' ' + no : no, rare], [no, rare], [no, '']], res = null;
+    var cd = o.code ? (no ? ' · ' : '№ ') + o.code : '';   // личный номер открытки рядом с номером экспоната (e1.29)
+    var forms = [[(o.noLabel && no ? String(o.noLabel).toUpperCase() + ' ' + no : no) + cd, rare], [no + cd, rare], [no || cd, rare], [no || cd, '']], res = null;
     for (var i = 0; i < forms.length; i++) {
       var a = forms[i][0], b = forms[i][1], st = o.rare, wa = w(a), tw = wa + (st ? (a ? gap : 0) + star + (b ? gap * 0.5 + w(b) : 0) : 0);
       res = { a: a, b: b, st: st, wa: wa, w: tw, px: px, ls: ls, star: star, gap: gap };
@@ -255,6 +259,7 @@
     x.beginPath(); x.moveTo(cx - 66, cy - 22); x.lineTo(cx + 66, cy - 22); x.moveTo(cx - 66, cy + 22); x.lineTo(cx + 66, cy + 22); x.stroke();
     if (o.year) { x.font = fnt(o, 700, 36); x.fillText(String(o.year), cx, cy + 2); }   // «мой год» (e1.28) — год крупно, без дня и месяца
     else { x.font = fnt(o, 700, 27); x.fillText(pad2(d.getDate()) + '.' + pad2(d.getMonth() + 1) + '.' + d.getFullYear(), cx, cy + 1); }
+    if (o.time) { x.font = fnt(o, 700, 20); x.fillText(String(o.time), cx, cy + 42); }   // e1.29: часы:минуты «Момента» — под нижней чертой
     // износ: ссадины краски (штемпель бьётся неровно) — «вырезаем» пятнышки
     x.save(); x.globalCompositeOperation = 'destination-out';
     for (var k = 0; k < 900; k++) { x.globalAlpha = 0.25 + r() * 0.6; x.beginPath(); x.arc(r() * S, r() * S, 0.6 + r() * 1.9, 0, 6.283); x.fill(); }
@@ -406,7 +411,121 @@
     return c;
   }
 
-  function newSeed() { return Date.now() & 0xffffff; }   // зерно открытки: одно на окно (превью и сохранённая — одна и та же картинка)
+
+  // ---------- оборот (e1.29, 9б-2): советская почтовая карточка ----------
+  // Фон — тот же кадр, сильно размытый и затемнённый (карточка «лежит» на нём); карточка — внутри безопасной зоны, повёрнута на 1°.
+  // Сверху «ПОЧТОВАЯ КАРТОЧКА», письмо «от руки» (своя строка или привет из Еревана), черта, адрес «Куда: Երևան, <здание>», «Кому»,
+  // марка (кусок кадра в перфорации), штемпель с датой/временем поверх марки, внизу мелко — адрес сайта, номер экспоната и личный номер.
+  var BACK_T = {
+    hy: { title: 'ՓՈՍՏԱՅԻՆ ԲԱՑԻԿ', where: 'Ուր', to: 'Ում', hi: 'Ջերմ բարևներ Երևանից', idx: 'Ինդեքս' },
+    ru: { title: 'ПОЧТОВАЯ КАРТОЧКА', where: 'Куда', to: 'Кому', hi: 'Привет из Еревана!', idx: 'Индекс' },
+    en: { title: 'POST CARD', where: 'To', to: 'Name', hi: 'Greetings from Yerevan!', idx: 'Index' }
+  };
+  var HAND = 'rgb(34,58,128)';
+  function hand(x, o, text, x0, y0, maxW, px, r, lineH) {   // «от руки»: курсив, у каждого слова свой наклон и чуть свой кегль и строка
+    x.save(); x.fillStyle = HAND; x.globalAlpha = 0.9; x.textBaseline = 'alphabetic'; x.textAlign = 'left';
+    var words = String(text).split(/\s+/).filter(Boolean), cx = x0, cy = y0;
+    words.forEach(function (w) {
+      var sz = px * (0.96 + r() * 0.08);
+      x.font = 'italic 400 ' + Math.round(sz) + 'px ' + o.font;
+      var ww = x.measureText(w).width;
+      if (cx > x0 && cx + ww > x0 + maxW) { cx = x0 + r() * 8; cy += lineH; }
+      x.save(); x.translate(cx, cy + (r() - 0.5) * 4); x.rotate(-0.035 + (r() - 0.5) * 0.04); x.fillText(w, 0, 0); x.restore();
+      cx += ww + px * 0.32;
+    });
+    x.restore();
+    return cy;
+  }
+  function perfRect(x, a, b, w, h, rad) {   // перфорация марки: по краю полукруглые вырезы
+    x.beginPath(); x.rect(a, b, w, h);
+    var step = rad * 2.6;
+    for (var px = a + rad * 1.3; px < a + w; px += step) { x.moveTo(px + rad, b); x.arc(px, b, rad, 0, 6.283); x.moveTo(px + rad, b + h); x.arc(px, b + h, rad, 0, 6.283); }
+    for (var py = b + rad * 1.3; py < b + h; py += step) { x.moveTo(a + rad, py); x.arc(a, py, rad, 0, 6.283); x.moveTo(a + w + rad, py); x.arc(a + w, py, rad, 0, 6.283); }
+  }
+  function composeBack(src, o) {
+    o = o || {};
+    o.font = o.font || '"Chka Serif", "Noto Serif", serif';
+    o.lang = o.lang || 'hy';
+    var seed = o.seed != null ? o.seed : (Date.now() & 0xffffff), r = rng(seed ^ 0x51ed), T = BACK_T[o.lang] || BACK_T.en;
+    var c = mk(W, H), x = c.getContext('2d');
+    // фон: кадр, размытый уменьшением (работает и там, где нет ctx.filter), и затемнённый
+    if ('filter' in x) { x.filter = 'blur(38px)'; x.drawImage(src, -60, -60, W + 120, H + 120); x.filter = 'none'; }   // размытие средствами холста (Chrome, Safari 18+)
+    else {   // иначе: маленькая копия, размытая вручную (своя копия 54×96 — не холст движка), и увеличение ступенями
+      var sm = mk(54, 96), sx = sm.getContext('2d', { willReadFrequently: true }); sx.drawImage(src, 0, 0, 54, 96);
+      var im = sx.getImageData(0, 0, 54, 96), d = im.data, t = new Uint8ClampedArray(d.length);
+      for (var pass = 0; pass < 3; pass++) for (var y = 0; y < 96; y++) for (var q = 0; q < 54; q++) for (var ch = 0; ch < 3; ch++) {
+        var sum = 0, n = 0;
+        for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) { var yy = y + dy, xx = q + dx; if (yy < 0 || yy > 95 || xx < 0 || xx > 53) continue; sum += d[(yy * 54 + xx) * 4 + ch]; n++; }
+        t[(y * 54 + q) * 4 + ch] = sum / n; t[(y * 54 + q) * 4 + 3] = 255;
+        if (ch === 2 && y === 95 && q === 53) d.set(t);
+      }
+      sx.putImageData(im, 0, 0);
+      [135, 270, 540].forEach(function (w2) {
+        var nx = mk(w2, Math.round(w2 * 16 / 9)), nc = nx.getContext('2d'); nc.imageSmoothingEnabled = true; nc.imageSmoothingQuality = 'high'; nc.drawImage(sm, 0, 0, nx.width, nx.height); sm = nx;
+      });
+      x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high'; x.drawImage(sm, 0, 0, W, H);
+    }
+    x.fillStyle = 'rgba(22,16,10,0.42)'; x.fillRect(0, 0, W, H);
+    // карточка
+    var cw = 836, ch = 1130, cx0 = SAFE.l + 22, cy0 = SAFE.t + 14;
+    x.save(); x.translate(cx0 + cw / 2, cy0 + ch / 2); x.rotate(-0.017); x.translate(-cw / 2, -ch / 2);
+    x.save(); x.shadowColor = 'rgba(0,0,0,0.45)'; x.shadowBlur = 40; x.shadowOffsetY = 14; x.fillStyle = PAPER; x.fillRect(0, 0, cw, ch); x.restore();
+    x.drawImage(paperTexture(cw, ch, r), 0, 0);
+    x.strokeStyle = 'rgba(43,38,34,0.25)'; x.lineWidth = 1; x.strokeRect(0.5, 0.5, cw - 1, ch - 1);
+    x.fillStyle = 'rgba(43,38,34,0.82)'; x.textAlign = 'center'; x.textBaseline = 'top';
+    x.font = fnt(o, 700, 34);
+    if ('letterSpacing' in x) x.letterSpacing = '6px';
+    x.fillText(T.title, cw / 2, 46);
+    if ('letterSpacing' in x) x.letterSpacing = '0px';
+    x.strokeStyle = 'rgba(43,38,34,0.55)'; x.lineWidth = 2; x.beginPath(); x.moveTo(60, 104); x.lineTo(cw - 60, 104); x.stroke();
+    x.lineWidth = 0.8; x.beginPath(); x.moveTo(60, 110); x.lineTo(cw - 60, 110); x.stroke();
+    // письмо «от руки»
+    hand(x, o, o.line && o.line.trim() ? o.line.trim() : T.hi, 64, 210, cw - 128, 56, r, 76);
+    x.save(); x.font = 'italic 400 34px ' + o.font; x.fillStyle = HAND; x.globalAlpha = 0.85; x.textAlign = 'right'; x.textBaseline = 'alphabetic';
+    x.fillText('— ' + (o.url || 'chka.am'), cw - 64, 470); x.restore();
+    // черта между письмом и адресом
+    x.save(); x.setLineDash([10, 8]); x.strokeStyle = 'rgba(43,38,34,0.45)'; x.lineWidth = 1.6; x.beginPath(); x.moveTo(40, 560); x.lineTo(cw - 40, 560); x.stroke(); x.restore();
+    // марка: кусок кадра (середина) в перфорации
+    var mw = 196, mh = 240, mx = cw - 56 - mw, my = 600;
+    x.save(); x.shadowColor = 'rgba(0,0,0,0.25)'; x.shadowBlur = 6; x.shadowOffsetY = 2; x.fillStyle = '#fbf6ea'; perfRect(x, mx, my, mw, mh, 6); x.fill('evenodd'); x.restore();
+    var sw = src.width * 0.62, sh = sw * (mh - 70) / (mw - 28);
+    x.drawImage(src, (src.width - sw) / 2, src.height * 0.36 - sh / 2, sw, sh, mx + 14, my + 14, mw - 28, mh - 70);
+    x.strokeStyle = 'rgba(43,38,34,0.5)'; x.lineWidth = 1; x.strokeRect(mx + 14.5, my + 14.5, mw - 29, mh - 71);
+    x.fillStyle = 'rgba(150,32,30,0.95)'; x.textAlign = 'center'; x.textBaseline = 'top'; x.font = fnt(o, 700, 20);
+    x.fillText('ՀԱՅԱՍՏԱՆ', mx + mw / 2, my + mh - 50);
+    x.font = fnt(o, 600, 17); x.fillStyle = 'rgba(43,38,34,0.8)'; x.fillText(o.no ? '№ ' + o.no : 'chka.am', mx + mw / 2, my + mh - 27);
+    // адрес
+    x.textAlign = 'left'; x.textBaseline = 'alphabetic';
+    var ax = 52, aw = mx - 30 - ax, rows = [[T.where, 690], [null, 770], [null, 850], [T.to, 960], [null, 1040]];
+    rows.forEach(function (rw) {
+      var lx = ax;
+      if (rw[0]) { x.font = fnt(o, 600, 26); x.fillStyle = 'rgba(43,38,34,0.75)'; x.fillText(rw[0], ax, rw[1]); lx = ax + x.measureText(rw[0]).width + 14; }
+      var right = rw[1] < 860 ? ax + aw : cw - 56;
+      x.strokeStyle = 'rgba(43,38,34,0.45)'; x.lineWidth = 1.2; x.beginPath(); x.moveTo(lx, rw[1] + 6); x.lineTo(right, rw[1] + 6); x.stroke();
+    });
+    hand(x, o, 'Երևան, ' + (o.name || ''), ax + 110, 686, aw - 120, 40, r, 80);
+    // индекс: шесть клеточек (как на советских карточках), пустые
+    x.font = fnt(o, 500, 20); x.fillStyle = 'rgba(43,38,34,0.6)'; x.fillText(T.idx, ax, 1086);
+    for (var k = 0; k < 6; k++) { x.strokeStyle = 'rgba(43,38,34,0.5)'; x.lineWidth = 1.4; x.strokeRect(ax + 120 + k * 44, 1060, 34, 44); }
+    // мелко под заголовком (как выходные данные на советских карточках): адрес сайта, номер экспоната, личный номер
+    x.font = fnt(o, 500, 19); x.fillStyle = 'rgba(43,38,34,0.55)'; x.textAlign = 'center'; x.textBaseline = 'top';
+    x.fillText([o.url || 'chka.am', o.no ? (o.noLabel || '') + ' № ' + o.no : '', o.code ? '№ ' + o.code : ''].filter(Boolean).join(' · '), cw / 2, 124);
+    x.restore();
+    // штемпель поверх марки (в координатах открытки: марка — справа вверху карточки, поворот карточки мал)
+    var pcx = cx0 + mx + 10, pcy = cy0 + my + mh - 40;
+    var ink = o.rare ? 'rgb(156,38,34)' : 'rgb(44,48,88)';
+    var lay = mk(W, 440), lx2 = lay.getContext('2d');
+    lx2.translate(0, -(pcy - 220)); lx2.save(); lx2.translate(pcx, pcy); lx2.rotate(-0.22); lx2.scale(0.92, 0.92); lx2.translate(-pcx, -pcy);
+    lx2.drawImage(stamp(o, r, ink), pcx - 150, pcy - 150); lx2.restore();
+    x.save(); x.globalAlpha = 0.82; x.globalCompositeOperation = 'multiply'; x.drawImage(lay, 0, pcy - 220); x.restore();
+    if (o.grain !== false) grain(x, r, 0.08);
+    c.__boxes = { card: { x: cx0 - 12, y: cy0 - 12, w: cw + 24, h: ch + 24 } };
+    return c;
+  }
+  // зерно открытки: одно на окно (превью и сохранённая — одна и та же картинка); время + случайность (e1.29) — из него же личный номер
+  function newSeed() { return ((Date.now() & 0xffffff) ^ Math.floor(Math.random() * 0x1000000)) & 0xffffff; }
+  var CODE_A = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';   // без 0/O, 1/I — номер читается однозначно
+  function code(seed) { var r = rng(((seed >>> 0) ^ 0xc0de) >>> 0), s = ''; for (var i = 0; i < 4; i++) s += CODE_A[Math.floor(r() * 32)]; return s; }
   function luck(seed) { var r = rng(((seed >>> 0) ^ 0x9e3779b9) >>> 0); r(); return r() < LUCK; }   // «повезло» — редкая открытка без особой погоды
-  window.ChkaPostcard = { W: W, H: H, SAFE: SAFE, compose: compose, seed: newSeed, luck: luck };
+  window.ChkaPostcard = { W: W, H: H, SAFE: SAFE, compose: compose, composeBack: composeBack, seed: newSeed, luck: luck, code: code };
 })();

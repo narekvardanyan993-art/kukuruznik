@@ -11,7 +11,7 @@ export const SHARE_HOOK = () => {
   window.__shares = [];
   const put = (k, v) => { try { Object.defineProperty(Navigator.prototype, k, { value: v, configurable: true, writable: true }); } catch (e) {} };
   put('canShare', (d) => !!(d && d.files && d.files.length));
-  put('share', (d) => { window.__shares.push({ file: (d && d.files && d.files[0]) || null, n: d && d.files ? d.files.length : 0 }); return Promise.resolve(); });
+  put('share', (d) => { window.__shares.push({ file: (d && d.files && d.files[0]) || null, files: (d && d.files) ? Array.from(d.files) : [], n: d && d.files ? d.files.length : 0 }); return Promise.resolve(); });
 };
 
 // Выполняется в странице (evaluateOnNewDocument) — все страницы проверки. Открытка рисует зерно и износ штемпеля от зерна Date.now() (postcard.js) —
@@ -20,12 +20,15 @@ export const SHARE_HOOK = () => {
 export const CARD_DETERMINISM = () => {
   const dn = Date.now.bind(Date);
   Date.now = function () { try { if (/postcard\.js/.test(new Error().stack || '')) return 1789000000000; } catch (e) {} return dn(); };
+  // e1.29: зерно окна = время + случайность (ChkaPostcard.seed) — Math.random тоже подменяем только для postcard.js
+  const mr = Math.random.bind(Math);
+  Math.random = function () { try { if (/postcard\.js/.test(new Error().stack || '')) return 0.4242; } catch (e) {} return mr(); };
 };
 
 // e1.28 (9б-1): «Открытка» открывает окно (body.card-open), открытку отдаёт кнопка #cardGo в окне. У страниц e1.27 нажатие #cardBtn отдаёт
 // открытку сразу — окна нет. cardTapSave: нажать #cardBtn; если за ≤3 с открылось окно — дождаться, пока «Сохранить» встанет на место (шторка
 // в облачном Chrome доезжает секундами: два одинаковых замера подряд, урок s26), и нажать её. Иначе — путь e1.27 (открытка уже ушла/уходит).
-export async function cardTapSave(page, { click, sleep, openMs = 3000 }) {
+export async function cardTapSave(page, { click, sleep, openMs = 3000, back = false }) {   // back — включить «Оборот» в окне (e1.29: 2 файла)
   await page.evaluate(() => { window.__cardSheet = null; });
   await click('#cardBtn');
   let open = false;
@@ -42,8 +45,11 @@ export async function cardTapSave(page, { click, sleep, openMs = 3000 }) {
     if (r && r === prev) break;
     prev = r; await sleep(200);
   }
+  // «Оборот» (e1.29): по умолчанию выкл. — включаем/выключаем кнопкой окна, чтобы шаг не зависел от прошлых настроек страницы
+  const want = !!back, has = await page.evaluate(() => { const b = document.getElementById('cardBack'); return b ? b.getAttribute('aria-pressed') === 'true' : null; });
+  if (has !== null && has !== want) { await page.evaluate(() => { const b = document.getElementById('cardBack'); b.scrollIntoView({ block: 'center' }); b.click(); }); await sleep(400); }
   await click('#cardGo');
-  return { sheet: true };
+  return { sheet: true, backBtn: has !== null };
 }
 // закрыть окно открытки после шага (иначе затемнение окна перехватит следующие нажатия прогулки)
 export async function cardSheetClose(page, sleep) {
@@ -52,7 +58,7 @@ export async function cardSheetClose(page, sleep) {
 
 // Шаг «открытка» телефонной прогулки. page — страница с SHARE_HOOK; click(sel) — нажатие (у check_site с виртуальным временем); sleep(ms).
 // Возвращает { problems: [{type, msg}], png?: Buffer (что ушло в share, после JPEG), size?, name? }.
-export async function phoneCardStep(page, { click, sleep, shareMs = 20000, fontsMs = 10000 }) {   // shareMs/fontsMs — пределы ожидания (в проверке сайта — 20 и 10 с; короче — только в самопроверке)
+export async function phoneCardStep(page, { click, sleep, shareMs = 20000, fontsMs = 10000, back = false }) {   // back: с оборотом — ровно 2 файла (лицо + оборот), оба JPEG 1080×1920   // shareMs/fontsMs — пределы ожидания (в проверке сайта — 20 и 10 с; короче — только в самопроверке)
   const problems = [], out = { problems };
   const P = (msg) => problems.push({ type: 'прогулка', msg });
   // Шрифты открытки грузятся заранее, в простое: если нажать раньше, страница честно покажет плашку «готово» вместо share (второй тап) —
@@ -63,8 +69,9 @@ export async function phoneCardStep(page, { click, sleep, shareMs = 20000, fonts
   // карта здания для обхода памятника грузится в простое (до ~6 с после загрузки); ждём её (≤10 с), чтобы открытка двух копий сайта не зависела от того, успела ли она
   await page.evaluate(() => (window.__card && window.__card.bldLoad ? window.__card.bldLoad() : null));
   await page.evaluate(() => { window.__shares = []; window.__lastImageBlob = null; window.__download = null; });
-  const tap = await cardTapSave(page, { click, sleep });
+  const tap = await cardTapSave(page, { click, sleep, back });
   out.sheet = tap.sheet;
+  if (back && !tap.backBtn) { P('с оборотом: в окне нет кнопки «Оборот» (#cardBack)'); return out; }
   let sh = 0;
   for (let i = 0; i < shareMs / 200 && !sh; i++) { await sleep(200); sh = await page.evaluate(() => window.__shares.length); }
   if (!sh) {
@@ -74,15 +81,23 @@ export async function phoneCardStep(page, { click, sleep, shareMs = 20000, fonts
   }
   await sleep(300);   // второго вызова share от одного нажатия быть не должно
   const r = await page.evaluate(async () => {
-    const s = window.__shares, f = s[0].file;
-    if (!f) return { n: s.length, nofile: true };
-    const bm = await createImageBitmap(f), c = document.createElement('canvas'); c.width = bm.width; c.height = bm.height; c.getContext('2d').drawImage(bm, 0, 0);
-    return { n: s.length, type: f.type, size: f.size, name: f.name, w: bm.width, h: bm.height, png: c.toDataURL('image/png').split(',')[1] };
+    const s = window.__shares, fl = (s[0].files && s[0].files.length) ? s[0].files : (s[0].file ? [s[0].file] : []);
+    if (!fl.length) return { n: s.length, nofile: true };
+    const one = async (f) => { const bm = await createImageBitmap(f), c = document.createElement('canvas'); c.width = bm.width; c.height = bm.height; c.getContext('2d').drawImage(bm, 0, 0);
+      return { type: f.type, size: f.size, name: f.name, w: bm.width, h: bm.height, png: c.toDataURL('image/png').split(',')[1] }; };
+    const files = []; for (const f of fl) files.push(await one(f));
+    return Object.assign({ n: s.length, count: fl.length, files }, files[0]);
   });
   if (r.nofile) { P('share вызван без файла'); return out; }
-  if (r.type !== 'image/jpeg') P(`открытка в share: тип ${r.type}, нужен image/jpeg`);
-  if (r.w !== 1080 || r.h !== 1920) P(`открытка в share: ${r.w}×${r.h}, нужно 1080×1920`);
+  const need = back ? 2 : 1;
+  if (r.count !== need) P(`открытка в share: файлов ${r.count}, нужно ${need} (${back ? 'лицо + оборот' : 'без оборота — только лицо'})`);
+  r.files.forEach((f, i) => {
+    const what = i ? 'оборот' : 'открытка';
+    if (f.type !== 'image/jpeg') P(`${what} в share: тип ${f.type}, нужен image/jpeg`);
+    if (f.w !== 1080 || f.h !== 1920) P(`${what} в share: ${f.w}×${f.h}, нужно 1080×1920`);
+  });
   if (r.n !== 1) P(`одно нажатие вызвало share ${r.n} раз(а)`);
   out.png = Buffer.from(r.png, 'base64'); out.size = r.size; out.name = r.name;
+  if (r.files[1]) { out.backPng = Buffer.from(r.files[1].png, 'base64'); out.backName = r.files[1].name; }
   return out;
 }

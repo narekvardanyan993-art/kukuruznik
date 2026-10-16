@@ -12,7 +12,7 @@ import os from 'os';
 import path from 'path';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
-import { SHARE_HOOK, CARD_DETERMINISM, phoneCardStep } from './card_check.mjs';
+import { SHARE_HOOK, CARD_DETERMINISM, phoneCardStep, cardSheetClose } from './card_check.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -74,8 +74,17 @@ try {
     const cs = await phoneCardStep(page, { click, sleep });
     problems.push(...cs.problems);
     if (cs.png) { log(`share получил ${cs.name}, ${cs.size} байт, ${((Date.now() - t) / 1000).toFixed(1)} с`); if (opt.save) fs.writeFileSync(opt.save, cs.png); }
+    // e1.29: второй заход — с «Оборотом»: в share ровно 2 файла (лицо + оборот), оба JPEG 1080×1920
+    if (await page.evaluate(() => !!document.getElementById('cardBack'))) {
+      await cardSheetClose(page, sleep);
+      const t2 = Date.now();
+      const cb = await phoneCardStep(page, { click, sleep, back: true });
+      problems.push(...cb.problems.map((q) => ({ type: q.type, msg: 'с оборотом: ' + q.msg })));
+      if (cb.backPng) { log(`с оборотом: share получил ${cb.name} + ${cb.backName}, ${((Date.now() - t2) / 1000).toFixed(1)} с`); if (opt.save) fs.writeFileSync(opt.save.replace(/\.png$/i, '') + '-back.png', cb.backPng); }
+      await page.evaluate(() => { const b = document.getElementById('cardBack'); if (b && b.getAttribute('aria-pressed') === 'true') b.click(); });   // вернуть «без оборота»
+    }
   }
   problems.push(...errs);
 } finally { await browser.close(); srv.close(); }
 if (problems.length) { for (const p of problems) console.log('КРАСНОЕ:', p.type + ':', p.msg); process.exit(1); }
-console.log('ЗЕЛЁНАЯ: открытка в share — image/jpeg 1080×1920, один вызов');
+console.log('ЗЕЛЁНАЯ: открытка в share — image/jpeg 1080×1920, один вызов; с оборотом — 2 файла 1080×1920');

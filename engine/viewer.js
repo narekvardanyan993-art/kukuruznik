@@ -130,6 +130,7 @@
     langButtons.forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-lang') === currentLang); });
     document.documentElement.lang = currentLang;
     fitTitle();
+    if (window.__cardOnLang) window.__cardOnLang();   // окно открытки: плашки на языке страницы
   }
 
   // Название в нижней полосе телефона: если строка не влезает (длинный заголовок на узком экране, напр. армянский на 375 px),
@@ -165,13 +166,71 @@
       txT.push(setTimeout(function () { root.classList.remove('tx-run', 'tx-lang', 'tx-size'); }, 700));   // после конца переходов (460 мс), с запасом
     }, 130));
   }
+  // «Табло» (e1.29, 9б-2): при смене языка видимые надписи ~0,5 с перебирают случайные буквы (армянские, кириллица, латиница) и встают в новый
+  // язык волной слева направо — как вокзальное табло. Всё от времени (а не от номера кадра): буква встаёт в 90 + 380·(x на экране / ширина) мс
+  // (+ до 40 мс у каждой надписи своё), до того раз в 45 мс сменяет случайную. Пишем textContent только у надписей без вложенных тегов, видимых
+  // на экране, и только когда строка изменилась; замер времени скрипта — window.__tablo.stat() (цель ≤ 1 мс на кадр). «Уменьшить движение» — сразу.
+  var TB_UP = 'ԱԲԳԴԵԶԷԹԺԻԼԽԾԿՀՁՂՃՄՅՆՇՈՉՊՋՌՍՎՏՐՑՓՔՕՖАБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЭЮЯABCDEFGHJKLMNPRSTUVWXYZ';
+  var TB_LO = 'աբգդեզէըթժիլխծկհձղճմյնշոչպջռսվտրցւփքօֆабвгдежзиклмнопрстуфхцчшэюяabcdefghkmnprstuvwxyz';
+  var tablo = { items: [], t0: 0, raf: 0, clock: null, maxMs: 0, frames: 0, sumMs: 0 };
+  function tbNow() { return tablo.clock != null ? tablo.clock : performance.now(); }
+  function tbHash(a, b, c) { var h = (a * 374761393 + b * 668265263 + c * 2246822519) >>> 0; h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0; return (h ^ (h >>> 16)) >>> 0; }
+  function tbTargets() {
+    var vw = window.innerWidth || 1, vh = window.innerHeight, out = [], total = 0;
+    document.querySelectorAll('[data-i18n], #aboutText p, .pb-txt, #wxName, #barTitle').forEach(function (el) {
+      if (el.childElementCount || total > 1600) return;
+      var t = el.textContent; if (!t || !t.trim()) return;
+      var r = el.getBoundingClientRect(); if (!r.width || r.bottom < 0 || r.top > vh || r.right < 0 || r.left > vw) return;
+      var cs = getComputedStyle(el); if (cs.visibility === 'hidden' || +cs.opacity === 0) return;
+      var ch = Array.from(t), n = ch.length, j = (tbHash(out.length, n, 7) % 40);
+      total += n;
+      out.push({ el: el, ch: ch, fin: t, last: t, at: ch.map(function (c, i) { return 90 + j + 380 * clamp((r.left + r.width * (i + 0.5) / n) / vw, 0, 1); }) });
+    });
+    return out;
+  }
+  function tbRender() {
+    var t0p = performance.now(), t = tbNow() - tablo.t0, live = false, tick = Math.floor(t / 45);
+    tablo.items.forEach(function (it, k) {
+      var s = '';
+      for (var i = 0; i < it.ch.length; i++) {
+        var c = it.ch[i];
+        if (t >= it.at[i] || /[\s.,:;!?()«»\-–—№\d]/.test(c)) { s += c; continue; }
+        live = true;
+        var pool = c !== c.toLowerCase() ? TB_UP : TB_LO;
+        s += pool[tbHash(k, i, tick) % pool.length];
+      }
+      if (s !== it.last) { it.el.textContent = s; it.last = s; }
+    });
+    var ms = performance.now() - t0p; tablo.frames++; tablo.sumMs += ms; if (ms > tablo.maxMs) tablo.maxMs = ms;
+    return live;
+  }
+  function tbStop(final) {
+    cancelAnimationFrame(tablo.raf); tablo.raf = 0;
+    if (final) tablo.items.forEach(function (it) { if (it.last !== it.fin) it.el.textContent = it.fin; });
+    tablo.items = [];
+    fitTitle();
+  }
+  function tbLoop() { tablo.raf = 0; if (tbRender()) tablo.raf = requestAnimationFrame(tbLoop); else tbStop(true); }
+  function tabloSwap(apply) {
+    if (tablo.items.length) tbStop(true);
+    apply();   // новые тексты — сразу (подписи, aria, заголовок вкладки); табло только «докручивает» видимое
+    if (reduced()) return;
+    tablo.items = tbTargets(); tablo.t0 = tbNow();
+    if (!tablo.items.length) return;
+    tbRender();
+    if (tablo.clock == null) tablo.raf = requestAnimationFrame(tbLoop);
+  }
+  window.__tablo = {   // для проверки и GIF (report s29): часы табло можно остановить и крутить вручную
+    stat: function () { return { frames: tablo.frames, maxMs: +tablo.maxMs.toFixed(3), avgMs: tablo.frames ? +(tablo.sumMs / tablo.frames).toFixed(3) : 0, items: tablo.items.length }; },
+    clock: function (ms) { tablo.clock = ms; }, render: function () { var l = tbRender(); if (!l) tbStop(true); return l; }, reset: function () { tablo.frames = 0; tablo.sumMs = 0; tablo.maxMs = 0; }
+  };
   langButtons.forEach(function (b) {
     b.addEventListener('click', function () {
       var l = b.getAttribute('data-lang');
       closePopup();
       if (l === currentLang) return;
-      langButtons.forEach(function (x) { x.classList.toggle('on', x === b); });   // отметка — сразу, текст — мягко
-      textSwap('lang', function () {
+      langButtons.forEach(function (x) { x.classList.toggle('on', x === b); });   // отметка — сразу, текст — «табло» (e1.29)
+      tabloSwap(function () {
         currentLang = l;
         try { localStorage.setItem('chka-lang', currentLang); } catch (e) {}
         applyLang();
@@ -1793,6 +1852,7 @@
   // curX/curY — текущий наклон -1..1 (то, что видно на экране);
   // targetX/Y — куда он плавно едет (гироскоп, мышь).
   var targetX = 0, targetY = 0, curX = 0, curY = 0;
+  var tiltHold = null;   // e1.29 (9б-2): «свой ракурс» открытки — { sx, sy, z }: сдвиг и приближение замерли (окно открытки, кнопка «Замереть»)
   var ret = null;             // плавный возврат в центр после пальца
   var pointerActive = false, dragId = null;
   var dragStartX = 0, dragStartY = 0, dragBaseX = 0, dragBaseY = 0, dragStartT = 0;
@@ -2233,6 +2293,7 @@
     var shiftY = tiltY * CONFIG.MAX_SHIFT_Y + breathY;
     // наклон к себе (вниз) — ближние части чуть увеличиваются
     var zoom = CONFIG.ZOOM_NEAR * clamp(tiltY, 0, 1);
+    if (tiltHold) { shiftX = tiltHold.sx; shiftY = tiltHold.sy; zoom = tiltHold.z; }   // e1.29: ракурс замер — наклон, дыхание и палец не двигают картинку
 
     resize(false);
 
@@ -2854,7 +2915,7 @@
   var cardYearIn = document.getElementById('cardYear'), cardYearOut = document.getElementById('cardYearOut');
   var CARD_FONT = '"Chka Serif", "Noto Serif", serif';
   var CARD_SAMPLE = { hy: 'Երևան Կուկուռուզնիկ 0123', ru: 'Ереван Памятник 0123', en: 'Yerevan Monument 0123' };
-  var CARD_GROUPS = { date: true, sign: true, moment: false, back: false };   // 9б-2: «Момент» (ползунок рассвет→ночь, погода), «Оборот» — пока скрыты
+  var CARD_GROUPS = { moment: true, date: true, sign: true, back: true };   // e1.29 (9б-2): «Момент» и «Оборот» включены (оборот — по умолчанию выкл.)
   Object.keys(CARD_GROUPS).forEach(function (k) { var g = cardCfg && cardCfg.querySelector('[data-grp="' + k + '"]'); if (g) g.hidden = !CARD_GROUPS[k]; });
   if (!useGL || !window.ChkaPostcard) { cardBtn.hidden = true; cardBtn.parentNode.hidden = true; }
   (function () { var a = document.getElementById('pActs'); if (a) a.classList.toggle('solo', !!(fsBtn.parentNode.hidden || cardBtn.parentNode.hidden)); })();   // одна кнопка — во всю ширину
@@ -2868,7 +2929,7 @@
   var cardSet = (function () { var s = null; try { s = JSON.parse(lsGet('chka-card') || 'null'); } catch (e) {} s = s && typeof s === 'object' ? s : {};
     var yr = Math.round(+s.year); yr = yr >= CARD_YEARS[0] && yr <= CARD_YEARS[1] ? yr : null;
     return { lang: CONFIG.LANGS.indexOf(s.lang) >= 0 ? s.lang : null, line: typeof s.line === 'string' ? s.line.slice(0, 40) : '', film: !!s.film,
-      date: s.date === 'year' ? 'year' : 'today', year: yr }; })();
+      date: s.date === 'year' ? 'year' : 'today', year: yr, back: !!s.back }; })();
   function cardSave() { lsSet('chka-card', JSON.stringify(cardSet)); }
   function cardLang() { return cardSet.lang || currentLang; }
   function cardYear() { return cardSet.year || Math.round((CARD_YEARS[0] + CARD_YEARS[1]) / 2); }
@@ -2948,20 +3009,28 @@
     });
     return any ? out : null;
   }
-  var cfg = { src: null, mask: null, seed: undefined, rare: false, card: null, t: 0, pend: false };   // окно: снимок кадра, зерно, редкость — одни на всё окно
+  var cfg = { src: null, mask: null, seed: undefined, rare: false, code: '', card: null, back: null, t: 0, pend: false };   // окно: снимок кадра, зерно, редкость, личный номер — одни на всё окно
+  // «Момент» (e1.29): ползунок 0…4 = рассвет, день, закат, синий час, ночь → время суток движка p (0 день, 1 закат, 2.1667 ночь) и часы на штемпеле.
+  // Своего рассвета у движка нет: рассвет = p 0,5 (полузакатный тёплый свет); синий час = p 1,55 (небо уже ночное, земля в сумерках, огни только зажигаются).
+  var MOM_P = [0.5, 0, 1, 1.55, 2.1667], MOM_MIN = [370, 780, 1160, 1215, 1410], MOM_KEY = ['cardDawn', 'day', 'sunset', 'cardBlue', 'night'];   // 06:10 13:00 19:20 20:15 23:30
+  var momS = null;   // null — ползунок не трогали: показывает время суток сцены
+  function momTab(T, v) { v = clamp(v, 0, 4); var i = Math.min(3, Math.floor(v)), f = v - i; return T[i] + (T[i + 1] - T[i]) * f; }
+  function momFromP(p) { if (p <= 0.001) return 1; if (p <= 1) return 1 + p; if (p <= 1.55) return 2 + (p - 1) / 0.55; return Math.min(4, 3 + (p - 1.55) / (2.1667 - 1.55)); }
+  function momNow() { return momS != null ? momS : momFromP(todAnim ? todAnim.p1 : tod.p); }
+  function cardTime() { var m = Math.round(momTab(MOM_MIN, momNow())), h = Math.floor(m / 60) % 24, mm = m % 60; return (h < 10 ? '0' : '') + h + ':' + (mm < 10 ? '0' : '') + mm; }
   function composeCard(src, extra) {
     var lang = cardLang(), info = cardInfo(lang), U = CONFIG.UI_I18N;
     var o = { lang: lang, name: info.name, years: info.years, url: info.url, line: cardSet.line.trim(), film: cardSet.film, font: CARD_FONT,
       mask: cfg.mask !== null ? cfg.mask : cardBuildingMask(), no: cardNo(), noLabel: U.cardExhibit[lang], rare: cfg.rare, rareLabel: U.cardRare[lang],
-      year: cardSet.date === 'year' ? cardYear() : null, seed: cfg.seed };
+      year: cardSet.date === 'year' ? cardYear() : null, seed: cfg.seed, code: cfg.code, time: cardTime() };
     if (extra) Object.keys(extra).forEach(function (k) { if (extra[k] !== undefined) o[k] = extra[k]; });
-    return ChkaPostcard.compose(src, o);
+    return o.back ? ChkaPostcard.composeBack(src, o) : ChkaPostcard.compose(src, o);
   }
   function cardName(ext) { return String(CONFIG.POSTCARD_FILE || 'chka.png').replace(/\.png$/i, '') + ext; }
-  function fileFromCanvas(cv) {   // синхронно (toDataURL): между нажатием и share не должно быть ожиданий
+  function fileFromCanvas(cv, back) {   // синхронно (toDataURL): между нажатием и share не должно быть ожиданий
     var u = cv.toDataURL('image/jpeg', 0.92), b = atob(u.slice(u.indexOf(',') + 1)), a = new Uint8Array(b.length);
     for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i);
-    return new File([a], cardName('.jpg'), { type: 'image/jpeg', lastModified: Date.now() });
+    return new File([a], cardName(back ? '-back.jpg' : '.jpg'), { type: 'image/jpeg', lastModified: Date.now() });
   }
   function downloadBlob(blob, name) {
     var a = document.createElement('a');
@@ -2971,26 +3040,31 @@
   }
   var toastT = 0, toastFile = null;
   function hideToast() { clearTimeout(toastT); toastFile = null; if (cardToast) cardToast.classList.remove('on'); }
-  function showToast(file) {   // share не открылся без жеста (ждали шрифты) — второе нажатие по плашке откроет его наверняка
+  function showToast(file) {   // file — файл или список файлов (лицо + оборот)   // share не открылся без жеста (ждали шрифты) — второе нажатие по плашке откроет его наверняка
     toastFile = file; if (!cardToast) return;
     cardToast.querySelector('span').textContent = CONFIG.UI_I18N.cardReady[currentLang];
     cardToast.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(hideToast, 9000);
   }
   function shareFile(file) {
-    var p; try { p = navigator.share({ files: [file] }); } catch (e) { p = Promise.reject(e); }
+    var files = Array.isArray(file) ? file : [file], p;
+    try { p = navigator.share({ files: files }); } catch (e) { p = Promise.reject(e); }
     return p.then(hideToast, function (e) {
       if (e && e.name === 'AbortError') { hideToast(); return; }           // человек закрыл меню сам
-      if (e && e.name === 'NotAllowedError') { showToast(file); return; }   // нет жеста — плашка «Открытка готова»
-      hideToast(); downloadBlob(file, file.name);
+      if (e && e.name === 'NotAllowedError') { showToast(files); return; }   // нет жеста — плашка «Открытка готова»
+      hideToast(); files.forEach(function (f) { downloadBlob(f, f.name); });
     });
   }
-  // отдать открытку: телефон — меню «Поделиться» (Сохранить изображение / Instagram / TikTok), ПК — PNG-файл
-  function deliverCard(cv) {
+  // отдать открытку: телефон — меню «Поделиться» (Сохранить изображение / Instagram / TikTok) с одним файлом или двумя (лицо + оборот, e1.29);
+  // ПК — PNG-файл (с оборотом — два PNG)
+  function deliverCard(cv, back) {
     if (shareOK) {
-      var f = fileFromCanvas(cv);
-      if (navigator.canShare({ files: [f] })) return shareFile(f);
+      var fs = [fileFromCanvas(cv)];
+      if (back) fs.push(fileFromCanvas(back, true));
+      if (navigator.canShare({ files: fs })) return shareFile(fs);
+      if (fs.length > 1 && navigator.canShare({ files: [fs[0]] })) return shareFile([fs[0]]);   // два файла не умеет — хотя бы лицо
     }
     cv.toBlob(function (blob) { if (blob) downloadBlob(blob, cardName('.png')); }, 'image/png');
+    if (back) back.toBlob(function (blob) { if (blob) downloadBlob(blob, cardName('-back.png')); }, 'image/png');
   }
   function cardFlashNow() { if (cardFlash && cardFlash.animate) cardFlash.animate([{ opacity: reduced() ? 0.35 : 0.75 }, { opacity: 0 }], { duration: reduced() ? 380 : 620, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' }); }
   function goDone() { cardGo.classList.add('done'); clearTimeout(cardGo.__t); cardGo.__t = setTimeout(function () { cardGo.classList.remove('done'); }, 1600); }
@@ -3008,7 +3082,7 @@
   }
   function cfgMeta() {   // плашки под «Сохранить»: номер экспоната (язык страницы), «редкая»
     var U = CONFIG.UI_I18N, no = cardNo(), nb = document.getElementById('cardNo'), rb = document.getElementById('cardRareB');
-    if (nb) { nb.hidden = !no; nb.textContent = no ? U.cardExhibit[currentLang] + ' № ' + no : ''; }
+    if (nb) { nb.hidden = !no && !cfg.code; nb.textContent = (no ? U.cardExhibit[currentLang] + ' № ' + no : '') + (cfg.code ? (no ? ' · ' : '№ ') + cfg.code : ''); nb.title = U.cardCode[currentLang]; }
     if (rb) { var was = !rb.hidden; rb.hidden = !cfg.rare; if (cfg.rare && !was) { rb.classList.remove('pop'); void rb.offsetWidth; rb.classList.add('pop'); } }
   }
   function cfgRender(fade) {
@@ -3016,6 +3090,11 @@
     if (!cfg.src) return;
     if (!cardFontsReady(cardLang())) { cardFontsLoad().then(function () { if (bodyEl.classList.contains('card-open')) cfgRender(fade); }); return; }
     cfg.card = composeCard(cfg.src);
+    cfg.back = cardSet.back ? composeCard(cfg.src, { back: true }) : null;
+    if (cardPrevBack) {   // оборот выглядывает из-за превью
+      cardPrevBack.parentNode.classList.toggle('cc-has-back', !!cfg.back);
+      if (cfg.back) { var bx = cardPrevBack.getContext('2d'); bx.imageSmoothingQuality = 'high'; bx.drawImage(cfg.back, 0, 0, cardPrevBack.width, cardPrevBack.height); }
+    }
     var pw = cardPrev.width, ph = cardPrev.height;
     if (fade && cardPrevOld && cardPrevOld.animate) {   // старое превью гаснет поверх нового — смена без мигания
       var ox = cardPrevOld.getContext('2d'); ox.clearRect(0, 0, pw, ph); ox.drawImage(cardPrev, 0, 0);
@@ -3032,9 +3111,11 @@
     cfg.src = src; cfg.mask = cardBuildingMask(); cfg.card = null;
     cfg.seed = ChkaPostcard.seed ? ChkaPostcard.seed() : undefined;
     cfg.rare = sceneRare() || !!(ChkaPostcard.luck && ChkaPostcard.luck(cfg.seed));
+    cfg.code = ChkaPostcard.code ? ChkaPostcard.code(cfg.seed) : '';
+    bodyEl.classList.remove('card-aim');
     var dp = Math.min(2, window.devicePixelRatio || 1);
-    [cardPrev, cardPrevOld].forEach(function (c) { if (c) { c.width = Math.round(180 * dp); c.height = Math.round(320 * dp); } });
-    cardLineIn.value = cardSet.line; cfgMarks(); cfgMeta();
+    [cardPrev, cardPrevOld, cardPrevBack].forEach(function (c) { if (c) { c.width = Math.round(180 * dp); c.height = Math.round(320 * dp); } });
+    cardLineIn.value = cardSet.line; cfgMarks(); cfgMeta(); momMarks();
     hideToast();
     document.documentElement.classList.add('panel-anim');
     clearTimeout(cfgHideT); cardCfg.classList.remove('cc-fling', 'cc-drag-on'); cardCfg.style.transform = '';
@@ -3047,7 +3128,7 @@
     if (!bodyEl.classList.contains('card-open')) return;
     cardCfg.classList.remove('cc-drag-on'); cardCfg.classList.toggle('cc-fling', !!fling);
     cardCfg.style.transform = '';
-    bodyEl.classList.remove('card-open'); clearTimeout(cfg.t); cfg.pend = false;
+    bodyEl.classList.remove('card-open'); clearTimeout(cfg.t); cfg.pend = false; recapT.forEach(clearTimeout); recapT = [];
     clearTimeout(cfgHideT); cfgHideT = setTimeout(function () { cardCfg.classList.remove('cc-fling'); }, 400);
     if (cardLineIn === document.activeElement) cardLineIn.blur();
   }
@@ -3105,12 +3186,104 @@
     if (!cfg.src) return;
     if ((cfg.pend || !cfg.card) && cardFontsReady(cardLang())) cfgRender(false);
     if (!cfg.card) {   // шрифты не готовы — дождаться; share уже без жеста → плашка «готово»
-      cardFontsLoad().then(function () { cfgRender(false); if (!cfg.card) return; if (shareOK) showToast(fileFromCanvas(cfg.card)); else deliverCard(cfg.card); });
+      cardFontsLoad().then(function () { cfgRender(false); if (!cfg.card) return; if (shareOK) showToast(cfg.back ? [fileFromCanvas(cfg.card), fileFromCanvas(cfg.back, true)] : fileFromCanvas(cfg.card)); else deliverCard(cfg.card, cfg.back); });
       return;
     }
-    deliverCard(cfg.card);
+    deliverCard(cfg.card, cardSet.back ? cfg.back : null);
     cardFlashNow(); goDone();
   });
+
+  // ---------- «Момент» (e1.29): время суток ползунком, погода, свой ракурс — сцена за окном меняется вживую, превью снимается заново ----------
+  var cardTodIn = document.getElementById('cardTod'), cardPrevBack = document.getElementById('cardPrevBack'), cardHold = document.getElementById('cardHold');
+  var recapT = [];
+  function recapture(delays) {   // снять кадр заново: сразу после смены и ещё раз, когда доедут плавные переходы движка (погода — 4 с, снег копится ~12 с)
+    recapT.forEach(clearTimeout); recapT = [];
+    delays.forEach(function (ms) { recapT.push(setTimeout(function () {
+      if (!bodyEl.classList.contains('card-open')) return;
+      var src = captureView(); if (!src) return;
+      cfg.src = src; cfg.mask = cardBuildingMask(); cfgRender(true);
+    }, ms)); });
+  }
+  function momMarks() {
+    var v = momNow();
+    if (cardTodIn && document.activeElement !== cardTodIn) cardTodIn.value = Math.round(v * 100);
+    var nm = document.getElementById('cardTodName'), tm = document.getElementById('cardTime'), U = CONFIG.UI_I18N;
+    if (nm) nm.textContent = U[MOM_KEY[Math.round(clamp(v, 0, 4))]][currentLang];
+    if (tm) tm.textContent = cardTime();
+    var night = momTab(MOM_P, v) > 1.2;
+    cardCfg.querySelectorAll('[data-cwx]').forEach(function (b) {
+      var k = b.getAttribute('data-cwx'), on = k === 'wind' ? windIdx > 0 : k === 'rainbow' ? !!rbHold : !!wxOn[k];
+      b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      if (k === 'wind') b.setAttribute('data-wind', String(windIdx));
+      if (k === 'rainbow') { b.disabled = night; b.title = night ? U.nightNA[currentLang] : ''; }
+    });
+    var hb = document.getElementById('cardHoldBtn');
+    if (hb) { hb.classList.toggle('on', !!tiltHold); hb.setAttribute('aria-pressed', tiltHold ? 'true' : 'false'); var ht = hb.querySelector('span'); if (ht) ht.textContent = U[tiltHold ? 'cardHoldOff' : 'cardHoldOn'][currentLang]; }
+    bodyEl.classList.toggle('card-held', !!tiltHold);
+    if (cardHold) { var pt = cardHold.querySelector('span'); if (pt) pt.textContent = U[tiltHold ? 'cardHoldOff' : 'cardAim'][currentLang]; }
+  }
+  function momChanged(delays) {
+    cfg.rare = sceneRare() || !!(ChkaPostcard.luck && ChkaPostcard.luck(cfg.seed));
+    momMarks(); cfgMeta(); recapture(delays);
+  }
+  function setMoment(v) {   // ползунок: сразу то время суток движка (без 2,5–3-секундного перехода кнопок панели)
+    momS = clamp(v, 0, 4);
+    var p = momTab(MOM_P, momS), name = p > 1.6 ? 'night' : (p > 0.55 ? 'sunset' : 'day');
+    if (p > 0.05) loadStates(frameIndex);   // картинки заката и ночи этого кадра — если ещё не в памяти
+    todAnim = null; applyTod(p);
+    segMark('todSeg', 'data-tod', name);
+    var cbtn = document.querySelector('#wxChips [data-wx=cloudy]');   // как у кнопок панели: ночью туч нет
+    if (cbtn) { cbtn.disabled = name === 'night'; cbtn.title = name === 'night' ? CONFIG.UI_I18N.nightNA[currentLang] : ''; if (name === 'night' && wxOn.cloudy) { wxOn.cloudy = false; applyWeather(); } }
+    if (p > 1.2 && rbHold) rbSet(false);
+    momChanged([200, 900]);
+  }
+  // радуга: у движка она бывает только после дождя днём и гаснет через 30 с — кнопка держит её (время «после дождя» обновляется каждые 10 с)
+  var rbHold = 0;
+  function rbSet(on) {
+    clearInterval(rbHold); rbHold = 0;
+    if (on) {
+      if (wxOn.rain || wxOn.snow) setPrecip('none');
+      ['fog', 'cloudy'].forEach(function (k) { if (wxOn[k]) setWeather(k); });
+      var keep = function () { wx.rainbowT0 = performance.now() - 7000; showWxName(); };
+      keep(); rbHold = setInterval(keep, 10000);
+    } else { wx.rainbowT0 = 0; showWxName(); }
+  }
+  cardCfg.querySelectorAll('[data-cwx]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var k = b.getAttribute('data-cwx');
+      if (k === 'snow' || k === 'rain') { var on = !wxOn[k]; if (rbHold) rbSet(false); setPrecip(on ? k : 'none'); }
+      else if (k === 'fog') { if (rbHold) rbSet(false); setWeather('fog'); }
+      else if (k === 'wind') setWind((windIdx + 1) % 3);
+      else if (k === 'rainbow') rbSet(!rbHold);
+      momChanged(k === 'snow' ? [250, 1500, 4400, 9000, 13500] : [250, 1500, 4400]);   // погода доезжает 4 с, снег копится ~12 с
+    });
+  });
+  if (cardTodIn) cardTodIn.addEventListener('input', function () { setMoment(+cardTodIn.value / 100); });
+  // «Свой ракурс»: окно уходит, картинку наклоняют (телефон — наклоном или пальцем, ПК — мышью) и касаются её — наклон, дыхание и сдвиг замирают
+  // (tiltHold в цикле кадра), окно возвращается с открыткой с этого ракурса. Пока замерло — плашка «Отпустить ракурс» над картинкой.
+  function holdSet(on) {
+    var d = lastDraw;
+    tiltHold = on ? { sx: d ? d.shiftX : 0, sy: d ? d.shiftY : 0, z: d ? d.zoom : 0 } : null;
+    momMarks();
+  }
+  function aimStart() { closeCfg(); if (!desktopMQ.matches) closeSheet(); bodyEl.classList.add('card-aim'); momMarks(); }
+  var holdBtn = document.getElementById('cardHoldBtn');
+  if (holdBtn) holdBtn.addEventListener('click', function () { if (tiltHold) { holdSet(false); momChanged([150]); } else aimStart(); });
+  stage.addEventListener('pointerup', function () {
+    if (!bodyEl.classList.contains('card-aim')) return;
+    holdSet(true); bodyEl.classList.remove('card-aim');
+    cardFlashNow(); setTimeout(openCfg, 280);
+  }, true);
+  if (cardHold) cardHold.addEventListener('click', function (e) {
+    e.stopPropagation();
+    if (bodyEl.classList.contains('card-aim')) { holdSet(true); bodyEl.classList.remove('card-aim'); cardFlashNow(); setTimeout(openCfg, 280); }
+    else if (tiltHold) holdSet(false);
+  });
+  var backBtn = document.getElementById('cardBack');
+  function backMarks() { if (backBtn) { backBtn.classList.toggle('on', cardSet.back); backBtn.setAttribute('aria-pressed', cardSet.back ? 'true' : 'false'); } }
+  if (backBtn) backBtn.addEventListener('click', function () { cardSet.back = !cardSet.back; cardSave(); backMarks(); cfgRender(true); });
+  backMarks(); momMarks();
+  window.__cardOnLang = function () { momMarks(); if (bodyEl.classList.contains('card-open')) cfgMeta(); };
   // шрифты открытки — в простое после загрузки страницы (нажатие потом не ждёт сеть)
   setTimeout(function () { (window.requestIdleCallback || function (f) { setTimeout(f, 1) })(function () { cardFontsLoad(); FRAMES.forEach(function (F, i) { setTimeout(function () { cardBldLoad(i); }, 300 * i); }); }); }, 4000);
   window.__card = {   // для проверки (report s26/s28): открытка с заданными настройками без «Поделиться»; dataURL JPEG/PNG
@@ -3119,11 +3292,13 @@
       if (o.lang) cardSet.lang = o.lang; if (o.line != null) cardSet.line = o.line; if (o.film != null) cardSet.film = !!o.film;
       if (o.year) { cardSet.date = 'year'; cardSet.year = o.year; } else cardSet.date = 'today';
       cfg.rare = !!o.rare; cfg.mask = null;
-      var cv = composeCard(src, { seed: o.seed != null ? o.seed : 26, date: o.date ? new Date(o.date) : undefined, grain: o.grain });
+      var ex = { seed: o.seed != null ? o.seed : 26, date: o.date ? new Date(o.date) : undefined, grain: o.grain, code: o.code, time: o.time, back: !!o.back };
+      var cv = composeCard(src, ex);
       cardSet.lang = keep.lang; cardSet.line = keep.line; cardSet.film = keep.film; cardSet.date = keep.date; cardSet.year = keep.year; cfg.rare = kr; cfg.mask = km;
       return { url: cv.toDataURL(o.png ? 'image/png' : 'image/jpeg', 0.9), boxes: cv.__boxes, src: o.src ? src.toDataURL(o.png ? 'image/png' : 'image/jpeg', 0.9) : null }; },
     fontsReady: function (l) { return cardFontsReady(l || cardLang()); }, fontsLoad: cardFontsLoad, bldLoad: function () { FRAMES.forEach(function (F, i) { cardBldLoad(i); }); return new Promise(function (res) { var n = 0; (function w() { if (FRAMES.every(function (F, i) { return cardBld[i] !== 'loading'; }) || ++n > 100) res(); else setTimeout(w, 100); })(); }); }, mask: cardBuildingMask, safe: function () { return ChkaPostcard.SAFE; },
-    open: openCfg, close: closeCfg, state: function () { return { open: bodyEl.classList.contains('card-open'), rare: cfg.rare, seed: cfg.seed, years: CARD_YEARS, set: JSON.parse(JSON.stringify(cardSet)), no: cardNo() }; }
+    open: openCfg, close: closeCfg, state: function () { return { open: bodyEl.classList.contains('card-open'), rare: cfg.rare, seed: cfg.seed, code: cfg.code, time: cardTime(), mom: momNow(), hold: tiltHold, back: !!cfg.back, years: CARD_YEARS, set: JSON.parse(JSON.stringify(cardSet)), no: cardNo() }; },
+    moment: setMoment, hold: holdSet, aim: aimStart
   };
 
   // размер текста: крупный (по умолчанию) / обычный. Нажатие — отметка сразу, текст меняется мягко (textSwap)

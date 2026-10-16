@@ -240,6 +240,61 @@
    "en": "Rare postcard",
    "hy": "Հազվագյուտ բացիկ"
   },
+  "cardGrpMoment": {
+   "ru": "Момент",
+   "en": "Moment",
+   "hy": "Պահը"
+  },
+  "cardGrpBack": {
+   "ru": "Оборот",
+   "en": "Back side",
+   "hy": "Հետնակողմ"
+  },
+  "cardDawn": {
+   "ru": "Рассвет",
+   "en": "Dawn",
+   "hy": "Արշալույս"
+  },
+  "cardBlue": {
+   "ru": "Синий час",
+   "en": "Blue hour",
+   "hy": "Կապույտ ժամ"
+  },
+  "cardRainbow": {
+   "ru": "Радуга",
+   "en": "Rainbow",
+   "hy": "Ծիածան"
+  },
+  "cardHoldOn": {
+   "ru": "Свой ракурс",
+   "en": "Your angle",
+   "hy": "Ձեր տեսանկյունը"
+  },
+  "cardHoldOff": {
+   "ru": "Отпустить ракурс",
+   "en": "Release angle",
+   "hy": "Բաց թողնել տեսանկյունը"
+  },
+  "cardAim": {
+   "ru": "Наклоните и коснитесь картинки",
+   "en": "Tilt and tap the picture",
+   "hy": "Թեքեք և հպեք նկարին"
+  },
+  "cardBack": {
+   "ru": "Добавить оборот",
+   "en": "Add the back side",
+   "hy": "Ավելացնել հետնակողմը"
+  },
+  "cardBackHint": {
+   "ru": "Вторая картинка: адрес, марка и штемпель — как у старой почтовой карточки",
+   "en": "A second picture: address, stamp and postmark, like an old Soviet postcard",
+   "hy": "Երկրորդ նկար՝ հասցե, նամականիշ և դրոշմ, ինչպես հին փոստային բացիկում"
+  },
+  "cardCode": {
+   "ru": "Личный номер открытки",
+   "en": "Your postcard's own number",
+   "hy": "Բացիկի անհատական համարը"
+  },
   "textSize": {
    "ru": "Размер текста",
    "en": "Text size",

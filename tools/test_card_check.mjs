@@ -13,7 +13,7 @@ import { SHARE_HOOK, CARD_DETERMINISM, phoneCardStep } from './card_check.mjs';
 const ENGINE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'engine');
 
 // e1.28: нажатие «Открытка» открывает окно (body.card-open) с #cardGo, открытку отдаёт #cardGo; режим legacy — старая страница e1.27 (сразу share).
-const PAGE = (mode) => `<!doctype html><meta charset=utf-8><style>#cardGo{display:none}body.card-open #cardGo{display:block}</style><body><button id=cardBtn style="width:120px;height:60px">card</button><button id=cardGo style="width:120px;height:60px">save</button><button id=cardCfgClose>x</button><script>
+const PAGE = (mode) => `<!doctype html><meta charset=utf-8><style>#cardGo{display:none}body.card-open #cardGo{display:block}</style><body><button id=cardBtn style="width:120px;height:60px">card</button><button id=cardGo style="width:120px;height:60px">save</button><button id=cardCfgClose>x</button><button id=cardBack aria-pressed=false onclick="this.setAttribute('aria-pressed', this.getAttribute('aria-pressed') === 'true' ? 'false' : 'true')">back</button><script>
 window.ChkaPostcard = {}; window.__card = { fontsReady: () => ${mode === 'fonts' ? 'false' : 'true'} };
 const mk = (w, h, type) => new Promise((res) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); x.fillStyle = '#c96'; x.fillRect(0, 0, w, h); c.toBlob((b) => res(new File([b], type === 'image/png' ? 'c.png' : 'c.jpg', { type })), type, 0.9); });
 const send = async () => {
@@ -21,7 +21,9 @@ const send = async () => {
   if (m === 'none') return;
   if (m === 'nofile') { navigator.share({}); return; }
   const f = await mk(m === 'small' ? 540 : 1080, m === 'small' ? 960 : 1920, m === 'png' ? 'image/png' : 'image/jpeg');
-  navigator.share({ files: [f] });
+  const withBack = document.getElementById('cardBack').getAttribute('aria-pressed') === 'true';
+  const b = withBack && m !== 'back1' ? await mk(m === 'backsmall' ? 540 : 1080, m === 'backsmall' ? 960 : 1920, 'image/jpeg') : null;
+  navigator.share({ files: b ? [f, b] : [f] });
   if (m === 'twice') navigator.share({ files: [f] });
 };
 document.getElementById('cardBtn').onclick = () => { if (${JSON.stringify(mode)} === 'legacy') send(); else document.body.classList.add('card-open'); };
@@ -39,6 +41,18 @@ try { browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox']
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const cases = [['ok', null], ['legacy', null], ['mute', 'не ушла в share'], ['small', '540×960'], ['png', 'тип image/png'], ['none', 'не ушла в share'], ['nofile', 'без файла'], ['twice', '2 раз'], ['fonts', 'шрифты открытки']];
 let bad = 0;
+const backCases = [['ok', null], ['back1', 'файлов 1, нужно 2'], ['backsmall', 'оборот в share: 540×960']];   // e1.29: с оборотом — 2 файла 1080×1920
+for (const [mode, want] of backCases) {
+  const page = await browser.newPage();
+  await page.evaluateOnNewDocument(SHARE_HOOK);
+  await page.goto(`http://127.0.0.1:${port}/?${mode}`);
+  const r = await phoneCardStep(page, { click: (s) => page.click(s), sleep, shareMs: 1500, fontsMs: 750, back: true });
+  const msgs = r.problems.map((p) => p.msg).join(' | ');
+  const ok = want === null ? r.problems.length === 0 && !!r.backPng : r.problems.some((p) => p.msg.includes(want));
+  if (!ok) bad++;
+  console.log(`${ok ? 'OK   ' : 'ОШИБКА'}  оборот/${mode.padEnd(9)} ${want === null ? 'зелёная (2 файла)' : 'красная «' + want + '»'} — ${msgs.slice(0, 110) || 'без проблем'}`);
+  await page.close();
+}
 for (const [mode, want] of cases) {
   const page = await browser.newPage();
   await page.evaluateOnNewDocument(SHARE_HOOK);
