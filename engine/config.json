@@ -185,11 +185,6 @@
    "en": "Your line",
    "hy": "Ձեր տողը"
   },
-  "cardFilm": {
-   "ru": "Старая плёнка",
-   "en": "Old film",
-   "hy": "Հին ժապավեն"
-  },
   "cardSave": {
    "ru": "Сохранить",
    "en": "Save",
@@ -199,11 +194,6 @@
    "ru": "Открытка готова — нажмите, чтобы сохранить",
    "en": "Postcard ready — tap to save",
    "hy": "Բացիկը պատրաստ է․ սեղմեք՝ պահպանելու համար"
-  },
-  "cardHint": {
-   "ru": "Картинка для сторис — в Фото или сразу в TikTok и Instagram",
-   "en": "A picture for Stories — to Photos or straight to TikTok and Instagram",
-   "hy": "Նկար սթորիի համար՝ Լուսանկարներում կամ անմիջապես TikTok-ում և Instagram-ում"
   },
   "cardGrpDate": {
    "ru": "Дата",
@@ -251,9 +241,9 @@
    "hy": "Ում (ըստ ցանկության)"
   },
   "cardShowOn": {
-   "ru": "Во время шоу",
-   "en": "During the show",
-   "hy": "Շոուի ժամանակ"
+   "ru": "Во время праздника",
+   "en": "During the celebration",
+   "hy": "Տոնի ժամանակ"
   },
   "cardGrpMoment": {
    "ru": "Момент",
@@ -281,9 +271,9 @@
    "hy": "Ավելացնել հետնակողմը"
   },
   "cardBackHint": {
-   "ru": "Вторая картинка: адрес, марка и штемпель — как у старой почтовой карточки",
-   "en": "A second picture: address, stamp and postmark, like an old Soviet postcard",
-   "hy": "Երկրորդ նկար՝ հասցե, նամականիշ և դրոշմ, ինչպես հին փոստային բացիկում"
+   "ru": "Вторая картинка: письмо, «Кому», марка и штемпель — на старой бумаге",
+   "en": "A second picture: your note, “To”, stamp and postmark — on old paper",
+   "hy": "Երկրորդ նկար՝ գրություն, «Ում», նամականիշ և դրոշմ՝ հին թղթի վրա"
   },
   "cardCode": {
    "ru": "Личный номер открытки",

@@ -262,11 +262,13 @@ def check_postcard():
             rec('%s — postcard.js подключён раньше viewer.js' % bd, 0 <= a < b)
             rec('%s — файл открытки %s' % (bd, cfg.get('POSTCARD_FILE')), str(cfg.get('POSTCARD_FILE', '')).endswith('.png'))
             ui = cfg['UI_I18N']
-            miss = [k for k in ('postcard', 'fullscreen', 'cardTitle', 'cardLang', 'cardLine', 'cardFilm', 'cardSave', 'cardReady', 'cardHint', 'cardGrpDate', 'cardGrpSign', 'cardToday', 'cardMyYear', 'cardExhibit', 'cardRare', 'cardRareB', 'sizeNormal', 'sizeLarge', 'cardGrpMoment', 'cardGrpBack', 'cardDawn', 'cardBlue', 'cardBack', 'cardBackHint', 'cardCode', 'cardShow', 'cardTo', 'cardShowOn') if not all((ui.get(k) or {}).get(l) for l in ('hy', 'ru', 'en'))]
+            miss = [k for k in ('postcard', 'fullscreen', 'cardTitle', 'cardLang', 'cardLine', 'cardSave', 'cardReady', 'cardGrpDate', 'cardGrpSign', 'cardToday', 'cardMyYear', 'cardExhibit', 'cardRare', 'cardRareB', 'sizeNormal', 'sizeLarge', 'cardGrpMoment', 'cardGrpBack', 'cardDawn', 'cardBlue', 'cardBack', 'cardBackHint', 'cardCode', 'cardShow', 'cardTo', 'cardShowOn') if not all((ui.get(k) or {}).get(l) for l in ('hy', 'ru', 'en'))]
             rec('%s — тексты кнопок и окна на hy/ru/en' % bd, not miss, ', '.join(miss))
-            ids = [i for i in ('cardBtn', 'fsBtn', 'pActs', 'cardCfg', 'cardPrev', 'cardLine', 'cardFilm', 'cardGo', 'cardToast', 'cardFlash', 'cardDateSeg', 'cardYear', 'cardNo', 'cardRareB', 'sizeSeg', 'cardTod', 'cardTime', 'cardWx', 'cardBack', 'cardPrevB', 'cardShow', 'cardTo', 'cardLine', 'cardShowOn') if 'id="%s"' % i not in html_text]
+            ids = [i for i in ('cardBtn', 'fsBtn', 'pActs', 'cardCfg', 'cardPrev', 'cardLine', 'cardGo', 'cardToast', 'cardFlash', 'cardDateSeg', 'cardYear', 'cardNo', 'cardRareB', 'sizeSeg', 'cardTod', 'cardTime', 'cardWx', 'cardBack', 'cardPrevB', 'cardShow', 'cardTo', 'cardLine', 'cardShowOn') if 'id="%s"' % i not in html_text]
             rec('%s — пара кнопок, окно (превью, «Сохранить», дата, подпись) и плашка в странице' % bd, not ids, ', '.join(ids))
             rec('%s — отдельной кнопки «Настроить» нет (e1.28), «Свой ракурс» убран (e1.30)' % bd, 'id="cardCfgBtn"' not in html_text and 'cardHold' not in html_text and 'cardAim' not in html_text)
+            rec('%s — e1.32: без «плёнки» и без подсказки под превью; «шоу» в интерфейсе нет — «Праздник»' % bd, 'id="cardFilm"' not in html_text and 'data-i18n="cardHint"' not in html_text and 'шоу' not in html_text.lower() and 'Во время праздника' in html_text
+                and ui.get('cardShowOn', {}).get('ru') == 'Во время праздника' and ui.get('cardShowOn', {}).get('hy') == 'Տոնի ժամանակ' and ui.get('cardShowOn', {}).get('en') == 'During the celebration' and not any('шоу' in (v.get('ru') or '').lower() or 'show' in (v.get('en') or '').lower().split() for v in ui.values() if isinstance(v, dict)))
             cwx = re.findall(r'data-cwx="(\w+)"', html_text)
             rec('%s — в «Моменте» только заметные эффекты: снег, дождь, туман (замер s30)' % bd, cwx == ['snow', 'rain', 'fog'], str(cwx))
             rec('%s — своя строка и «Кому» — в группе «Оборот»' % bd, html_text.find('data-grp="back"') < html_text.find('id="cardLine"') and html_text.find('data-grp="back"') < html_text.find('id="cardTo"') and 'maxlength="30"' in html_text)
@@ -317,9 +319,15 @@ def check_card_check():
     rec('viewer.js: «табло» при смене языка; «Свой ракурс» убран из цикла кадра; «Показать» снимает сцену и возвращает её; лицо без своей строки (e1.30)',
         'function tabloSwap' in vj and 'tabloSwap(function () {' in vj and 'tiltHold' not in vj and 'function shoot(w)' in vj and 'sceneRestore(S)' in vj and "o.line = '';" in vj and "CWX = ['snow', 'rain', 'fog']" in vj)
     dj = (ROOT / 'engine' / 'details.js').read_text(encoding='utf-8')
-    rec('«Во время шоу» (e1.31): шоу снимается на кадре и секунде из building.json, парад замораживается и обрывается, кадр и сцена возвращаются',
+    rec('«Во время праздника» (e1.31): шоу снимается на кадре и секунде из building.json, парад замораживается и обрывается, кадр и сцена возвращаются',
         all(k in vj for k in ('function shootRun', 'function cardShowCfg', 'function frameJump', 'paradeFreeze', 'paradeStop', 'w.show && !!cardShowCfg(w)', "cardSet.show")) and all(k in dj for k in ('paradeFreeze: freezeParade', 'paradeStop: stopParadeNow', 'par.fix')))
-    rec('postcard.js: оборот с «Кому», выходными данными и «редкой»; лицо без номера/кода/«редкой» (e1.30)', 'function composeBack' in pj and 'o.to' in pj and 'o.time' in pj and 'function code(seed)' in pj and 'function topLine' not in pj and 'rareLabel' in pj)
+    rec('postcard.js (e1.32): оборот — бумага, «от руки», «Кому», марка + штемпель, одна строка выходных данных (без рамок, заголовка, «Куда», индекса); на табличке нет адреса — он в дуге штемпеля; старая бумага на лице',
+        'function composeBack' in pj and 'o.to' in pj and 'o.time' in pj and 'function code(seed)' in pj and 'function topLine' not in pj and 'function agedPaper' in pj and 'o.paperBack' in pj
+        and 'ПОЧТОВАЯ КАРТОЧКА' not in pj and 'Индекс предприятия' not in pj and 'x.fillText(o.url' not in pj and 'String(o.url).toUpperCase()' in pj)
+    pp = sorted((ROOT / 'engine' / 'paper').glob('*.webp')) if (ROOT / 'engine' / 'paper').exists() else []
+    rec('бумага открытки (e1.32): engine/paper — 1–2 webp, каждый ≤ 200 КБ; грузится только при открытии окна (cardPaperLoad)', 1 <= len(pp) <= 2 and all(q.stat().st_size <= 200 * 1024 for q in pp) and 'function cardPaperLoad' in vj and "engineUrl('paper/' + name)" in vj,
+        ', '.join('%s %d КБ' % (q.name, q.stat().st_size // 1024) for q in pp))
+    rec('окно (e1.32): 2D-настройки (язык, дата, оборот, строка, «Кому») перерисовываются сразу, «Показать» — только для сцены', 'function redraw2D' in vj and "wantKey(cfg.want) !== cfg.srcKey" in vj and vj.count('redraw2D(') >= 7)
     rec('postcard.js: карта здания, три размера таблички, запасные места штемпеля', 'function bldMap' in pj and all(k in pj for k in ('PQ.full', 'PQ.compact', 'PQ.mini')) and 'function stampPlace' in pj and 'waves: waves' in pj)
     return ok, out
 
