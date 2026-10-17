@@ -58,7 +58,8 @@ export async function cardSheetClose(page, sleep) {
 
 // Шаг «открытка» телефонной прогулки. page — страница с SHARE_HOOK; click(sel) — нажатие (у check_site с виртуальным временем); sleep(ms).
 // Возвращает { problems: [{type, msg}], png?: Buffer (что ушло в share, после JPEG), size?, name? }.
-export async function phoneCardStep(page, { click, sleep, shareMs = 20000, fontsMs = 10000, back = false }) {   // back: с оборотом — ровно 2 файла (лицо + оборот), оба JPEG 1080×1920   // shareMs/fontsMs — пределы ожидания (в проверке сайта — 20 и 10 с; короче — только в самопроверке)
+export async function phoneCardStep(page, { click, sleep, shareMs = 20000, fontsMs = 10000, back = false, settled = null }) {   // back: с оборотом — ровно 2 файла (лицо + оборот), оба JPEG 1080×1920   // shareMs/fontsMs — пределы ожидания (в проверке сайта — 20 и 10 с; короче — только в самопроверке)
+  // settled (только самопроверка, tools/test_card_check.mjs): async () => true, когда страница-подделка закончила все свои вызовы share — ждём это событие вместо фиксированного окна; боевые проверки settled не передают
   const problems = [], out = { problems };
   const P = (msg) => problems.push({ type: 'прогулка', msg });
   // Шрифты открытки грузятся заранее, в простое: если нажать раньше, страница честно покажет плашку «готово» вместо share (второй тап) —
@@ -78,12 +79,16 @@ export async function phoneCardStep(page, { click, sleep, shareMs = 20000, fonts
   out.sheet = tap.sheet;
   if (back && !tap.backBtn) { P('с оборотом: в окне нет кнопки «Оборот» (#cardBack)'); return out; }
   let sh = 0;
-  for (let i = 0; i < shareMs / 200 && !sh; i++) { await sleep(200); sh = await page.evaluate(() => window.__shares.length); }
+  for (let i = 0; i < shareMs / 200 && !sh; i++) {
+    await sleep(200); sh = await page.evaluate(() => window.__shares.length);
+    if (!sh && settled && await settled()) { await sleep(200); sh = await page.evaluate(() => window.__shares.length); break; }   // подделка отработала и share не звала — красное сразу, без ожидания таймаута
+  }
   if (!sh) {
-    const d = await page.evaluate(() => ({ shares: window.__shares.length, dl: window.__download, blob: !!window.__lastImageBlob, toast: !!document.getElementById('cardToast') && document.getElementById('cardToast').classList.contains('on'), sheet: document.body.classList.contains('card-open'), share: typeof navigator.share, coarse: matchMedia('(pointer: coarse)').matches, fonts: window.__card ? window.__card.fontsReady() : null, btn: (() => { const b = document.getElementById('cardBtn'); return b ? { hidden: b.hidden, r: b.getBoundingClientRect().toJSON() } : null; })() }));
-    P(`открытка не ушла в share (нет файла за ${shareMs / 1000} с): ` + JSON.stringify(d));
+    const d = await page.evaluate(() => ({ shares: window.__shares.length, dl: window.__download, blob: !!window.__lastImageBlob, toast: !!document.getElementById('cardToast') && document.getElementById('cardToast').classList.contains('on'), sheet: document.body.classList.contains('card-open'), share: typeof navigator.share, coarse: matchMedia('(pointer: coarse)').matches, fake: window.__fake || undefined, fonts: window.__card ? window.__card.fontsReady() : null, btn: (() => { const b = document.getElementById('cardBtn'); return b ? { hidden: b.hidden, r: b.getBoundingClientRect().toJSON() } : null; })() }));
+    P(`открытка не ушла в share (${settled ? 'страница-подделка отработала и share не вызвала' : 'нет файла за ' + shareMs / 1000 + ' с'}): ` + JSON.stringify(d));
     return out;
   }
+  if (settled) { for (let i = 0; i < shareMs / 200 && !(await settled()); i++) await sleep(200); }   // самопроверка: ждём, пока подделка сделает ВСЕ свои вызовы share (второй вызов «twice»), а не гадаем паузой
   await sleep(300);   // второго вызова share от одного нажатия быть не должно
   const r = await page.evaluate(async () => {
     const s = window.__shares, fl = (s[0].files && s[0].files.length) ? s[0].files : (s[0].file ? [s[0].file] : []);

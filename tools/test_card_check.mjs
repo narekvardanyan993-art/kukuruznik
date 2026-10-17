@@ -3,7 +3,7 @@
 //   зелёная — share получает image/jpeg 1080×1920 одним вызовом;
 //   красная (проверка НЕ ослаблена) — файла нет / не тот размер / не JPEG / два вызова share / share вызван без файла.
 // Запуск: node tools/test_card_check.mjs  (в облаке: PUPPETEER_EXECUTABLE_PATH=…/chrome). Код выхода 0 — всё как должно быть, 2 — нет Chrome (пропуск).
-// Пределы ожидания здесь короче боевых (1,5 с вместо 20 с и 0,75 с вместо 10 с) — только чтобы красные случаи шли быстро; логика та же.
+// Пределы ожидания здесь: share — 15 с по событию (подделка сама сообщает «закончила»; красные идут быстро, зелёные не зависят от скорости машины), шрифты/бумага — 0,75 с (красный случай ждёт ровно столько); логика та же, что в боевых проверках.
 import puppeteer from 'puppeteer';
 import http from 'http';
 import fs from 'fs';
@@ -14,9 +14,11 @@ const ENGINE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 
 
 // e1.28: нажатие «Открытка» открывает окно (body.card-open) с #cardGo, открытку отдаёт #cardGo; режим legacy — старая страница e1.27 (сразу share).
 const PAGE = (mode) => `<!doctype html><meta charset=utf-8><style>#cardGo{display:none}body.card-open #cardGo{display:block}</style><body><button id=cardBtn style="width:120px;height:60px">card</button><button id=cardGo style="width:120px;height:60px">save</button><button id=cardCfgClose>x</button><button id=cardBack aria-pressed=false onclick="this.setAttribute('aria-pressed', this.getAttribute('aria-pressed') === 'true' ? 'false' : 'true')">back</button><script>
-window.ChkaPostcard = {}; window.__card = { fontsReady: () => ${mode === 'fonts' ? 'false' : 'true'}, paperReady: () => ${mode === 'paper' ? 'false' : 'true'} };
+window.ChkaPostcard = {}; window.__fake = { clicks: 0, done: false, t0: 0, tShare: 0, err: null };   // журнал подделки: проверка ждёт done (событие), а не гадает паузой
+window.__card = { fontsReady: () => ${mode === 'fonts' ? 'false' : 'true'}, paperReady: () => ${mode === 'paper' ? 'false' : 'true'} };
 const mk = (w, h, type) => new Promise((res) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); x.fillStyle = '#c96'; x.fillRect(0, 0, w, h); c.toBlob((b) => res(new File([b], type === 'image/png' ? 'c.png' : 'c.jpg', { type })), type, 0.9); });
-const send = async () => {
+const send = async () => { const F = window.__fake; F.t0 = performance.now(); try { await send1(); F.tShare = performance.now(); } catch (e) { F.err = String(e); } finally { F.done = true; } };
+const send1 = async () => {
   const m = ${JSON.stringify(mode)};
   if (m === 'none') return;
   if (m === 'nofile') { navigator.share({}); return; }
@@ -26,8 +28,8 @@ const send = async () => {
   navigator.share({ files: b ? [f, b] : [f] });
   if (m === 'twice') navigator.share({ files: [f] });
 };
-document.getElementById('cardBtn').onclick = () => { if (${JSON.stringify(mode)} === 'legacy') send(); else document.body.classList.add('card-open'); };
-document.getElementById('cardGo').onclick = () => { if (${JSON.stringify(mode)} !== 'mute') send(); };
+document.getElementById('cardBtn').onclick = () => { if (${JSON.stringify(mode)} === 'legacy') { window.__fake.clicks++; send(); } else document.body.classList.add('card-open'); };
+document.getElementById('cardGo').onclick = () => { window.__fake.clicks++; if (${JSON.stringify(mode)} !== 'mute') send(); else window.__fake.done = true; };
 document.getElementById('cardCfgClose').onclick = () => document.body.classList.remove('card-open');</script>`;
 const srv = http.createServer((q, r) => {
   if (q.url.startsWith('/engine/postcard.js')) { r.writeHead(200, { 'Content-Type': 'text/javascript' }); r.end(fs.readFileSync(path.join(ENGINE, 'postcard.js'))); return; }
@@ -38,7 +40,24 @@ await new Promise((res) => srv.listen(0, '127.0.0.1', res));
 const port = srv.address().port;
 let browser;
 try { browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] }); } catch (e) { console.log('ПРОПУЩЕНО: нет Chrome для puppeteer (' + String(e.message).slice(0, 80) + ')'); srv.close(); process.exit(2); }
+// CARD_TEST_CPU_SLOWDOWN=4 node tools/test_card_check.mjs — замедлить CPU страниц (как DevTools «CPU: 4× slowdown») и убедиться, что красные дают СВОЮ ошибку
+const SLOW = Number(process.env.CARD_TEST_CPU_SLOWDOWN || 1);
+if (SLOW > 1) { const np = browser.newPage.bind(browser); browser.newPage = async () => { const pg = await np(); const cdp = await pg.createCDPSession(); await cdp.send('Emulation.setCPUThrottlingRate', { rate: SLOW }); return pg; }; }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// e1.33+ (s34): пределы ожидания самопроверки — с запасом, а ждём СОБЫТИЕ: подделка сама ставит __fake.done, когда закончила все свои вызовы share.
+// Раньше было жёсткое окно 1,5 с на share: на медленной машине (Mac mini, 8 ГБ) подделка не успевала вызвать share → вместо «файлов 1, нужно 2» / «2 раза»
+// приходила «не ушла в share». Красный случай «share не звали вовсе» (mute/none) теперь тоже сразу, по событию done, а не по таймауту.
+// Проверка настоящей открытки не менялась: пороги 1080×1920, JPEG, число файлов, 2 вызова — те же; settled в боевые проверки не передаётся.
+const SHARE_MS = 15000, FONTS_MS = 750;   // FONTS_MS — красные «шрифты/бумага не догрузились» (там ждём ровно столько и проверяем, что красное есть)
+const settledOf = (page) => async () => page.evaluate(() => !!(window.__fake && window.__fake.done));
+let reclicks = 0;
+// страница-подделка иногда не получает первый клик (окно ещё доезжает) — повторить нажатие «Сохранить», если подделка его не видела (журнал __fake.clicks)
+const clickOf = (page) => async (sel) => {
+  await page.click(sel);
+  if (sel !== '#cardGo') return;
+  for (let i = 0; i < 10; i++) { if (await page.evaluate(() => window.__fake.clicks > 0)) return; await sleep(100); }
+  reclicks++; await page.click(sel);
+};
 const cases = [['ok', null], ['legacy', null], ['mute', 'не ушла в share'], ['small', '540×960'], ['png', 'тип image/png'], ['none', 'не ушла в share'], ['nofile', 'без файла'], ['twice', '2 раз'], ['fonts', 'шрифты открытки'], ['paper', 'бумага открытки']];   // e1.33: бумага грузится заранее — не успела = красное
 let bad = 0;
 const backCases = [['ok', null], ['back1', 'файлов 1, нужно 2'], ['backsmall', 'оборот в share: 540×960']];   // e1.29: с оборотом — 2 файла 1080×1920
@@ -46,7 +65,7 @@ for (const [mode, want] of backCases) {
   const page = await browser.newPage();
   await page.evaluateOnNewDocument(SHARE_HOOK);
   await page.goto(`http://127.0.0.1:${port}/?${mode}`);
-  const r = await phoneCardStep(page, { click: (s) => page.click(s), sleep, shareMs: 1500, fontsMs: 750, back: true });
+  const r = await phoneCardStep(page, { click: clickOf(page), sleep, shareMs: SHARE_MS, fontsMs: FONTS_MS, back: true, settled: settledOf(page) });
   const msgs = r.problems.map((p) => p.msg).join(' | ');
   const ok = want === null ? r.problems.length === 0 && !!r.backPng : r.problems.some((p) => p.msg.includes(want));
   if (!ok) bad++;
@@ -58,7 +77,7 @@ for (const [mode, want] of cases) {
   await page.evaluateOnNewDocument(SHARE_HOOK);
   await page.goto(`http://127.0.0.1:${port}/?${mode}`);
   const t = Date.now();
-  const r = await phoneCardStep(page, { click: (s) => page.click(s), sleep, shareMs: 1500, fontsMs: 750 });
+  const r = await phoneCardStep(page, { click: clickOf(page), sleep, shareMs: SHARE_MS, fontsMs: FONTS_MS, settled: settledOf(page) });
   const msgs = r.problems.map((p) => p.msg).join(' | ');
   const ok = want === null ? r.problems.length === 0 && !!r.png : r.problems.some((p) => p.msg.includes(want));
   if (!ok) bad++;
@@ -86,5 +105,6 @@ for (const [stub, want] of [[true, true], [false, false]]) {
   const ok = got === want; if (!ok) bad++;
   console.log(`${ok ? 'OK   ' : 'ОШИБКА'}  открытка при одинаковых входных данных ${stub ? 'с подменой Date.now (check_site): две копии совпадают' : 'без подмены: «зерно» разное (подмена нужна)'} — ${got ? 'совпали' : 'разные'}`);
 }
+if (reclicks) console.log(`заметка: повторное нажатие «Сохранить» понадобилось ${reclicks} раз — подделка не увидела первый клик`);
 await browser.close(); srv.close();
 process.exit(bad ? 1 : 0);
