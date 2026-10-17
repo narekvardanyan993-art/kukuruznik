@@ -2943,14 +2943,24 @@
     CONFIG.LANGS.forEach(function (l) { ['400', '500', '600', '700'].forEach(function (w) { all.push(document.fonts.load(w + ' 40px ' + CARD_FONT, CARD_SAMPLE[l] || '').catch(function () {})); all.push(document.fonts.load('italic 400 40px ' + CARD_FONT, CARD_SAMPLE[l] || '').catch(function () {})); }); });
     return Promise.all(all);
   }
-  // старая бумага (e1.32): engine/paper/old-paper-1.webp (лицо) и -2 (оборот) — грузятся только при открытии окна; пока нет — бумага рисуется кодом
+  // старая бумага (e1.32): engine/paper/old-paper-1.webp (лицо) и -2 (оборот). e1.33: грузится заранее, в простое после загрузки страницы
+  // (низкий приоритет, после шрифтов; вместе с ними — см. «шрифты открытки — в простое»), а не при открытии окна: открытка, снятая сразу
+  // после открытия, уходила без бумаги (первый compose шёл раньше, чем она приходила). Картинка ещё и раскодируется (decode) — первый
+  // drawImage при нажатии не ждёт. Пока бумаги нет (нет сети) — она рисуется кодом, как раньше.
   var cardPaper = { front: null, back: null, p: null };
   function cardPaperLoad() {
     if (cardPaper.p) return cardPaper.p;
-    function one(name, key) { return new Promise(function (res) { var im = new Image(); im.decoding = 'async'; im.onload = function () { cardPaper[key] = im; res(); }; im.onerror = function () { res(); }; im.src = engineUrl('paper/' + name); }); }
+    function one(name, key) { return new Promise(function (res) {
+      var im = new Image(); im.decoding = 'async'; try { im.fetchPriority = 'low'; } catch (e) {}
+      im.onload = function () { var done = function () { cardPaper[key] = im; res(); }; if (im.decode) im.decode().then(done, done); else done(); };
+      im.onerror = function () { res(); }; im.src = engineUrl('paper/' + name); }); }
     cardPaper.p = Promise.all([one('old-paper-1.webp', 'front'), one('old-paper-2.webp', 'back')]);
     return cardPaper.p;
   }
+  function cardPaperWhenLoaded(n) {   // низкий приоритет: не раньше, чем страница догрузила кадры (data-loaded=all); не дождались за 30 с — грузим всё равно
+    if (document.documentElement.getAttribute('data-loaded') === 'all' || n > 60) cardPaperLoad(); else setTimeout(function () { cardPaperWhenLoaded((n || 0) + 1); }, 500);
+  }
+  function cardPaperReady() { return !!(cardPaper.front && cardPaper.back); }
   function cardInfo(lang) {   // данные таблички — из building.json (postcard); старое здание без них — название из панели
     var P = CONFIG.POSTCARD || {};
     var tx = function (v) { return v && typeof v === 'object' ? (v[lang] || v.en || '') : (v || ''); };
@@ -3385,7 +3395,7 @@
   });
   window.__cardOnLang = function () { if (bodyEl.classList.contains('card-open')) { cfgMarks(); cfgMeta(); } };
   // шрифты открытки — в простое после загрузки страницы (нажатие потом не ждёт сеть)
-  setTimeout(function () { (window.requestIdleCallback || function (f) { setTimeout(f, 1) })(function () { cardFontsLoad(); FRAMES.forEach(function (F, i) { setTimeout(function () { cardBldLoad(i); }, 300 * i); }); }); }, 4000);
+  setTimeout(function () { (window.requestIdleCallback || function (f) { setTimeout(f, 1) })(function () { cardFontsLoad().then(cardPaperWhenLoaded); FRAMES.forEach(function (F, i) { setTimeout(function () { cardBldLoad(i); }, 300 * i); }); }); }, 4000);
   window.__card = {   // для проверки (report s26–s30): открытка с заданными настройками без «Поделиться»; dataURL JPEG/PNG
     make: function (o) { var src = captureView(); if (!src) return null; o = o || {};
       var keep = { lang: cardSet.lang, line: cardSet.line, film: cardSet.film, date: cardSet.date, year: cardSet.year, to: cardSet.to }, kr = cfg.rare, km = cfg.mask;
@@ -3395,7 +3405,7 @@
       var cv = composeCard(src, { seed: o.seed != null ? o.seed : 26, date: o.date ? new Date(o.date) : undefined, grain: o.grain, code: o.code, time: o.time, back: !!o.back });
       cardSet.lang = keep.lang; cardSet.line = keep.line; cardSet.film = keep.film; cardSet.date = keep.date; cardSet.year = keep.year; cardSet.to = keep.to; cfg.rare = kr; cfg.mask = km;
       return { url: cv.toDataURL(o.png ? 'image/png' : 'image/jpeg', 0.9), boxes: cv.__boxes, src: o.src ? src.toDataURL(o.png ? 'image/png' : 'image/jpeg', 0.9) : null }; },
-    fontsReady: function (l) { return cardFontsReady(l || cardLang()); }, fontsLoad: cardFontsLoad, bldLoad: function () { FRAMES.forEach(function (F, i) { cardBldLoad(i); }); return new Promise(function (res) { var n = 0; (function w() { if (FRAMES.every(function (F, i) { return cardBld[i] !== 'loading'; }) || ++n > 100) res(); else setTimeout(w, 100); })(); }); }, mask: cardBuildingMask, safe: function () { return ChkaPostcard.SAFE; },
+    fontsReady: function (l) { return cardFontsReady(l || cardLang()); }, fontsLoad: cardFontsLoad, paperReady: cardPaperReady, paperLoad: cardPaperLoad,bldLoad: function () { FRAMES.forEach(function (F, i) { cardBldLoad(i); }); return new Promise(function (res) { var n = 0; (function w() { if (FRAMES.every(function (F, i) { return cardBld[i] !== 'loading'; }) || ++n > 100) res(); else setTimeout(w, 100); })(); }); }, mask: cardBuildingMask, safe: function () { return ChkaPostcard.SAFE; },
     open: openCfg, close: closeCfg, show: showNow,
     want: function (w) { if (w) { cfg.want = w; dirty(); } return cfg.want; },
     state: function () { return { open: bodyEl.classList.contains('card-open'), rare: cfg.rare, seed: cfg.seed, code: cfg.code, time: cfg.want ? cardTime(cfg.want) : '', want: cfg.want, srcKey: cfg.srcKey, dirty: cfg.dirty, busy: cfg.busy, back: !!cfg.back, years: CARD_YEARS, set: JSON.parse(JSON.stringify(cardSet)), no: cardNo(), mom: MOM.map(function (m) { return m.k; }), wx: CWX, showOn: !!(cfg.want && cfg.want.show) }; },

@@ -14,7 +14,7 @@ const ENGINE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 
 
 // e1.28: нажатие «Открытка» открывает окно (body.card-open) с #cardGo, открытку отдаёт #cardGo; режим legacy — старая страница e1.27 (сразу share).
 const PAGE = (mode) => `<!doctype html><meta charset=utf-8><style>#cardGo{display:none}body.card-open #cardGo{display:block}</style><body><button id=cardBtn style="width:120px;height:60px">card</button><button id=cardGo style="width:120px;height:60px">save</button><button id=cardCfgClose>x</button><button id=cardBack aria-pressed=false onclick="this.setAttribute('aria-pressed', this.getAttribute('aria-pressed') === 'true' ? 'false' : 'true')">back</button><script>
-window.ChkaPostcard = {}; window.__card = { fontsReady: () => ${mode === 'fonts' ? 'false' : 'true'} };
+window.ChkaPostcard = {}; window.__card = { fontsReady: () => ${mode === 'fonts' ? 'false' : 'true'}, paperReady: () => ${mode === 'paper' ? 'false' : 'true'} };
 const mk = (w, h, type) => new Promise((res) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); x.fillStyle = '#c96'; x.fillRect(0, 0, w, h); c.toBlob((b) => res(new File([b], type === 'image/png' ? 'c.png' : 'c.jpg', { type })), type, 0.9); });
 const send = async () => {
   const m = ${JSON.stringify(mode)};
@@ -39,7 +39,7 @@ const port = srv.address().port;
 let browser;
 try { browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] }); } catch (e) { console.log('ПРОПУЩЕНО: нет Chrome для puppeteer (' + String(e.message).slice(0, 80) + ')'); srv.close(); process.exit(2); }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const cases = [['ok', null], ['legacy', null], ['mute', 'не ушла в share'], ['small', '540×960'], ['png', 'тип image/png'], ['none', 'не ушла в share'], ['nofile', 'без файла'], ['twice', '2 раз'], ['fonts', 'шрифты открытки']];
+const cases = [['ok', null], ['legacy', null], ['mute', 'не ушла в share'], ['small', '540×960'], ['png', 'тип image/png'], ['none', 'не ушла в share'], ['nofile', 'без файла'], ['twice', '2 раз'], ['fonts', 'шрифты открытки'], ['paper', 'бумага открытки']];   // e1.33: бумага грузится заранее — не успела = красное
 let bad = 0;
 const backCases = [['ok', null], ['back1', 'файлов 1, нужно 2'], ['backsmall', 'оборот в share: 540×960']];   // e1.29: с оборотом — 2 файла 1080×1920
 for (const [mode, want] of backCases) {

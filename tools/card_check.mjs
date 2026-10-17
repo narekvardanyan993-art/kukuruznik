@@ -66,6 +66,11 @@ export async function phoneCardStep(page, { click, sleep, shareMs = 20000, fonts
   let fontsOk = false;
   for (let i = 0; i < fontsMs / 250 && !(fontsOk = await page.evaluate(() => !window.__card || window.__card.fontsReady())); i++) await sleep(250);
   if (!fontsOk) P(`шрифты открытки не догрузились заранее (за ${fontsMs / 1000} с): на телефоне вместо share будет плашка «готово»`);
+  // e1.33: старая бумага открытки тоже грузится заранее (в простое, после шрифтов); не догрузилась — открытка, снятая сразу после открытия окна,
+  // уходит без неё (и у двух копий сайта получается разной). Страницы без paperReady (до e1.33) пропускаются.
+  let paperOk = false;
+  for (let i = 0; i < fontsMs / 250 && !(paperOk = await page.evaluate(() => !window.__card || !window.__card.paperReady || window.__card.paperReady())); i++) await sleep(250);
+  if (!paperOk) P(`бумага открытки не догрузилась заранее (за ${fontsMs / 1000} с): открытка, снятая сразу после открытия окна, уйдёт без неё`);
   // карта здания для обхода памятника грузится в простое (до ~6 с после загрузки); ждём её (≤10 с), чтобы открытка двух копий сайта не зависела от того, успела ли она
   await page.evaluate(() => (window.__card && window.__card.bldLoad ? window.__card.bldLoad() : null));
   await page.evaluate(() => { window.__shares = []; window.__lastImageBlob = null; window.__download = null; });
