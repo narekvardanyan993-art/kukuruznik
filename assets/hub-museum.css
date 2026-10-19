@@ -199,26 +199,33 @@ h1, h2, h3 { font-weight: 700; letter-spacing: var(--h-track); }
   html.intro .title > :nth-child(5) { animation-delay: 1040ms; } html.intro .title > :nth-child(6) { animation-delay: 1140ms; }
 }
 
-/* ---------- курсор «музейный» (21.10.2026): тонкая чернильная стрелка с бумажной обводкой; над кликабельным — той же формы, цвета марки.
-   Точка срабатывания — кончик. Не загрузились — системный курсор. Телефон не затронут. ---------- */
-@media (hover: hover) and (pointer: fine) {
-  :root {
-    --cn: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath d='M3 2 L3 23 L8 18.2 L11.4 26 L14.6 24.6 L11.2 17 L18.4 16.6 Z' fill='%232a2420' stroke='%23fffcf4' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E") 3 2, default;
-    --cp: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath d='M3 2 L3 23 L8 18.2 L11.4 26 L14.6 24.6 L11.2 17 L18.4 16.6 Z' fill='%238a2c33' stroke='%23fffcf4' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E") 3 2, pointer;
-  }
-  a[href], button, summary, [role="button"], label[for] { cursor: var(--cp); }
-}
+/* ---------- курсор (21.10.2026): армянский «знак вечности» (тот же #wheel, что в орнаментах страницы). Рисует маленький скрипт в конце
+   index.html: точка — точное место клика, колесо догоняет мягко и медленно вращается; над кликабельным — крупнее, цвета марки и
+   вращается быстрее; при нажатии сжимается. Двигаем только transform/opacity. Не загрузился скрипт — системный курсор. ---------- */
+.cur { position: fixed; left: 0; top: 0; z-index: 9999; pointer-events: none; opacity: 0; transition: opacity 260ms cubic-bezier(0.22, 1, 0.36, 1); }
+.cur.on { opacity: 1; }
+.cur-dot, .cur-wheel { position: absolute; left: 0; top: 0; will-change: transform; }
+.cur-dot { width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 1.5px #fbf7ee; }
+.cur-wheel { width: 38px; height: 38px; margin: -19px 0 0 -19px; color: var(--ink); opacity: 0.92; filter: drop-shadow(0 0 1.5px rgba(251, 247, 238, 0.95));
+  transition: color 240ms cubic-bezier(0.22, 1, 0.36, 1); }
+.cur-wheel svg { display: block; width: 100%; height: 100%; }
+.cur.hot .cur-wheel { color: var(--accent); }
+.cur.dark .cur-wheel { color: #fbf7ee; filter: drop-shadow(0 0 1.5px rgba(42, 36, 32, 0.85)); }
+html.chka-cur, html.chka-cur * { cursor: none !important; }
 
 /* ---------- hover на всём кликабельном ---------- */
+.go::after, .card-history::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; background: var(--accent);
+  transform: scaleX(0); transform-origin: 0 50%; transition: transform 560ms cubic-bezier(0.16, 1, 0.3, 1); }
 .logo, .go, .scroll-hint, .card-history, .lang-opt { transition: color 260ms cubic-bezier(0.22, 1, 0.36, 1), border-color 260ms, opacity 260ms; }
 .logo .dot { transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1); }
 @media (hover: hover) and (pointer: fine) {
   .logo:hover { color: var(--accent); }
   .logo:hover .dot { transform: scale(1.5); }
-  .go:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  .go:hover { color: var(--accent); }
+  .go:hover::after, .card-history:hover::after { transform: scaleX(1); }
   .scroll-hint:hover { color: var(--ink); }
   .scroll-hint:hover svg { transform: translateY(3px); }
-  .card-history:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  .card-history:hover { color: var(--accent); }
   .tiktok .btn:hover, .hero-cta .btn:hover { box-shadow: 0 6px 14px -6px rgba(42, 36, 32, 0.45); }
 }
 .scroll-hint svg { transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1); }
