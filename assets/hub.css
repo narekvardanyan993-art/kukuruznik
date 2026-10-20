@@ -52,7 +52,12 @@
   --ease: cubic-bezier(0.22, 0.85, 0.32, 1);
   --spring: cubic-bezier(0.34, 1.4, 0.64, 1);
   --nav-h: 64px;
-  --gutter: max(16px, env(safe-area-inset-left));
+  /* поля по краям (s38): ничего не липнет к краю — телефон 22 px, на iPhone в повороте — вырез + 14 px; ПК — ниже */
+  --gutter: max(22px, calc(env(safe-area-inset-left, 0px) + 14px), calc(env(safe-area-inset-right, 0px) + 14px));
+  /* наведение (s38): медленно и мягко, как в музее — быстрый старт, долгое торможение (docs/ANIMATION.md, --out) */
+  --h-dur: 420ms;
+  --h-dur-s: 300ms;
+  --h-ease: cubic-bezier(0.16, 1, 0.3, 1);
 
   /* галерея: светлый «зал», терракотовые акценты */
   --gx-bg: rgba(251, 250, 247, 0.95);
@@ -514,26 +519,17 @@ html.scrolled .scroll-hint { opacity: 0; transform: translateY(10px); pointer-ev
 }
 @keyframes pulse { 50% { opacity: 0.3; } }
 
-/* ---------- подвал ---------- */
+/* ---------- подвал (s38): один и тот же на всех страницах — одна короткая строка «о чём сайт» ---------- */
 
 .foot {
-  margin-top: 64px;
-  padding: 28px 20px;
-  border-radius: var(--r-lg);
-  background: var(--surface-2);
+  margin-top: 72px;
+  padding: 22px 0 calc(env(safe-area-inset-bottom, 0px) + 6px);
+  border-top: 1px solid var(--line);
   text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  color: var(--muted);
-  font-size: 1rem;
+  color: var(--faint);
 }
-.foot p { margin: 0; text-align: center; }
-.foot .brand { font-weight: 700; color: var(--ink); font-size: 1.0625rem; }
-.foot .brand .hy { font-weight: 700; }
-.foot .photo-rights { max-width: 52ch; margin: 12px auto 0; line-height: 1.55; font-size: 0.875rem; }
-.foot .tiktok { margin-top: 18px; }
-.foot .tiktok a { min-height: 48px; }
+.foot .foot-line { margin: 0 auto; max-width: 36ch; font-size: 0.875rem; line-height: 1.5; font-weight: 500; letter-spacing: 0.01em; text-wrap: balance; }
+.foot .foot-line .hy { font-weight: 700; color: var(--ink); }
 
 /* ---------- проявление при прокрутке ---------- */
 
@@ -561,7 +557,7 @@ html.scrolled .scroll-hint { opacity: 0; transform: translateY(10px); pointer-ev
   .soon h3 { font-size: 1.375rem; }
 }
 @media (min-width: 900px) {
-  :root { --gutter: 32px; }
+  :root { --gutter: max(48px, calc(env(safe-area-inset-left, 0px) + 24px), calc(env(safe-area-inset-right, 0px) + 24px)); }
   .page { padding-top: calc(var(--nav-h) + 48px); }
   .hero { grid-template-columns: 1fr 1fr; align-items: center; gap: 24px 56px; grid-template-rows: 1fr auto; min-height: calc(100vh - var(--nav-h) - 120px); }
   .title { grid-column: 1; grid-row: 1; }
@@ -589,6 +585,7 @@ html.scrolled .scroll-hint { opacity: 0; transform: translateY(10px); pointer-ev
 /* ---------- детали «светлого музея» ---------- */
 
 .page { max-width: 1080px; }
+.nav-in { max-width: 1080px; }   /* s38: логотип и край открытки на одной линии */
 .shelf { margin-top: 72px; }
 @media (hover: hover) and (pointer: fine) {
   .btn:not(.btn-ghost):hover { background: var(--accent-strong); }
@@ -596,8 +593,6 @@ html.scrolled .scroll-hint { opacity: 0; transform: translateY(10px); pointer-ev
 }
 .btn-ghost { --btn-shadow: var(--shadow-sm); --btn-shadow-active: none; }
 .about { background: transparent; border: 0; border-top: 1px solid var(--line); border-radius: 0; box-shadow: none; padding: 22px 0 0; }
-.foot { background: transparent; border-top: 1px solid var(--line); border-radius: 0; }
-.foot a { text-decoration-color: var(--accent); text-underline-offset: 3px; }
 .chip { background: rgba(255, 255, 255, 0.92); color: var(--graphite); }
 
 /* ссылка «история» на карточке здания — отдельная кнопка рядом с «Открыть 3D»
@@ -623,16 +618,52 @@ html.scrolled .scroll-hint { opacity: 0; transform: translateY(10px); pointer-ev
 .card-history:active { transform: scale(0.94); }
 @media (hover: hover) and (pointer: fine) { .card-history:hover { color: var(--accent); } }
 
-/* e1.13 (s7, общие с движком): курсоры ПК — классическая стрелка «от руки», над кликабельным — кружок у острия, загрузка — чернильный круг.
-     Точка срабатывания — кончик (числа после url); не загрузились — системный курсор (второе значение). Телефон не трогается. */
-  :root { --cp: pointer; }
-  @media (hover: hover) and (pointer: fine) {
-    :root {
-      --cn: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath d='M4.2 3.1 L4.0 24.6 L9.3 19.4 L13.1 27.6 L17.0 25.9 L13.3 17.9 L20.6 17.6 Z' fill='%23000' fill-opacity='.16' transform='translate%281.2 1.6%29'/%3E%3Cpath d='M4.2 3.1 L4.0 24.6 L9.3 19.4 L13.1 27.6 L17.0 25.9 L13.3 17.9 L20.6 17.6 Z' fill='%23fffcf4' stroke='%232f2a25' stroke-width='1.7' stroke-linejoin='round' stroke-linecap='round'/%3E%3Cpath d='M5.3 6.2 L5.2 20.6' stroke='%232f2a25' stroke-width='.6' stroke-opacity='.35' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") 4 3, auto;
-      --cp: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='-3 -3 32 32'%3E%3Ccircle cx='4.2' cy='3.2' r='5.6' fill='none' stroke='%23fffcf4' stroke-width='3.4' stroke-opacity='.9'/%3E%3Ccircle cx='4.2' cy='3.2' r='5.6' fill='none' stroke='%232f2a25' stroke-width='1.6'/%3E%3Cpath d='M4.2 3.1 L4.0 24.6 L9.3 19.4 L13.1 27.6 L17.0 25.9 L13.3 17.9 L20.6 17.6 Z' fill='%23000' fill-opacity='.16' transform='translate%281.2 1.6%29'/%3E%3Cpath d='M4.2 3.1 L4.0 24.6 L9.3 19.4 L13.1 27.6 L17.0 25.9 L13.3 17.9 L20.6 17.6 Z' fill='%23fffcf4' stroke='%232f2a25' stroke-width='1.7' stroke-linejoin='round' stroke-linecap='round'/%3E%3Cpath d='M5.3 6.2 L5.2 20.6' stroke='%232f2a25' stroke-width='.6' stroke-opacity='.35' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") 7 6, pointer;
-      --cw: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='10.5' fill='%23fffcf4' fill-opacity='.92'/%3E%3Cpath d='M16 5.6 C22.2 5.4 26.6 10 26.5 16.2 C26.3 22.3 21.8 26.6 15.6 26.4 C9.6 26.2 5.4 21.6 5.6 15.6 C5.8 10.6 9.2 6.8 13.6 5.9' fill='none' stroke='%23fffcf4' stroke-width='4' stroke-opacity='.85' stroke-linecap='round'/%3E%3Cpath d='M16 5.6 C22.2 5.4 26.6 10 26.5 16.2 C26.3 22.3 21.8 26.6 15.6 26.4 C9.6 26.2 5.4 21.6 5.6 15.6 C5.8 10.6 9.2 6.8 13.6 5.9' fill='none' stroke='%232f2a25' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M8.2 11.4 C9.4 8.6 12 6.8 14.8 6.4' fill='none' stroke='%232f2a25' stroke-width='.7' stroke-opacity='.45' stroke-linecap='round'/%3E%3C/svg%3E") 16 16, progress;
-    }
-    html, body { cursor: var(--cn); }
-    .loading, .loading * { cursor: var(--cw); }
-  }
+/* курсор (s38): системный. Свои курсоры (e1.13 «стрелка от руки», s36–s37 «знак вечности») с главной, about и history убраны;
+   --cp остаётся, им пользуются кнопки. У страниц-просмотрщиков (engine/) курсоры свои — отдельный заход 10г. */
+:root { --cp: pointer; }
 
+/* ---------- наведение и нажатие (s38) ----------
+   Всё кликабельное отвечает медленно и мягко (--h-dur 420 мс, кривая --out — быстрый старт, долгое торможение):
+   ссылки в тексте — подчёркивание «рисуется» слева направо, кнопки — чуть приподнимаются и проявляют тень бумаги,
+   карточки — приподнимаются. Двигаем только transform/opacity/тень/цвет. Телефон: те же состояния на нажатии (:active,
+   .lift из chka-common.js), без «зависшего» hover. «Уменьшить движение» — без сдвигов, только цвет. */
+
+/* ссылки внутри текста: тонкая линия всегда, акцентная — дорисовывается при наведении */
+.page p a:not(.btn), .page li a:not(.btn):not(.card-in):not(.card-history), .page figcaption a, .credit a, .gx-credit a {
+  color: inherit;
+  text-decoration: none;
+  background-image: linear-gradient(var(--accent), var(--accent)), linear-gradient(currentColor, currentColor);
+  background-size: 0% 1.5px, 100% 1px;
+  background-position: 0 100%, 0 100%;
+  background-repeat: no-repeat;
+  padding-bottom: 1px;
+  transition: background-size var(--h-dur) var(--h-ease), color var(--h-dur-s) var(--h-ease);
+}
+.page p a:not(.btn):active, .page li a:not(.btn):not(.card-in):not(.card-history):active, .page figcaption a:active { color: var(--accent); background-size: 100% 1.5px, 100% 1px; }
+@media (hover: hover) and (pointer: fine) {
+  .page p a:not(.btn):hover, .page li a:not(.btn):not(.card-in):not(.card-history):hover, .page figcaption a:hover, .credit a:hover, .gx-credit a:hover {
+    color: var(--accent); background-size: 100% 1.5px, 100% 1px;
+  }
+}
+
+/* логотип («назад»): цвет и лёгкий сдвиг стрелки */
+.logo { transition: color var(--h-dur-s) var(--h-ease); }
+.logo svg { transition: transform var(--h-dur) var(--h-ease); }
+
+/* кнопки: подъём на 2 px + мягкая тень бумаги; нажатие — лёгкое «вдавливание» (быстро, 160 мс) */
+.btn { transition: transform var(--h-dur) var(--h-ease), box-shadow var(--h-dur) var(--h-ease), background var(--h-dur) var(--h-ease), color var(--h-dur) var(--h-ease), border-color var(--h-dur) var(--h-ease); }
+.btn:active, .btn.lift { transform: translateY(1px) scale(0.97); transition-duration: 160ms; }
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 10px 22px -12px rgba(42, 36, 32, 0.55); }
+  .btn:hover:active { transform: translateY(0) scale(0.98); }
+  .logo:hover { color: var(--accent); }
+  .logo:hover svg { transform: translateX(-3px); }
+}
+
+/* карточки и галерея: приподнимаются и проявляют тень (как фото, которое берут со стола) */
+.card-in { transition: transform var(--h-dur) var(--h-ease), box-shadow var(--h-dur) var(--h-ease); }
+.card.lift .card-in { transform: scale(0.985); transition-duration: 200ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .btn, .btn:hover, .btn:active, .card-in, .card.lift .card-in { transform: none !important; }
+}

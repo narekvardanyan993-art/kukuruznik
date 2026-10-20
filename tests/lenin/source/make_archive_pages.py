@@ -112,17 +112,11 @@ ARROW_R = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-wid
 ARROW_L = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>'
 CUBE = '<svg class="cube-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12v9M4 7.5l8 4.5 8-4.5"/></svg>'
 
-FOOT = '''  <footer class="foot reveal">
-    <p class="brand"><span class="hy">Չկա</span> · <a href="%(root)s">%(home)s</a></p>
-    <p class="photo-rights">%(rights)s</p>
-    <p class="tiktok"><a class="btn" href="https://www.tiktok.com/@ht_product">%(tt)s</a></p>
+# s38: один маленький подвал на всех страницах сайта — только строка «о чём сайт» (без текста о правах на фото, без TikTok)
+FOOT = '''  <footer class="foot">
+    <p class="foot-line"><span class="hy">Չկա</span> · %(line)s</p>
   </footer>''' % dict(
-    root=ROOT,
-    home=tri('գլխավոր էջ', 'на главную альбома', 'back to the album'),
-    rights=tri('Արխիվային լուսանկարները պատկանում են իրենց հեղինակներին և արխիվներին։ Օգտագործվում են ոչ առևտրային նախագծում՝ աղբյուրը նշելով։ Եթե դուք հեղինակն եք և ցանկանում եք ուղղել ստորագրությունը կամ հեռացնել լուսանկարը՝ <a href="https://www.tiktok.com/@ht_product">գրեք ինձ</a>։',
-               'Архивные фото принадлежат их авторам и архивам. Используются в некоммерческом проекте с указанием источника. Если вы автор и хотите исправить подпись или убрать фото — <a href="https://www.tiktok.com/@ht_product">напишите мне</a>.',
-               'Archival photos belong to their authors and archives. Used in a non-commercial project with the source credited. If you are the author and want to fix a caption or remove a photo — <a href="https://www.tiktok.com/@ht_product">message me</a>.', cls='i18n-block'),
-    tt=tri('TikTok-ում', 'мой TikTok', 'my TikTok'))
+    line=tri('Երևանի կորած ճարտարապետության ալբոմ', 'альбом утраченной архитектуры Еревана', 'an album of Yerevan’s lost architecture'))
 
 
 def head(title, desc):
@@ -168,8 +162,8 @@ TIMELINE = [
 
 def about():
     t = head('Памятник Ленину — архив | Չկա', 'Памятник Ленину на главной площади Еревана (1940–1991): архивные фото и хроника. Скрытая бета.')
-    t += '''<link rel="stylesheet" href="%sassets/hub.css?v=12">
-<link rel="stylesheet" href="%sassets/story.css?v=13">
+    t += '''<link rel="stylesheet" href="%sassets/hub.css?v=13">
+<link rel="stylesheet" href="%sassets/story.css?v=14">
 </head>
 <body>
 <nav class="nav"><div class="nav-in">
@@ -201,7 +195,7 @@ def about():
 %s
 </main>
 <script src="%sassets/i18n.js?v=2" defer></script>
-<script src="%sassets/chka-common.js?v=2" defer></script>
+<script src="%sassets/chka-common.js?v=3" defer></script>
 <script src="%sassets/story.js?v=7" defer></script>
 <script src="%sassets/gallery.js?v=1" defer></script>
 </body>
@@ -281,8 +275,8 @@ def chapter(i, c):
 
 def history():
     t = head('История памятника Ленину | Չկա', 'Памятник Ленину на главной площади Еревана: от места в плане Таманяна до снятия в 1991 году. Пять глав. Скрытая бета.')
-    t += '''<link rel="stylesheet" href="%sassets/hub.css?v=12">
-<link rel="stylesheet" href="%sassets/story.css?v=13">
+    t += '''<link rel="stylesheet" href="%sassets/hub.css?v=13">
+<link rel="stylesheet" href="%sassets/story.css?v=14">
 <link rel="stylesheet" href="%sassets/history.css?v=3">
 </head>
 <body>
@@ -329,7 +323,7 @@ def history():
 </main>
 
 <script src="%sassets/i18n.js?v=2" defer></script>
-<script src="%sassets/chka-common.js?v=2" defer></script>
+<script src="%sassets/chka-common.js?v=3" defer></script>
 <script src="%sassets/history.js?v=1" defer></script>
 </body>
 </html>

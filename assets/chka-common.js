@@ -7,6 +7,8 @@
 
   window.ChkaReducedMotion = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
   window.ChkaFinePointer = !!(window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches);
+  /* s38: Safari на iPhone включает состояние нажатия (:active) только при слушателе касаний — пустой слушатель, без помех прокрутке */
+  document.addEventListener('touchstart', function () {}, { passive: true });
 
   var SVGNS = 'http://www.w3.org/2000/svg';
 

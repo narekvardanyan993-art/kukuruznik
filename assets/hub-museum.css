@@ -71,13 +71,14 @@ h1, h2, h3 { font-weight: 700; letter-spacing: var(--h-track); }
 .btn {
   min-height: 50px; padding: 0 24px; border-radius: 2px; border: 1px solid var(--accent);
   font: 700 1rem/1 var(--font); letter-spacing: 0.03em;
-  transition: background 320ms cubic-bezier(0.22, 1, 0.36, 1), color 320ms, transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: background var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)), color var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)), border-color var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)), transform var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)), box-shadow var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1));
 }
+.btn:active, .btn.lift { transform: translateY(1px) scale(0.97); transition-duration: 160ms; }
 .btn-ghost { background: transparent; color: var(--ink); border-color: var(--ink); box-shadow: none; }
 @media (hover: hover) and (pointer: fine) {
   .btn:hover { transform: translateY(-2px); background: var(--ink); border-color: var(--ink); color: var(--surface); }
 }
-.hero-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+.hero-cta { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 28px; }
 
 /* ---------- первый экран = открытка ---------- */
 .hero {
@@ -109,14 +110,16 @@ h1, h2, h3 { font-weight: 700; letter-spacing: var(--h-track); }
 .stack-card { border-radius: 2px; padding: 6px; box-shadow: 0 1px 2px rgba(42, 36, 32, 0.22), 0 10px 22px -8px rgba(42, 36, 32, 0.4); }
 .sc-pic { border-radius: 1px; }
 .hero-stamp { position: absolute; right: -4%; top: -3%; width: 22%; min-width: 74px; max-width: 108px; z-index: 12; transform: rotate(6deg); filter: drop-shadow(0 4px 4px rgba(42, 36, 32, 0.3)); pointer-events: none; }
-.hero-postmark { position: absolute; left: -2%; bottom: 4%; width: 26%; min-width: 84px; max-width: 124px; z-index: 12; color: rgba(45, 63, 94, 0.72); transform: rotate(-14deg); mix-blend-mode: multiply; pointer-events: none; }
+/* штемпель (s38): чёткие тёмно-синие чернила, светлая бумага под кругом и ореол у букв — читается и поверх рисунка; волны справа, мимо даты */
+.hero-postmark { position: absolute; left: -7%; bottom: 0; width: 40%; min-width: 136px; max-width: 176px; z-index: 12; color: #22355a; opacity: 0.93; transform: rotate(-12deg); pointer-events: none;
+  filter: drop-shadow(0 0.5px 0 rgba(34, 53, 90, 0.35)); }
 
 @media (min-width: 900px) {
   .hero { padding: 54px 56px 40px; gap: 24px 56px; align-items: center; grid-template-rows: 1fr auto; min-height: 0; }
   .title { padding-right: 24px; }
   .stack { order: 2; }
 }
-@media (max-width: 899px) { .hero { padding: 28px 18px 22px; } }
+@media (max-width: 899px) { .hero { padding: 32px 24px 26px; } }
 
 /* ---------- разделитель с гербом ---------- */
 .orn { display: flex; align-items: center; gap: 16px; color: var(--accent); margin: 64px 0 0; opacity: 0.9; }
@@ -136,11 +139,12 @@ h1, h2, h3 { font-weight: 700; letter-spacing: var(--h-track); }
   display: block; padding: 0; border: 0; background: none; box-shadow: none; border-radius: 0;
 }
 @media (min-width: 760px) { .card:not(.soon) .card-in { display: block; padding: 0; } .card:not(.soon) h3 { font-size: 1.75rem; } }
-@media (hover: hover) and (pointer: fine) { a.card-in:hover { transform: none; box-shadow: none; } a.card-in:hover .pic { transform: translateY(-6px) rotate(-0.6deg); } }
+@media (hover: hover) and (pointer: fine) { a.card-in:hover { transform: none; box-shadow: none; } a.card-in:hover .pic { transform: translateY(-6px) rotate(-0.6deg); filter: drop-shadow(0 14px 14px rgba(42, 36, 32, 0.28)); } }
+.card.lift .card-in { transform: none; } .card.lift .pic { transform: scale(0.985); transition-duration: 200ms; }
 .pic {
   position: relative; display: block; aspect-ratio: auto; padding: 15px; border-radius: 0; overflow: visible;
   background: var(--surface); filter: drop-shadow(0 5px 6px rgba(42, 36, 32, 0.3));
-  transition: transform 600ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)), filter var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1));
 }
 .pic::before {   /* зубчатый край марки */
   content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none; background:
@@ -158,17 +162,24 @@ h1, h2, h3 { font-weight: 700; letter-spacing: var(--h-track); }
   transition: transform 1200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 @media (hover: hover) and (pointer: fine) { a.card-in:hover .pic > img { transform: none; } }
-.txt { padding: 18px 4px 40px; }
+.txt { padding: 20px 8px 56px; }
 .eyebrow { color: var(--accent); letter-spacing: 0.16em; font-size: 0.75rem; margin-bottom: 4px; }
 .card h3 { font-size: 1.65rem; line-height: 1.15; }
 .card h3 [lang="hy"] { font-size: 0.95em; }
 .meta { font-size: 0.95rem; color: var(--muted); }
 .go {
-  position: absolute; left: 4px; bottom: 4px; min-height: 0; padding: 0 0 2px; margin: 0; border-radius: 0; background: none; color: var(--ink);
+  position: absolute; left: 8px; bottom: 10px; min-height: 0; padding: 0 0 2px; margin: 0; border-radius: 0; background: none; color: var(--ink);
   font-size: 1rem; border-bottom: 1px solid var(--ink);
 }
-.card-history { right: 4px; bottom: 2px; min-height: 0; padding: 0 0 2px; border-radius: 0; background: none; font-weight: 500; border-bottom: 1px dashed var(--faint); color: var(--faint); font-size: 0.95rem; }
+.card-history { right: 8px; bottom: 8px; min-height: 0; padding: 0 0 2px; border-radius: 0; background: none; font-weight: 500; border-bottom: 1px dashed var(--faint); color: var(--faint); font-size: 0.95rem; }
 .card-history:active { transform: none; }
+/* узкая марка (ПК в 4 колонки, ~200 px): «Открыть 3D» и «история» не помещаются в строку — друг под другом (s38) */
+.card:not(.soon) { container-type: inline-size; }
+@container (max-width: 330px) {
+  .txt { padding-bottom: 84px; }
+  .go { bottom: 46px; }
+  .card-history { left: 8px; right: auto; bottom: 10px; }
+}
 
 .card.soon .card-in { padding: 0; background: none; }
 .card.soon .pic { filter: none; background: transparent; padding: 15px; }
@@ -188,10 +199,7 @@ h1, h2, h3 { font-weight: 700; letter-spacing: var(--h-track); }
 .about p + p { font-size: 1.0625rem; color: var(--muted); }
 
 /* ---------- подвал ---------- */
-.foot { background: transparent; border: 0; margin-top: 56px; }
-.foot .brand { font-weight: 700; }
-.foot .tiktok .btn { background: transparent; color: var(--ink); border-color: var(--ink); }
-.foot .orn { margin: 0 0 22px; }
+/* общий маленький подвал — в hub.css; здесь ничего своего */
 
 @media (prefers-reduced-motion: no-preference) {
   html.intro .title > :nth-child(1) { animation-delay: 600ms; } html.intro .title > :nth-child(2) { animation-delay: 700ms; }
@@ -199,25 +207,13 @@ h1, h2, h3 { font-weight: 700; letter-spacing: var(--h-track); }
   html.intro .title > :nth-child(5) { animation-delay: 1040ms; } html.intro .title > :nth-child(6) { animation-delay: 1140ms; }
 }
 
-/* ---------- курсор (21.10.2026): армянский «знак вечности» (тот же #wheel, что в орнаментах страницы). Рисует маленький скрипт в конце
-   index.html: точка — точное место клика, колесо догоняет мягко и медленно вращается; над кликабельным — крупнее, цвета марки и
-   вращается быстрее; при нажатии сжимается. Двигаем только transform/opacity. Не загрузился скрипт — системный курсор. ---------- */
-.cur { position: fixed; left: 0; top: 0; z-index: 9999; pointer-events: none; opacity: 0; transition: opacity 260ms cubic-bezier(0.22, 1, 0.36, 1); }
-.cur.on { opacity: 1; }
-.cur-dot, .cur-wheel { position: absolute; left: 0; top: 0; will-change: transform; }
-.cur-dot { width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 1.5px #fbf7ee; }
-.cur-wheel { width: 38px; height: 38px; margin: -19px 0 0 -19px; color: var(--ink); opacity: 0.92; filter: drop-shadow(0 0 1.5px rgba(251, 247, 238, 0.95));
-  transition: color 240ms cubic-bezier(0.22, 1, 0.36, 1); }
-.cur-wheel svg { display: block; width: 100%; height: 100%; }
-.cur.hot .cur-wheel { color: var(--accent); }
-.cur.dark .cur-wheel { color: #fbf7ee; filter: drop-shadow(0 0 1.5px rgba(42, 36, 32, 0.85)); }
-html.chka-cur, html.chka-cur * { cursor: none !important; }
-
-/* ---------- hover на всём кликабельном ---------- */
+/* ---------- hover на всём кликабельном (s38: 300–420 мс, см. --h-dur в hub.css; телефон — то же на нажатии) ---------- */
 .go::after, .card-history::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; background: var(--accent);
-  transform: scaleX(0); transform-origin: 0 50%; transition: transform 560ms cubic-bezier(0.16, 1, 0.3, 1); }
-.logo, .go, .scroll-hint, .card-history, .lang-opt { transition: color 260ms cubic-bezier(0.22, 1, 0.36, 1), border-color 260ms, opacity 260ms; }
-.logo .dot { transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1); }
+  transform: scaleX(0); transform-origin: 0 50%; transition: transform var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)); }
+.logo, .go, .scroll-hint, .card-history { transition: color var(--h-dur-s, 300ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)), border-color var(--h-dur-s, 300ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)), opacity var(--h-dur-s, 300ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)); }
+.logo .dot { transition: transform var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)); }
+a.card-in:active .go, .card-history:active { color: var(--accent); }
+a.card-in:active .go::after, .card-history:active::after { transform: scaleX(1); }
 @media (hover: hover) and (pointer: fine) {
   .logo:hover { color: var(--accent); }
   .logo:hover .dot { transform: scale(1.5); }
@@ -226,6 +222,8 @@ html.chka-cur, html.chka-cur * { cursor: none !important; }
   .scroll-hint:hover { color: var(--ink); }
   .scroll-hint:hover svg { transform: translateY(3px); }
   .card-history:hover { color: var(--accent); }
-  .tiktok .btn:hover, .hero-cta .btn:hover { box-shadow: 0 6px 14px -6px rgba(42, 36, 32, 0.45); }
+  .hero-cta .btn:hover { box-shadow: 0 8px 18px -8px rgba(42, 36, 32, 0.5); }
+  a.card-in:hover .go { color: var(--accent); }
+  a.card-in:hover .go::after { transform: scaleX(1); }
 }
-.scroll-hint svg { transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1); }
+.scroll-hint svg { transition: transform var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)); }
