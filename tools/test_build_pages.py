@@ -358,6 +358,58 @@ def posixpath_name(u):
     return u.split('?')[0].rsplit('/', 1)[-1]
 
 
+def check_publish_hub():
+    """s39: publish_hub выкладывает главную ВМЕСТЕ со всем, что меняет редизайн (общие стили/скрипты, about/history зданий с общим подвалом).
+    Копия живого сайта — git archive origin/main. Красные случаи: старый список из трёх файлов (главная без hub.css), чужой подвал на странице,
+    правка файла движка (меняет страницы зданий — чужие для publish_hub). Возвращает (ok, строки отчёта)."""
+    import subprocess
+    import tarfile
+    import io
+    import publish_hub as ph
+    out, ok = [], True
+    def rec(name, good, extra=''):
+        nonlocal ok
+        ok &= bool(good)
+        out.append('%s  %s%s' % ('OK   ' if good else 'ОШИБКА', name, (' — ' + extra) if extra else ''))
+    r = subprocess.run(['git', '-C', str(ROOT), 'archive', 'origin/main'], capture_output=True)
+    if r.returncode:
+        return True, ['OK     publish_hub: нет origin/main — проверка пропущена']
+    tmp = Path(tempfile.mkdtemp(prefix='chka-test-hub-'))
+    try:
+        site = tmp / 'site'
+        site.mkdir()
+        with tarfile.open(fileobj=io.BytesIO(r.stdout), mode='r:') as t:
+            t.extractall(site)
+        files = ph.payload(site=site)
+        need = ['index.html', 'assets/hub.css', 'assets/hub-museum.css', 'assets/story.css', 'assets/chka-common.js', 'assets/hub.js',
+                'kukuruznik/about.html', 'kukuruznik/history.html'] + ['%s/%s' % (s, n) for s in bp.test_live_slugs() for n in bp.OWN_PAGES]
+        miss = [f for f in need if f not in files]
+        rec('publish_hub: едут главная, общие стили/скрипты и about/history всех живых зданий', not miss, ('нет: ' + ', '.join(miss)) if miss else '')
+        rec('publish_hub: каждая страница едет со всеми своими файлами assets/', not ph.payload_problems(files), '; '.join(ph.payload_problems(files)[:3]))
+        old = {k: v for k, v in files.items() if k in ('index.html', 'assets/hub-museum.css', 'kukuruznik/card.webp')}
+        rec('publish_hub: старый список (index.html + hub-museum.css + card.webp) ловится — главная уехала бы без hub.css',
+            any('assets/hub.css' in x for x in ph.payload_problems(old)))
+        rec('publish_hub: подвал одинаковый на всех страницах', not ph.footer_problems(files), ', '.join(ph.footer_problems(files)))
+        bad = dict(files)
+        k = next(p for p in bad if p.endswith('about.html'))
+        bad[k] = bad[k].replace(b'<footer class="foot', b'<footer class="foot old', 1)
+        rec('publish_hub: чужой подвал на странице ловится', ph.footer_problems(bad) == [k])
+        live = [d.decode('utf-8') for p, d in files.items() if p.endswith('.html') and not p.startswith('beta/')]
+        rec('publish_hub: живые страницы без noindex и без tests/', all('noindex' not in t and '"tests/' not in t and '/tests/' not in t for t in live))
+        changed = [f for f, d in files.items() if not (site / f).is_file() or (site / f).read_bytes() != d]
+        for f, d in files.items():
+            (site / f).parent.mkdir(parents=True, exist_ok=True)
+            (site / f).write_bytes(d)
+        aff = ph.affected_pages(site, changed)
+        own = {p for p in files if p.endswith('.html')}
+        rec('publish_hub: меняются только главная и about/history (%d стр.)' % len(aff), 'index.html' in aff and set(aff) <= own, ', '.join(sorted(set(aff) - own)))
+        foreign = set(ph.affected_pages(site, changed + ['engine/viewer.js'])) - own
+        rec('publish_hub: правка движка задела бы страницы зданий — это ловится', bool(foreign))
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    return ok, out
+
+
 def main():
     K = 'kukuruznik'
     cases = [
@@ -526,6 +578,10 @@ def main():
     for l in lines_cc:
         print(l)
     ok_all &= ok_cc
+    ok_ph, lines_ph = check_publish_hub()
+    for l in lines_ph:
+        print(l)
+    ok_all &= ok_ph
     # стопка главной: картинка здания встаёт на место силуэта, повтор ничего не меняет, чужое место и вне-диффы ловятся
     hub0 = (ROOT / 'index.html').read_text(encoding='utf-8')
     base = re.sub(r'\s*<!-- stack:lenin .*?<!-- /stack:lenin -->', '\n      <div class="stack-card sc-c"><div class="sc-pic"><svg class="ghost" viewBox="0 0 200 200"><use href="#ghost-statue"/></svg></div></div>', hub0, flags=re.S)

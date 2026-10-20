@@ -821,12 +821,14 @@ def _i18n_spans(d):
 GO_3D = ('<span class="go"><span class="i18n-inline" lang="hy">Բացել 3D-ով</span><span class="i18n-inline" lang="ru">Открыть 3D</span>'
          '<span class="i18n-inline" lang="en">Open in 3D</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" '
          'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>')
-HISTORY_WORD = {'hy': 'պատմությունը', 'ru': 'история', 'en': 'history'}
+EXHIBIT_WORD = {'hy': 'Ցուցանմուշ № %03d', 'ru': 'Экспонат № %03d', 'en': 'Exhibit No. %03d'}   # этикетка марки (s39): номер = postcard.no
 
 
 def render_card(slug, root=None):
     """Карточка здания на главной (index.html) из блока card в building.json — как у Кукурузника. Между метками
-    <!-- card:<slug> --> и <!-- /card:<slug> -->; руками не править."""
+    <!-- card:<slug> --> и <!-- /card:<slug> -->; руками не править.
+    s39: вся марка — одна ссылка (открывает здание в 3D), ссылки «история» под маркой больше нет; этикетка экспоната
+    и инвентарный номер на паспарту — из postcard.no (нет номера — без них)."""
     src = test_live_slugs(root).get(slug, slug)
     b = load_building(src, root)
     cd = b.get('card')
@@ -834,22 +836,26 @@ def render_card(slug, root=None):
         raise SystemExit('СТОП: в %s/building.json нет блока card (карточка главной)' % src)
     e = lambda s: html.escape(s, quote=True)
     title = cd.get('title') or b['text']['title']
+    no = (b.get('postcard') or {}).get('no')
+    inv = '<span class="inv" aria-hidden="true">ՉԿԱ · %03d</span>' % no if no else ''
     lines = [
-        '      <!-- card:%s — собирается из %s/building.json (card), руками не править -->' % (slug, src),
+        '      <!-- card:%s — собирается из %s/building.json (card, postcard.no), руками не править -->' % (slug, src),
         '      <li class="card reveal">',
         '        <a class="card-in" href="%s/" data-transition>' % e(slug),
-        '          <div class="pic"><img src="%s/%s" width="480" height="480" alt="" loading="lazy" decoding="async"></div>' % (e(slug), e(cd['image'])),
+        '          <div class="pic"><img src="%s/%s" width="480" height="480" alt="" loading="lazy" decoding="async">%s</div>' % (e(slug), e(cd['image']), inv),
         '          <div class="txt">',
+    ]
+    if no:
+        lines.append('            <p class="lbl-no">%s</p>' % _i18n_spans({l: w % no for l, w in EXHIBIT_WORD.items()}))
+    lines += [
         '            <span class="eyebrow">%s</span>' % _i18n_spans(cd['eyebrow']),
-        '            <h3>%s</h3>' % _i18n_spans(title),
+        '            <h3><span class="ttl">%s</span></h3>' % _i18n_spans(title),
         '            <p class="meta">%s</p>' % _i18n_spans(cd['meta']),
         '            ' + GO_3D,
         '          </div>',
         '        </a>',
-    ]
-    if cd.get('history'):
-        lines.append('        <a class="card-history" href="%s/%s">%s</a>' % (e(slug), e(cd['history']), _i18n_spans(HISTORY_WORD)))
-    lines += ['      </li>', '      <!-- /card:%s -->' % slug]
+        '      </li>',
+        '      <!-- /card:%s -->' % slug]
     return '\n'.join(lines)
 
 

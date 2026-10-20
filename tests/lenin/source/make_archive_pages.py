@@ -112,11 +112,13 @@ ARROW_R = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-wid
 ARROW_L = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>'
 CUBE = '<svg class="cube-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12v9M4 7.5l8 4.5 8-4.5"/></svg>'
 
-# s38: один маленький подвал на всех страницах сайта — только строка «о чём сайт» (без текста о правах на фото, без TikTok)
-FOOT = '''  <footer class="foot">
-    <p class="foot-line"><span class="hy">Չկա</span> · %(line)s</p>
-  </footer>''' % dict(
-    line=tri('Երևանի կորած ճարտարապետության ալբոմ', 'альбом утраченной архитектуры Еревана', 'an album of Yerevan’s lost architecture'))
+# s39: общий подвал сайта — «выходные данные музея» (тот же, что в index.html и на всех страницах; стили — assets/hub.css)
+FOOT = """  <footer class="foot reveal">
+    <div class="colo">
+      <span class="colo-mark" aria-hidden="true">Չկա</span>
+      <p class="colo-text"><span class="colo-l1"><span class="i18n-inline" lang="hy">Երևանի քանդված շենքերի թանգարան</span><span class="i18n-inline" lang="ru">Музей снесённых зданий Еревана</span><span class="i18n-inline" lang="en">A museum of Yerevan’s demolished buildings</span></span><span class="colo-l2"><span class="i18n-inline" lang="hy">նկարներ՝ արխիվային լուսանկարների հիման վրա · 2026</span><span class="i18n-inline" lang="ru">рисунки по архивным фотографиям · 2026</span><span class="i18n-inline" lang="en">drawings after archival photographs · 2026</span></span></p>
+    </div>
+  </footer>"""
 
 
 def head(title, desc):
@@ -162,7 +164,7 @@ TIMELINE = [
 
 def about():
     t = head('Памятник Ленину — архив | Չկա', 'Памятник Ленину на главной площади Еревана (1940–1991): архивные фото и хроника. Скрытая бета.')
-    t += '''<link rel="stylesheet" href="%sassets/hub.css?v=13">
+    t += '''<link rel="stylesheet" href="%sassets/hub.css?v=14">
 <link rel="stylesheet" href="%sassets/story.css?v=14">
 </head>
 <body>
@@ -275,7 +277,7 @@ def chapter(i, c):
 
 def history():
     t = head('История памятника Ленину | Չկա', 'Памятник Ленину на главной площади Еревана: от места в плане Таманяна до снятия в 1991 году. Пять глав. Скрытая бета.')
-    t += '''<link rel="stylesheet" href="%sassets/hub.css?v=13">
+    t += '''<link rel="stylesheet" href="%sassets/hub.css?v=14">
 <link rel="stylesheet" href="%sassets/story.css?v=14">
 <link rel="stylesheet" href="%sassets/history.css?v=3">
 </head>

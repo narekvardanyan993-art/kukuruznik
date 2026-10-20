@@ -7,6 +7,17 @@
    Здесь: токены, меню, кнопки, главная. Страница здания и галерея —
    в story.css, страница истории — в history.css. */
 
+/* шрифт сайта-музея (s39: перенесён из hub-museum.css — им набран общий подвал на всех страницах; тот же Noto Serif, что в просмотрщике) */
+@font-face { font-family: "Chka Serif"; font-weight: 100 900; font-display: swap;
+  src: url("../engine/fonts/NotoSerifArmenian-armenian.woff2") format("woff2");
+  unicode-range: U+0530-058F, U+FB13-FB17; }
+@font-face { font-family: "Chka Serif"; font-weight: 100 900; font-display: swap;
+  src: url("../engine/fonts/NotoSerif-cyrillic.woff2") format("woff2");
+  unicode-range: U+0400-052F, U+2DE0-2DFF, U+A640-A69F; }
+@font-face { font-family: "Chka Serif"; font-weight: 100 900; font-display: swap;
+  src: url("../engine/fonts/NotoSerif-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
 :root {
   /* фон — чистый светлый, без бумаги и желтизны */
   --bg: #fbfaf7;
@@ -519,17 +530,36 @@ html.scrolled .scroll-hint { opacity: 0; transform: translateY(10px); pointer-ev
 }
 @keyframes pulse { 50% { opacity: 0.3; } }
 
-/* ---------- подвал (s38): один и тот же на всех страницах — одна короткая строка «о чём сайт» ---------- */
+/* ---------- подвал (s39): «выходные данные музея» — одинаковый на всех страницах ----------
+   Двойная тонкая линейка, маленький знак Չկա в рамке-клейме, две строки: малыми капителями — что это за музей, курсивом —
+   из чего он сделан. Цвета и шрифт заданы здесь явно, а не токенами страницы, — чтобы на главной и на страницах зданий
+   подвал был один и тот же. Появляется мягко при прокрутке (.reveal, assets/chka-common.js). */
 
 .foot {
-  margin-top: 72px;
-  padding: 22px 0 calc(env(safe-area-inset-bottom, 0px) + 6px);
-  border-top: 1px solid var(--line);
-  text-align: center;
-  color: var(--faint);
+  margin-top: 88px;
+  padding: 18px 0 calc(env(safe-area-inset-bottom, 0px) + 8px);
+  border-top: 3px double rgba(42, 36, 32, 0.26);
+  display: flex;
+  justify-content: center;
+  font-family: "Chka Serif", "Noto Serif", Georgia, serif;
+  color: #5a4e44;
 }
-.foot .foot-line { margin: 0 auto; max-width: 36ch; font-size: 0.875rem; line-height: 1.5; font-weight: 500; letter-spacing: 0.01em; text-wrap: balance; }
-.foot .foot-line .hy { font-weight: 700; color: var(--ink); }
+.foot .colo { display: flex; align-items: center; gap: 14px; max-width: 34em; margin: 0; }
+.foot .colo-mark {
+  flex: none; display: grid; place-items: center; width: 40px; height: 40px;
+  border: 1px solid #8a2c33; outline: 1px solid rgba(138, 44, 51, 0.32); outline-offset: 2px;
+  color: #8a2c33; font: 700 0.8125rem/1 "Chka Serif", "Noto Serif Armenian", Georgia, serif; letter-spacing: 0.02em;
+  transform: rotate(-3deg);
+}
+.foot .colo-text { margin: 0; text-align: left; }
+.foot .colo-l1 { display: block; color: #2a2420; font-size: 0.8125rem; font-weight: 700; line-height: 1.35; letter-spacing: 0.1em; font-variant-caps: all-small-caps; }
+.foot .colo-l1 [lang="hy"] { font-variant-caps: normal; letter-spacing: 0.03em; }   /* у армянских капителей нет — обычный полужирный */
+@media (max-width: 520px) {
+  .foot .colo { flex-direction: column; gap: 10px; }
+  .foot .colo-text { text-align: center; }
+}
+.foot .colo-l2 { display: block; margin-top: 3px; font-size: 0.8125rem; font-style: italic; line-height: 1.4; }
+.foot.reveal { --reveal-t: translateY(12px); }
 
 /* ---------- проявление при прокрутке ---------- */
 
