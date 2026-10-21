@@ -103,7 +103,7 @@
   padding: 0;
   border: 0;
   background: none;
-  cursor: zoom-in;
+  cursor: var(--cp);   /* s41: была «лупа +» (zoom-in) — круг у курсора; теперь обычная рука */
   scroll-snap-align: start;
   touch-action: manipulation;
 }

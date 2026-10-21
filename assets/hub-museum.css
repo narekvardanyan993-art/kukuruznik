@@ -134,7 +134,7 @@ h1, h2, h3 { font-weight: 700; letter-spacing: var(--h-track); }
 .card-in, .card:not(.soon) .card-in { display: block; padding: 0; border: 0; background: none; box-shadow: none; border-radius: 0; color: inherit; text-decoration: none; }
 @media (min-width: 760px) { .card:not(.soon) .card-in { display: block; padding: 0; } .card:not(.soon) h3 { font-size: 1.75rem; } }
 @media (min-width: 1000px) { .card:not(.soon) h3 { font-size: 1.45rem; } }   /* 4 колонки: «Ленин, 1980-е» в одну строку */
-a.card-in { transition: transform var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)); outline-offset: 8px; }
+a.cover { display: block; height: auto; color: inherit; text-decoration: none; transition: transform var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)); outline-offset: 8px; }
 .pic {
   position: relative; display: block; aspect-ratio: auto; padding: 15px; border-radius: 0; overflow: visible;
   background: var(--surface); filter: drop-shadow(0 5px 6px rgba(42, 36, 32, 0.3));
@@ -165,25 +165,25 @@ a.card-in { transition: transform var(--h-dur, 420ms) var(--h-ease, cubic-bezier
 .card h3 [lang="hy"] { font-size: 0.95em; }
 .ttl { background: linear-gradient(var(--accent), var(--accent)) 0 100% / 0% 2px no-repeat; padding-bottom: 2px; transition: background-size var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)); }
 .meta { font-size: 0.95rem; color: var(--muted); margin-top: 6px; }
-.go {
-  position: static; display: inline-flex; align-items: center; gap: 8px; min-height: 0; margin: 14px 0 0; padding: 0; border: 0; border-radius: 0; background: none;
-  color: var(--ink); font-size: 1rem; font-weight: 700; letter-spacing: 0.01em;
-  transition: color var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)), opacity var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)), transform var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1));
-}
-.go svg { transition: transform var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)); }
-a.card-in:active .ttl, .card.lift .ttl { background-size: 100% 2px; }
-a.card-in:active .go, .card.lift .go { color: var(--accent); }
-.card.lift a.card-in { transform: scale(0.98); transition-duration: 180ms; }
+/* s41 (10б-фикс): у живой карточки три отдельных кликабельных места — обложка (→ about), «Смотреть в 3D», «О здании».
+   Наведение и нажатие у каждого свои; вся карточка целиком больше не двигается. */
+.card-actions { display: grid; gap: 10px; margin: 16px 0 0; }
+.card-actions .btn { width: 100%; min-height: 48px; padding: 8px 16px; line-height: 1.15; gap: 10px; font-size: 1.0625rem; text-align: center; }
+@media (min-width: 1000px) { .card-actions .btn { padding: 8px 10px; gap: 8px; font-size: 1rem; } }   /* 4 колонки: подпись «Смотреть в 3D» в одну строку */
+.card-actions .btn svg { width: 20px; height: 20px; flex: none; transition: transform var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)); }
+.card-actions .btn-about { background: transparent; border: 1.5px solid rgba(42, 36, 32, 0.4); color: var(--ink); box-shadow: none; }
+a.cover:active, a.cover.lift { transform: scale(0.98); transition-duration: 160ms; }
+a.cover:active .pic, a.cover.lift .pic { filter: drop-shadow(0 2px 3px rgba(42, 36, 32, 0.3)); }
 @media (hover: hover) and (pointer: fine) {
-  .go { opacity: 0.45; transform: translateX(-6px); }
-  a.card-in:hover { transform: translateY(-8px); }
-  a.card-in:hover .pic { transform: rotate(-0.7deg); filter: drop-shadow(0 4px 5px rgba(42, 36, 32, 0.22)) drop-shadow(0 22px 22px rgba(42, 36, 32, 0.3)); }
-  a.card-in:hover .ttl { background-size: 100% 2px; }
-  a.card-in:hover .go { opacity: 1; transform: none; color: var(--accent); }
-  a.card-in:hover .go svg { transform: translateX(4px); }
-  a.card-in:focus-visible .go { opacity: 1; transform: none; }
+  a.cover:hover { transform: translateY(-8px); }
+  a.cover:hover:active { transform: translateY(-3px) scale(0.985); transition-duration: 160ms; }
+  a.cover:hover:active .pic { filter: drop-shadow(0 2px 3px rgba(42, 36, 32, 0.3)); }
+  a.cover:hover .pic { transform: rotate(-0.7deg); filter: drop-shadow(0 4px 5px rgba(42, 36, 32, 0.22)) drop-shadow(0 22px 22px rgba(42, 36, 32, 0.3)); }
+  .btn-3d:hover svg { transform: rotate(-12deg) scale(1.1); }
+  .btn-about:hover { background: rgba(138, 44, 51, 0.07); border-color: var(--accent); color: var(--accent); }
+  .btn-about:hover svg { transform: translateY(-2px); }
 }
-@media (prefers-reduced-motion: reduce) { a.card-in:hover, .card.lift a.card-in, a.card-in:hover .pic { transform: none; } }
+@media (prefers-reduced-motion: reduce) { a.cover:hover, a.cover:active, a.cover.lift, a.cover:hover .pic, .card-actions .btn svg { transform: none !important; } }
 
 .card.soon .card-in { padding: 0; background: none; }
 .card.soon .pic { filter: none; background: transparent; padding: 15px; }
