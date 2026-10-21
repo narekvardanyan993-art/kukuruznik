@@ -91,3 +91,5 @@
 @media (hover: hover) and (pointer: fine) { .h-src-list a:hover { color: var(--accent); } }
 
 .history .next-sec { background: transparent; padding: 0; margin-top: 44px; }
+
+/* курсор (s40): системный — свои курсоры e1.13 отсюда убраны (в s38 их убрали из hub.css и story.css, здесь пропустили). */

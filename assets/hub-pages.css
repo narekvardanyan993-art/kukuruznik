@@ -1,0 +1,160 @@
+/* Չկա — страницы экспоната «о здании» (about) и «история» (history) в стиле главной (s40, 21.10.2026).
+   Лежит ПОВЕРХ hub.css → story.css → history.css → hub-museum.css: токены, бумага, шрифт Chka Serif, кнопки и марки берутся оттуда,
+   здесь — то, что есть только на этих страницах: этикетка-шапка с номером экспоната и вкладками «о здании ⇄ история»,
+   сравнение «архив ⇄ рисунок» в паспарту, витрина архива (фото в паспарту с подписью и источником), хроника — карточки каталога,
+   игра, главы истории, источники. Появление — общее (.reveal из chka-common.js: один раз, transform/opacity, reduce — статично),
+   наведение — как на главной (--h-dur / --h-ease из hub.css). */
+
+.story-wrap, .history { max-width: 780px; }
+.page.story-wrap, .page.history { display: block; }
+html { scroll-padding-top: calc(var(--nav-h) + 24px); }
+.nav-in { max-width: 1080px; }
+
+/* ---------- шапка: путь, этикетка экспоната, вкладки ---------- */
+.x-head { margin: 6px 0 0; }
+.x-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 16px; font: 700 0.75rem/1.3 var(--font); letter-spacing: 0.16em; text-transform: uppercase; color: var(--indigo); max-width: none; }
+.x-crumbs a { color: inherit; }
+.x-crumbs > span[aria-hidden] { opacity: 0.5; }
+.x-label { position: relative; padding: 34px 26px 28px; background: var(--surface); box-shadow: var(--shadow); }
+.x-label::before { content: ""; position: absolute; inset: 11px; border: 1px solid var(--line); pointer-events: none; }
+.x-label .corner { position: absolute; width: 22px; height: 22px; color: var(--accent); opacity: 0.85; }
+.x-label .lbl-no { position: relative; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 0 0 16px; }
+.x-label .inv { position: static; color: var(--accent); }
+.x-label .h-eyebrow { position: relative; margin: 0 0 6px; font-size: 0.75rem; letter-spacing: 0.18em; color: var(--accent); }
+.x-label h1 { position: relative; margin: 0; font-size: clamp(2.5rem, calc(10.5vw * var(--fs)), 4.25rem); line-height: 1.04; letter-spacing: -0.01em; text-wrap: balance; }
+.x-label h1 [lang="hy"] { font-size: 0.86em; }
+.x-label .meta { position: relative; text-wrap: balance; margin: 10px 0 0; font-size: 1.0625rem; color: var(--muted); font-style: italic; }
+.x-label .h-sub { position: relative; margin: 18px 0 0; max-width: 36em; font-size: 1.1875rem; line-height: 1.55; color: var(--ink); }
+.x-actions { position: relative; margin-top: 26px; }
+.x-label .hint { position: relative; margin: 12px 0 0; font-size: 0.875rem; font-style: italic; color: var(--faint); }
+.btn-3d { width: auto; min-height: 56px; padding: 0 30px; font-size: 1.0625rem; gap: 12px; }
+.btn-3d .cube-i { width: 22px; height: 22px; }
+@media (max-width: 559px) { .x-actions .btn-3d { width: 100%; } }
+
+.x-tabs { display: flex; margin: 22px 0 0; border-bottom: 1px solid var(--line); }
+.x-tabs a {
+  position: relative; flex: 1 1 0; display: grid; place-items: center; min-height: 52px; padding: 10px 12px; text-align: center; text-decoration: none;
+  font: 700 0.9375rem/1.25 var(--font); letter-spacing: 0.02em; color: var(--faint);
+  transition: color var(--h-dur-s) var(--h-ease);
+}
+.x-tabs a::after { content: ""; position: absolute; left: 12%; right: 12%; bottom: -1px; height: 2px; background: var(--accent); transform: scaleX(0); transition: transform var(--h-dur) var(--h-ease); }
+.x-tabs a[aria-current="page"] { color: var(--ink); }
+.x-tabs a[aria-current="page"]::after { transform: scaleX(1); }
+.x-tabs a:active { color: var(--accent); }
+@media (hover: hover) and (pointer: fine) { .x-tabs a:hover { color: var(--accent); } .x-tabs a:hover::after { transform: scaleX(0.6); } .x-tabs a[aria-current="page"]:hover::after { transform: scaleX(1); } }
+@media (min-width: 560px) { .x-tabs a { flex: 0 0 auto; padding: 10px 26px; } }
+
+/* ---------- разделы ---------- */
+.sec { margin-top: 76px; }
+.sec h2, .h-sources h2 { font-size: clamp(1.875rem, calc(7vw * var(--fs)), 2.625rem); margin: 0 0 22px; }
+
+/* ---------- сравнение «архив ⇄ рисунок» в паспарту ---------- */
+.plate { max-width: none; margin: 0; padding: 22px 22px 16px; border: 0; border-radius: 0; background: var(--surface); box-shadow: var(--shadow); }
+.plate::before { content: ""; position: absolute; inset: 9px; border: 1px solid var(--line); pointer-events: none; }
+.plate-in { border-radius: 0; border: 1px solid var(--accent); outline: 1px solid rgba(138, 44, 51, 0.3); outline-offset: 3px; background: var(--ghost-bg); }
+.layer img { object-position: 50% 50%; }
+.split-line { background: #fbf6ea; box-shadow: 0 0 0 1px rgba(42, 36, 32, 0.25), 0 0 14px rgba(0, 0, 0, 0.25); }
+.handle { background: #fbf6ea; color: var(--accent); border: 1px solid var(--accent); box-shadow: 0 4px 14px rgba(42, 36, 32, 0.3); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.edge-tag { border-radius: 2px; background: rgba(251, 246, 234, 0.94); color: var(--ink); border: 1px solid rgba(42, 36, 32, 0.25); font: 700 0.6875rem/1 var(--font); letter-spacing: 0.16em; text-transform: uppercase; padding: 7px 10px; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.note { padding: 14px 4px 2px; }
+.cred { font-size: 0.8125rem; font-style: italic; color: var(--faint); }
+.restore-note { margin: 10px 4px 4px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 0.9375rem; color: var(--muted); }
+
+/* ---------- витрина архива: фото в паспарту, этикетка с подписью и источником ---------- */
+.gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px 16px; overflow: visible; margin: 0; padding: 0; scroll-snap-type: none; }
+@media (min-width: 700px) { .gallery { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px 24px; } }
+.g-item { width: auto; display: flex; flex-direction: column; text-align: left; color: inherit; font: inherit; }
+.g-pic {
+  aspect-ratio: 1 / 1; padding: 10px; border-radius: 0; background: var(--surface); overflow: visible;
+  box-shadow: 0 1px 2px rgba(42, 36, 32, 0.18), 0 10px 22px -12px rgba(42, 36, 32, 0.45);
+  transition: transform var(--h-dur) var(--h-ease), box-shadow var(--h-dur) var(--h-ease);
+}
+.g-pic::before { content: ""; position: absolute; inset: 4px; border: 1px solid var(--line); pointer-events: none; z-index: 1; }
+.g-pic img { position: relative; z-index: 2; border: 1px solid rgba(42, 36, 32, 0.25); box-sizing: border-box; filter: sepia(0.08); }
+.g-label { display: block; margin-top: 12px; padding: 0 2px; }
+.g-cap { display: block; font-size: 0.9375rem; line-height: 1.35; font-weight: 700; color: var(--ink); }
+.g-src { display: block; margin-top: 4px; font-size: 0.75rem; line-height: 1.35; font-style: italic; color: var(--faint); overflow-wrap: anywhere; }
+.g-item:active .g-pic { transform: scale(0.97); }
+@media (hover: hover) and (pointer: fine) {
+  .g-item:hover .g-pic { transform: translateY(-6px) rotate(-0.5deg); box-shadow: 0 2px 4px rgba(42, 36, 32, 0.2), 0 22px 26px -14px rgba(42, 36, 32, 0.5); }
+  .g-item:hover .g-cap { color: var(--accent); }
+}
+.g-hint { margin: 18px 0 0; font-size: 0.875rem; font-style: italic; color: var(--faint); }
+
+/* ---------- хроника: карточки каталога ---------- */
+.timeline { padding: 0; display: grid; gap: 14px; counter-reset: card; }
+.timeline::before { display: none; }
+@media (min-width: 700px) { .timeline { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; } }
+.timeline li {
+  counter-increment: card; position: relative; padding: 16px 18px 16px; background: var(--surface);
+  border: 1px solid rgba(42, 36, 32, 0.16); box-shadow: 0 1px 2px rgba(42, 36, 32, 0.12);
+  background-image: repeating-linear-gradient(180deg, transparent 0 27px, rgba(45, 63, 94, 0.08) 27px 28px);
+  background-position: 0 44px;
+}
+.timeline li::before {   /* номер карточки, как в каталожном ящике */
+  content: "№ " counter(card, decimal-leading-zero); position: absolute; right: 14px; top: 16px; left: auto; width: auto; height: auto; border: 0; border-radius: 0; background: none;
+  font: 700 0.6875rem/1 var(--font); letter-spacing: 0.14em; color: var(--faint);
+}
+.timeline li::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--accent); opacity: 0.85; }
+.t-y { display: block; padding-bottom: 8px; margin-bottom: 10px; border-bottom: 1px solid var(--line); font: 700 1.25rem/1.15 var(--font); letter-spacing: 0.01em; color: var(--accent); }
+.t-y[lang] { display: none; }
+html[data-lang="hy"] .t-y[lang="hy"], html[data-lang="ru"] .t-y[lang="ru"], html[data-lang="en"] .t-y[lang="en"] { display: block; }
+.timeline li > div { margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; font-size: 1.0625rem; line-height: 1.5; color: var(--ink); }
+.timeline > .reveal { --reveal-t: translateY(18px); }
+.timeline > .reveal.in { --reveal-t: none; }
+.t-recon { margin-top: 12px; padding: 4px 12px 4px 4px; border-radius: 0; background: rgba(42, 36, 32, 0.05); border: 1px solid var(--line); }
+.t-recon img { border-radius: 0; }
+
+/* ---------- игра ---------- */
+.quiz { position: relative; padding: 28px 22px 24px; border: 0; border-radius: 0; background: var(--surface); box-shadow: var(--shadow); }
+.quiz::before { content: ""; position: absolute; inset: 9px; border: 1px solid var(--line); pointer-events: none; }
+.q-progress span { height: 3px; border-radius: 0; background: var(--line); }
+.q-text { font-size: 1.375rem; font-weight: 700; letter-spacing: 0; }
+.q-opt { border-radius: 2px; border: 1px solid rgba(42, 36, 32, 0.3); background: transparent; font: 700 1.0625rem/1.3 var(--font); transition: transform 180ms var(--spring), border-color var(--h-dur-s) var(--h-ease), background var(--h-dur-s) var(--h-ease), color var(--h-dur-s) var(--h-ease); }
+@media (hover: hover) and (pointer: fine) { .q-opt:not([disabled]):hover { border-color: var(--accent); color: var(--accent); } }
+.q-share { border-radius: 2px; font: 700 1rem/1 var(--font); letter-spacing: 0.03em; }
+.q-score { font-weight: 700; }
+.q-toast { border-radius: 2px; font-family: var(--font); }
+
+/* ---------- дальше: к истории / о здании и в 3D ---------- */
+.x-next { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: center; gap: 14px; max-width: none; margin: 76px 0 0; padding: 28px 0 0; border-top: 1px solid var(--line); border-radius: 0; background: none; }
+.history .x-next { margin-top: 64px; padding: 28px 0 0; }
+.x-next .btn { width: auto; }
+.x-next .btn svg { width: 20px; height: 20px; flex: none; transition: transform var(--h-dur) var(--h-ease); }
+@media (hover: hover) and (pointer: fine) { .x-next .btn-ghost:hover svg { transform: translateX(3px); } .x-next .btn-ghost:hover svg:first-child { transform: translateX(-3px); } }
+@media (max-width: 559px) { .x-next .btn { width: 100%; } }
+
+/* ---------- история: главы, фото в паспарту, источники ---------- */
+.progress span { background: var(--accent); border-radius: 0; }
+.chapter { margin-top: 72px; }
+.chapter:first-of-type { margin-top: 0; }
+.x-head + .chapter { margin-top: 64px; }
+.ch-num { display: flex; align-items: center; gap: 8px; min-width: 0; height: auto; margin: 0 0 10px; padding: 0; border-radius: 0; background: none;
+  font: 700 0.75rem/1.2 var(--font); letter-spacing: 0.18em; text-transform: uppercase; color: var(--indigo); }
+.ch-num .n { color: var(--accent); }
+.ch-num::after { content: ""; width: 40px; height: 1px; background: currentColor; opacity: 0.4; }
+.chapter h2 { font-size: clamp(1.75rem, calc(6.6vw * var(--fs)), 2.375rem); line-height: 1.12; }
+.ch-text p { font-size: 1.1875rem; line-height: 1.7; }
+.ch-fig { position: relative; margin: 0 0 26px; padding: 18px 18px 12px; border: 0; border-radius: 0; background: var(--surface); box-shadow: var(--shadow); }
+.ch-fig::before { content: ""; position: absolute; inset: 8px; border: 1px solid var(--line); pointer-events: none; }
+.ch-fig img { position: relative; height: auto; border-radius: 0; border: 1px solid rgba(42, 36, 32, 0.25); }
+.ch-recon img { aspect-ratio: 4 / 5; object-position: 50% 50%; }
+.ch-fig figcaption { position: relative; padding: 12px 2px 2px; font-size: 0.8125rem; font-style: italic; color: var(--faint); }
+.h-sources { margin-top: 80px; padding-top: 0; border-top: 0; }
+.h-sources > p:not(.hall), .h-sources > .i18n-block { margin: 0 0 6px; font-size: 1rem; font-style: italic; color: var(--muted); }
+.h-src-list { gap: 0; margin-top: 18px; border-top: 1px solid var(--line); }
+.h-src-list li { padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 0.9375rem; color: var(--muted); }
+.h-src-list a { font-weight: 700; font-size: 1rem; }
+
+/* ---------- полноэкранная галерея — тоже бумага и чернила ---------- */
+:root {
+  --gx-bg: rgba(241, 230, 207, 0.97); --gx-fg: #2a2420;
+  --gx-btn-bg: rgba(251, 246, 234, 0.92); --gx-btn-fg: #2a2420; --gx-btn-line: rgba(42, 36, 32, 0.25);
+  --gx-bar-bg: rgba(251, 246, 234, 0.95); --gx-bar-fg: #2a2420; --gx-bar-muted: #55493f; --gx-radius: 2px;
+  --gx-year-bg: #8a2c33; --gx-year-fg: #fbf6ea;
+}
+.gx-bar, .gx-cap, .gx-credit { font-family: var(--font); }
+
+@media (min-width: 900px) {
+  .x-label { padding: 46px 48px 38px; }
+}

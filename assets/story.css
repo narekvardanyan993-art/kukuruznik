@@ -29,7 +29,7 @@
   overflow: hidden;
   border-radius: calc(var(--r-lg) - 8px);
   background: var(--ghost-bg, #e8e4dc);
-  cursor: pointer;
+  cursor: var(--cp);
   touch-action: pan-y;
 }
 .layer, .layer picture, .layer img { position: absolute; inset: 0; width: 100%; height: 100%; }
@@ -114,7 +114,7 @@
   border-radius: 18px;
   background: var(--surface-2);
   box-shadow: var(--shadow);
-  transition: transform 260ms var(--spring), box-shadow 260ms var(--ease);
+  transition: transform var(--h-dur) var(--h-ease), box-shadow var(--h-dur) var(--h-ease);
 }
 .g-pic img { width: 100%; height: 100%; object-fit: cover; }
 .g-item:active .g-pic { transform: scale(0.95); }
@@ -151,6 +151,7 @@
 .t-y { display: inline-block; font-weight: 700; font-size: 1.375rem; letter-spacing: -0.02em; color: var(--accent); line-height: 1.1; font-variant-numeric: tabular-nums; }
 .timeline p { margin: 0; font-size: 1.125rem; }
 .timeline > .reveal { --reveal-t: translateX(-14px); transition-delay: calc(var(--stagger, 0) * 100ms); }
+.timeline > .reveal.in { --reveal-t: none; }   /* s38: без этого пункты хроники навсегда оставались сдвинутыми на 14 px — кружки липли к краю экрана */
 .t-recon { display: inline-flex; align-items: center; gap: 10px; margin-top: 10px; padding: 4px 12px 4px 4px; border-radius: 14px; background: var(--surface-2); }
 .t-recon img { width: 48px; height: 48px; object-fit: cover; border-radius: 10px; }
 .t-recon-cap { font-size: 0.875rem; color: var(--muted); font-weight: 600; }
@@ -180,9 +181,9 @@
   color: var(--ink);
   font: 600 1.125rem/1.3 var(--font);
   text-align: left;
-  cursor: pointer;
+  cursor: var(--cp);
   touch-action: manipulation;
-  transition: transform 180ms var(--spring), border-color 200ms var(--ease), background 200ms var(--ease);
+  transition: transform 180ms var(--spring), border-color var(--h-dur-s) var(--h-ease), background var(--h-dur-s) var(--h-ease);
 }
 .q-opt:not([disabled]):active { transform: scale(0.97); }
 @media (hover: hover) and (pointer: fine) { .q-opt:not([disabled]):hover { border-color: var(--accent); } }
@@ -209,12 +210,12 @@
   border: 0; border-radius: 999px;
   background: var(--accent); color: var(--accent-ink);
   font: 700 1.125rem/1 var(--font);
-  cursor: pointer; touch-action: manipulation;
+  cursor: var(--cp); touch-action: manipulation;
   transition: transform 180ms var(--spring);
 }
 .q-share:active { transform: scale(0.95); }
 .q-share svg { width: 18px; height: 18px; }
-.q-again { display: block; margin: 14px auto 0; min-height: 44px; border: 0; background: none; color: var(--muted); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.q-again { display: block; margin: 14px auto 0; min-height: 44px; border: 0; background: none; color: var(--muted); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: var(--cp); }
 .q-toast {
   position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
   transform: translateX(-50%) translateY(12px);
@@ -264,7 +265,7 @@
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(15, 20, 40, 0.5);
   -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
-  color: #fff; display: grid; place-items: center; cursor: pointer;
+  color: #fff; display: grid; place-items: center; cursor: var(--cp);
 }
 .scene-close svg { width: 20px; height: 20px; }
 
@@ -325,7 +326,7 @@ html.gx-lock, html.gx-lock body { overflow: hidden; overscroll-behavior: none; }
   -webkit-backdrop-filter: blur(18px) saturate(160%);
   backdrop-filter: blur(18px) saturate(160%);
   box-shadow: var(--gx-btn-shadow);
-  cursor: pointer;
+  cursor: var(--cp);
   touch-action: manipulation;
   transition: transform 200ms var(--spring), opacity 260ms var(--ease), background 200ms var(--ease);
 }
@@ -386,7 +387,7 @@ html.gx-lock, html.gx-lock body { overflow: hidden; overscroll-behavior: none; }
 
 .sec { margin-top: 72px; }
 .btn-history { width: 100%; }
-.btn-history svg { transition: transform 200ms var(--ease); }
+.btn-history svg { transition: transform var(--h-dur) var(--h-ease); }
 @media (hover: hover) and (pointer: fine) { .btn-history:hover svg { transform: translateX(3px); } }
 
 .gx-count { color: var(--accent); }
@@ -400,3 +401,5 @@ html.gx-lock, html.gx-lock body { overflow: hidden; overscroll-behavior: none; }
     margin-right: auto;
   }
 }
+
+/* курсор (s38): системный — свои курсоры e1.13 отсюда убраны (см. assets/hub.css). */
