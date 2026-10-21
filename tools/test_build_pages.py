@@ -416,6 +416,64 @@ def check_publish_hub():
     return ok, out
 
 
+CURSOR_OK = {'pointer', 'var(--cp)', 'default', 'auto', 'inherit', 'grab', 'grabbing', 'ew-resize', 'not-allowed', 'text'}
+CURSOR_FILES = ['index.html', 'kukuruznik/about.html', 'kukuruznik/history.html', 'tests/lenin/about.html', 'tests/lenin/history.html',
+                'assets/hub.css', 'assets/hub-museum.css', 'assets/hub-pages.css', 'assets/story.css', 'assets/history.css',
+                'assets/chka-common.js', 'assets/hub.js', 'assets/story.js', 'assets/history.js', 'assets/gallery.js', 'assets/i18n.js']
+
+
+def cursor_problems(text):
+    """Что на главной и страницах about/history рисует свой курсор или «круг у курсора»: cursor:url(), image-set, лупа (zoom-in/zoom-out,
+    у неё круг), crosshair, none, переменные --cn/--cw из движка, стили курсора из скриптов. Пусто — только системный курсор."""
+    bad = []
+    for m in re.finditer(r'cursor\s*:\s*([^;}\n]+)', text):
+        v = m.group(1).strip().rstrip(';').strip()
+        v = re.sub(r'\s*!important$', '', v)
+        if v.split(',')[0].strip() not in CURSOR_OK or 'url(' in v or 'image-set' in v:
+            bad.append('cursor: ' + v)
+    if re.search(r'--c[nw]\s*:', text):
+        bad.append('--cn/--cw (курсоры движка)')
+    if re.search(r'style\.cursor|\.cursor\s*=|cursor-?(ring|dot|follow)', text):
+        bad.append('курсор из скрипта')
+    return bad
+
+
+def check_hub_cards():
+    """s41 (10б-фикс): карточки главной — обложка → about, две кнопки (3D и о здании), вложенных ссылок нет; курсор только системный."""
+    lines, ok_all = [], True
+    hub = (ROOT / 'index.html').read_text(encoding='utf-8')
+
+    def card_ok(slug, html_):
+        hrefs = re.findall(r'<a class="([^"]*)" href="([^"]*)"', html_)
+        want = [('cover', '%s/about.html' % slug), ('btn btn-3d', '%s/' % slug), ('btn btn-ghost btn-about', '%s/about.html' % slug)]
+        nested = re.search(r'<a\b[^>]*>(?:(?!</a>).)*<a\b', html_, re.S)
+        return hrefs == want and not nested and html_.count('data-transition') == 1 and all(('lang="%s"' % l) in html_ for l in bp.LANGS)
+
+    for slug in ('kukuruznik', 'lenin'):
+        m = re.search(r'<li class="card reveal">(?:(?!</li>).)*?href="%s/about\.html".*?</li>' % slug, hub, re.S)
+        good = bool(m) and card_ok(slug, m.group(0))
+        lines.append('%s  главная: карточка %s — обложка → about.html, кнопки «3D» (%s/) и «о здании» (about.html), без вложенных ссылок, hy/ru/en' % ('OK   ' if good else 'ОШИБКА', slug, slug))
+        ok_all &= good
+    old = '<li class="card reveal"><a class="card-in" href="kukuruznik/" data-transition><div class="pic"></div><span class="go">3D</span></a></li>'
+    nest = '<li class="card"><a class="cover" href="x/about.html"><a class="btn btn-3d" href="x/"></a></a></li>'
+    red = not card_ok('kukuruznik', old) and not card_ok('x', nest)
+    lines.append('%s  красные случаи: старая «вся карточка = 3D» и вложенные ссылки ловятся' % ('OK   ' if red else 'ОШИБКА'))
+    ok_all &= red
+    lab = bp._about_label('tests/lenin'), bp._about_label('kukuruznik')
+    ok_l = lab[0]['ru'] == 'О памятнике' and lab[1]['ru'] == 'О здании' and lab[0]['hy'] == 'Հուշարձանի մասին' and lab[1]['en'] == 'About the building'
+    lines.append('%s  подпись второй кнопки — со страницы экспоната: Ленин «О памятнике», Кукурузник «О здании» (hy/ru/en)' % ('OK   ' if ok_l else 'ОШИБКА'))
+    ok_all &= ok_l
+    bad = {f: cursor_problems((ROOT / f).read_text(encoding='utf-8')) for f in CURSOR_FILES if (ROOT / f).is_file()}
+    bad = {f: b for f, b in bad.items() if b}
+    lines.append('%s  курсор: на главной и about/history только системный (%d файлов)%s' % ('OK   ' if not bad else 'ОШИБКА', len(CURSOR_FILES), '' if not bad else ' — ' + str(bad)))
+    ok_all &= not bad
+    red_c = all(cursor_problems(t) for t in ('a { cursor: url(x.svg) 4 4, auto; }', '.g { cursor: zoom-in; }', ':root { --cn: url(a.svg); }', 'document.body.style.cursor = "none"'))
+    lines.append('%s  красные случаи курсора: url(), лупа zoom-in, --cn, курсор из скрипта ловятся' % ('OK   ' if red_c else 'ОШИБКА'))
+    ok_all &= red_c
+    return ok_all, lines
+
+
+
 def main():
     K = 'kukuruznik'
     cases = [
@@ -588,6 +646,10 @@ def main():
     for l in lines_ph:
         print(l)
     ok_all &= ok_ph
+    ok_hc, lines_hc = check_hub_cards()
+    for l in lines_hc:
+        print(l)
+    ok_all &= ok_hc
     # стопка главной: картинка здания встаёт на место силуэта, повтор ничего не меняет, чужое место и вне-диффы ловятся
     hub0 = (ROOT / 'index.html').read_text(encoding='utf-8')
     base = re.sub(r'\s*<!-- stack:lenin .*?<!-- /stack:lenin -->', '\n      <div class="stack-card sc-c"><div class="sc-pic"><svg class="ghost" viewBox="0 0 200 200"><use href="#ghost-statue"/></svg></div></div>', hub0, flags=re.S)

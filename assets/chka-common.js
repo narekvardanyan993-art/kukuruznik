@@ -139,12 +139,19 @@
   /* ---------- карточки/плитки «приподнимаются» от касания ---------- */
 
   document.querySelectorAll('.card, [data-lift]').forEach(function (card) {
-    card.addEventListener('pointerdown', function () { card.classList.add('lift'); });
+    /* s41: у карточки с кнопками «нажато» подсвечивается только то, что нажали (обложка или одна из кнопок), а не вся карточка */
+    var multi = card.querySelectorAll('a').length > 1;
+    var pressed = null;
+    card.addEventListener('pointerdown', function (e) {
+      var t = multi ? (e.target.closest && e.target.closest('a')) : card;
+      if (!t) return;
+      pressed = t; t.classList.add('lift');
+    });
     ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (ev) {
-      card.addEventListener(ev, function () { card.classList.remove('lift'); });
+      card.addEventListener(ev, function () { if (pressed) { pressed.classList.remove('lift'); pressed = null; } });
     });
     var link = card.querySelector('a');
-    if (link) {
+    if (link && !multi) {
       link.addEventListener('focus', function () { card.classList.add('lift'); });
       link.addEventListener('blur', function () { card.classList.remove('lift'); });
     }

@@ -818,44 +818,74 @@ def _i18n_spans(d):
     return ''.join('<span class="i18n-inline" lang="%s">%s</span>' % (l, html.escape(d[l], quote=False)) for l in LANGS)
 
 
-GO_3D = ('<span class="go"><span class="i18n-inline" lang="hy">Բացել 3D-ով</span><span class="i18n-inline" lang="ru">Открыть 3D</span>'
-         '<span class="i18n-inline" lang="en">Open in 3D</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" '
-         'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>')
+# s41 (10б-фикс): у карточки главной две кнопки — «Смотреть в 3D» (просмотрщик) и «О здании/О памятнике» (about.html);
+# сама обложка (марка) ведёт на about.html. Вложенных ссылок нет: обложка, кнопка 3D и кнопка about — три отдельные <a>.
+CUBE_ICON = ('<svg class="cube-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" '
+             'stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12v9M4 7.5l8 4.5 8-4.5"/></svg>')
+PAGE_ICON = ('<svg class="page-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" '
+             'stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/></svg>')
+VIEW_3D_WORD = {'hy': 'Տեսնել 3D-ով', 'ru': 'Смотреть в 3D', 'en': 'View in 3D'}   # те же слова, что на кнопке в шапке about.html
+ABOUT_DEFAULT = {'hy': 'Շենքի մասին', 'ru': 'О здании', 'en': 'About the building'}
+
+
+def _about_label(src, root=None):
+    """Подпись кнопки «о здании/о памятнике» — первая вкладка x-tabs на about.html самого экспоната (так кнопка на главной
+    и вкладка на странице всегда называются одинаково: «О здании» / «О памятнике»). Нет страницы или вкладки — «О здании»."""
+    f = Path(root or ROOT) / src / 'about.html'
+    if not f.is_file():
+        return dict(ABOUT_DEFAULT)
+    m = re.search(r'<nav class="x-tabs"[^>]*>\s*<a href="about\.html"[^>]*>(.*?)</a>', f.read_text(encoding='utf-8'), re.S)
+    out = {}
+    if m:
+        for l, t in re.findall(r'<span class="i18n-inline" lang="(\w+)">(.*?)</span>', m.group(1), re.S):
+            out[l] = html.unescape(t)
+    return out if all(out.get(l) for l in LANGS) else dict(ABOUT_DEFAULT)
+
+
+def card_markup(slug, image, eyebrow, title, meta, about, no=None):
+    """Разметка живой карточки главной (<li class="card">…</li>); одна на все здания, чтобы карточки не расходились."""
+    e = lambda t: html.escape(t, quote=True)
+    inv = '<span class="inv" aria-hidden="true">ՉԿԱ · %03d</span>' % no if no else ''
+    lines = [
+        '      <li class="card reveal">',
+        '        <div class="card-in">',
+        '          <a class="cover" href="%s/about.html" aria-labelledby="t-%s">' % (e(slug), e(slug)),
+        '            <div class="pic"><img src="%s/%s" width="480" height="480" alt="" loading="lazy" decoding="async">%s</div>' % (e(slug), e(image), inv),
+        '          </a>',
+        '          <div class="txt">']
+    if no:
+        lines.append('            <p class="lbl-no">%s</p>' % _i18n_spans({l: w % no for l, w in EXHIBIT_WORD.items()}))
+    lines += [
+        '            <span class="eyebrow">%s</span>' % _i18n_spans(eyebrow),
+        '            <h3 id="t-%s"><span class="ttl">%s</span></h3>' % (e(slug), _i18n_spans(title)),
+        '            <p class="meta">%s</p>' % _i18n_spans(meta),
+        '            <div class="card-actions">',
+        '              <a class="btn btn-3d" href="%s/" data-transition>%s<span>%s</span></a>' % (e(slug), CUBE_ICON, _i18n_spans(VIEW_3D_WORD)),
+        '              <a class="btn btn-ghost btn-about" href="%s/about.html">%s<span>%s</span></a>' % (e(slug), PAGE_ICON, _i18n_spans(about)),
+        '            </div>',
+        '          </div>',
+        '        </div>',
+        '      </li>']
+    return lines
+
+
 EXHIBIT_WORD = {'hy': 'Ցուցանմուշ № %03d', 'ru': 'Экспонат № %03d', 'en': 'Exhibit No. %03d'}   # этикетка марки (s39): номер = postcard.no
 
 
 def render_card(slug, root=None):
-    """Карточка здания на главной (index.html) из блока card в building.json — как у Кукурузника. Между метками
+    """Карточка здания на главной (index.html) из блока card в building.json. Между метками
     <!-- card:<slug> --> и <!-- /card:<slug> -->; руками не править.
-    s39: вся марка — одна ссылка (открывает здание в 3D), ссылки «история» под маркой больше нет; этикетка экспоната
-    и инвентарный номер на паспарту — из postcard.no (нет номера — без них)."""
+    s41: обложка (марка) ведёт на about.html здания; под этикеткой две кнопки — «Смотреть в 3D» (→ просмотрщик) и
+    «О здании/О памятнике» (→ about.html, подпись берётся с самой страницы). Этикетка экспоната и инвентарный номер — из postcard.no."""
     src = test_live_slugs(root).get(slug, slug)
     b = load_building(src, root)
     cd = b.get('card')
     if not cd:
         raise SystemExit('СТОП: в %s/building.json нет блока card (карточка главной)' % src)
-    e = lambda s: html.escape(s, quote=True)
-    title = cd.get('title') or b['text']['title']
     no = (b.get('postcard') or {}).get('no')
-    inv = '<span class="inv" aria-hidden="true">ՉԿԱ · %03d</span>' % no if no else ''
-    lines = [
-        '      <!-- card:%s — собирается из %s/building.json (card, postcard.no), руками не править -->' % (slug, src),
-        '      <li class="card reveal">',
-        '        <a class="card-in" href="%s/" data-transition>' % e(slug),
-        '          <div class="pic"><img src="%s/%s" width="480" height="480" alt="" loading="lazy" decoding="async">%s</div>' % (e(slug), e(cd['image']), inv),
-        '          <div class="txt">',
-    ]
-    if no:
-        lines.append('            <p class="lbl-no">%s</p>' % _i18n_spans({l: w % no for l, w in EXHIBIT_WORD.items()}))
-    lines += [
-        '            <span class="eyebrow">%s</span>' % _i18n_spans(cd['eyebrow']),
-        '            <h3><span class="ttl">%s</span></h3>' % _i18n_spans(title),
-        '            <p class="meta">%s</p>' % _i18n_spans(cd['meta']),
-        '            ' + GO_3D,
-        '          </div>',
-        '        </a>',
-        '      </li>',
-        '      <!-- /card:%s -->' % slug]
+    lines = ['      <!-- card:%s — собирается из %s/building.json (card, postcard.no), руками не править -->' % (slug, src)]
+    lines += card_markup(slug, cd['image'], cd['eyebrow'], cd.get('title') or b['text']['title'], cd['meta'], _about_label(src, root), no)
+    lines.append('      <!-- /card:%s -->' % slug)
     return '\n'.join(lines)
 
 

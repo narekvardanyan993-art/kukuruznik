@@ -75,7 +75,7 @@
   document.querySelectorAll('[data-transition]').forEach(function (a) {
     a.addEventListener('click', function (e) {
       if (window.ChkaReducedMotion || e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
-      var pic = a.querySelector('.pic');
+      var card = a.closest('.card'), pic = a.querySelector('.pic') || (card && card.querySelector('.pic'));
       var href = a.getAttribute('href');
       if (!pic || !href) return;
       e.preventDefault();

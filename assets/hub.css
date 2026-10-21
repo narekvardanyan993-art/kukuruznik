@@ -489,20 +489,6 @@ html.scrolled .scroll-hint { opacity: 0; transform: translateY(10px); pointer-ev
 .card h3 { font-size: 1.75rem; }
 .card h3 [lang="hy"] { font-size: 0.85em; }
 .meta { margin: 6px 0 0; color: var(--muted); font-size: 1rem; font-weight: 500; }
-.go {
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 14px;
-  min-height: 48px;
-  padding: 0 20px;
-  border-radius: 999px;
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-weight: 700;
-  font-size: 1.125rem;
-}
 .soon .txt { padding: 10px 4px 2px; }
 .soon h3 { font-size: 1.1875rem; letter-spacing: -0.01em; }
 .soon .meta { font-size: 0.875rem; }
@@ -609,7 +595,6 @@ html.scrolled .scroll-hint { opacity: 0; transform: translateY(10px); pointer-ev
   .greet { font-size: 1.25rem; margin-top: 8px; }
   .hero-cta { margin-top: 14px; }
 }
-.go svg { width: 18px; height: 18px; }
 
 
 /* ---------- детали «светлого музея» ---------- */
@@ -659,7 +644,7 @@ html.scrolled .scroll-hint { opacity: 0; transform: translateY(10px); pointer-ev
    .lift из chka-common.js), без «зависшего» hover. «Уменьшить движение» — без сдвигов, только цвет. */
 
 /* ссылки внутри текста: тонкая линия всегда, акцентная — дорисовывается при наведении */
-.page p a:not(.btn), .page li a:not(.btn):not(.card-in):not(.card-history), .page figcaption a, .credit a, .gx-credit a {
+.page p a:not(.btn), .page li a:not(.btn):not(.card-in):not(.card-history):not(.cover), .page figcaption a, .credit a, .gx-credit a {
   color: inherit;
   text-decoration: none;
   background-image: linear-gradient(var(--accent), var(--accent)), linear-gradient(currentColor, currentColor);
@@ -669,9 +654,9 @@ html.scrolled .scroll-hint { opacity: 0; transform: translateY(10px); pointer-ev
   padding-bottom: 1px;
   transition: background-size var(--h-dur) var(--h-ease), color var(--h-dur-s) var(--h-ease);
 }
-.page p a:not(.btn):active, .page li a:not(.btn):not(.card-in):not(.card-history):active, .page figcaption a:active { color: var(--accent); background-size: 100% 1.5px, 100% 1px; }
+.page p a:not(.btn):active, .page li a:not(.btn):not(.card-in):not(.card-history):not(.cover):active, .page figcaption a:active { color: var(--accent); background-size: 100% 1.5px, 100% 1px; }
 @media (hover: hover) and (pointer: fine) {
-  .page p a:not(.btn):hover, .page li a:not(.btn):not(.card-in):not(.card-history):hover, .page figcaption a:hover, .credit a:hover, .gx-credit a:hover {
+  .page p a:not(.btn):hover, .page li a:not(.btn):not(.card-in):not(.card-history):not(.cover):hover, .page figcaption a:hover, .credit a:hover, .gx-credit a:hover {
     color: var(--accent); background-size: 100% 1.5px, 100% 1px;
   }
 }
