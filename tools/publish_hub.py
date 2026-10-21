@@ -117,6 +117,10 @@ def affected_pages(site, changed):
     страницу (просмотрщик -> about.html) — не зависимость: изменённые html-страницы обходом не продолжаются."""
     changed = set(changed)
     stop = {'index.html'} | {f for f in changed if f.endswith('.html')}
+    # s42: about/history зданий — отдельные страницы, просмотрщик на них только ССЫЛАЕТСЯ. Раньше обход останавливался на них,
+    # лишь когда они сами менялись; после публикации s41 они на main такие же, как в ветке, обход шёл сквозь них к общим стилям
+    # главной, и просмотрщик ложно считался задетым. Сами about/history по-прежнему проверяются как страницы (pg == page обходится).
+    stop |= {pg for pg in bp.site_pages(site) if pg.rsplit('/', 1)[-1] in bp.OWN_PAGES}
     return sorted(pg for pg in bp.site_pages(site) if ({pg} | bp.page_deps(site, pg, stop=stop)) & changed)
 
 

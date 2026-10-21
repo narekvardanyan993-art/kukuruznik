@@ -447,12 +447,13 @@ def check_hub_cards():
         hrefs = re.findall(r'<a class="([^"]*)" href="([^"]*)"', html_)
         want = [('cover', '%s/about.html' % slug), ('btn btn-3d', '%s/' % slug), ('btn btn-ghost btn-about', '%s/about.html' % slug)]
         nested = re.search(r'<a\b[^>]*>(?:(?!</a>).)*<a\b', html_, re.S)
-        return hrefs == want and not nested and html_.count('data-transition') == 1 and all(('lang="%s"' % l) in html_ for l in bp.LANGS)
+        return (hrefs == want and not nested and html_.count('data-transition') == 1 and all(('lang="%s"' % l) in html_ for l in bp.LANGS)
+                and html_.count('class="card-in sticker"') == 1)   # s42: вся карточка — один лист-стикер
 
     for slug in ('kukuruznik', 'lenin'):
         m = re.search(r'<li class="card reveal">(?:(?!</li>).)*?href="%s/about\.html".*?</li>' % slug, hub, re.S)
         good = bool(m) and card_ok(slug, m.group(0))
-        lines.append('%s  главная: карточка %s — обложка → about.html, кнопки «3D» (%s/) и «о здании» (about.html), без вложенных ссылок, hy/ru/en' % ('OK   ' if good else 'ОШИБКА', slug, slug))
+        lines.append('%s  главная: карточка %s — один лист-стикер, обложка → about.html, кнопки «3D» (%s/) и «о здании» (about.html), без вложенных ссылок, hy/ru/en' % ('OK   ' if good else 'ОШИБКА', slug, slug))
         ok_all &= good
     old = '<li class="card reveal"><a class="card-in" href="kukuruznik/" data-transition><div class="pic"></div><span class="go">3D</span></a></li>'
     nest = '<li class="card"><a class="cover" href="x/about.html"><a class="btn btn-3d" href="x/"></a></a></li>'
@@ -463,6 +464,16 @@ def check_hub_cards():
     ok_l = lab[0]['ru'] == 'О памятнике' and lab[1]['ru'] == 'О здании' and lab[0]['hy'] == 'Հուշարձանի մասին' and lab[1]['en'] == 'About the building'
     lines.append('%s  подпись второй кнопки — со страницы экспоната: Ленин «О памятнике», Кукурузник «О здании» (hy/ru/en)' % ('OK   ' if ok_l else 'ОШИБКА'))
     ok_all &= ok_l
+    # s42: гранат — штриховка, слои акварели по очереди, зёрна; в страницах нет C2PA-метаданных (их дописывает перенос файлов)
+    pg = re.search(r'<svg class="pg".*?</svg>', hub, re.S)
+    pg = pg.group(0) if pg else ''
+    n_ln, n_sd, n_wash = pg.count('class="ln"'), pg.count('class="sd"'), len(re.findall(r'<g style="--wd:', pg))
+    ok_pg = n_ln >= 100 and n_sd >= 30 and n_wash >= 5 and 'class="pg-wash"' in pg
+    lines.append('%s  гранат: %d штрихов карандаша, %d зёрен, %d слоёв акварели (порог 100 / 30 / 5)' % ('OK   ' if ok_pg else 'ОШИБКА', n_ln, n_sd, n_wash))
+    ok_all &= ok_pg
+    c2 = [f for f in CURSOR_FILES if (ROOT / f).is_file() and re.search(r'c2pa', (ROOT / f).read_text(encoding='utf-8'), re.I)]
+    lines.append('%s  в страницах и стилях главной нет C2PA-метаданных%s' % ('OK   ' if not c2 else 'ОШИБКА', '' if not c2 else ' — ' + ', '.join(c2)))
+    ok_all &= not c2
     bad = {f: cursor_problems((ROOT / f).read_text(encoding='utf-8')) for f in CURSOR_FILES if (ROOT / f).is_file()}
     bad = {f: b for f, b in bad.items() if b}
     lines.append('%s  курсор: на главной и about/history только системный (%d файлов)%s' % ('OK   ' if not bad else 'ОШИБКА', len(CURSOR_FILES), '' if not bad else ' — ' + str(bad)))

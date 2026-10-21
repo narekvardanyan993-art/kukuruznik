@@ -843,12 +843,13 @@ def _about_label(src, root=None):
 
 
 def card_markup(slug, image, eyebrow, title, meta, about, no=None):
-    """Разметка живой карточки главной (<li class="card">…</li>); одна на все здания, чтобы карточки не расходились."""
+    """Разметка живой карточки главной (<li class="card">…</li>); одна на все здания, чтобы карточки не расходились.
+    s42: .card-in.sticker — вся карточка один бумажный лист (стили в assets/hub-museum.css, блок «стикер»)."""
     e = lambda t: html.escape(t, quote=True)
     inv = '<span class="inv" aria-hidden="true">ՉԿԱ · %03d</span>' % no if no else ''
     lines = [
         '      <li class="card reveal">',
-        '        <div class="card-in">',
+        '        <div class="card-in sticker">',
         '          <a class="cover" href="%s/about.html" aria-labelledby="t-%s">' % (e(slug), e(slug)),
         '            <div class="pic"><img src="%s/%s" width="480" height="480" alt="" loading="lazy" decoding="async">%s</div>' % (e(slug), e(image), inv),
         '          </a>',

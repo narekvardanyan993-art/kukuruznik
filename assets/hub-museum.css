@@ -165,25 +165,75 @@ a.cover { display: block; height: auto; color: inherit; text-decoration: none; t
 .card h3 [lang="hy"] { font-size: 0.95em; }
 .ttl { background: linear-gradient(var(--accent), var(--accent)) 0 100% / 0% 2px no-repeat; padding-bottom: 2px; transition: background-size var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)); }
 .meta { font-size: 0.95rem; color: var(--muted); margin-top: 6px; }
-/* s41 (10б-фикс): у живой карточки три отдельных кликабельных места — обложка (→ about), «Смотреть в 3D», «О здании».
-   Наведение и нажатие у каждого свои; вся карточка целиком больше не двигается. */
-.card-actions { display: grid; gap: 10px; margin: 16px 0 0; }
+/* ---------- s42: карточка здания = ОДИН цельный бумажный стикер ----------
+   Обложка, номер, название, годы и обе кнопки — на одном листе: общая тень, тонкий край, лёгкий наклон (у соседей
+   разный). Наведение мыши: весь лист приподнимается и выпрямляется, большая тень проявляется прозрачностью (::before),
+   правый нижний уголок «отлипает» (::after — изнанка листа и щель фона, растёт transform-ом). Кнопки внутри — свои
+   мягкие состояния. Нажатие — только на нажатом месте (lift из chka-common.js). Появление — лист «ложится» на стол:
+   снизу, с доворотом, кривая быстрый старт / долгое торможение. Двигаются только transform и opacity (docs/ANIMATION.md).
+   Разметка одна для всех зданий: tools/build_pages.card_markup(). Селектор с .card:not(.soon) — сильнее старого
+   «.card:not(.soon) .card-in { background: none; padding: 0 }» выше. */
+.card:not(.soon) .sticker {
+  --tilt: -0.9deg;
+  position: relative; isolation: isolate;
+  padding: 12px 12px 16px;
+  background: #fdf9ef linear-gradient(160deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 42%);
+  border: 1px solid rgba(42, 36, 32, 0.1);
+  border-radius: 6px;
+  box-shadow: 0 1px 1px rgba(42, 36, 32, 0.14), 0 7px 14px -7px rgba(42, 36, 32, 0.38);
+  transform: rotate(var(--tilt));
+  transition: transform var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1));
+}
+.cards > .card:nth-child(2n) .sticker { --tilt: 0.75deg; }
+.cards > .card:nth-child(3n) .sticker { --tilt: -0.45deg; }
+.sticker::before {   /* тень «отклеенного» листа: проявляется, а не перерисовывается */
+  content: ""; position: absolute; inset: -1px; z-index: -1; border-radius: inherit; pointer-events: none;
+  box-shadow: 0 3px 5px rgba(42, 36, 32, 0.14), 0 24px 36px -14px rgba(42, 36, 32, 0.5);
+  opacity: 0; transition: opacity var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1));
+}
+.sticker::after {    /* уголок: изнанка листа сверху-слева от сгиба, щель фона — снизу-справа */
+  content: ""; position: absolute; right: -1px; bottom: -1px; width: 38px; height: 38px; z-index: 2; pointer-events: none;
+  border-bottom-right-radius: 6px;
+  background: linear-gradient(315deg, var(--bg) 0 47%, rgba(42, 36, 32, 0.22) 49.5%, #e9dcbf 51%, #f6eedb 72%, #fbf6ea 100%);
+  filter: drop-shadow(-1px -1px 1.2px rgba(42, 36, 32, 0.2));
+  transform: scale(0.4); transform-origin: 100% 100%;
+  transition: transform var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1));
+}
+/* обложка на листе — без зубчиков марки: рамка картинки и подпись остаются */
+.sticker a.cover { outline-offset: 4px; }
+.sticker .pic, .card:not(.soon) .sticker .pic { padding: 0 0 22px; background: none; filter: none; transform: none; }
+.sticker .pic::before { display: none; }
+.card:not(.soon) .sticker .pic::after { left: 12px; top: 12px; }
+.sticker .inv { left: 2px; bottom: 4px; }
+.sticker .pic > img { transition: filter var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)), transform 160ms var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)); }
+.card:not(.soon) .sticker { height: 100%; display: flex; flex-direction: column; }   /* листы в ряду одной высоты, кнопки — по низу */
+.sticker .txt { flex: 1; display: flex; flex-direction: column; margin: 10px 0 0; padding: 0 2px; background: none; border: 0; box-shadow: none; }
+.sticker .txt > .eyebrow { align-self: flex-start; }
+.card-actions { display: grid; gap: 10px; margin: auto 0 0; padding-top: 16px; }
 .card-actions .btn { width: 100%; min-height: 48px; padding: 8px 16px; line-height: 1.15; gap: 10px; font-size: 1.0625rem; text-align: center; }
-@media (min-width: 1000px) { .card-actions .btn { padding: 8px 10px; gap: 8px; font-size: 1rem; } }   /* 4 колонки: подпись «Смотреть в 3D» в одну строку */
+@media (min-width: 1000px) { .card-actions .btn { padding: 8px 10px; gap: 8px; font-size: 1rem; } }   /* 4 колонки: «Смотреть в 3D» в одну строку */
 .card-actions .btn svg { width: 20px; height: 20px; flex: none; transition: transform var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)); }
 .card-actions .btn-about { background: transparent; border: 1.5px solid rgba(42, 36, 32, 0.4); color: var(--ink); box-shadow: none; }
-a.cover:active, a.cover.lift { transform: scale(0.98); transition-duration: 160ms; }
-a.cover:active .pic, a.cover.lift .pic { filter: drop-shadow(0 2px 3px rgba(42, 36, 32, 0.3)); }
+/* нажатие (и телефон): картинка чуть «вдавливается» в лист */
+a.cover:active .pic > img, a.cover.lift .pic > img { transform: scale(0.975); }
+/* появление: лист ложится на стол */
+.cards > .card:not(.soon) { transition: transform 900ms cubic-bezier(0.16, 1, 0.3, 1), opacity 500ms ease; }
+.cards > .card.reveal:not(.soon) { --reveal-t: translateY(34px) rotate(2.4deg) scale(0.96); }
+.cards > .card.reveal.in:not(.soon) { --reveal-t: none; }
 @media (hover: hover) and (pointer: fine) {
-  a.cover:hover { transform: translateY(-8px); }
-  a.cover:hover:active { transform: translateY(-3px) scale(0.985); transition-duration: 160ms; }
-  a.cover:hover:active .pic { filter: drop-shadow(0 2px 3px rgba(42, 36, 32, 0.3)); }
-  a.cover:hover .pic { transform: rotate(-0.7deg); filter: drop-shadow(0 4px 5px rgba(42, 36, 32, 0.22)) drop-shadow(0 22px 22px rgba(42, 36, 32, 0.3)); }
+  .card:hover .sticker { transform: translateY(-6px) rotate(calc(var(--tilt) * 0.3)); }
+  .card:hover .sticker::before { opacity: 1; }
+  .card:hover .sticker::after { transform: scale(1); }
+  a.cover:hover .pic > img { filter: saturate(1.12) contrast(1.04); }
   .btn-3d:hover svg { transform: rotate(-12deg) scale(1.1); }
   .btn-about:hover { background: rgba(138, 44, 51, 0.07); border-color: var(--accent); color: var(--accent); }
   .btn-about:hover svg { transform: translateY(-2px); }
 }
-@media (prefers-reduced-motion: reduce) { a.cover:hover, a.cover:active, a.cover.lift, a.cover:hover .pic, .card-actions .btn svg { transform: none !important; } }
+@media (prefers-reduced-motion: reduce) {
+  .card:hover .sticker { transform: rotate(var(--tilt)) !important; }
+  .card:hover .sticker::after { transform: scale(0.7); }
+  .card-actions .btn svg, a.cover:active .pic > img, a.cover.lift .pic > img { transform: none !important; }
+}
 
 .card.soon .card-in { padding: 0; background: none; }
 .card.soon .pic { filter: none; background: transparent; padding: 15px; }
@@ -218,13 +268,13 @@ a.cover:active .pic, a.cover.lift .pic { filter: drop-shadow(0 2px 3px rgba(42, 
 .about-txt .lead { margin: 0 0 18px; font-size: clamp(1.3125rem, 5vw, 1.8125rem); line-height: 1.45; color: var(--ink); max-width: 24em; }
 .about-txt .more { margin: 0; font-size: 1.125rem; line-height: 1.65; color: var(--muted); max-width: 32em; }
 @media (prefers-reduced-motion: no-preference) {
-  .pg-armed .ln { stroke-dasharray: 1 1; stroke-dashoffset: 1; }
-  .pg-armed .pg-wash, .pg-armed .pg-cap { opacity: 0; }
+  .pg-armed .ln { stroke-dasharray: 1 2; stroke-dashoffset: 1.02; }   /* 1.02, а не 1: иначе круглый кончик штриха виден точкой до рисования */
+  .pg-armed .pg-wash > g, .pg-armed .pg-cap { opacity: 0; }
   .pg-armed .sd { opacity: 0; transform: scale(0.15); }
   .pg-armed.drawn .ln { stroke-dashoffset: 0; transition: stroke-dashoffset calc(var(--t, 1) * var(--k) * 1s) cubic-bezier(0.55, 0.1, 0.3, 1) calc(var(--d, 0) * var(--k) * 1s); }
-  .pg-armed.drawn .pg-wash { opacity: 1; transition: opacity calc(var(--k) * 1.8s) ease calc(var(--k) * 1.5s); }
-  .pg-armed.drawn .sd { opacity: 1; transform: none; transition: opacity 0.4s ease, transform 0.7s cubic-bezier(0.34, 1.4, 0.64, 1); transition-delay: calc((3.1s + var(--i) * 0.1s) * var(--k)); }
-  .pg-armed.drawn .pg-cap { opacity: 1; transition: opacity 0.9s ease calc(var(--k) * 4.6s); }
+  .pg-armed.drawn .pg-wash > g { opacity: 1; transition: opacity calc(var(--wt, 1.4) * var(--k) * 1s) ease calc(var(--wd, 1.5) * var(--k) * 1s); }
+  .pg-armed.drawn .sd { opacity: 1; transform: none; transition: opacity 0.4s ease, transform 0.7s cubic-bezier(0.34, 1.4, 0.64, 1); transition-delay: calc((4s + var(--i) * 0.045s) * var(--k)); }
+  .pg-armed.drawn .pg-cap { opacity: 1; transition: opacity 0.9s ease calc(var(--k) * 5.8s); }
   .pg-fig.alive .pg-art { animation: pg-breath 7s ease-in-out infinite alternate; }
   .pg { transition: transform 0.9s cubic-bezier(0.16, 1, 0.3, 1); }
   .lines-armed .w { display: inline-block; opacity: 0; transform: translateY(0.6em); }
