@@ -167,7 +167,7 @@
       requestAnimationFrame(function () {
         fig.classList.add('drawn');
         txt.classList.add('lines-in');
-        setTimeout(function () { fig.classList.add('alive'); }, (5.6 * k) * 1000);
+        setTimeout(function () { fig.classList.add('alive'); }, (6.6 * k) * 1000);
       });
     }, { threshold: 0.3 });
     io.observe(fig);
