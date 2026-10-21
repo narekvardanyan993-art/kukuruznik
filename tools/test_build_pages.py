@@ -382,6 +382,7 @@ def check_publish_hub():
             t.extractall(site)
         files = ph.payload(site=site)
         need = ['index.html', 'assets/hub.css', 'assets/hub-museum.css', 'assets/story.css', 'assets/chka-common.js', 'assets/hub.js',
+                'assets/hub-pages.css', 'assets/history.css', 'assets/compare-kuk-photo-720.webp', 'assets/compare-kuk-drawing-720.webp',   # s40
                 'kukuruznik/about.html', 'kukuruznik/history.html'] + ['%s/%s' % (s, n) for s in bp.test_live_slugs() for n in bp.OWN_PAGES]
         miss = [f for f in need if f not in files]
         rec('publish_hub: едут главная, общие стили/скрипты и about/history всех живых зданий', not miss, ('нет: ' + ', '.join(miss)) if miss else '')
@@ -389,6 +390,11 @@ def check_publish_hub():
         old = {k: v for k, v in files.items() if k in ('index.html', 'assets/hub-museum.css', 'kukuruznik/card.webp')}
         rec('publish_hub: старый список (index.html + hub-museum.css + card.webp) ловится — главная уехала бы без hub.css',
             any('assets/hub.css' in x for x in ph.payload_problems(old)))
+        nosrc = {k: v for k, v in files.items() if k != 'assets/compare-kuk-drawing-720.webp'}
+        rec('publish_hub (s40): картинка только из srcset тоже считается — без неё стоп', any('compare-kuk-drawing-720.webp' in x for x in ph.payload_problems(nosrc)))
+        pages = {k: v.decode('utf-8') for k, v in files.items() if k.endswith(('about.html', 'history.html'))}
+        old_look = [k for k, t in pages.items() if 'fonts.googleapis' in t or 'hub-pages.css' not in t or 'class="x-head' not in t or 'class="x-tabs' not in t or 'tiktok' in t.lower()]
+        rec('страницы экспоната (s40): этикетка-шапка, вкладки, стиль главной; без Google-шрифтов и TikTok', not old_look, ', '.join(old_look))
         rec('publish_hub: подвал одинаковый на всех страницах', not ph.footer_problems(files), ', '.join(ph.footer_problems(files)))
         bad = dict(files)
         k = next(p for p in bad if p.endswith('about.html'))

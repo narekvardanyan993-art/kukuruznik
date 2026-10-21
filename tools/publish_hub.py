@@ -14,7 +14,8 @@
   • index.html                         — главная из ветки; карточки и стопки живых зданий (метки card:/stack:) обязаны совпасть с тем, что
                                          собирает build_pages из building.json (иначе стоп: сначала публикация здания);
   • assets/ — SHARED_ASSETS            — общие стили и скрипты главной и страниц about/history (hub.css, hub-museum.css, story.css,
-                                         chka-common.js, hub.js);
+                                         chka-common.js, hub.js) + всё из assets/, на что ссылаются эти страницы (src, href и srcset:
+                                         s40 — hub-pages.css, history.css, картинки сравнения compare-kuk-*);
   • kukuruznik/card.webp               — картинка карточки Кукурузника;
   • about.html / history.html зданий   — у Кукурузника из kukuruznik/, у тестовых живых зданий (lenin) — из tests/<имя>/ так же, как их
                                          кладёт publish_building (адреса пересчитаны, без noindex), и их копии в бете beta/tests/<имя>/
@@ -48,6 +49,7 @@ SHARED_ASSETS = ['assets/hub.css', 'assets/hub-museum.css', 'assets/story.css', 
 KUK_PAGES = ['kukuruznik/about.html', 'kukuruznik/history.html']
 HUB_FILES = ['index.html'] + SHARED_ASSETS + ['kukuruznik/card.webp'] + KUK_PAGES   # постоянная часть; страницы тестовых живых зданий — payload()
 _ASSET_REF = re.compile(r'(?:src|href)="((?:\.\./)*assets/[^"?#]+)')
+_SRCSET = re.compile(r'srcset="([^"]+)"')   # s40: картинки сравнения «архив ⇄ рисунок» стоят только в srcset — их тоже везём
 
 
 def payload(root=None, site=None):
@@ -83,8 +85,12 @@ def asset_refs(files):
         if not path.endswith('.html'):
             continue
         base = path.rsplit('/', 1)[0] + '/' if '/' in path else ''
-        for ref in _ASSET_REF.findall(data.decode('utf-8', 'replace')):
-            target = bp.posixpath.normpath(bp.posixpath.join(base, ref))
+        text = data.decode('utf-8', 'replace')
+        found = _ASSET_REF.findall(text) + [u.strip().split()[0] for ss in _SRCSET.findall(text) for u in ss.split(',') if u.strip()]
+        for ref in found:
+            if 'assets/' not in ref:
+                continue
+            target = bp.posixpath.normpath(bp.posixpath.join(base, ref.split('?')[0]))
             if target.startswith('assets/'):
                 refs.setdefault(target, []).append(path)
     return refs

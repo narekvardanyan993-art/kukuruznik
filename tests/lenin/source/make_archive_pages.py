@@ -338,7 +338,7 @@ def history():
            'How a Lenin monument came to stand on Yerevan\'s main square — and what is left of it.', cls='i18n-block'),
        ''.join(chapter(i + 1, c) for i, c in enumerate(CHAPTERS)),
        tri('Աղբյուրներ', 'Источники', 'Sources'),
-       tri('Փաստերը վերապատմված են իմ իսկ բառերով՝ առանց հոդվածների տեքստը կրկնօրինակելու։', 'Факты пересказаны своими словами, без копирования текста статей.', 'Facts are retold in my own words, without copying the text of the articles.', cls='i18n-block'),
+       tri('Փաստերը վերապատմված են սեփական բառերով՝ առանց հոդվածների տեքստը կրկնօրինակելու։', 'Факты пересказаны своими словами, без копирования текста статей.', 'Facts are retold in original wording, without copying the text of the articles.', cls='i18n-block'),
        '\n'.join('      <li><a href="%s" target="_blank" rel="noopener">%s</a>%s</li>' % (u, n, (' ' + d) if d else '') for u, n, d in SOURCES),
        tri('← հուշարձանի արխիվ', '← к архиву памятника', '← back to the monument archive'),
        FOOT, ROOT, ROOT, ROOT)
@@ -346,6 +346,11 @@ def history():
 
 
 if __name__ == '__main__':
+    import sys
+    # s40: страницы в стиле главной (этикетка-шапка, вкладки, витрина, каталог) сделаны правкой самих tests/lenin/about.html и history.html;
+    # этот генератор пишет СТАРУЮ вёрстку — без --force не запускается, чтобы не затереть редизайн. Тексты ru/hy/en здесь остаются справочно.
+    if '--force' not in sys.argv:
+        raise SystemExit('СТОП: генератор устарел (s40) — страницы правятся напрямую; --force перезапишет их старой вёрсткой')
     (HERE / 'about.html').write_text(about(), encoding='utf-8')
     (HERE / 'history.html').write_text(history(), encoding='utf-8')
     print('написано: tests/lenin/about.html, tests/lenin/history.html')
