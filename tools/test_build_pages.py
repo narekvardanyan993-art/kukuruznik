@@ -408,7 +408,21 @@ def check_publish_hub():
             (site / f).write_bytes(d)
         aff = ph.affected_pages(site, changed)
         own = {p for p in files if p.endswith('.html')}
-        rec('publish_hub: меняются только главная и about/history (%d стр.)' % len(aff), 'index.html' in aff and set(aff) <= own, ', '.join(sorted(set(aff) - own)))
+        if changed:
+            # ветка отличается от origin/main по payload главной — index.html обязан попасть в затронутые.
+            aff_ok = 'index.html' in aff and set(aff) <= own
+        else:
+            # s45: main догнал ветку (Нарек уже опубликовал payload главной публикацией hub) — changed закономерно пуст,
+            # и это не баг: affected_pages не обязана находить страницы без изменений. Защиту «ничего чужого» всё равно
+            # проверяем на синтетическом дифф (меняем байт в payload-копии index.html на диске site, а не в files —
+            # files публикации не трогаем), а что обнаружение живо — отдельно, той же синтетикой.
+            synth_site = tmp / 'site-synth'
+            shutil.copytree(site, synth_site)
+            (synth_site / 'index.html').write_bytes(files['index.html'] + b'<!--synthetic s45-->')
+            synth_aff = ph.affected_pages(synth_site, ['index.html'])
+            aff_ok = not aff and 'index.html' in synth_aff and set(synth_aff) <= own
+        rec('publish_hub: меняются только главная и about/history (%d стр.)' % len(aff), aff_ok,
+            ', '.join(sorted(set(aff) - own)) if changed else ('обнаружение не сработало на синтетической правке index.html' if not aff_ok else ''))
         foreign = set(ph.affected_pages(site, changed + ['engine/viewer.js'])) - own
         rec('publish_hub: правка движка задела бы страницы зданий — это ловится', bool(foreign))
     finally:
