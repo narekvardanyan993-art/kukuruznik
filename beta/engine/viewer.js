@@ -2964,7 +2964,7 @@
   function cardInfo(lang) {   // данные таблички — из building.json (postcard); старое здание без них — название из панели
     var P = CONFIG.POSTCARD || {};
     var tx = function (v) { return v && typeof v === 'object' ? (v[lang] || v.en || '') : (v || ''); };
-    return { name: tx(P.name) || CONFIG.UI_I18N.panelTitle[lang], years: tx(P.years), url: P.url || 'chka.am' };
+    return { name: tx(P.name) || CONFIG.UI_I18N.panelTitle[lang], years: tx(P.years), url: P.url || 'chka.am', fact: P.fact || null };
   }
   function cardTodName() { var b = document.querySelector('#todSeg .chip.on'); return b ? b.getAttribute('data-tod') : 'day'; }
   // кадр с экрана → холст 1080×1920 (cover). null — рисовать нечем (нет WebGL / потерян контекст / первый кадр ещё не нарисован)
@@ -3141,16 +3141,21 @@
     var lang = cardLang(), info = cardInfo(lang), U = CONFIG.UI_I18N, w = cfg.srcWant || cfg.want || sceneWant();
     var o = { lang: lang, name: info.name, years: info.years, url: info.url, line: cardSet.line.trim(), to: cardSet.to.trim(), film: false, paper: cardPaper.front, paperBack: cardPaper.back, font: CARD_FONT,
       mask: cfg.mask !== null ? cfg.mask : cardBuildingMask(), keep: cfg.keep, no: cardNo(), noLabel: U.cardExhibit[lang], rare: cfg.rare, rareLabel: U.cardRare[lang],
-      year: cardSet.date === 'year' ? cardYear() : null, seed: cfg.seed, code: cfg.code, time: cardTime(w) };
+      year: cardSet.date === 'year' ? cardYear() : null, seed: cfg.seed, code: cfg.code, time: cardTime(w), fact: info.fact };
     if (extra) Object.keys(extra).forEach(function (k) { if (extra[k] !== undefined) o[k] = extra[k]; });
     if (o.back) return ChkaPostcard.composeBack(src, o);
     o.line = '';   // лицо: только название, годы и адрес (своя строка — на обороте)
     return ChkaPostcard.compose(src, o);
   }
   function cardName(ext) { return String(CONFIG.POSTCARD_FILE || 'chka.png').replace(/\.png$/i, '') + ext; }
-  function fileFromCanvas(cv, back) {   // синхронно (toDataURL): между нажатием и share не должно быть ожиданий
-    var u = cv.toDataURL('image/jpeg', 0.92), b = atob(u.slice(u.indexOf(',') + 1)), a = new Uint8Array(b.length);
-    for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i);
+  var CARD_MAXB = 1024 * 1024;   // e1.34: цель ~1 МБ на файл — подбор качества, весь синхронно (между нажатием и share не должно быть ожиданий)
+  function dataURLBytes(u) { return Math.round((u.length - (u.indexOf(',') + 1)) * 0.75); }   // base64 → байты, без декодирования (быстро)
+  function fileFromCanvas(cv, back) {
+    var q = 0.92, u = cv.toDataURL('image/jpeg', q);
+    var steps = [0.86, 0.8, 0.74, 0.68, 0.6];
+    for (var i = 0; i < steps.length && dataURLBytes(u) > CARD_MAXB; i++) u = cv.toDataURL('image/jpeg', steps[i]);
+    var b = atob(u.slice(u.indexOf(',') + 1)), a = new Uint8Array(b.length);
+    for (var j = 0; j < b.length; j++) a[j] = b.charCodeAt(j);
     return new File([a], cardName(back ? '-back.jpg' : '.jpg'), { type: 'image/jpeg', lastModified: Date.now() });
   }
   function downloadBlob(blob, name) {
@@ -3159,6 +3164,20 @@
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
   }
+  // iOS Safari без Web Share (старые версии, или открыто из приложения без поддержки файлов): программное скачивание там часто просто
+  // открывает картинку — показываем оверлей «зажми и сохрани» с двумя готовыми превью вместо попытки скачать (e1.34).
+  var IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var cardSaveOv = document.getElementById('cardSaveOv'), cardSaveOvF = document.getElementById('cardSaveOvF'), cardSaveOvB = document.getElementById('cardSaveOvB'), cardSaveOvX = document.getElementById('cardSaveOvX');
+  function showSaveOverlay(cv, back) {
+    if (!cardSaveOv || !cardSaveOvF) return false;
+    cardSaveOvF.src = cv.toDataURL('image/jpeg', 0.9);
+    if (back) { cardSaveOvB.src = back.toDataURL('image/jpeg', 0.9); cardSaveOvB.hidden = false; } else cardSaveOvB.hidden = true;
+    cardSaveOv.hidden = false; document.documentElement.classList.add('panel-anim');
+    return true;
+  }
+  function hideSaveOverlay() { if (cardSaveOv) cardSaveOv.hidden = true; }
+  if (cardSaveOvX) cardSaveOvX.addEventListener('click', hideSaveOverlay);
+  if (cardSaveOv) cardSaveOv.addEventListener('click', function (e) { if (e.target === cardSaveOv) hideSaveOverlay(); });
   var toastT = 0, toastFile = null;
   function hideToast() { clearTimeout(toastT); toastFile = null; if (cardToast) cardToast.classList.remove('on'); }
   function showToast(file) {   // file — файл или список (лицо + оборот); share не открылся без жеста — второе нажатие по плашке откроет его наверняка
@@ -3175,13 +3194,22 @@
       hideToast(); files.forEach(function (f) { downloadBlob(f, f.name); });
     });
   }
-  // отдать: телефон — «Поделиться» с одним файлом или двумя (лицо + оборот); ПК — PNG (с оборотом — два PNG)
+  var touchNoShare = window.matchMedia('(pointer: coarse)').matches && !shareOK;   // телефон, но Web Share с файлами недоступен
+  // отдать: телефон с Web Share — «Поделиться» с одним файлом или двумя (лицо + оборот); телефон без Web Share (в т.ч. iOS Safari
+  // без поддержки файлов) — оверлей «зажми и сохрани» (JPEG card-front.jpg/card-back.jpg готовы в самом оверлее, качать не нужно,
+  // а на iOS программное скачивание часто просто открывает картинку); ПК — PNG (с оборотом — два PNG)
   function deliverCard(cv, back) {
     if (shareOK) {
       var fs = [fileFromCanvas(cv)];
       if (back) fs.push(fileFromCanvas(back, true));
       if (navigator.canShare({ files: fs })) return shareFile(fs);
       if (fs.length > 1 && navigator.canShare({ files: [fs[0]] })) return shareFile([fs[0]]);   // два файла не умеет — хотя бы лицо
+    }
+    if (touchNoShare && showSaveOverlay(cv, back)) return;
+    if (touchNoShare || IOS) {   // телефон без оверлея (разметка не нашлась) — хотя бы JPEG с понятным именем, не PNG
+      cv.toBlob(function (blob) { if (blob) downloadBlob(blob, 'card-front.jpg'); }, 'image/jpeg', 0.9);
+      if (back) back.toBlob(function (blob) { if (blob) downloadBlob(blob, 'card-back.jpg'); }, 'image/jpeg', 0.9);
+      return;
     }
     cv.toBlob(function (blob) { if (blob) downloadBlob(blob, cardName('.png')); }, 'image/png');
     if (back) back.toBlob(function (blob) { if (blob) downloadBlob(blob, cardName('-back.png')); }, 'image/png');

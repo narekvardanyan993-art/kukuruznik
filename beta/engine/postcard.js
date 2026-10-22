@@ -403,9 +403,9 @@
   // в перфорации) + штемпель поверх неё, одна мелкая строка выходных данных: экспонат № / личный номер / дата. Рамок, заголовка, «Куда»,
   // индекса, штампа «РЕДКАЯ» больше нет; у редкой штемпель красный (как на лице). Рукопись — выцветшие сине-фиолетовые чернила, печать — тёмно-коричневая.
   var BACK_T = {
-    hy: { to: 'Ում', hi: 'Ջերմ բարևներ Երևանից', card: 'Բացիկ' },
-    ru: { to: 'Кому', hi: 'Привет из Еревана!', card: 'Открытка' },
-    en: { to: 'To', hi: 'Greetings from Yerevan!', card: 'Postcard' }
+    hy: { to: 'Ում', hi: 'Ջերմ բարևներ Երևանից', card: 'Բացիկ', fact: 'Փաստ' },
+    ru: { to: 'Кому', hi: 'Привет из Еревана!', card: 'Открытка', fact: 'Факт' },
+    en: { to: 'To', hi: 'Greetings from Yerevan!', card: 'Postcard', fact: 'Fact' }
   };
   var HAND = 'rgb(78,72,142)', PRINT = 'rgb(78,54,36)', RULE = 'rgba(78,54,36,0.45)';
   function hand(x, o, text, x0, y0, maxW, px, r, lineH) {   // «от руки»: курсив шрифта сайта, у каждого слова свой наклон, кегль и строка
@@ -467,9 +467,24 @@
     x.save(); x.globalAlpha = 0.82; x.globalCompositeOperation = 'multiply'; x.drawImage(lay, 0, pcy - 220); x.restore();
     // письмо «от руки»: ниже марки, на всю ширину
     var msg = o.line && String(o.line).trim() ? String(o.line).trim() : T.hi;
-    hand(x, o, msg, L0, sy0 + sh0 + 170, R0 - L0, 66, r, 98);
-    // «Кому»: печатная подпись и линейка; имя «от руки» на ней
+    var handEnd = hand(x, o, msg, L0, sy0 + sh0 + 170, R0 - L0, 66, r, 98);
+    // короткий факт о здании (building.json postcard.fact, e1.34): печатным шрифтом, под чертой — отдельно от письма «от руки»
+    var fact = o.fact && typeof o.fact === 'object' ? (o.fact[o.lang] || o.fact.en || '') : (o.fact || '');
     var ty = B0 - 170;
+    if (fact) {
+      var fy0 = handEnd + 56;
+      rule(x, L0, fy0, R0, 1.1);
+      x.font = fnt(o, 700, 22); x.fillStyle = PRINT; x.globalAlpha = 0.68; x.textAlign = 'left'; x.textBaseline = 'alphabetic';
+      if ('letterSpacing' in x) { x.letterSpacing = '1.4px'; x.fillText(T.fact.toUpperCase(), L0, fy0 + 34); x.letterSpacing = '0px'; } else x.fillText(T.fact.toUpperCase(), L0, fy0 + 34);
+      x.globalAlpha = 1;
+      var fl = fitLines(x, fact, 400, 30, 22, R0 - L0, 4, o);
+      x.font = fnt(o, 400, fl.px); x.fillStyle = PRINT; x.globalAlpha = 0.86;
+      var fyy = fy0 + 34 + 28;
+      fl.lines.forEach(function (l) { x.fillText(l, L0, fyy); fyy += fl.px * 1.34; });
+      x.globalAlpha = 1;
+      ty = Math.max(ty, fyy + 26);
+    }
+    // «Кому»: печатная подпись и линейка; имя «от руки» на ней
     x.font = fnt(o, 500, 30); x.fillStyle = PRINT; x.globalAlpha = 0.9; x.textAlign = 'left'; x.textBaseline = 'alphabetic';
     x.fillText(T.to, L0, ty); var tW = x.measureText(T.to).width + 18; x.globalAlpha = 1;
     rule(x, L0 + tW, ty + 8, R0, 1.4);

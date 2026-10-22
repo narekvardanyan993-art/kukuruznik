@@ -13,7 +13,7 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#f5ecda">
 <meta name="viewer-version" content="test">
-<meta name="engine-version" content="e1.33">
+<meta name="engine-version" content="e1.34">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Չկա">
 <meta property="og:url" content="https://chka.am/beta/tests/test-1/">
@@ -29,20 +29,20 @@
 <title>Թեստ-1 — փորձնական շենք | Չկա</title>
 <script>/* ?motion=1 — показать всё движение, даже если в системе включено «Уменьшить движение» (для проверки) */
 (function () { if (/[?&]motion=1/.test(location.search)) document.documentElement.setAttribute('data-motion', 'on'); })();</script>
-<link rel="preload" href="../../engine/welcome-loader.js?v=e1.33" as="script">
-<link rel="preload" href="../../engine/welcome-letters.js?v=e1.33" as="script">
-<link rel="preload" href="../../engine/fonts/NotoSerif-latin.woff2?v=e1.33" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.33" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.33" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../../engine/welcome-loader.js?v=e1.34" as="script">
+<link rel="preload" href="../../engine/welcome-letters.js?v=e1.34" as="script">
+<link rel="preload" href="../../engine/fonts/NotoSerif-latin.woff2?v=e1.34" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.34" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.34" as="font" type="font/woff2" crossorigin>
 <style>
   /* Один шрифт для hy/ru/en — Noto Serif: латиница и кириллица (Noto Serif) и армянский (Noto Serif Armenian)
      из одной системы дизайна, лицензия OFL (fonts/LICENSE.txt). Подключён локально, один вес 400–700. */
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../../engine/fonts/NotoSerif-latin.woff2?v=e1.33) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    src: url(../../engine/fonts/NotoSerif-latin.woff2?v=e1.34) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.33) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+    src: url(../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.34) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.33) format("woff2"); unicode-range: U+0308, U+0530-058F, U+2010, U+2024, U+25CC, U+FB13-FB17; }
+    src: url(../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.34) format("woff2"); unicode-range: U+0308, U+0530-058F, U+2010, U+2024, U+25CC, U+FB13-FB17; }
   :root {
     --font: "Chka Serif", "Noto Serif", serif;
     --paper: #f5ecda; --paper-2: #ede0c2; --ink: #2f2a25;
@@ -991,6 +991,16 @@
     transition: transform 280ms var(--in), opacity 220ms var(--in), visibility 0s linear 280ms;
   }
   #cardToast.on { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; visibility: visible; transition: transform 520ms var(--spring), opacity 300ms var(--out), visibility 0s; }
+  /* iOS без Web Share (Safari < 15 или открыто вне поддержки файлов): оверлей «зажми и сохрани» вместо попытки скачать (e1.34) */
+  #cardSaveOv { position: fixed; inset: 0; z-index: 98; display: flex; align-items: center; justify-content: center; padding: 24px;
+    background: rgba(20,16,10,0.72); backdrop-filter: blur(2px); }
+  #cardSaveOv[hidden] { display: none; }
+  .cso-wrap { max-width: 420px; width: 100%; max-height: 92vh; overflow-y: auto; background: var(--paper); border: 2px solid var(--ink);
+    border-radius: 18px 9px 18px 9px / 9px 18px 9px 18px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+  #cardSaveOvH { margin: 0; font: 700 16px/1.3 var(--font); color: var(--ink); text-align: center; }
+  .cso-imgs { display: flex; flex-direction: column; gap: 12px; }
+  .cso-imgs img { width: 100%; border-radius: 10px 5px 10px 5px / 5px 10px 5px 10px; border: 1.5px solid rgba(47,42,37,0.3); display: block; -webkit-touch-callout: default; }
+  .cso-imgs img[hidden] { display: none; }
   @media (prefers-reduced-motion: reduce) {
     html:not([data-motion="on"]) #cardCfg { transform: none; opacity: 0; transition: opacity 200ms var(--in), visibility 0s linear 200ms; }
     html:not([data-motion="on"]) body.card-open #cardCfg { opacity: 1; transition: opacity 260ms var(--out), visibility 0s; }
@@ -1004,8 +1014,8 @@
 <body>
 <script>try { if (localStorage.getItem('chka-panel') === 'collapsed') document.body.classList.add('panel-collapsed'); } catch (e) {}   /* панель, свёрнутая в прошлый раз, — сразу свёрнутой, без анимации закрытия */</script>
 
-<script src="../../engine/welcome-letters.js?v=e1.33"></script>
-<script src="../../engine/welcome-loader.js?v=e1.33"></script>
+<script src="../../engine/welcome-letters.js?v=e1.34"></script>
+<script src="../../engine/welcome-loader.js?v=e1.34"></script>
 <script>
 /* ===================== CONFIG =====================
    Все параметры эффекта «3D-фото» собраны здесь, ничего похожего
@@ -1276,14 +1286,24 @@ var CONFIG = {
    "hy": "Ձեր տողը"
   },
   "cardSave": {
-   "ru": "Сохранить",
-   "en": "Save",
-   "hy": "Պահպանել"
+   "ru": "Сохранить открытку",
+   "en": "Save postcard",
+   "hy": "Պահպանել բացիկը"
   },
   "cardReady": {
    "ru": "Открытка готова — нажмите, чтобы сохранить",
    "en": "Postcard ready — tap to save",
    "hy": "Բացիկը պատրաստ է․ սեղմեք՝ պահպանելու համար"
+  },
+  "cardSaveHold": {
+   "ru": "Нажмите и удержите картинку, затем «Сохранить изображение»",
+   "en": "Press and hold the image, then “Save Image”",
+   "hy": "Սեղմեք և պահեք նկարը, ապա՝ «Պահպանել նկարը»"
+  },
+  "cardSaveClose": {
+   "ru": "Закрыть",
+   "en": "Close",
+   "hy": "Փակել"
   },
   "cardGrpDate": {
    "ru": "Дата",
@@ -2256,12 +2276,12 @@ var CONFIG = {
   }
  }
 };
-CONFIG.ENGINE_V = 'e1.33';
+CONFIG.ENGINE_V = 'e1.34';
 /* e1.15 (s9): Safari на iPhone показывал старую страницу из кэша (восстановленная вкладка) — со старыми настройками при новом движке
    (у Ленина всплыли отменённые круги с цифрами). Страница сверяет свою версию с engine/VERSION (без кэша) при открытии, при возврате
    из кэша вкладок и после 10+ мин в фоне; новее — один раз перезагружается на свежий адрес. */
 (function () {
-  var V = 'e1.33', E = '../../engine/', hid = 0;
+  var V = 'e1.34', E = '../../engine/', hid = 0;
   function chk() {
     if (!window.fetch) return;
     fetch(E + 'VERSION?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
@@ -2439,6 +2459,7 @@ document.querySelectorAll('.chips').forEach(function (g) { g.querySelectorAll('.
   </section>
 </div>
 <button type="button" id="cardToast"><span></span></button>
+<div id="cardSaveOv" role="dialog" aria-modal="true" aria-labelledby="cardSaveOvH" hidden><div class="cso-wrap"><p id="cardSaveOvH" data-i18n="cardSaveHold">Нажмите и удержите картинку, затем «Сохранить изображение»</p><div class="cso-imgs"><img id="cardSaveOvF" alt=""><img id="cardSaveOvB" alt="" hidden></div><button type="button" id="cardSaveOvX" class="p-btn" data-i18n="cardSaveClose">Закрыть</button></div></div>
 <button type="button" id="immExit" aria-label="Выйти" data-i18n-title="close"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M11 5H5v6M21 5h6v6M11 27H5v-6M21 27h6v-6"/></svg></button>
 <div id="bottomBar"><button type="button" id="flagBtnB" class="flag-btn sh-btn" aria-label="Парад" data-i18n-title="flag"><span class="pb-tag sh-tag" aria-hidden="true"><svg class="pb-bg" viewBox="0 0 58 58" preserveAspectRatio="none"><path class="pb-fill" d="M29 4.6 C43.4 3.9 53.9 14.3 53.6 28.8 C53.3 43.6 43 53.7 28.6 53.4 C14.1 53.1 4.3 42.8 4.6 28.6 C4.9 14.5 15 5.3 29 4.6Z"/><path class="pb-line" d="M29 4.6 C43.4 3.9 53.9 14.3 53.6 28.8 C53.3 43.6 43 53.7 28.6 53.4 C14.1 53.1 4.3 42.8 4.6 28.6 C4.9 14.5 15 5.3 29 4.6Z"/><path class="pb-line2" d="M30.4 6.4 C42.6 6.6 51.4 15.4 51.6 27.6 M50.8 33 C48.6 44 40 51.2 29.4 51.6 M8.2 21.6 C10.6 13.4 17.6 7.8 25.4 6.9"/></svg><svg class="sh-ic" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><g class="sh-play"><path d="M5.6 27 L18.9 13.4" stroke-width="3.3"/><path d="M6.9 27.9 L19.9 14.6" stroke-width="0.8" opacity=".5"/><path d="M15.2 15.5 L17.7 18" stroke-width="1.3" opacity=".7"/><path class="sh-star" d="M23.4 3 Q24.2 7.6 28.8 8.6 Q24.2 9.6 23.4 14.2 Q22.6 9.6 18 8.6 Q22.6 7.6 23.4 3Z" fill="currentColor" fill-opacity=".2" stroke-width="1.8"/><path class="sh-sp1" d="M27.6 17 Q27.9 18.5 29.4 18.8 Q27.9 19.1 27.6 20.6 Q27.3 19.1 25.8 18.8 Q27.3 18.5 27.6 17Z" stroke-width="1.1"/><path class="sh-sp2" d="M10.6 5.4 Q10.8 6.6 12 6.8 Q10.8 7 10.6 8.2 Q10.4 7 9.2 6.8 Q10.4 6.6 10.6 5.4Z" stroke-width="1"/><path d="M15.4 3.6 h.01 M29.6 12.8 h.01" stroke-width="2"/></g><g class="sh-stop"><path d="M9 9 Q16 8.4 23 9 Q23.6 16 23 23 Q16 23.6 9 23 Q8.4 16 9 9Z" fill="currentColor" fill-opacity=".16" stroke-width="2.2"/><path d="M10.2 10.3 Q16 9.8 21.8 10.2 M21.9 10.8 Q22.3 16 21.8 21.4" stroke-width="0.8" opacity=".5"/></g></g></svg><svg class="sh-bar" viewBox="0 0 66 8" preserveAspectRatio="none"><path class="rt" pathLength="3" d="M12 4 Q33 2.6 54 4"/><path class="rs rs0" pathLength="3" d="M12 4 Q33 2.6 54 4"/><path class="rs rs1" pathLength="3" d="M12 4 Q33 2.6 54 4"/><path class="rs rs2" pathLength="3" d="M12 4 Q33 2.6 54 4"/></svg><svg class="sh-arrow" viewBox="0 0 70 60"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path class="pa1" pathLength="1" d="M6 6 Q8 30 30 40 Q40 44 52 46" stroke-width="2.6"/><path class="pa2" pathLength="1" d="M44 40.4 L52.6 46.2 L43.6 50.6" stroke-width="2.6"/><path class="pa3" pathLength="1" d="M7.4 9.6 Q10 30 30.8 38.6" stroke-width="0.8" opacity=".5"/></g></svg></span></button><div id="barTitle"></div><a id="homeBtn" class="arrow-btn" href="../../../" aria-label="На главную"><svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6.2 20.8 Q13 14.4 20 8.4 Q27 14.6 33.8 20.6" stroke-width="2.8"/><path d="M26.4 13.6 V8.2 h3.4 V16.6" stroke-width="2.2"/><path d="M28.6 5.6 q-1.6 -1.6 0.2 -3.2" stroke-width="1.1" opacity=".6"/><path d="M11 18.6 Q10.8 25.6 11.1 32.2 H29 Q29.3 25.4 29 18.4" stroke-width="2.8"/><path d="M17.2 32 V24.4 Q20 23.6 22.8 24.4 V32" stroke-width="2.3"/><path d="M13.6 21 h2.6 v2.6 h-2.6z" stroke-width="1.4"/><path d="M7.3 21.6 Q13.6 15.6 20.4 9.6 M12 19.6 Q11.9 26 12.1 32.9 H29.6" stroke-width="1.05" opacity=".5"/></g></svg></a></div>
 <main id="view">
@@ -2460,10 +2481,10 @@ document.querySelectorAll('.chips').forEach(function (g) { g.querySelectorAll('.
 </main>
 </div>
 
-<script src="../../engine/wall-data.js?v=e1.33" defer></script>
-<script src="../../engine/wall.js?v=e1.33" defer></script>
-<script src="../../engine/postcard.js?v=e1.33" defer></script>
-<script src="../../engine/viewer.js?v=e1.33" defer>
+<script src="../../engine/wall-data.js?v=e1.34" defer></script>
+<script src="../../engine/wall.js?v=e1.34" defer></script>
+<script src="../../engine/postcard.js?v=e1.34" defer></script>
+<script src="../../engine/viewer.js?v=e1.34" defer>
 </script>
 <script>
 // e1.13: курсор ПК — чернильный кружок у острия плавно растёт над кликабельным, при загрузке рядом рисует себя чернильный круг
