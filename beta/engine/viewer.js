@@ -2906,6 +2906,8 @@
   // «Сохранить» — всегда по текущим настройкам: если сцена та же (менялись только год/тексты/язык/плёнка/оборот) — открытка собирается и
   // уходит в «Поделиться» прямо в нажатии; если менялись время или погода — сначала «Показать», потом (телефон, жест уже потерян) плашка
   // «Открытка готова» со вторым нажатием. Лицо: название, годы, chka.am/<здание>; оборот: номер экспоната, личный номер, «редкая», письмо и «Кому».
+  // e1.35 (баги iPhone): праздник и «Показать» — на том кадре, где стоит человек (без перехода на кадр postcard.show); с оборотом — два
+  // нажатия, по файлу на «Поделиться» (лицо, потом «Сохранить оборот»), файлы собираются заранее; своего переключателя языка нет — язык страницы.
   var cardBtn = document.getElementById('cardBtn'), cardGo = document.getElementById('cardGo'), cardShow = document.getElementById('cardShow');
   var cardCfg = document.getElementById('cardCfg'), cardPrev = document.getElementById('cardPrev'), cardPrevB = document.getElementById('cardPrevB');
   var cardLineIn = document.getElementById('cardLine'), cardToIn = document.getElementById('cardTo'), cardTodIn = document.getElementById('cardTod');
@@ -2924,11 +2926,11 @@
   })();
   var cardSet = (function () { var s = null; try { s = JSON.parse(lsGet('chka-card') || 'null'); } catch (e) {} s = s && typeof s === 'object' ? s : {};
     var yr = Math.round(+s.year); yr = yr >= CARD_YEARS[0] && yr <= CARD_YEARS[1] ? yr : null;
-    return { lang: CONFIG.LANGS.indexOf(s.lang) >= 0 ? s.lang : null, line: typeof s.line === 'string' ? s.line.slice(0, 40) : '', film: false,   // e1.32: «плёнки» нет — её роль играет старая бумага
+    return { lang: null, line: typeof s.line === 'string' ? s.line.slice(0, 40) : '', film: false,   // e1.32: «плёнки» нет — её роль играет старая бумага
      
       date: s.date === 'year' ? 'year' : 'today', year: yr, back: !!s.back, to: typeof s.to === 'string' ? s.to.slice(0, 30) : '', show: !!s.show }; })();
   function cardSave() { lsSet('chka-card', JSON.stringify(cardSet)); }
-  function cardLang() { return cardSet.lang || currentLang; }
+  function cardLang() { return cardSet.lang || currentLang; }   // e1.35: своего переключателя языка нет — надписи на языке страницы (lang ставит только __card.make)
   function cardYear() { return cardSet.year || Math.round((CARD_YEARS[0] + CARD_YEARS[1]) / 2); }
   function cardNo() { var n = Math.round(+(CONFIG.POSTCARD || {}).no); return n > 0 ? (n < 10 ? '00' : n < 100 ? '0' : '') + n : ''; }
   var shareOK = !!(navigator.share && navigator.canShare) && window.matchMedia('(pointer: coarse)').matches;   // ПК — скачивание файла
@@ -3082,11 +3084,25 @@
   // «Во время праздника» (e1.31, 9г): парад («Чудо») на кадре и секунде из building.json (postcard.show { frame, t } — самый эффектный момент, измерен
   // настоящим рендером, tests/lenin/report/s31/show.md). Сцена на минуту переезжает на кадр парада, парад стартует и замораживается на секунде t,
   // кадр снимается, потом парад обрывается, кадр и время суток/погода возвращаются как были. Время суток и погода из «Момента» ложатся поверх.
-  function cardShowCfg(w) {   // { frame, t, style } или null — у здания праздника для открытки нет / слабое устройство / «уменьшить движение»
-    var S = (w && w.showCfg) || (CONFIG.POSTCARD || {}).show, st = S && PARADE_STYLES[S.frame];
-    if (!S || !st || !useGL || glLost || perfLevel >= 1 || reduced() || !window.Details || !window.Details.parade) return null;
-    var night = !!w && wantP(w) > 1.6, alt = night && S.night && PARADE_STYLES[S.night.frame] ? S.night : S;   // ночью может быть свой момент (S.night)
-    return { frame: alt.frame, t: alt.t, style: PARADE_STYLES[alt.frame], base: !!(w && w.showCfg && w.showCfg.base) };
+  // e1.35 (баг Нарека с iPhone): раньше праздник всегда снимался на кадре postcard.show.frame (у Ленина — кадр 1) — с включённым «Праздником»
+  // любое «Показать» перескакивало с кадра, на котором стоял человек, на кадр 1. Теперь праздник — на ТЕКУЩЕМ кадре (свой парад кадра),
+  // секунда — замер s31 для этого кадра (postcard.show.frames { "<кадр>": { t, night } }); у кадра без парада кнопки «Праздник» нет.
+  // Кадр открытки — всегда тот, на котором открыли окно. Явный w.showCfg { frame, t } — только для замеров (probeShow), там переход на кадр есть.
+  var SHOW_T_DEFAULT = 15;   // секунда показа, если у кадра нет замера (парады идут 20–26 с, середина)
+  function cardShowCfg(w) {   // { frame, t, style } или null — у здания праздника для открытки нет / у кадра нет парада / слабое устройство / «уменьшить движение»
+    var X = w && w.showCfg, S = X || (CONFIG.POSTCARD || {}).show;
+    if (!S || !useGL || glLost || perfLevel >= 1 || reduced() || !window.Details || !window.Details.parade) return null;
+    var night = !!w && wantP(w) > 1.6;
+    if (X) {   // замер: кадр и секунда заданы явно
+      var alt = night && X.night && PARADE_STYLES[X.night.frame] ? X.night : X;
+      return PARADE_STYLES[alt.frame] ? { frame: alt.frame, t: alt.t, style: PARADE_STYLES[alt.frame], base: !!X.base } : null;
+    }
+    var fi = frameIndex, st = PARADE_STYLES[fi];
+    if (!st) return null;
+    var m = S.frames && S.frames[String(fi)], t = null;
+    if (m) t = night && m.night != null ? m.night : m.t;
+    else if (S.frame === fi) t = night && S.night && S.night.frame === fi ? S.night.t : S.t;
+    return { frame: fi, t: t != null ? t : SHOW_T_DEFAULT, style: st, base: false };
   }
   // Праздник — главное на кадре (лента дыма, знамя): штемпель его не закрывает. Карта «праздник» = то, что парад изменил в кадре
   // (снимок с парадом минус тот же кадр без него, 108×192, края +1 ячейка); у здания своя карта (cardBuildingMask).
@@ -3112,11 +3128,12 @@
     S.frame = frameIndex;
     var p = sceneApply(w);
     if (sh) { stopParade(); if (window.Details.paradeBusy()) window.Details.paradeStop(); }
-    var go = sh ? waitFade().then(function () { return frameJump(sh.frame); }) : Promise.resolve();
+    // e1.35: переход на другой кадр — только у замера (явный w.showCfg); у человека праздник снимается на том же кадре (frame === frameIndex)
+    var go = sh ? waitFade().then(function () { if (!w.showCfg) { sh = cardShowCfg(w); S.frame = frameIndex; } return sh && sh.frame !== frameIndex ? frameJump(sh.frame) : null; }) : Promise.resolve();
     return go.then(function () {
       return p > 0.05 ? Promise.race([loadStates(frameIndex), new Promise(function (r) { setTimeout(r, 8000); })]) : null;
     }).then(function () { return nextFrames(3); }).then(function () {
-      if (!sh) { out.push({ src: captureView(), mask: cardBuildingMask() }); return; }
+      if (!sh) { out.push({ src: captureView(), mask: cardBuildingMask(), frame: frameIndex }); return; }
       if (sh.base) { out.push({ src: captureView(), mask: cardBuildingMask(), t: -1 }); return; }   // замер: тот же кадр без парада
       var plain = captureView();   // тот же кадр без парада — для карты «занято праздником»
       if (!window.Details.parade(function () {}, sh.style)) { out.push({ src: captureView(), mask: cardBuildingMask(), noShow: true }); return; }
@@ -3124,7 +3141,7 @@
       list.forEach(function (t) {
         chain = chain.then(function () { window.Details.paradeFreeze(t); return nextFrames(2); }).then(function () {
           var cur = captureView(), bm = cardBuildingMask();
-          out.push({ src: cur, mask: bm, keep: cur && plain ? showMaskOf(plain, cur) : null, t: t });
+          out.push({ src: cur, mask: bm, keep: cur && plain ? showMaskOf(plain, cur) : null, t: t, frame: frameIndex });
         });
       });
       return chain.then(function () { window.Details.paradeStop(); });
@@ -3158,6 +3175,52 @@
     for (var j = 0; j < b.length; j++) a[j] = b.charCodeAt(j);
     return new File([a], cardName(back ? '-back.jpg' : '.jpg'), { type: 'image/jpeg', lastModified: Date.now() });
   }
+  // e1.35 (баг Нарека: на iPhone через «Поделиться → Сохранить» в Фото попал только оборот). Share с двумя файлами на iOS ненадёжен
+  // (WebKit 255641: у нескольких файлов пропадал пункт «Сохранить N изображений», iOS 16; 231995/245854: промис share не завершался после
+  // «Сохранить изображение»), а проверить, какой файл iOS выкинул, нельзя. Поэтому — по одному файлу на share, в два нажатия:
+  // «Сохранить открытку» → лицо, кнопка становится «Сохранить оборот» → оборот. Оба JPEG собираются ЗАРАНЕЕ (в простое после превью,
+  // toBlob в фоне), нажатие сразу зовёт share — между тапом и share нет кодирования. Пустой файл (iOS при нехватке памяти холстов отдаёт
+  // пустой холст) не отдаём: собираем сторону заново.
+  var CARD_MINB = 40 * 1024;   // настоящая сторона открытки 1080×1920 — сотни КБ; меньше 40 КБ — пустой/однотонный холст
+  var cardFiles = { v: 0, front: null, back: null, t: 0 };
+  function encodeCard(cv, back, v) {   // → Promise<File|null>: JPEG ≤ ~1 МБ, асинхронно (toBlob), null — устарело или пусто
+    var qs = [0.92, 0.86, 0.8, 0.74, 0.68, 0.6];
+    return new Promise(function (res) {
+      (function step(i) {
+        if (v !== cardFiles.v || !cv.width) { res(null); return; }
+        try { cv.toBlob(function (b) {
+          if (v !== cardFiles.v) { res(null); return; }
+          if (b && b.size > CARD_MAXB && i + 1 < qs.length) { step(i + 1); return; }
+          res(b && b.size >= CARD_MINB ? new File([b], cardName(back ? '-back.jpg' : '.jpg'), { type: 'image/jpeg', lastModified: Date.now() }) : null);
+        }, 'image/jpeg', qs[i]); } catch (e) { res(null); }
+      })(0);
+    });
+  }
+  function cardFilesPrep() {   // после каждой сборки превью: старые файлы — в сторону, новые — в простое (не мешая анимации окна)
+    cardFiles.v++; cardFiles.front = cardFiles.back = null; clearTimeout(cardFiles.t); goStep(false);
+    if (!shareOK) return;
+    var v = cardFiles.v, c = cfg.card, b = cfg.back;
+    cardFiles.t = setTimeout(function () {
+      if (v !== cardFiles.v || !c) return;
+      encodeCard(c, false, v).then(function (f) { if (v === cardFiles.v) cardFiles.front = f; return b ? encodeCard(b, true, v) : null; })
+        .then(function (f) { if (v === cardFiles.v && b) cardFiles.back = f; });
+    }, 350);
+  }
+  function cardFileNow(back) {   // готовый файл стороны или собрать сейчас (синхронно, в жесте); пустой — пересобрать сторону один раз
+    var f = back ? cardFiles.back : cardFiles.front;
+    if (f) return f;
+    var cv = back ? cfg.back : cfg.card; if (!cv) return null;
+    f = fileFromCanvas(cv, back);
+    if (f.size < CARD_MINB) { cv = composeCard(cfg.src, back ? { back: true } : undefined); f = fileFromCanvas(cv, back); if (back) cfg.back = cv; else cfg.card = cv; }
+    return f.size >= CARD_MINB ? f : null;
+  }
+  var goBack = false;   // следующий тап «Сохранить» — оборот (второй шаг)
+  function goStep(on) {
+    goBack = !!on && !!cfg.back;
+    var sp = cardGo && cardGo.querySelector('span'), k = goBack ? 'cardSaveBack' : 'cardSave', U = CONFIG.UI_I18N;
+    if (sp && sp.getAttribute('data-i18n') !== k) { sp.setAttribute('data-i18n', k); if (U[k]) sp.textContent = U[k][currentLang]; }
+    if (cardGo) cardGo.classList.toggle('cc-go2', goBack);
+  }
   function downloadBlob(blob, name) {
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = name;
@@ -3185,11 +3248,11 @@
     cardToast.querySelector('span').textContent = CONFIG.UI_I18N.cardReady[currentLang];
     cardToast.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(hideToast, 9000);
   }
-  function shareFile(file) {
+  function shareFile(file, onAbort) {
     var files = Array.isArray(file) ? file : [file], p;
     try { p = navigator.share({ files: files }); } catch (e) { p = Promise.reject(e); }
     return p.then(hideToast, function (e) {
-      if (e && e.name === 'AbortError') { hideToast(); return; }           // человек закрыл меню сам
+      if (e && e.name === 'AbortError') { hideToast(); if (onAbort) onAbort(); return; }           // человек закрыл меню сам
       if (e && e.name === 'NotAllowedError') { showToast(files); return; }   // нет жеста — плашка «Открытка готова»
       hideToast(); files.forEach(function (f) { downloadBlob(f, f.name); });
     });
@@ -3199,11 +3262,12 @@
   // без поддержки файлов) — оверлей «зажми и сохрани» (JPEG card-front.jpg/card-back.jpg готовы в самом оверлее, качать не нужно,
   // а на iOS программное скачивание часто просто открывает картинку); ПК — PNG (с оборотом — два PNG)
   function deliverCard(cv, back) {
-    if (shareOK) {
-      var fs = [fileFromCanvas(cv)];
-      if (back) fs.push(fileFromCanvas(back, true));
-      if (navigator.canShare({ files: fs })) return shareFile(fs);
-      if (fs.length > 1 && navigator.canShare({ files: [fs[0]] })) return shareFile([fs[0]]);   // два файла не умеет — хотя бы лицо
+    if (shareOK) {   // e1.35: один файл на share; с оборотом — два нажатия (лицо, потом «Сохранить оборот»)
+      var second = goBack && !!back, f = cardFileNow(second);
+      if (f && navigator.canShare({ files: [f] })) {
+        goStep(!second && !!back);   // после лица кнопка сразу «Сохранить оборот» (не ждём промис: на части iOS он не завершается)
+        return shareFile(f, function () { goStep(second); });   // закрыли меню — шаг остаётся тем же
+      }
     }
     if (touchNoShare && showSaveOverlay(cv, back)) return;
     if (touchNoShare || IOS) {   // телефон без оверлея (разметка не нашлась) — хотя бы JPEG с понятным именем, не PNG
@@ -3221,7 +3285,6 @@
   // окно: отметки, превью, «Показать»
   function cfgMarks() {
     var w = cfg.want || sceneWant(), U = CONFIG.UI_I18N, night = wantP(w) > 1.2;
-    cardCfg.querySelectorAll('[data-clang]').forEach(function (b) { var on = b.getAttribute('data-clang') === cardLang(); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
     cardCfg.querySelectorAll('[data-cdate]').forEach(function (b) { var on = b.getAttribute('data-cdate') === cardSet.date; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
     cardCfg.querySelectorAll('[data-cwx]').forEach(function (b) {
       var k = b.getAttribute('data-cwx'), on = !!w.wx[k];
@@ -3258,11 +3321,15 @@
     });
     cardCfg.classList.toggle('cc-two', !!cfg.back);
   }
+  // e1.35: старые стороны открытки освобождать (iOS держит память холстов до сборки мусора; при нехватке новый холст — пустой).
+  // С задержкой: превью и кодирование уже сделали копии, но toBlob в фоне мог ещё не дочитать холст.
+  function cardFree(c) { if (c && c.width) setTimeout(function () { if (c !== cfg.card && c !== cfg.back) { c.width = 0; c.height = 0; } }, 2500); }
   function cfgCompose() {   // открытки из готового снимка кадра (синхронно)
     cfg.rare = wantRare(cfg.want) || luck();
+    cardFree(cfg.card); cardFree(cfg.back);
     cfg.card = composeCard(cfg.src);
     cfg.back = cardSet.back ? composeCard(cfg.src, { back: true }) : null;
-    cfg.dirty = false; drawPrev(); cfgMeta(); cfgMarks();
+    cfg.dirty = false; drawPrev(); cfgMeta(); cfgMarks(); cardFilesPrep();
   }
   // e1.32 (9д): всё 2D (язык, дата, год, оборот, своя строка, «Кому») перерисовывается сразу из готового снимка — без «Показать»;
   // «Показать» нужен только для сцены (время суток, погода, праздник). Перерисовка — раз в кадр, сколько бы букв ни набрали.
@@ -3275,9 +3342,9 @@
     r2.raf = requestAnimationFrame(function () {
       r2.raf = 0; var f = r2.front, m = r2.mode; r2.front = false; r2.mode = 'none';
       if (!cfg.src) return;
-      if (f) cfg.card = composeCard(cfg.src);
-      cfg.back = cardSet.back ? composeCard(cfg.src, { back: true }) : null;
-      drawPrev(m); cfgMeta(); cfgMarks();
+      if (f) { cardFree(cfg.card); cfg.card = composeCard(cfg.src); }
+      cardFree(cfg.back); cfg.back = cardSet.back ? composeCard(cfg.src, { back: true }) : null;
+      drawPrev(m); cfgMeta(); cfgMarks(); cardFilesPrep();
     });
   }
   function busy(on) { cfg.busy = on; cardCfg.classList.toggle('cc-busy', on); cfgMarks(); }
@@ -3288,7 +3355,7 @@
     if (key === cfg.srcKey) return fonts.then(cfgCompose);
     busy(true);
     return fonts.then(function () { return shoot(cfg.want); }).then(function (r) {
-      if (r.src) { cfg.src = r.src; cfg.mask = r.mask; cfg.keep = r.keep || null; cfg.srcKey = key; cfg.srcWant = JSON.parse(JSON.stringify(cfg.want)); }
+      if (r.src) { cfg.src = r.src; cfg.mask = r.mask; cfg.keep = r.keep || null; cfg.srcKey = key; cfg.srcWant = JSON.parse(JSON.stringify(cfg.want)); cfg.srcFrame = r.frame != null ? r.frame : frameIndex; }
       busy(false); cfgCompose(); cardFlashNow();
     }, function () { busy(false); });
   }
@@ -3296,8 +3363,8 @@
   function openCfg() {
     if (!window.ChkaPostcard) return;
     var src = captureView(); if (!src) return;
-    cfg.want = sceneWant(); cfg.src = src; cfg.mask = cardBuildingMask(); cfg.keep = null; cfg.srcKey = wantKey(cfg.want); cfg.srcWant = JSON.parse(JSON.stringify(cfg.want));
-    cfg.card = cfg.back = null; cfg.busy = false;
+    cfg.want = sceneWant(); cfg.src = src; cfg.mask = cardBuildingMask(); cfg.keep = null; cfg.srcKey = wantKey(cfg.want); cfg.srcWant = JSON.parse(JSON.stringify(cfg.want)); cfg.srcFrame = frameIndex;
+    cardFree(cfg.card); cardFree(cfg.back); cfg.card = cfg.back = null; cfg.busy = false;
     cfg.seed = ChkaPostcard.seed ? ChkaPostcard.seed() : undefined;
     cfg.code = ChkaPostcard.code ? ChkaPostcard.code(cfg.seed) : '';
     var dp = Math.min(2, window.devicePixelRatio || 1);
@@ -3366,7 +3433,6 @@
     cardCfg.addEventListener('focusout', function () { setTimeout(fit, 120); });
   })();
   // настройки — только запоминаются (без перерисовки); «Показать» подсвечивается
-  cardCfg.querySelectorAll('[data-clang]').forEach(function (b) { b.addEventListener('click', function () { cardSet.lang = b.getAttribute('data-clang'); cardSave(); cfgMarks(); redraw2D(true, 'soft'); }); });
   cardCfg.querySelectorAll('[data-cdate]').forEach(function (b) { b.addEventListener('click', function () { cardSet.date = b.getAttribute('data-cdate'); cardSave(); cfgMarks(); redraw2D(true, 'soft'); }); });
   function setYear(v) {
     v = clamp(Math.round(v), CARD_YEARS[0], CARD_YEARS[1]);
@@ -3408,20 +3474,26 @@
   cardShow.addEventListener('click', function () { showNow(); });
   cardGo.addEventListener('click', function () {   // «Сохранить» — по текущим настройкам, даже без «Показать»
     if (!cfg.src || cfg.busy) return;
-    if (wantKey(cfg.want) === cfg.srcKey && cardFontsReady(cardLang())) {   // сцена та же — собрать и отдать прямо в нажатии
-      cfgCompose();
+    if (wantKey(cfg.want) === cfg.srcKey && cardFontsReady(cardLang())) {   // сцена та же — отдать прямо в нажатии
+      if (r2.raf) { cancelAnimationFrame(r2.raf); r2.raf = 0; r2.front = false; r2.mode = 'none'; cfgCompose(); }   // перерисовка ещё не прошла — собрать сейчас
+      else if (!cfg.card) cfgCompose();   // e1.35: превью уже собрано по текущим настройкам — не пересобирать (готовые файлы пропали бы)
       deliverCard(cfg.card, cfg.back);
       cardFlashNow(); goDone();
       return;
     }
     showNow().then(function () {   // время/погода другие (или шрифты не готовы) — сначала снять; жест уже потерян → на телефоне плашка «готово»
       if (!cfg.card) return;
-      if (shareOK) showToast(cfg.back ? [fileFromCanvas(cfg.card), fileFromCanvas(cfg.back, true)] : fileFromCanvas(cfg.card));
+      if (shareOK) { var f = cardFileNow(false); if (f) { showToast(f); goStep(!!cfg.back); } }   // e1.35: лицо — по плашке, оборот — второй кнопкой
       else deliverCard(cfg.card, cfg.back);
       goDone();
     });
   });
-  window.__cardOnLang = function () { if (bodyEl.classList.contains('card-open')) { cfgMarks(); cfgMeta(); } };
+  window.__cardOnLang = function () {   // e1.35: сменили язык страницы — открытка (лицо и оборот) перерисовывается на нём же
+    goStep(false);
+    if (!bodyEl.classList.contains('card-open')) return;
+    cfgMarks(); cfgMeta();
+    if (cardFontsReady(cardLang())) redraw2D(true, 'soft'); else cardFontsLoad().then(function () { if (bodyEl.classList.contains('card-open')) redraw2D(true, 'soft'); });
+  };
   // шрифты открытки — в простое после загрузки страницы (нажатие потом не ждёт сеть)
   setTimeout(function () { (window.requestIdleCallback || function (f) { setTimeout(f, 1) })(function () { cardFontsLoad().then(cardPaperWhenLoaded); FRAMES.forEach(function (F, i) { setTimeout(function () { cardBldLoad(i); }, 300 * i); }); }); }, 4000);
   window.__card = {   // для проверки (report s26–s30): открытка с заданными настройками без «Поделиться»; dataURL JPEG/PNG
@@ -3436,7 +3508,7 @@
     fontsReady: function (l) { return cardFontsReady(l || cardLang()); }, fontsLoad: cardFontsLoad, paperReady: cardPaperReady, paperLoad: cardPaperLoad,bldLoad: function () { FRAMES.forEach(function (F, i) { cardBldLoad(i); }); return new Promise(function (res) { var n = 0; (function w() { if (FRAMES.every(function (F, i) { return cardBld[i] !== 'loading'; }) || ++n > 100) res(); else setTimeout(w, 100); })(); }); }, mask: cardBuildingMask, safe: function () { return ChkaPostcard.SAFE; },
     open: openCfg, close: closeCfg, show: showNow,
     want: function (w) { if (w) { cfg.want = w; dirty(); } return cfg.want; },
-    state: function () { return { open: bodyEl.classList.contains('card-open'), rare: cfg.rare, seed: cfg.seed, code: cfg.code, time: cfg.want ? cardTime(cfg.want) : '', want: cfg.want, srcKey: cfg.srcKey, dirty: cfg.dirty, busy: cfg.busy, back: !!cfg.back, years: CARD_YEARS, set: JSON.parse(JSON.stringify(cardSet)), no: cardNo(), mom: MOM.map(function (m) { return m.k; }), wx: CWX, showOn: !!(cfg.want && cfg.want.show) }; },
+    state: function () { return { open: bodyEl.classList.contains('card-open'), srcFrame: cfg.srcFrame, step: goBack ? 'back' : 'front', filesReady: { front: !!cardFiles.front, back: !!cardFiles.back }, rare: cfg.rare, seed: cfg.seed, code: cfg.code, time: cfg.want ? cardTime(cfg.want) : '', want: cfg.want, srcKey: cfg.srcKey, dirty: cfg.dirty, busy: cfg.busy, back: !!cfg.back, years: CARD_YEARS, set: JSON.parse(JSON.stringify(cardSet)), no: cardNo(), mom: MOM.map(function (m) { return m.k; }), wx: CWX, showOn: !!(cfg.want && cfg.want.show) }; },
     // замер «Момента» (s30): применить { p | s, wx }, снять кадр без табличек, вернуть сцену; ответ — маленькая копия 270×480 PNG
     probe: function (w) { return shoot(w).then(function (r) { if (!r.src) return null; var c = document.createElement('canvas'); c.width = 270; c.height = 480; c.getContext('2d').drawImage(r.src, 0, 0, 270, 480); return c.toDataURL('image/png'); }); },
     // замер праздника (s31): w как у probe + show: true; ts — секунды показа; ответ — список копий 270×480 PNG (или полного размера, если full)

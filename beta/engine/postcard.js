@@ -31,6 +31,9 @@
     return function () { a = (a + 0x6D2B79F5) | 0; var t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   }
   function mk(w, h) { var c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+  // e1.35: временный холст освобождать сразу (iOS держит память холстов до сборки мусора, общий лимит ~384 МБ — лицо открытки
+  // создавало 3 полноразмерных холста на каждую сборку; при нехватке Safari молча отдаёт пустой холст)
+  function free(c) { if (c) { c.width = 0; c.height = 0; } }
   function fnt(o, wgt, px) { return wgt + ' ' + Math.round(px) + 'px ' + o.font; }
   function pad2(n) { return (n < 10 ? '0' : '') + n; }
 
@@ -111,7 +114,7 @@
     x.save(); x.globalCompositeOperation = 'multiply'; x.globalAlpha = 0.34; x.drawImage(paper, 0, 0, W, H); x.restore();
     var e = mk(W, H), ex = e.getContext('2d');
     ex.drawImage(paper, 0, 0, W, H); ex.globalCompositeOperation = 'destination-in'; ex.drawImage(paperEdgeMask(), 0, 0);
-    x.drawImage(e, 0, 0);
+    x.drawImage(e, 0, 0); free(e);
   }
 
   // ---------- музейная табличка ----------
@@ -370,7 +373,7 @@
     if (pl.waves !== false) { if (dir < 0) waves(lx, cx - 360, cx - 130, cy, r, ink); else waves(lx, cx + 130, cx + 360, cy, r, ink); }
     lx.drawImage(stamp(o, r, ink), cx - 150, cy - 150);
     lx.restore();
-    x.save(); x.globalAlpha = dark ? 0.78 : 0.84; x.globalCompositeOperation = dark ? 'source-over' : 'multiply'; x.drawImage(lay, 0, cy - 220); x.restore();
+    x.save(); x.globalAlpha = dark ? 0.78 : 0.84; x.globalCompositeOperation = dark ? 'source-over' : 'multiply'; x.drawImage(lay, 0, cy - 220); x.restore(); free(lay);
     return { x: pl.box.x, y: pl.box.y, w: pl.box.w, h: pl.box.h, k: k };
   }
 
@@ -464,7 +467,7 @@
     var lay = mk(W, 440), l2 = lay.getContext('2d');
     l2.translate(0, -(pcy - 220)); l2.save(); l2.translate(pcx, pcy); l2.rotate(-0.22); l2.translate(-pcx, -pcy);
     l2.drawImage(stamp(o, r, ink), pcx - 150, pcy - 150); l2.restore();
-    x.save(); x.globalAlpha = 0.82; x.globalCompositeOperation = 'multiply'; x.drawImage(lay, 0, pcy - 220); x.restore();
+    x.save(); x.globalAlpha = 0.82; x.globalCompositeOperation = 'multiply'; x.drawImage(lay, 0, pcy - 220); x.restore(); free(lay);
     // письмо «от руки»: ниже марки, на всю ширину
     var msg = o.line && String(o.line).trim() ? String(o.line).trim() : T.hi;
     var handEnd = hand(x, o, msg, L0, sy0 + sh0 + 170, R0 - L0, 66, r, 98);
