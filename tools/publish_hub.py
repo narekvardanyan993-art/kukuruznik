@@ -45,7 +45,7 @@ import build_pages as bp   # noqa: E402
 import publish_beta as pb  # noqa: E402  git(), remove_worktree(), run_check()
 
 ROOT = bp.ROOT
-SHARED_ASSETS = ['assets/hub.css', 'assets/hub-museum.css', 'assets/story.css', 'assets/chka-common.js', 'assets/hub.js']
+SHARED_ASSETS = ['assets/hub.css', 'assets/hub-museum.css', 'assets/story.css', 'assets/chka-common.js', 'assets/hub.js', 'assets/pg-pencil-560.webp', 'assets/pg-pencil-920.webp', 'assets/pg-water-560.webp', 'assets/pg-water-920.webp', 'assets/pg-brush.webp', 'assets/pg-wash.webp']   # s43: гранат Gemini + маски (маски — только в CSS)
 KUK_PAGES = ['kukuruznik/about.html', 'kukuruznik/history.html']
 HUB_FILES = ['index.html'] + SHARED_ASSETS + ['kukuruznik/card.webp'] + KUK_PAGES   # постоянная часть; страницы тестовых живых зданий — payload()
 _ASSET_REF = re.compile(r'(?:src|href)="((?:\.\./)*assets/[^"?#]+)')
