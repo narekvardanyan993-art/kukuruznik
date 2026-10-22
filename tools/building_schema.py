@@ -222,7 +222,7 @@ def validate(bdir, b, site):
         c.err('postcardFile', 'имя файла открытки должно оканчиваться на .png')
     # открытка «в сторис» (e1.27, s26): музейная табличка — название, годы, адрес chka.am/<здание>; без блока — название из панели
     if 'postcard' in b:
-        pc = c.obj(b['postcard'], 'postcard', required=('name', 'years', 'url'), optional=('no', 'show'))
+        pc = c.obj(b['postcard'], 'postcard', required=('name', 'years', 'url'), optional=('no', 'show', 'fact'))
         if pc:
             c.i18n(pc['name'], 'postcard.name')
             if isinstance(pc['name'], dict):
@@ -245,6 +245,13 @@ def validate(bdir, b, site):
             # e1.28 (9б-1): номер экспоната на табличке («ЭКСПОНАТ № 001») — целое 1…999, у каждого здания свой
             if 'no' in pc and (isinstance(pc['no'], bool) or not isinstance(pc['no'], int) or not 1 <= pc['no'] <= 999):
                 c.err('postcard.no', 'номер экспоната — целое число от 1 до 999, а не %r' % (pc['no'],))
+            # e1.34: короткий факт о здании на обороте открытки — 1-2 предложения, i18n, не длиннее 220 знаков на язык (3-4 строки оборота)
+            if 'fact' in pc:
+                c.i18n(pc['fact'], 'postcard.fact')
+                if isinstance(pc['fact'], dict):
+                    for l, v in pc['fact'].items():
+                        if isinstance(v, str) and len(v) > 220:
+                            c.err('postcard.fact', 'факт на «%s» длиннее 220 знаков — на обороте не поместится' % l)
             # e1.31 (9г): «во время праздника» — самый эффектный момент парада для открытки: кадр (номер среди видимых, с 0) и секунда показа;
             # night — свой момент для ночи (необязательно). Проверка вида кадра и длины показа — ниже, когда известны кадры
             if 'show' in pc:

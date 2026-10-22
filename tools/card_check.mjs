@@ -101,13 +101,20 @@ export async function phoneCardStep(page, { click, sleep, shareMs = 20000, fonts
   if (r.nofile) { P('share вызван без файла'); return out; }
   const need = back ? 2 : 1;
   if (r.count !== need) P(`открытка в share: файлов ${r.count}, нужно ${need} (${back ? 'лицо + оборот' : 'без оборота — только лицо'})`);
+  const MAXB = 1024 * 1024 * 1.15;   // e1.34: цель ~1 МБ (fileFromCanvas подбирает качество) — запас 15% на счёт JPEG-накладных
   r.files.forEach((f, i) => {
     const what = i ? 'оборот' : 'открытка';
     if (f.type !== 'image/jpeg') P(`${what} в share: тип ${f.type}, нужен image/jpeg`);
     if (f.w !== 1080 || f.h !== 1920) P(`${what} в share: ${f.w}×${f.h}, нужно 1080×1920`);
+    if (f.size > MAXB) P(`${what} в share: ${(f.size / 1024 / 1024).toFixed(2)} МБ, нужно ≤ ~1 МБ`);
   });
   if (r.n !== 1) P(`одно нажатие вызвало share ${r.n} раз(а)`);
   out.png = Buffer.from(r.png, 'base64'); out.size = r.size; out.name = r.name;
-  if (r.files[1]) { out.backPng = Buffer.from(r.files[1].png, 'base64'); out.backName = r.files[1].name; }
+  if (r.files[1]) {
+    out.backPng = Buffer.from(r.files[1].png, 'base64'); out.backName = r.files[1].name;
+    // «оборот не пустой»: не однотонная заливка — доля непохожих друг на друга пикселей (PNG, без декодирования — по сжатому размеру
+    // и по байтовой энтропии первых блоков хватает отличить «один цвет» от «рисунок»; порог грубый, но ловит «забыли нарисовать»).
+    if (out.backPng.length < 6000) P(`оборот подозрительно лёгкий как PNG (${out.backPng.length} Б) — похоже, пустой лист`);
+  }
   return out;
 }

@@ -1031,7 +1031,7 @@
   "architects"
  ],
  "postcardFile": "kukuruznik-1979.png",
- "postcard": {"name": {"hy": "Կուկուռուզնիկ", "ru": "Кукурузник", "en": "Kukuruznik"}, "years": "1979–2006", "url": "chka.am/kukuruznik", "no": 1, "show": {"frame": 5, "t": 7}},
+ "postcard": {"name": {"hy": "Կուկուռուզնիկ", "ru": "Кукурузник", "en": "Kukuruznik"}, "years": "1979–2006", "url": "chka.am/kukuruznik", "no": 1, "show": {"frame": 5, "t": 7}, "fact": {"hy": "Համալիրի սիրտը 58 մետրանոց պտտվող աշտարակն էր՝ «Յոթերորդ երկինք» սրճարանով վերևում։ Դռները բացվեցին 1979-ին, իսկ 2006-ին շենքը քանդվեց։", "ru": "Сердцем комплекса была вращающаяся башня высотой 58 метров с кафе «Седьмое небо» на верхнем этаже. Двери открылись в 1979 году, а в 2006-м здание снесли.", "en": "At the heart of the complex stood a rotating 58-metre tower with the \"Seventh Heaven\" café on top. It opened in 1979 and was demolished in 2006."}},
  "app": {
   "name": "Кукурузник — Дом молодёжи",
   "shortName": "Кукурузник"
