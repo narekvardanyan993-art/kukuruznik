@@ -12,7 +12,7 @@ import os from 'os';
 import path from 'path';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
-import { SHARE_HOOK, CARD_DETERMINISM, phoneCardStep, cardSheetClose } from './card_check.mjs';
+import { SHARE_HOOK, CARD_DETERMINISM, phoneCardStep, cardSheetClose, cardFrameKeepStep } from './card_check.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -68,13 +68,17 @@ try {
   log('страница загружена');
   if (!(await page.evaluate(() => !!window.ChkaPostcard))) { problems.push({ type: 'прогулка', msg: 'на странице нет открытки в сторис (window.ChkaPostcard)' }); }
   else {
-    await page.click('#panelBtn');
     const click = async (sel) => { for (let k = 0; k < 40; k++) { const y = await page.evaluate((s) => { const e = document.querySelector(s); e.scrollIntoView({ block: 'center' }); return e.getBoundingClientRect().top; }, sel); await sleep(250); const y2 = await page.evaluate((s) => document.querySelector(s).getBoundingClientRect().top, sel); if (Math.abs(y - y2) < 0.5 && y2 > 0 && y2 < 800) break; } await page.click(sel); };
+    // e1.35: кадр не сбрасывается после смены опции + нет своего переключателя языка (настоящая страница, кадр 2)
+    const fk = await cardFrameKeepStep(page, { click, sleep, frame: 1 });
+    problems.push(...fk.problems);
+    if (!fk.skipped) log('кадр после «Показать»: ' + JSON.stringify(fk.runs));
+    if (!(await page.evaluate(() => document.body.classList.contains('sheet-open')))) await page.click('#panelBtn');
     const t = Date.now();
     const cs = await phoneCardStep(page, { click, sleep });
     problems.push(...cs.problems);
     if (cs.png) { log(`share получил ${cs.name}, ${cs.size} байт, ${((Date.now() - t) / 1000).toFixed(1)} с`); if (opt.save) fs.writeFileSync(opt.save, cs.png); }
-    // e1.29: второй заход — с «Оборотом»: в share ровно 2 файла (лицо + оборот), оба JPEG 1080×1920
+    // e1.29: второй заход — с «Оборотом»: 2 файла (лицо + оборот), оба JPEG 1080×1920; e1.35 — по одному на share, два нажатия
     if (await page.evaluate(() => !!document.getElementById('cardBack'))) {
       await cardSheetClose(page, sleep);
       const t2 = Date.now();
@@ -87,4 +91,4 @@ try {
   problems.push(...errs);
 } finally { await browser.close(); srv.close(); }
 if (problems.length) { for (const p of problems) console.log('КРАСНОЕ:', p.type + ':', p.msg); process.exit(1); }
-console.log('ЗЕЛЁНАЯ: открытка в share — image/jpeg 1080×1920, один вызов; с оборотом — 2 файла 1080×1920');
+console.log('ЗЕЛЁНАЯ: открытка в share — image/jpeg 1080×1920, один вызов; с оборотом — 2 файла 1080×1920 (по нажатию на каждый), оба непустые; кадр после «Показать» не сбрасывается; переключателя языка нет');

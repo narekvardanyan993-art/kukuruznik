@@ -16,16 +16,23 @@ const ENGINE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 
 const PAGE = (mode) => `<!doctype html><meta charset=utf-8><style>#cardGo{display:none}body.card-open #cardGo{display:block}</style><body><button id=cardBtn style="width:120px;height:60px">card</button><button id=cardGo style="width:120px;height:60px">save</button><button id=cardCfgClose>x</button><button id=cardBack aria-pressed=false onclick="this.setAttribute('aria-pressed', this.getAttribute('aria-pressed') === 'true' ? 'false' : 'true')">back</button><script>
 window.ChkaPostcard = {}; window.__fake = { clicks: 0, done: false, t0: 0, tShare: 0, err: null };   // журнал подделки: проверка ждёт done (событие), а не гадает паузой
 window.__card = { fontsReady: () => ${mode === 'fonts' ? 'false' : 'true'}, paperReady: () => ${mode === 'paper' ? 'false' : 'true'} };
-const mk = (w, h, type) => new Promise((res) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); x.fillStyle = '#c96'; x.fillRect(0, 0, w, h); c.toBlob((b) => res(new File([b], type === 'image/png' ? 'c.png' : 'c.jpg', { type })), type, 0.9); });
+// картинка-подделка: градиент + полосы (не однотонная — «непустая»); flat — однотонная заливка (пустой холст iOS)
+const mk = (w, h, type, flat) => new Promise((res) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d');
+  if (flat) { x.fillStyle = '#c96'; x.fillRect(0, 0, w, h); } else { const g = x.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#9cc'); g.addColorStop(1, '#753'); x.fillStyle = g; x.fillRect(0, 0, w, h); x.fillStyle = '#222'; for (let i = 0; i < 40; i++) x.fillRect((i * 97) % w, (i * 211) % h, 60, 30); }
+  c.toBlob((b) => res(new File([b], type === 'image/png' ? 'c.png' : 'c.jpg', { type })), type, 0.9); });
+let step2 = false;   // e1.35: с оборотом — второе нажатие «Сохранить оборот» (кнопка с классом cc-go2)
 const send = async () => { const F = window.__fake; F.t0 = performance.now(); try { await send1(); F.tShare = performance.now(); } catch (e) { F.err = String(e); } finally { F.done = true; } };
 const send1 = async () => {
   const m = ${JSON.stringify(mode)};
   if (m === 'none') return;
   if (m === 'nofile') { navigator.share({}); return; }
-  const f = await mk(m === 'small' ? 540 : 1080, m === 'small' ? 960 : 1920, m === 'png' ? 'image/png' : 'image/jpeg');
-  const withBack = document.getElementById('cardBack').getAttribute('aria-pressed') === 'true';
-  const b = withBack && m !== 'back1' ? await mk(m === 'backsmall' ? 540 : 1080, m === 'backsmall' ? 960 : 1920, 'image/jpeg') : null;
-  navigator.share({ files: b ? [f, b] : [f] });
+  const withBack = document.getElementById('cardBack').getAttribute('aria-pressed') === 'true', go = document.getElementById('cardGo');
+  const mkBack = () => mk(m === 'backsmall' ? 540 : 1080, m === 'backsmall' ? 960 : 1920, 'image/jpeg', m === 'backblank');
+  if (step2) { step2 = false; go.classList.remove('cc-go2'); if (m !== 'noback2') navigator.share({ files: [await mkBack()] }); return; }   // второе нажатие — оборот
+  const f = await mk(m === 'small' ? 540 : 1080, m === 'small' ? 960 : 1920, m === 'png' ? 'image/png' : 'image/jpeg', m === 'blank');
+  if (withBack && m === 'legacy2') { navigator.share({ files: [f, await mkBack()] }); return; }   // ≤ e1.34: оба файла одним share
+  navigator.share({ files: [f] });
+  if (withBack && m !== 'back1') { step2 = true; go.classList.add('cc-go2'); }   // e1.35: лицо ушло — кнопка «Сохранить оборот»
   if (m === 'twice') navigator.share({ files: [f] });
 };
 document.getElementById('cardBtn').onclick = () => { if (${JSON.stringify(mode)} === 'legacy') { window.__fake.clicks++; send(); } else document.body.classList.add('card-open'); };
@@ -58,9 +65,10 @@ const clickOf = (page) => async (sel) => {
   for (let i = 0; i < 10; i++) { if (await page.evaluate(() => window.__fake.clicks > 0)) return; await sleep(100); }
   reclicks++; await page.click(sel);
 };
-const cases = [['ok', null], ['legacy', null], ['mute', 'не ушла в share'], ['small', '540×960'], ['png', 'тип image/png'], ['none', 'не ушла в share'], ['nofile', 'без файла'], ['twice', '2 раз'], ['fonts', 'шрифты открытки'], ['paper', 'бумага открытки']];   // e1.33: бумага грузится заранее — не успела = красное
+const cases = [['ok', null], ['legacy', null], ['mute', 'не ушла в share'], ['small', '540×960'], ['png', 'тип image/png'], ['none', 'не ушла в share'], ['nofile', 'без файла'], ['twice', '2 раз'], ['fonts', 'шрифты открытки'], ['paper', 'бумага открытки'], ['blank', 'открытка в share пустая']];   // e1.35: пустой (однотонный) файл = красное   // e1.33: бумага грузится заранее — не успела = красное
 let bad = 0;
-const backCases = [['ok', null], ['back1', 'файлов 1, нужно 2'], ['backsmall', 'оборот в share: 540×960']];   // e1.29: с оборотом — 2 файла 1080×1920
+// e1.29: с оборотом — 2 файла 1080×1920; e1.35: по одному на share, два нажатия (ok), старые страницы — оба сразу (legacy2)
+const backCases = [['ok', null], ['legacy2', null], ['back1', 'не стала «Сохранить оборот»'], ['noback2', 'не вызвало share'], ['backsmall', 'оборот в share: 540×960'], ['backblank', 'оборот в share пустая']];
 for (const [mode, want] of backCases) {
   const page = await browser.newPage();
   await page.evaluateOnNewDocument(SHARE_HOOK);

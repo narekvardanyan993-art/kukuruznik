@@ -90,11 +90,35 @@ export async function phoneCardStep(page, { click, sleep, shareMs = 20000, fonts
   }
   if (settled) { for (let i = 0; i < shareMs / 200 && !(await settled()); i++) await sleep(200); }   // самопроверка: ждём, пока подделка сделает ВСЕ свои вызовы share (второй вызов «twice»), а не гадаем паузой
   await sleep(300);   // второго вызова share от одного нажатия быть не должно
+  const n1 = await page.evaluate(() => window.__shares.length), c1 = await page.evaluate(() => { const s = window.__shares[0]; return s.files && s.files.length ? s.files.length : (s.file ? 1 : 0); });
+  // e1.35: с оборотом — два нажатия, по файлу на share (iOS с двумя файлами в одном share сохранял только оборот). После лица кнопка
+  // «Сохранить» становится «Сохранить оборот» (#cardGo.cc-go2) — нажимаем её и ждём второй share. Старые страницы (≤ e1.34) отдают 2 файла сразу.
+  let n2 = 0;
+  if (back && n1 === 1 && c1 === 1) {
+    let step2 = false;
+    for (let i = 0; i < 25 && !(step2 = await page.evaluate(() => { const b = document.getElementById('cardGo'); return !!b && b.classList.contains('cc-go2'); })); i++) await sleep(200);
+    if (!step2) { P('с оборотом: после лица кнопка не стала «Сохранить оборот» (#cardGo.cc-go2) — оборот не сохранить'); return out; }
+    if (settled) await page.evaluate(() => { window.__fake.done = false; });
+    await click('#cardGo');
+    for (let i = 0; i < shareMs / 200 && (n2 = await page.evaluate(() => window.__shares.length)) < 2; i++) {
+      await sleep(200);
+      if (settled && await settled()) { await sleep(200); n2 = await page.evaluate(() => window.__shares.length); break; }
+    }
+    if (n2 < 2) { P(`с оборотом: второе нажатие «Сохранить оборот» не вызвало share за ${shareMs / 1000} с`); return out; }
+    if (settled) { for (let i = 0; i < shareMs / 200 && !(await settled()); i++) await sleep(200); }
+    await sleep(300);
+    n2 = await page.evaluate(() => window.__shares.length);
+  }
   const r = await page.evaluate(async () => {
-    const s = window.__shares, fl = (s[0].files && s[0].files.length) ? s[0].files : (s[0].file ? [s[0].file] : []);
+    const s = window.__shares, fl = [];
+    s.forEach((q) => { const f = (q.files && q.files.length) ? q.files : (q.file ? [q.file] : []); f.forEach((x) => fl.push(x)); });
     if (!fl.length) return { n: s.length, nofile: true };
-    const one = async (f) => { const bm = await createImageBitmap(f), c = document.createElement('canvas'); c.width = bm.width; c.height = bm.height; c.getContext('2d').drawImage(bm, 0, 0);
-      return { type: f.type, size: f.size, name: f.name, w: bm.width, h: bm.height, png: c.toDataURL('image/png').split(',')[1] }; };
+    // «не пустой»: разброс яркости на уменьшенной копии 108×192 (однотонная заливка / пустой холст iOS — ~0)
+    const one = async (f) => { const bm = await createImageBitmap(f), c = document.createElement('canvas'); c.width = bm.width; c.height = bm.height; const x = c.getContext('2d'); x.drawImage(bm, 0, 0);
+      const m = document.createElement('canvas'); m.width = 108; m.height = 192; const mx = m.getContext('2d'); mx.drawImage(bm, 0, 0, 108, 192);
+      const d = mx.getImageData(0, 0, 108, 192).data; let a = 0, a2 = 0, k = 0; for (let i = 0; i < d.length; i += 4) { const L = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; a += L; a2 += L * L; k++; }
+      const sd = Math.sqrt(Math.max(0, a2 / k - (a / k) * (a / k)));
+      return { type: f.type, size: f.size, name: f.name, w: bm.width, h: bm.height, sd: +sd.toFixed(2), png: c.toDataURL('image/png').split(',')[1] }; };
     const files = []; for (const f of fl) files.push(await one(f));
     return Object.assign({ n: s.length, count: fl.length, files }, files[0]);
   });
@@ -107,8 +131,10 @@ export async function phoneCardStep(page, { click, sleep, shareMs = 20000, fonts
     if (f.type !== 'image/jpeg') P(`${what} в share: тип ${f.type}, нужен image/jpeg`);
     if (f.w !== 1080 || f.h !== 1920) P(`${what} в share: ${f.w}×${f.h}, нужно 1080×1920`);
     if (f.size > MAXB) P(`${what} в share: ${(f.size / 1024 / 1024).toFixed(2)} МБ, нужно ≤ ~1 МБ`);
+    if (!(f.sd >= 4)) P(`${what} в share пустая: однотонная картинка (разброс яркости ${f.sd}) — похоже, пустой холст`);   // e1.35: «оба файла непустые»
   });
-  if (r.n !== 1) P(`одно нажатие вызвало share ${r.n} раз(а)`);
+  const taps = back && n2 ? 2 : 1;
+  if (r.n !== taps) P(taps === 1 ? `одно нажатие вызвало share ${r.n} раз(а)` : `два нажатия вызвали share ${r.n} раз(а)`);
   out.png = Buffer.from(r.png, 'base64'); out.size = r.size; out.name = r.name;
   if (r.files[1]) {
     out.backPng = Buffer.from(r.files[1].png, 'base64'); out.backName = r.files[1].name;
@@ -117,4 +143,48 @@ export async function phoneCardStep(page, { click, sleep, shareMs = 20000, fonts
     if (out.backPng.length < 6000) P(`оборот подозрительно лёгкий как PNG (${out.backPng.length} Б) — похоже, пустой лист`);
   }
   return out;
+}
+
+// e1.35: окно открытки на НАСТОЯЩЕЙ странице (check_card_phone): (1) в окне нет своего переключателя языка (язык = язык страницы);
+// (2) смена опции «Момента» (+ «Праздник», если он есть у кадра) и «Показать» не сбрасывают кадр: и сцена, и снимок открытки — на том
+// кадре, где стоял человек (баг iPhone: всё уезжало на кадр 1). frame — номер кадра (не первый). Вызывать при закрытой панели.
+export async function cardFrameKeepStep(page, { click, sleep, frame = 1 }) {
+  const problems = [], P = (msg) => problems.push({ type: 'прогулка', msg });
+  const has = await page.evaluate(() => !!(window.__card && window.__card.state && window.__viewer));
+  if (!has) return { problems, skipped: true };
+  for (let g = 0; g < 12 && (await page.evaluate(() => window.__viewer.frame())) !== frame; g++) {
+    await page.keyboard.press('ArrowRight');
+    for (let k = 0; k < 80; k++) { await sleep(150); if (!(await page.evaluate(() => window.__viewer.fading()))) break; }
+  }
+  await sleep(600);
+  if ((await page.evaluate(() => window.__viewer.frame())) !== frame) { P(`не удалось перейти на кадр ${frame + 1} (стрелкой)`); return { problems }; }
+  await page.evaluate(() => window.__card.open());
+  await sleep(1200);
+  const lang = await page.evaluate(() => document.querySelectorAll('#cardCfg [data-clang]').length);
+  if (lang) P(`в окне открытки есть переключатель языка (${lang} кнопки [data-clang]) — язык открытки = язык страницы`);
+  const st0 = await page.evaluate(() => window.__card.state());
+  if (st0.srcFrame !== undefined && st0.srcFrame !== frame) P(`открытка при открытии снята с кадра ${st0.srcFrame + 1}, а человек на кадре ${frame + 1}`);
+  const runs = [['снег', () => { const b = document.querySelector('#cardCfg [data-cwx=snow]'); if (b) b.click(); return !!b; }]];
+  if (await page.evaluate(() => { const b = document.getElementById('cardShowOn'); return !!b && !b.hidden; }))
+    runs.push(['праздник', () => { const b = document.getElementById('cardShowOn'); if (b.getAttribute('aria-pressed') !== 'true') b.click(); return true; }]);
+  const out = [];
+  for (const [name, fn] of runs) {
+    if (!(await page.evaluate(fn))) continue;
+    // кадр сцены — каждый кадр анимации, пока идёт съёмка (независимо от того, что движок сам о себе скажет): старый код уезжал на кадр праздника
+    // на время снимка и возвращался — по итоговому кадру этого не видно
+    await page.evaluate(() => { window.__seenOn = true; const seen = window.__seenFrames = new Set(); (function f() { seen.add(window.__viewer.frame()); if (window.__seenOn) requestAnimationFrame(f); })(); window.__card.show(); });
+    for (let i = 0; i < 200 && (await page.evaluate(() => window.__card.state().busy)); i++) await sleep(200);
+    await sleep(400);
+    const s = await page.evaluate(() => { window.__seenOn = false; return { st: window.__card.state(), fr: window.__viewer.frame(), seen: [...window.__seenFrames] }; });
+    out.push({ name, scene: s.fr, src: s.st.srcFrame, seen: s.seen, dirty: s.st.dirty });
+    if (s.fr !== frame) P(`после «${name}» + «Показать» сцена уехала на кадр ${s.fr + 1} (был ${frame + 1})`);
+    const away = s.seen.filter((f) => f !== frame);
+    if (away.length) P(`во время «${name}» + «Показать» сцена уезжала на кадр ${away.map((f) => f + 1).join(', ')} (человек на кадре ${frame + 1}) — открытка снята не с его кадра`);
+    if (s.st.srcFrame !== undefined && s.st.srcFrame !== frame) P(`после «${name}» + «Показать» открытка снята с кадра ${s.st.srcFrame + 1}, а человек на кадре ${frame + 1}`);
+    if (s.st.dirty) P(`после «${name}» + «Показать» превью не обновилось (Показать всё ещё горит)`);
+  }
+  await page.evaluate(() => { const b = document.getElementById('cardShowOn'); if (b && !b.hidden && b.getAttribute('aria-pressed') === 'true') b.click(); const sn = document.querySelector('#cardCfg [data-cwx=snow].on'); if (sn) sn.click(); });   // вернуть как было (настройка «праздник» запоминается)
+  await page.evaluate(() => window.__card.close());
+  await sleep(600);
+  return { problems, runs: out };
 }

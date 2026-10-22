@@ -255,12 +255,29 @@ def validate(bdir, b, site):
             # e1.31 (9г): «во время праздника» — самый эффектный момент парада для открытки: кадр (номер среди видимых, с 0) и секунда показа;
             # night — свой момент для ночи (необязательно). Проверка вида кадра и длины показа — ниже, когда известны кадры
             if 'show' in pc:
-                sh = c.obj(pc['show'], 'postcard.show', required=('frame', 't'), optional=('night',))
+                sh = c.obj(pc['show'], 'postcard.show', required=('frame', 't'), optional=('night', 'frames'))
+                # e1.35: frames — секунда праздника для КАЖДОГО кадра с парадом ({"<кадр>": {"t": с, "night": с}}, замер s31): открытка
+                # снимает праздник на том кадре, где стоит человек (раньше всегда на кадре frame — «Показать» перескакивал на него)
+                if sh and 'frames' in sh:
+                    fm = sh['frames']
+                    if not isinstance(fm, dict) or not fm:
+                        c.err('postcard.show.frames', 'нужен объект {"<номер кадра>": {"t": секунда, "night": секунда}}')
+                    else:
+                        for k, v in fm.items():
+                            w = 'postcard.show.frames.%s' % k
+                            if not re.fullmatch(r'\d+', str(k)):
+                                c.err(w, 'ключ — номер кадра среди видимых (с 0), строкой: "0", "1"…')
+                                continue
+                            v = c.obj(v, w, required=('t',), optional=('night',))
+                            if v:
+                                c.number(v['t'], w + '.t', 0, 30)
+                                if 'night' in v:
+                                    c.number(v['night'], w + '.night', 0, 30)
                 if sh:
                     for where, v in (('postcard.show', sh), ('postcard.show.night', sh.get('night'))):
                         if v is None:
                             continue
-                        v = c.obj(v, where, required=('frame', 't'))
+                        v = c.obj(v, where, required=('frame', 't'), optional=(('night', 'frames') if where == 'postcard.show' else ()))
                         if v and (isinstance(v['frame'], bool) or not isinstance(v['frame'], int) or v['frame'] < 0):
                             c.err(where + '.frame', 'номер кадра — целое число от 0 (среди видимых кадров), а не %r' % (v['frame'],))
                         if v:
@@ -668,6 +685,24 @@ def validate(bdir, b, site):
             dur = PARADE_SECONDS.get(kind, 11)
             if v['t'] > dur:
                 c.err(where + '.t', 'секунда %s позже конца показа «%s» (%s с)' % (v['t'], kind, dur))
+        fm = sh.get('frames')
+        if isinstance(fm, dict):
+            for k, v in fm.items():
+                if not re.fullmatch(r'\d+', str(k)) or not isinstance(v, dict):
+                    continue
+                w, i = 'postcard.show.frames.%s' % k, int(k)
+                if not 0 <= i < len(vis):
+                    c.err(w, 'кадра %d нет среди видимых (их %d, нумерация с 0)' % (i, len(vis)))
+                    continue
+                pv = vis[i].get('parade')
+                if not pv:
+                    c.err(w, 'на кадре %d нет парада (parade) — снимать нечего' % i)
+                    continue
+                kind = 'planes' if pv is True else str(pv).split(':')[0]
+                dur = PARADE_SECONDS.get(kind, 11)
+                for kk in ('t', 'night'):
+                    if is_num(v.get(kk)) and v[kk] > dur:
+                        c.err(w + '.' + kk, 'секунда %s позже конца показа «%s» (%s с)' % (v[kk], kind, dur))
 
     # --- tuning: переопределение чисел движка ---
     if 'tuning' in b:

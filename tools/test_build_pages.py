@@ -262,7 +262,7 @@ def check_postcard():
             rec('%s — postcard.js подключён раньше viewer.js' % bd, 0 <= a < b)
             rec('%s — файл открытки %s' % (bd, cfg.get('POSTCARD_FILE')), str(cfg.get('POSTCARD_FILE', '')).endswith('.png'))
             ui = cfg['UI_I18N']
-            miss = [k for k in ('postcard', 'fullscreen', 'cardTitle', 'cardLang', 'cardLine', 'cardSave', 'cardReady', 'cardGrpDate', 'cardGrpSign', 'cardToday', 'cardMyYear', 'cardExhibit', 'cardRare', 'cardRareB', 'sizeNormal', 'sizeLarge', 'cardGrpMoment', 'cardGrpBack', 'cardDawn', 'cardBlue', 'cardBack', 'cardBackHint', 'cardCode', 'cardShow', 'cardTo', 'cardShowOn') if not all((ui.get(k) or {}).get(l) for l in ('hy', 'ru', 'en'))]
+            miss = [k for k in ('postcard', 'fullscreen', 'cardTitle', 'cardLine', 'cardSave', 'cardSaveBack', 'cardReady', 'cardGrpDate', 'cardToday', 'cardMyYear', 'cardExhibit', 'cardRare', 'cardRareB', 'sizeNormal', 'sizeLarge', 'cardGrpMoment', 'cardGrpBack', 'cardDawn', 'cardBlue', 'cardBack', 'cardBackHint', 'cardCode', 'cardShow', 'cardTo', 'cardShowOn') if not all((ui.get(k) or {}).get(l) for l in ('hy', 'ru', 'en'))]
             rec('%s — тексты кнопок и окна на hy/ru/en' % bd, not miss, ', '.join(miss))
             ids = [i for i in ('cardBtn', 'fsBtn', 'pActs', 'cardCfg', 'cardPrev', 'cardLine', 'cardGo', 'cardToast', 'cardFlash', 'cardDateSeg', 'cardYear', 'cardNo', 'cardRareB', 'sizeSeg', 'cardTod', 'cardTime', 'cardWx', 'cardBack', 'cardPrevB', 'cardShow', 'cardTo', 'cardLine', 'cardShowOn') if 'id="%s"' % i not in html_text]
             rec('%s — пара кнопок, окно (превью, «Сохранить», дата, подпись) и плашка в странице' % bd, not ids, ', '.join(ids))
@@ -273,7 +273,8 @@ def check_postcard():
             rec('%s — в «Моменте» только заметные эффекты: снег, дождь, туман (замер s30)' % bd, cwx == ['snow', 'rain', 'fog'], str(cwx))
             rec('%s — своя строка и «Кому» — в группе «Оборот»' % bd, html_text.find('data-grp="back"') < html_text.find('id="cardLine"') and html_text.find('data-grp="back"') < html_text.find('id="cardTo"') and 'maxlength="30"' in html_text)
             grp = re.findall(r'<section class="cc-grp" data-grp="(\w+)"( hidden)?', html_text)
-            rec('%s — группы окна (e1.29): Момент, Дата, Подпись, Оборот — все видны, по порядку' % bd, grp == [('moment', ''), ('date', ''), ('sign', ''), ('back', '')], str(grp))
+            rec('%s — группы окна (e1.35): Момент, Дата, Оборот — все видны, по порядку; «Подписи» (язык) нет' % bd, grp == [('moment', ''), ('date', ''), ('back', '')], str(grp))
+            rec('%s — e1.35: своего переключателя языка в окне открытки нет (язык = язык страницы)' % bd, 'data-clang' not in html_text and 'cardGrpSign' not in html_text)
             rec('%s — номер экспоната в странице (%s)' % (bd, pc.get('no')), isinstance(pc.get('no'), int) and pc['no'] >= 1)
         rec('postcard.js скопирован в beta/engine/', (site / 'beta' / 'engine' / 'postcard.js').is_file())
         nos = [page_config((site / 'beta' / bd / 'index.html').read_text(encoding='utf-8')).get('POSTCARD', {}).get('no') for bd in bdirs]
@@ -304,7 +305,12 @@ def check_card_check():
         'export async function cardTapSave' in cc and 'await cardTapSave(page, { click, sleep })' in cs and 'cardTapSave(page, { click, sleep, back })' in cc and 'await cardSheetClose(page, sleep)' in cs)
     rec('шаг телефона: без оборота 1 файл, с оборотом 2 (e1.29); check_card_phone проверяет оба случая; Math.random для postcard.js подменяется',
         'back: true' in (T / 'check_card_phone.mjs').read_text(encoding='utf-8') and 'Math.random = function' in cc and "backCases" in (T / 'test_card_check.mjs').read_text(encoding='utf-8'))
-    rec('шаг телефона: JPEG, 1080×1920, один вызов, файл за 20 с', "'image/jpeg'" in cc and 'f.w !== 1080 || f.h !== 1920' in cc and 'const need = back ? 2 : 1' in cc and 'r.n !== 1' in cc and 'shareMs = 20000' in cc)
+    rec('шаг телефона: JPEG, 1080×1920, один вызов, файл за 20 с', "'image/jpeg'" in cc and 'f.w !== 1080 || f.h !== 1920' in cc and 'const need = back ? 2 : 1' in cc and 'r.n !== taps' in cc and 'shareMs = 20000' in cc)
+    rec('e1.35: с оборотом — два нажатия (по файлу на share), оба файла непустые; кадр после «Показать» не сбрасывается — проверка на настоящей странице',
+        "cc-go2" in cc and 'пустая: однотонная' in cc and 'export async function cardFrameKeepStep' in cc and 'cardFrameKeepStep(page' in (T / 'check_card_phone.mjs').read_text(encoding='utf-8'))
+    vj = (ROOT / 'engine' / 'viewer.js').read_text(encoding='utf-8')
+    rec('e1.35: праздник открытки — на текущем кадре (frameIndex), файлы собираются заранее (toBlob), share — по одному файлу',
+        'var fi = frameIndex, st = PARADE_STYLES[fi];' in vj and 'function cardFilesPrep()' in vj and 'shareFile(f, function () { goStep(second); })' in vj)
     rec('check_card_phone.mjs — быстрая проверка одной страницы на том же шаге', "phoneCardStep" in (T / 'check_card_phone.mjs').read_text(encoding='utf-8'))
     for f in ('card_check.mjs', 'check_card_phone.mjs', 'test_card_check.mjs', 'check_site.mjs'):
         r = subprocess.run(['node', '--check', str(T / f)], capture_output=True, text=True)
