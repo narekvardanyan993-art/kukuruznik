@@ -165,75 +165,83 @@ a.cover { display: block; height: auto; color: inherit; text-decoration: none; t
 .card h3 [lang="hy"] { font-size: 0.95em; }
 .ttl { background: linear-gradient(var(--accent), var(--accent)) 0 100% / 0% 2px no-repeat; padding-bottom: 2px; transition: background-size var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)); }
 .meta { font-size: 0.95rem; color: var(--muted); margin-top: 6px; }
-/* ---------- s42: карточка здания = ОДИН цельный бумажный стикер ----------
-   Обложка, номер, название, годы и обе кнопки — на одном листе: общая тень, тонкий край, лёгкий наклон (у соседей
-   разный). Наведение мыши: весь лист приподнимается и выпрямляется, большая тень проявляется прозрачностью (::before),
-   правый нижний уголок «отлипает» (::after — изнанка листа и щель фона, растёт transform-ом). Кнопки внутри — свои
-   мягкие состояния. Нажатие — только на нажатом месте (lift из chka-common.js). Появление — лист «ложится» на стол:
-   снизу, с доворотом, кривая быстрый старт / долгое торможение. Двигаются только transform и opacity (docs/ANIMATION.md).
-   Разметка одна для всех зданий: tools/build_pages.card_markup(). Селектор с .card:not(.soon) — сильнее старого
-   «.card:not(.soon) .card-in { background: none; padding: 0 }» выше. */
+/* ---------- s43: карточка здания = ОДНА наклейка с вырубкой ----------
+   Всё про здание — внутри одной наклейки: «Зал · Экспонат №» и инв. номер, обложка, годы, название, место, обе кнопки.
+   Наклейка: белая кромка вырубки по контуру (border), скруглённые углы, печатная рамка внутри, плотная тень «наклеено»,
+   лёгкий наклон (у соседей разный). Мышь: наклейка приподнимается и выпрямляется, большая тень проявляется прозрачностью
+   (::before), правый нижний угол отклеивается (::after: изнанка наклейки + щель фона, растёт transform-ом). Нажатие — только
+   нажатое место. Появление — наклейку «шлёпают» на стол: сверху, чуть крупнее и с поворотом, оседает пружиной.
+   Двигаются только transform и opacity (docs/ANIMATION.md). Разметка одна для всех зданий: tools/build_pages.card_markup(). */
 .card:not(.soon) .sticker {
-  --tilt: -0.9deg;
+  --tilt: -1.1deg;
   position: relative; isolation: isolate;
+  height: 100%; display: flex; flex-direction: column; gap: 0;   /* gap: старое правило .card-in на ПК давало 28 px щели */
   padding: 12px 12px 16px;
-  background: #fdf9ef linear-gradient(160deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 42%);
-  border: 1px solid rgba(42, 36, 32, 0.1);
-  border-radius: 6px;
-  box-shadow: 0 1px 1px rgba(42, 36, 32, 0.14), 0 7px 14px -7px rgba(42, 36, 32, 0.38);
+  background: #fbf6ea linear-gradient(165deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 45%);
+  border: 7px solid #fffdf7;
+  border-radius: 22px;
+  box-shadow: inset 0 0 0 1px rgba(138, 44, 51, 0.22), 0 0 0 1px rgba(42, 36, 32, 0.1), 0 1px 1.5px rgba(42, 36, 32, 0.2), 0 6px 12px -6px rgba(42, 36, 32, 0.42);
   transform: rotate(var(--tilt));
   transition: transform var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1));
 }
-.cards > .card:nth-child(2n) .sticker { --tilt: 0.75deg; }
-.cards > .card:nth-child(3n) .sticker { --tilt: -0.45deg; }
-.sticker::before {   /* тень «отклеенного» листа: проявляется, а не перерисовывается */
-  content: ""; position: absolute; inset: -1px; z-index: -1; border-radius: inherit; pointer-events: none;
-  box-shadow: 0 3px 5px rgba(42, 36, 32, 0.14), 0 24px 36px -14px rgba(42, 36, 32, 0.5);
+.cards > .card:nth-child(2n) .sticker { --tilt: 0.9deg; }
+.cards > .card:nth-child(3n) .sticker { --tilt: -0.5deg; }
+.sticker::before {   /* тень приподнятой наклейки: проявляется, а не перерисовывается */
+  content: ""; position: absolute; inset: -8px; z-index: -1; border-radius: 22px; pointer-events: none;
+  box-shadow: 0 4px 6px rgba(42, 36, 32, 0.14), 0 26px 38px -14px rgba(42, 36, 32, 0.5);
   opacity: 0; transition: opacity var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1));
 }
-.sticker::after {    /* уголок: изнанка листа сверху-слева от сгиба, щель фона — снизу-справа */
-  content: ""; position: absolute; right: -1px; bottom: -1px; width: 38px; height: 38px; z-index: 2; pointer-events: none;
-  border-bottom-right-radius: 6px;
-  background: linear-gradient(315deg, var(--bg) 0 47%, rgba(42, 36, 32, 0.22) 49.5%, #e9dcbf 51%, #f6eedb 72%, #fbf6ea 100%);
-  filter: drop-shadow(-1px -1px 1.2px rgba(42, 36, 32, 0.2));
-  transform: scale(0.4); transform-origin: 100% 100%;
+.sticker::after {    /* отклеенный угол: изнанка (сверху-слева от сгиба) и щель фона (снизу-справа) */
+  content: ""; position: absolute; right: -8px; bottom: -8px; width: 44px; height: 44px; z-index: 3; pointer-events: none;
+  border-radius: 14px 0 22px 0;
+  background: linear-gradient(315deg, var(--bg) 0 46%, rgba(42, 36, 32, 0.25) 48.5%, #e7e1d4 50%, #f7f3ea 70%, #ffffff 100%);
+  filter: drop-shadow(-1.5px -1.5px 1.5px rgba(42, 36, 32, 0.22));
+  transform: scale(0.36); transform-origin: 100% 100%;
   transition: transform var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1));
 }
-/* обложка на листе — без зубчиков марки: рамка картинки и подпись остаются */
-.sticker a.cover { outline-offset: 4px; }
-.sticker .pic, .card:not(.soon) .sticker .pic { padding: 0 0 22px; background: none; filter: none; transform: none; }
+.sticker .st-top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 10px; margin: 0 0 10px; padding: 0 2px 8px; border-bottom: 1px dashed rgba(42, 36, 32, 0.28); max-width: none; }
+.sticker .st-top .lbl-no { margin: 0; padding: 0; border: 0; color: var(--indigo); letter-spacing: 0.1em; white-space: nowrap; }
+.sticker .st-top .inv { position: static; white-space: nowrap; margin-left: auto; flex: none; font: 700 0.625rem/1.2 var(--font); letter-spacing: 0.16em; color: var(--accent); }
+.sticker a.cover { display: block; border-radius: 13px; outline-offset: 3px; }
+.sticker .pic, .card:not(.soon) .sticker .pic { display: block; aspect-ratio: auto; padding: 0; background: none; filter: none; transform: none; border-radius: 13px; overflow: hidden; }
 .sticker .pic::before { display: none; }
-.card:not(.soon) .sticker .pic::after { left: 12px; top: 12px; }
-.sticker .inv { left: 2px; bottom: 4px; }
-.sticker .pic > img { transition: filter var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)), transform 160ms var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)); }
-.card:not(.soon) .sticker { height: 100%; display: flex; flex-direction: column; }   /* листы в ряду одной высоты, кнопки — по низу */
-.sticker .txt { flex: 1; display: flex; flex-direction: column; margin: 10px 0 0; padding: 0 2px; background: none; border: 0; box-shadow: none; }
+.card:not(.soon) .sticker .pic::after { display: none; }   /* знак ՉԿԱ уже в шапке наклейки */
+.sticker .pic > img {
+  display: block; width: 100%; aspect-ratio: 4 / 3.7; padding: 0; border: 0; outline: 0; border-radius: 13px;
+  transition: transform var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)), filter var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1));
+}
+.sticker .txt { flex: 1; display: flex; flex-direction: column; margin: 12px 0 0; padding: 0 2px; background: none; border: 0; box-shadow: none; }
 .sticker .txt > .eyebrow { align-self: flex-start; }
 .card-actions { display: grid; gap: 10px; margin: auto 0 0; padding-top: 16px; }
 .card-actions .btn { width: 100%; min-height: 48px; padding: 8px 16px; line-height: 1.15; gap: 10px; font-size: 1.0625rem; text-align: center; }
 @media (min-width: 1000px) { .card-actions .btn { padding: 8px 10px; gap: 8px; font-size: 1rem; } }   /* 4 колонки: «Смотреть в 3D» в одну строку */
 .card-actions .btn svg { width: 20px; height: 20px; flex: none; transition: transform var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)); }
 .card-actions .btn-about { background: transparent; border: 1.5px solid rgba(42, 36, 32, 0.4); color: var(--ink); box-shadow: none; }
-/* нажатие (и телефон): картинка чуть «вдавливается» в лист */
-a.cover:active .pic > img, a.cover.lift .pic > img { transform: scale(0.975); }
-/* появление: лист ложится на стол */
-.cards > .card:not(.soon) { transition: transform 900ms cubic-bezier(0.16, 1, 0.3, 1), opacity 500ms ease; }
-.cards > .card.reveal:not(.soon) { --reveal-t: translateY(34px) rotate(2.4deg) scale(0.96); }
+a.cover:active .pic > img, a.cover.lift .pic > img { transform: scale(0.97); transition-duration: 160ms; }
+/* появление: наклейку кладут на стол — чуть крупнее и с поворотом, оседает с лёгкой пружиной */
+.cards > .card:not(.soon) { transition: transform 820ms cubic-bezier(0.34, 1.25, 0.64, 1), opacity 380ms ease; }
+.cards > .card.reveal:not(.soon) { --reveal-t: translateY(-16px) scale(1.07) rotate(-3deg); }
+@media (max-width: 559px) { .cards > .card.reveal:not(.soon) { --reveal-t: translateY(-14px) scale(1.03); } }   /* телефон: без поворота — высокая наклейка с поворотом шире экрана (горизонтальная прокрутка) */
 .cards > .card.reveal.in:not(.soon) { --reveal-t: none; }
 @media (hover: hover) and (pointer: fine) {
-  .card:hover .sticker { transform: translateY(-6px) rotate(calc(var(--tilt) * 0.3)); }
+  .card:hover .sticker { transform: translateY(-6px) rotate(calc(var(--tilt) * 0.35)); }
   .card:hover .sticker::before { opacity: 1; }
   .card:hover .sticker::after { transform: scale(1); }
-  a.cover:hover .pic > img { filter: saturate(1.12) contrast(1.04); }
+  a.cover:hover .pic > img { transform: scale(1.035); filter: saturate(1.1) contrast(1.04); }
+  a.cover:hover:active .pic > img { transform: scale(0.98); }
   .btn-3d:hover svg { transform: rotate(-12deg) scale(1.1); }
   .btn-about:hover { background: rgba(138, 44, 51, 0.07); border-color: var(--accent); color: var(--accent); }
   .btn-about:hover svg { transform: translateY(-2px); }
 }
 @media (prefers-reduced-motion: reduce) {
   .card:hover .sticker { transform: rotate(var(--tilt)) !important; }
-  .card:hover .sticker::after { transform: scale(0.7); }
-  .card-actions .btn svg, a.cover:active .pic > img, a.cover.lift .pic > img { transform: none !important; }
+  .card:hover .sticker::after { transform: scale(0.6); }
+  .card-actions .btn svg, .sticker .pic > img { transform: none !important; }
 }
+/* «скоро»: пустое место под будущую наклейку — один пунктирный контур той же формы, всё внутри */
+.cards .card.soon .card-in { height: 100%; padding: 12px; border: 1.5px dashed rgba(42, 36, 32, 0.4); border-radius: 22px; }
+.cards .card.soon .card-in .pic { border: 0; padding: 8px; aspect-ratio: 4 / 4.2; }
+.cards .card.soon .card-in .txt { margin: 6px 0 0; padding: 8px 4px 2px; border: 0; border-top: 1px dashed rgba(42, 36, 32, 0.28); }
 
 .card.soon .card-in { padding: 0; background: none; }
 .card.soon .pic { filter: none; background: transparent; padding: 15px; }
@@ -247,41 +255,64 @@ a.cover:active .pic > img, a.cover.lift .pic > img { transform: scale(0.975); }
 .cards .card.soon:nth-last-child(n+1) { display: block; }
 
 
-/* ---------- зал II: о проекте — главный блок страницы (s39) ----------
-   Гранат в паспарту рисуется карандашом при первом появлении в экране: контур → венчик → лист → разрез → штриховка,
-   затем акварель, зёрна по одному, подпись; текст выходит строками. Потом — едва заметное «дыхание» (и лёгкий параллакс
-   на ПК). Только transform / opacity / stroke-dashoffset; один раз; «уменьшить движение» — всё сразу, без движения.
-   Классы ставит assets/hub.js: .pg-armed (готов к рисованию), .drawn, .alive; у текста .lines-armed, .lines-in. */
-.about-sec { margin-top: 44px; display: grid; gap: 34px; align-items: center; scroll-margin-top: calc(var(--nav-h) + 16px); }
-@media (min-width: 860px) { .about-sec { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 76px; margin-top: 72px; padding: 24px 0; } }
-.pg-fig { margin: 0; width: min(100%, 330px); justify-self: center; --k: 1; }
-@media (min-width: 860px) { .pg-fig { width: min(100%, 430px); } }
-@media (max-width: 859px) { .pg-fig { --k: 0.75; } }
-.pg-mat { position: relative; padding: 30px 30px 24px; background: var(--surface); box-shadow: var(--shadow); }
+/* ---------- зал II: о проекте — «стена музея» (s43) ----------
+   Крупный гранат-экспонат в паспарту под музейной лампой, этикетка, короткий текст, три живые цифры и цитата.
+   Гранат — две совмещённые картинки Gemini (assets/pg-pencil-*.webp и pg-water-*.webp, бумага приведена к цвету паспарту).
+   Появление (один раз): карандаш проявляется «кистью» (маска pg-brush.webp едет слева направо, сухой рваный край), затем
+   акварель «стекает» сверху вниз (маска pg-wash.webp, мокрый край с затёками), загорается лампа, выходит этикетка; потом
+   рисунок едва заметно «дышит». Анимируются только mask-position, opacity и transform; после проявления маска снимается
+   (.done). «Уменьшить движение» — сразу готовая акварель. Классы ставит assets/hub.js: .pg-armed, .drawn, .done, .alive. */
+.about-sec { margin-top: 44px; display: grid; gap: 30px; align-items: center; scroll-margin-top: calc(var(--nav-h) + 16px); }
+@media (min-width: 860px) { .about-sec { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: 64px; margin-top: 80px; padding: 28px 0; } }
+.pg-fig { position: relative; margin: 0; width: min(100%, 380px); justify-self: center; --k: 1; }
+@media (min-width: 860px) { .pg-fig { width: min(100%, 520px); } }
+@media (max-width: 859px) { .pg-fig { --k: 0.8; } }
+.pg-fig::before {   /* музейная лампа над картиной: тёплое пятно света на стене */
+  content: ""; position: absolute; left: 50%; top: -90px; width: 130%; height: 85%; z-index: -1; pointer-events: none;
+  background: radial-gradient(ellipse 50% 50% at 50% 45%, rgba(255, 238, 202, 0.9), rgba(255, 238, 202, 0.35) 55%, rgba(255, 238, 202, 0) 100%);
+  transform: translateX(-50%);
+}
+@media (max-width: 859px) { .pg-fig::before { width: 100%; } }   /* телефон: свет лампы не шире экрана (иначе горизонтальная прокрутка) */
+.pg-mat { position: relative; padding: 26px 26px 22px; background: var(--surface); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset, 0 2px 3px rgba(42, 36, 32, 0.16), 0 24px 46px -24px rgba(42, 36, 32, 0.55); }
 .pg-mat::before { content: ""; position: absolute; inset: 11px; border: 1px solid var(--line); pointer-events: none; }
-.pg-art { transform-origin: 50% 88%; will-change: transform; }
-.pg { display: block; width: 100%; height: auto; overflow: visible; }
-.pg .sd { transform-box: fill-box; transform-origin: 50% 50%; }
-.pg-cap { margin: 14px 0 0; text-align: center; font: italic 400 0.875rem/1.4 var(--font); color: var(--faint); letter-spacing: 0.02em; }
-.about-txt { max-width: 36em; }
-.about-txt h2 { font-size: clamp(2.125rem, 8vw, 3.25rem); line-height: 1.05; margin: 0 0 22px; }
-.about-txt .lead { margin: 0 0 18px; font-size: clamp(1.3125rem, 5vw, 1.8125rem); line-height: 1.45; color: var(--ink); max-width: 24em; }
-.about-txt .more { margin: 0; font-size: 1.125rem; line-height: 1.65; color: var(--muted); max-width: 32em; }
+.pg-art { position: relative; aspect-ratio: 920 / 860; transform-origin: 50% 85%; will-change: transform; }
+.pg-par { position: absolute; inset: 0; }
+.pg-l { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+/* этикетка экспоната — как в музее: название, латынь, техника, одна строка смысла */
+.pg-label { position: relative; margin: 16px auto 0; max-width: 300px; padding: 10px 14px 11px; background: #fffdf7; border: 1px solid rgba(42, 36, 32, 0.14); box-shadow: 0 1px 2px rgba(42, 36, 32, 0.12); font: 400 0.8125rem/1.45 var(--font); color: var(--muted); }
+.pg-label .pl-name { display: block; font-weight: 700; font-size: 0.9375rem; color: var(--ink); }
+.pg-label .pl-lat { font-style: italic; font-weight: 400; color: var(--faint); }
+.pg-label .pl-tech { display: block; font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--indigo); margin: 2px 0 4px; }
+.about-txt { max-width: 34em; }
+.about-txt h2 { font-size: clamp(2.125rem, 8vw, 3.25rem); line-height: 1.05; margin: 0 0 20px; }
+.about-txt .lead { margin: 0; font-size: clamp(1.25rem, 4.6vw, 1.6875rem); line-height: 1.45; color: var(--ink); max-width: 24em; }
+/* три живые цифры */
+.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; margin: 28px 0 0; padding: 14px 0; border-top: 3px double rgba(42, 36, 32, 0.26); border-bottom: 1px solid var(--line); }
+.facts > div { padding: 0 10px; border-left: 1px solid var(--line); }
+.facts > div:first-child { padding-left: 0; border-left: 0; }
+.facts dd { margin: 0; font: 700 clamp(1.5rem, 6vw, 2.125rem)/1.1 var(--font); color: var(--accent); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.facts dd.yrs { font-size: clamp(1.0625rem, 4.2vw, 1.5rem); line-height: 1.55; }
+.facts dt { margin: 4px 0 0; font-size: 0.75rem; line-height: 1.3; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+.facts > div { display: flex; flex-direction: column-reverse; justify-content: flex-end; }
+/* цитата */
+.wall-quote { position: relative; margin: 24px 0 0; padding: 0 0 0 22px; border-left: 2px solid var(--accent); }
+.wall-quote p { margin: 0; font: italic 400 clamp(1.125rem, 4.2vw, 1.375rem)/1.45 var(--font); color: var(--ink); }
 @media (prefers-reduced-motion: no-preference) {
-  .pg-armed .ln { stroke-dasharray: 1 2; stroke-dashoffset: 1.02; }   /* 1.02, а не 1: иначе круглый кончик штриха виден точкой до рисования */
-  .pg-armed .pg-wash > g, .pg-armed .pg-cap { opacity: 0; }
-  .pg-armed .sd { opacity: 0; transform: scale(0.15); }
-  .pg-armed.drawn .ln { stroke-dashoffset: 0; transition: stroke-dashoffset calc(var(--t, 1) * var(--k) * 1s) cubic-bezier(0.55, 0.1, 0.3, 1) calc(var(--d, 0) * var(--k) * 1s); }
-  .pg-armed.drawn .pg-wash > g { opacity: 1; transition: opacity calc(var(--wt, 1.4) * var(--k) * 1s) ease calc(var(--wd, 1.5) * var(--k) * 1s); }
-  .pg-armed.drawn .sd { opacity: 1; transform: none; transition: opacity 0.4s ease, transform 0.7s cubic-bezier(0.34, 1.4, 0.64, 1); transition-delay: calc((4s + var(--i) * 0.045s) * var(--k)); }
-  .pg-armed.drawn .pg-cap { opacity: 1; transition: opacity 0.9s ease calc(var(--k) * 5.8s); }
-  .pg-fig.alive .pg-art { animation: pg-breath 7s ease-in-out infinite alternate; }
-  .pg { transition: transform 0.9s cubic-bezier(0.16, 1, 0.3, 1); }
+  .pg-armed .pg-pencil { -webkit-mask: url("pg-brush.webp") 100% 0 / 300% 100% no-repeat; mask: url("pg-brush.webp") 100% 0 / 300% 100% no-repeat; }
+  .pg-armed .pg-water { -webkit-mask: url("pg-wash.webp") 0 100% / 100% 300% no-repeat; mask: url("pg-wash.webp") 0 100% / 100% 300% no-repeat; }
+  .pg-armed.drawn .pg-pencil { -webkit-mask-position: 0 0; mask-position: 0 0; transition: -webkit-mask-position calc(var(--k) * 2.4s) cubic-bezier(0.45, 0.05, 0.25, 1) 0.15s, mask-position calc(var(--k) * 2.4s) cubic-bezier(0.45, 0.05, 0.25, 1) 0.15s; }
+  .pg-armed.drawn .pg-water { -webkit-mask-position: 0 0; mask-position: 0 0; transition: -webkit-mask-position calc(var(--k) * 2.8s) cubic-bezier(0.3, 0.1, 0.2, 1) calc(var(--k) * 2.2s), mask-position calc(var(--k) * 2.8s) cubic-bezier(0.3, 0.1, 0.2, 1) calc(var(--k) * 2.2s); }
+  .pg-armed.done .pg-pencil, .pg-armed.done .pg-water { -webkit-mask: none; mask: none; }
+  .pg-armed::before, .pg-armed .pg-label { opacity: 0; }
+  .pg-armed .pg-label { transform: translateY(10px); }
+  .pg-armed.drawn::before { opacity: 1; transition: opacity 1.6s ease calc(var(--k) * 3.4s); }
+  .pg-armed.drawn .pg-label { opacity: 1; transform: none; transition: opacity 0.8s ease calc(var(--k) * 4.4s), transform 1s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--k) * 4.4s); }
+  .pg-fig.alive .pg-art { animation: pg-breath 8s ease-in-out infinite alternate; }
   .lines-armed .w { display: inline-block; opacity: 0; transform: translateY(0.6em); }
   .lines-armed.lines-in .w { opacity: 1; transform: none; transition: opacity 0.7s ease, transform 1s cubic-bezier(0.16, 1, 0.3, 1); transition-delay: calc(0.25s + var(--ln, 0) * 0.11s); }
 }
 @media (prefers-reduced-motion: no-preference) and (max-width: 859px) { .pg-fig.alive .pg-art { animation-name: pg-breath-s; } }
-@keyframes pg-breath { from { transform: scale(1) rotate(0deg); } to { transform: scale(1.016) rotate(-0.7deg); } }
+@keyframes pg-breath { from { transform: scale(1) rotate(0deg); } to { transform: scale(1.014) rotate(-0.5deg); } }
 @keyframes pg-breath-s { from { transform: scale(1); } to { transform: scale(1.008); } }
 
 /* ---------- подвал ---------- */

@@ -842,21 +842,22 @@ def _about_label(src, root=None):
     return out if all(out.get(l) for l in LANGS) else dict(ABOUT_DEFAULT)
 
 
-def card_markup(slug, image, eyebrow, title, meta, about, no=None):
+def card_markup(slug, image, eyebrow, title, meta, about, no=None, hall='I'):
     """Разметка живой карточки главной (<li class="card">…</li>); одна на все здания, чтобы карточки не расходились.
-    s42: .card-in.sticker — вся карточка один бумажный лист (стили в assets/hub-museum.css, блок «стикер»)."""
+    s43: вся карточка — ОДНА наклейка с вырубкой (.card-in.sticker, стили — assets/hub-museum.css, блок «наклейка»): внутри
+    всё про здание — «Зал · Экспонат №» и инв. номер, обложка, годы, название, место, обе кнопки; снаружи ничего."""
     e = lambda t: html.escape(t, quote=True)
-    inv = '<span class="inv" aria-hidden="true">ՉԿԱ · %03d</span>' % no if no else ''
     lines = [
         '      <li class="card reveal">',
-        '        <div class="card-in sticker">',
-        '          <a class="cover" href="%s/about.html" aria-labelledby="t-%s">' % (e(slug), e(slug)),
-        '            <div class="pic"><img src="%s/%s" width="480" height="480" alt="" loading="lazy" decoding="async">%s</div>' % (e(slug), e(image), inv),
-        '          </a>',
-        '          <div class="txt">']
+        '        <div class="card-in sticker">']
     if no:
-        lines.append('            <p class="lbl-no">%s</p>' % _i18n_spans({l: w % no for l, w in EXHIBIT_WORD.items()}))
+        lbl = {l: '%s · %s' % (HALL_WORD[l] % hall, EXHIBIT_WORD[l] % no) for l in LANGS}
+        lines.append('          <p class="st-top"><span class="lbl-no">%s</span><span class="inv" aria-hidden="true">ՉԿԱ · %03d</span></p>' % (_i18n_spans(lbl), no))
     lines += [
+        '          <a class="cover" href="%s/about.html" aria-labelledby="t-%s">' % (e(slug), e(slug)),
+        '            <div class="pic"><img src="%s/%s" width="480" height="480" alt="" loading="lazy" decoding="async"></div>' % (e(slug), e(image)),
+        '          </a>',
+        '          <div class="txt">',
         '            <span class="eyebrow">%s</span>' % _i18n_spans(eyebrow),
         '            <h3 id="t-%s"><span class="ttl">%s</span></h3>' % (e(slug), _i18n_spans(title)),
         '            <p class="meta">%s</p>' % _i18n_spans(meta),
@@ -870,6 +871,7 @@ def card_markup(slug, image, eyebrow, title, meta, about, no=None):
     return lines
 
 
+HALL_WORD = {'hy': 'Սրահ %s', 'ru': 'Зал %s', 'en': 'Room %s'}   # s43: зал экспоната — на самой наклейке
 EXHIBIT_WORD = {'hy': 'Ցուցանմուշ № %03d', 'ru': 'Экспонат № %03d', 'en': 'Exhibit No. %03d'}   # этикетка марки (s39): номер = postcard.no
 
 

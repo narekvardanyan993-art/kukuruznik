@@ -129,6 +129,28 @@
     });
   });
 
+  /* ---------- s43: цифры «стены» (экспонаты — по живым карточкам «Альбома»; досчитывают при появлении) ---------- */
+  var nums = document.querySelectorAll('.facts dd[data-num]');
+  nums.forEach(function (dd) {
+    var v = dd.getAttribute('data-num');
+    var n = v === 'exhibits' ? document.querySelectorAll('.cards .card:not(.soon)').length : parseInt(v, 10);
+    if (!n) return;
+    dd.textContent = String(n);
+    if (window.ChkaReducedMotion || !('IntersectionObserver' in window)) return;
+    dd.textContent = '0';
+    var io2 = new IntersectionObserver(function (es) {
+      if (!es.some(function (e) { return e.isIntersecting; })) return;
+      io2.disconnect();
+      var t0 = performance.now(), dur = 900 + n * 40;
+      (function tick(t) {
+        var p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+        dd.textContent = String(Math.round(n * e));
+        if (p < 1) requestAnimationFrame(tick);
+      })(t0);
+    }, { threshold: 0.6 });
+    io2.observe(dd);
+  });
+
   /* ---------- s39: гранат рисуется, текст выходит строками ---------- */
   var fig = document.querySelector('[data-pg]'), txt = document.querySelector('[data-lines]');
   if (fig && txt && !window.ChkaReducedMotion && 'IntersectionObserver' in window) {
@@ -167,7 +189,8 @@
       requestAnimationFrame(function () {
         fig.classList.add('drawn');
         txt.classList.add('lines-in');
-        setTimeout(function () { fig.classList.add('alive'); }, (6.6 * k) * 1000);
+        /* s43: маски сняты после проявления (кисть + акварель), потом «дыхание» */
+        setTimeout(function () { fig.classList.add('done', 'alive'); }, (5.2 * k) * 1000);
       });
     }, { threshold: 0.3 });
     io.observe(fig);
@@ -175,7 +198,7 @@
     document.addEventListener('chka-lang', function () { if (!txt.classList.contains('lines-in')) numberLines(); });
     /* лёгкий параллакс рисунка в паспарту — только ПК с мышью */
     if (window.ChkaFinePointer && matchMedia('(min-width: 860px)').matches) {
-      var art = fig.querySelector('.pg'), ticking = false;
+      var art = fig.querySelector('.pg-par'), ticking = false;
       window.addEventListener('scroll', function () {
         if (ticking) return; ticking = true;
         requestAnimationFrame(function () {

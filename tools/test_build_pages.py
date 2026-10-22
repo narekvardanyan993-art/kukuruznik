@@ -448,12 +448,13 @@ def check_hub_cards():
         want = [('cover', '%s/about.html' % slug), ('btn btn-3d', '%s/' % slug), ('btn btn-ghost btn-about', '%s/about.html' % slug)]
         nested = re.search(r'<a\b[^>]*>(?:(?!</a>).)*<a\b', html_, re.S)
         return (hrefs == want and not nested and html_.count('data-transition') == 1 and all(('lang="%s"' % l) in html_ for l in bp.LANGS)
-                and html_.count('class="card-in sticker"') == 1)   # s42: вся карточка — один лист-стикер
+                and html_.count('class="card-in sticker"') == 1   # s42: вся карточка — один лист-стикер
+                and html_.index('class="st-top"') < html_.index('class="cover"'))   # s43: «Зал · Экспонат №» — внутри наклейки, над обложкой
 
     for slug in ('kukuruznik', 'lenin'):
         m = re.search(r'<li class="card reveal">(?:(?!</li>).)*?href="%s/about\.html".*?</li>' % slug, hub, re.S)
         good = bool(m) and card_ok(slug, m.group(0))
-        lines.append('%s  главная: карточка %s — один лист-стикер, обложка → about.html, кнопки «3D» (%s/) и «о здании» (about.html), без вложенных ссылок, hy/ru/en' % ('OK   ' if good else 'ОШИБКА', slug, slug))
+        lines.append('%s  главная: карточка %s — одна наклейка (зал/экспонат внутри), обложка → about.html, кнопки «3D» (%s/) и «о здании» (about.html), без вложенных ссылок, hy/ru/en' % ('OK   ' if good else 'ОШИБКА', slug, slug))
         ok_all &= good
     old = '<li class="card reveal"><a class="card-in" href="kukuruznik/" data-transition><div class="pic"></div><span class="go">3D</span></a></li>'
     nest = '<li class="card"><a class="cover" href="x/about.html"><a class="btn btn-3d" href="x/"></a></a></li>'
@@ -464,13 +465,22 @@ def check_hub_cards():
     ok_l = lab[0]['ru'] == 'О памятнике' and lab[1]['ru'] == 'О здании' and lab[0]['hy'] == 'Հուշարձանի մասին' and lab[1]['en'] == 'About the building'
     lines.append('%s  подпись второй кнопки — со страницы экспоната: Ленин «О памятнике», Кукурузник «О здании» (hy/ru/en)' % ('OK   ' if ok_l else 'ОШИБКА'))
     ok_all &= ok_l
-    # s42: гранат — штриховка, слои акварели по очереди, зёрна; в страницах нет C2PA-метаданных (их дописывает перенос файлов)
-    pg = re.search(r'<svg class="pg".*?</svg>', hub, re.S)
-    pg = pg.group(0) if pg else ''
-    n_ln, n_sd, n_wash = pg.count('class="ln"'), pg.count('class="sd"'), len(re.findall(r'<g style="--wd:', pg))
-    ok_pg = n_ln >= 100 and n_sd >= 30 and n_wash >= 5 and 'class="pg-wash"' in pg
-    lines.append('%s  гранат: %d штрихов карандаша, %d зёрен, %d слоёв акварели (порог 100 / 30 / 5)' % ('OK   ' if ok_pg else 'ОШИБКА', n_ln, n_sd, n_wash))
+    # s43: гранат «стены» — две совмещённые картинки Gemini (карандаш + акварель) вместо SVG; цифра архивных фото = фото в витринах
+    from PIL import Image
+    lay = {n: ROOT / 'assets' / ('pg-%s.webp' % n) for n in ('pencil-920', 'water-920', 'pencil-560', 'water-560', 'brush', 'wash')}
+    miss = [n for n, f in lay.items() if not f.is_file()]
+    big = [n for n, f in lay.items() if f.is_file() and f.stat().st_size > 160 * 1024]
+    same = not miss and Image.open(lay['pencil-920']).size == Image.open(lay['water-920']).size and Image.open(lay['pencil-560']).size == Image.open(lay['water-560']).size
+    ok_pg = (not miss and not big and same and '<svg class="pg"' not in hub and 'class="pg-l pg-pencil"' in hub and 'class="pg-l pg-water"' in hub
+             and 'url("pg-brush.webp")' in (ROOT / 'assets/hub-museum.css').read_text(encoding='utf-8'))
+    lines.append('%s  гранат: карандаш и акварель Gemini одного размера, каждая ≤ 160 КБ, маски кисти на месте, старого SVG нет%s' % (
+        'OK   ' if ok_pg else 'ОШИБКА', '' if ok_pg else ' — нет: %s, тяжёлые: %s' % (miss, big)))
     ok_all &= ok_pg
+    shown = re.search(r'<dd data-num="(\d+)">', hub)
+    real = sum((ROOT / f).read_text(encoding='utf-8').count('class="g-item') for f in ['kukuruznik/about.html'] + ['%s/about.html' % s for s in bp.test_live_slugs().values()])
+    ok_n = bool(shown) and int(shown.group(1)) == real
+    lines.append('%s  стена: «архивные фото» = фото в витринах about живых зданий (%s / %d)' % ('OK   ' if ok_n else 'ОШИБКА', shown.group(1) if shown else '—', real))
+    ok_all &= ok_n
     c2 = [f for f in CURSOR_FILES if (ROOT / f).is_file() and re.search(r'c2pa', (ROOT / f).read_text(encoding='utf-8'), re.I)]
     lines.append('%s  в страницах и стилях главной нет C2PA-метаданных%s' % ('OK   ' if not c2 else 'ОШИБКА', '' if not c2 else ' — ' + ', '.join(c2)))
     ok_all &= not c2
