@@ -201,7 +201,16 @@ const INIT_SCRIPT = () => {
   performance.now = () => vt;
   window.requestAnimationFrame = (cb) => { q.push(cb); return q.length; };
   window.cancelAnimationFrame = () => {};
-  window.__advance = (ms) => { const n = Math.ceil(ms / 16); for (let i = 0; i < n; i++) { vt += 16; const c = q; q = []; c.forEach((cb) => cb(vt)); } };
+  // s49: искры кнопки «Праздник» (.mg-spark, element.animate) идут по РЕАЛЬНОМУ времени страницы — снимок парада ловил их в разной фазе
+  // (две копии одного движка давали 3–8 тыс. разных пикселей только на снимках парада). Ставим их на паузу и ведём по виртуальным часам.
+  const sparks = new Set(), wa = Element.prototype.animate;
+  Element.prototype.animate = function () {
+    const an = wa.apply(this, arguments);
+    try { if (this.classList && this.classList.contains('mg-spark')) { an.pause(); an.currentTime = 0; an.__vt = 0; sparks.add(an); } } catch (e) {}
+    return an;
+  };
+  window.__advance = (ms) => { const n = Math.ceil(ms / 16); for (let i = 0; i < n; i++) { vt += 16; const c = q; q = []; c.forEach((cb) => cb(vt)); }
+    sparks.forEach((an) => { try { an.__vt += n * 16; an.currentTime = an.__vt; } catch (e) {} }); };
   let s = 12345;
   window.__seed = (n) => { s = n | 0; };
   Math.random = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
