@@ -185,6 +185,21 @@
    "en": "Save postcard",
    "hy": "Պահպանել բացիկը"
   },
+  "cardDlNote": {
+   "ru": "Скачали лицо и оборот. Какого-то нет в загрузках — нажмите на него:",
+   "en": "Front and back downloaded. One missing from Downloads? Click it:",
+   "hy": "Դիմերեսն ու հետնակողմը ներբեռնվեցին։ Որևէ մեկը չկա՞ ներբեռնումներում․ սեղմեք դրա վրա՝"
+  },
+  "cardDlFront": {
+   "ru": "Лицо",
+   "en": "Front",
+   "hy": "Դիմերես"
+  },
+  "cardDlBack": {
+   "ru": "Оборот",
+   "en": "Back",
+   "hy": "Հետնակողմ"
+  },
   "cardSaveBack": {
    "ru": "Сохранить оборот",
    "en": "Save the back side",

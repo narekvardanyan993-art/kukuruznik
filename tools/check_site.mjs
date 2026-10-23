@@ -207,7 +207,7 @@ const INIT_SCRIPT = () => {
   Math.random = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
   // открытка: картинку, которую страница отдаёт на скачивание, запоминаем для сравнения; сам файл не скачивается
   const oc = URL.createObjectURL;
-  URL.createObjectURL = function (b) { try { if (b instanceof Blob && /^image\//.test(b.type)) window.__lastImageBlob = b; } catch (e) {} return oc.apply(this, arguments); };
+  URL.createObjectURL = function (b) { try { if (b instanceof Blob && /^image\//.test(b.type) && !window.__lastImageBlob) window.__lastImageBlob = b; } catch (e) {} return oc.apply(this, arguments); };   // e1.36: первый файл = лицо (с оборотом их два)
   const ac = HTMLAnchorElement.prototype.click;
   HTMLAnchorElement.prototype.click = function () { if (this.download && /^blob:/.test(this.href)) { window.__download = { name: this.download }; return; } return ac.apply(this, arguments); };
   const st = document.createElement('style');
@@ -478,7 +478,8 @@ async function captureWalk(browser, origin, target, vpName, outDir) {
       got = await page.evaluate(() => window.__lastImageBlob && window.__download ? true : null); }
     if (!got) problems.push({ type: 'прогулка', msg: 'открытка не сохранилась (нет картинки за 20 с): ' + JSON.stringify(await page.evaluate(() => ({ blob: !!window.__lastImageBlob, dl: window.__download, btn: (() => { const b = document.getElementById('cardBtn'); return b ? { hidden: b.hidden, r: b.getBoundingClientRect().toJSON() } : null; })() }))) });
     else {
-      const r = await page.evaluate(() => new Promise((res) => { const fr = new FileReader(); fr.onload = () => res({ b64: String(fr.result).split(',')[1], name: window.__download.name }); fr.readAsDataURL(window.__lastImageBlob); }));
+      // e1.36: ПК качает JPEG (card-front.jpg), раньше PNG — в сравнение всегда идёт PNG пикселей файла (как у телефона)
+      const r = await page.evaluate(async () => { const bm = await createImageBitmap(window.__lastImageBlob), c = document.createElement('canvas'); c.width = bm.width; c.height = bm.height; c.getContext('2d').drawImage(bm, 0, 0); return { b64: c.toDataURL('image/png').split(',')[1], name: window.__download.name }; });
       const buf = Buffer.from(r.b64, 'base64');
       fs.writeFileSync(path.join(outDir, 'walk-10-postcard.png'), buf);
       shots['walk-10-postcard'] = { sha: shotSha(PNG.sync.read(buf).data), bytes: buf.length, regions: [], file: r.name };

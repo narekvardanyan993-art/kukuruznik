@@ -262,7 +262,7 @@ def check_postcard():
             rec('%s — postcard.js подключён раньше viewer.js' % bd, 0 <= a < b)
             rec('%s — файл открытки %s' % (bd, cfg.get('POSTCARD_FILE')), str(cfg.get('POSTCARD_FILE', '')).endswith('.png'))
             ui = cfg['UI_I18N']
-            miss = [k for k in ('postcard', 'fullscreen', 'cardTitle', 'cardLine', 'cardSave', 'cardSaveBack', 'cardReady', 'cardGrpDate', 'cardToday', 'cardMyYear', 'cardExhibit', 'cardRare', 'cardRareB', 'sizeNormal', 'sizeLarge', 'cardGrpMoment', 'cardGrpBack', 'cardDawn', 'cardBlue', 'cardBack', 'cardBackHint', 'cardCode', 'cardShow', 'cardTo', 'cardShowOn') if not all((ui.get(k) or {}).get(l) for l in ('hy', 'ru', 'en'))]
+            miss = [k for k in ('postcard', 'fullscreen', 'cardTitle', 'cardLine', 'cardSave', 'cardSaveBack', 'cardDlNote', 'cardDlFront', 'cardDlBack', 'cardReady', 'cardGrpDate', 'cardToday', 'cardMyYear', 'cardExhibit', 'cardRare', 'cardRareB', 'sizeNormal', 'sizeLarge', 'cardGrpMoment', 'cardGrpBack', 'cardDawn', 'cardBlue', 'cardBack', 'cardBackHint', 'cardCode', 'cardShow', 'cardTo', 'cardShowOn') if not all((ui.get(k) or {}).get(l) for l in ('hy', 'ru', 'en'))]
             rec('%s — тексты кнопок и окна на hy/ru/en' % bd, not miss, ', '.join(miss))
             ids = [i for i in ('cardBtn', 'fsBtn', 'pActs', 'cardCfg', 'cardPrev', 'cardLine', 'cardGo', 'cardToast', 'cardFlash', 'cardDateSeg', 'cardYear', 'cardNo', 'cardRareB', 'sizeSeg', 'cardTod', 'cardTime', 'cardWx', 'cardBack', 'cardPrevB', 'cardShow', 'cardTo', 'cardLine', 'cardShowOn') if 'id="%s"' % i not in html_text]
             rec('%s — пара кнопок, окно (превью, «Сохранить», дата, подпись) и плашка в странице' % bd, not ids, ', '.join(ids))
@@ -309,6 +309,9 @@ def check_card_check():
     rec('e1.35: с оборотом — два нажатия (по файлу на share), оба файла непустые; кадр после «Показать» не сбрасывается — проверка на настоящей странице',
         "cc-go2" in cc and 'пустая: однотонная' in cc and 'export async function cardFrameKeepStep' in cc and 'cardFrameKeepStep(page' in (T / 'check_card_phone.mjs').read_text(encoding='utf-8'))
     vj = (ROOT / 'engine' / 'viewer.js').read_text(encoding='utf-8')
+    rec('e1.36: компьютер — один клик = два скачивания (card-front.jpg, card-back.jpg) + плашка-ссылки; share только на телефоне/планшете; второй шаг — сразу оборот',
+        'if (!TOUCH_DEV) { desktopSave(back); return; }' in vj and "'card-back.jpg'" in vj and 'id="cardDl"' in (ROOT / 'engine' / 'page.html').read_text(encoding='utf-8')
+        and '&& TOUCH_DEV;' in vj and 'if (goBack && cfg.back && shareOK) { deliverCard(cfg.card, cfg.back);' in vj and 'export async function desktopCardStep' in cc and 'function sideChecks' in cc)
     rec('e1.35: праздник открытки — на текущем кадре (frameIndex), файлы собираются заранее (toBlob), share — по одному файлу',
         'var fi = frameIndex, st = PARADE_STYLES[fi];' in vj and 'function cardFilesPrep()' in vj and 'shareFile(f, function () { goStep(second); })' in vj)
     rec('check_card_phone.mjs — быстрая проверка одной страницы на том же шаге', "phoneCardStep" in (T / 'check_card_phone.mjs').read_text(encoding='utf-8'))

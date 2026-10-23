@@ -2908,6 +2908,8 @@
   // «Открытка готова» со вторым нажатием. Лицо: название, годы, chka.am/<здание>; оборот: номер экспоната, личный номер, «редкая», письмо и «Кому».
   // e1.35 (баги iPhone): праздник и «Показать» — на том кадре, где стоит человек (без перехода на кадр postcard.show); с оборотом — два
   // нажатия, по файлу на «Поделиться» (лицо, потом «Сохранить оборот»), файлы собираются заранее; своего переключателя языка нет — язык страницы.
+  // e1.36: «Поделиться» — только телефоны/планшеты (TOUCH_DEV); компьютер — один клик качает card-front.jpg + card-back.jpg (+ плашка-ссылки);
+  // второй шаг на телефоне — всегда сразу оборот (раньше при «неготовых» шрифтах iOS оба шага отдавали лицо).
   var cardBtn = document.getElementById('cardBtn'), cardGo = document.getElementById('cardGo'), cardShow = document.getElementById('cardShow');
   var cardCfg = document.getElementById('cardCfg'), cardPrev = document.getElementById('cardPrev'), cardPrevB = document.getElementById('cardPrevB');
   var cardLineIn = document.getElementById('cardLine'), cardToIn = document.getElementById('cardTo'), cardTodIn = document.getElementById('cardTod');
@@ -2933,9 +2935,15 @@
   function cardLang() { return cardSet.lang || currentLang; }   // e1.35: своего переключателя языка нет — надписи на языке страницы (lang ставит только __card.make)
   function cardYear() { return cardSet.year || Math.round((CARD_YEARS[0] + CARD_YEARS[1]) / 2); }
   function cardNo() { var n = Math.round(+(CONFIG.POSTCARD || {}).no); return n > 0 ? (n < 10 ? '00' : n < 100 ? '0' : '') + n : ''; }
-  var shareOK = !!(navigator.share && navigator.canShare) && window.matchMedia('(pointer: coarse)').matches;   // ПК — скачивание файла
+  // e1.36: путь «Поделиться» (два шага) — только телефоны и планшеты. iPadOS с клавиатурой-трекпадом бывает pointer: fine и выдаёт себя
+  // за Mac — узнаём его по MacIntel + maxTouchPoints > 1. Ноутбук с сенсорным экраном (Windows) — компьютер: основной указатель мышь.
+  // Компьютер (Mac/Windows) — без share: один клик скачивает оба файла.
+  var IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var TOUCH_DEV = IOS || /Android/i.test(navigator.userAgent) || (window.matchMedia('(pointer: coarse)').matches && navigator.maxTouchPoints > 0);
+  var shareOK = !!(navigator.share && navigator.canShare) && TOUCH_DEV;
+  var cardFontsDone = false;   // e1.36: шрифты открытки уже загружены (или не загрузились совсем — дальше не ждём)
   function cardFontsReady(lang) {
-    if (!document.fonts || !document.fonts.check) return true;
+    if (cardFontsDone || !document.fonts || !document.fonts.check) return true;
     var t = CARD_SAMPLE[lang] || CARD_SAMPLE.en;
     try { return document.fonts.check('700 40px ' + CARD_FONT, t) && document.fonts.check('400 40px ' + CARD_FONT, t); } catch (e) { return true; }
   }
@@ -2943,7 +2951,7 @@
     if (!document.fonts || !document.fonts.load) return Promise.resolve();
     var all = [];
     CONFIG.LANGS.forEach(function (l) { ['400', '500', '600', '700'].forEach(function (w) { all.push(document.fonts.load(w + ' 40px ' + CARD_FONT, CARD_SAMPLE[l] || '').catch(function () {})); all.push(document.fonts.load('italic 400 40px ' + CARD_FONT, CARD_SAMPLE[l] || '').catch(function () {})); }); });
-    return Promise.all(all);
+    return Promise.all(all).then(function () { cardFontsDone = true; });   // e1.36: document.fonts.check на iOS может и после загрузки отвечать false
   }
   // старая бумага (e1.32): engine/paper/old-paper-1.webp (лицо) и -2 (оборот). e1.33: грузится заранее, в простое после загрузки страницы
   // (низкий приоритет, после шрифтов; вместе с ними — см. «шрифты открытки — в простое»), а не при открытии окна: открытка, снятая сразу
@@ -3173,7 +3181,14 @@
     for (var i = 0; i < steps.length && dataURLBytes(u) > CARD_MAXB; i++) u = cv.toDataURL('image/jpeg', steps[i]);
     var b = atob(u.slice(u.indexOf(',') + 1)), a = new Uint8Array(b.length);
     for (var j = 0; j < b.length; j++) a[j] = b.charCodeAt(j);
-    return new File([a], cardName(back ? '-back.jpg' : '.jpg'), { type: 'image/jpeg', lastModified: Date.now() });
+    return sideFile(a, back);
+  }
+  // e1.36: у каждой стороны своё имя (…-front.jpg / …-back.jpg) и своё время файла (оборот на 1 с позже) — ни Фото, ни временная папка
+  // системы не спутают две стороны; f.__side — какая это сторона (проверяется перед отдачей)
+  function sideFile(data, back) {
+    var f = new File([data], cardName(back ? '-back.jpg' : '-front.jpg'), { type: 'image/jpeg', lastModified: Date.now() + (back ? 1000 : 0) });
+    f.__side = back ? 'back' : 'front';
+    return f;
   }
   // e1.35 (баг Нарека: на iPhone через «Поделиться → Сохранить» в Фото попал только оборот). Share с двумя файлами на iOS ненадёжен
   // (WebKit 255641: у нескольких файлов пропадал пункт «Сохранить N изображений», iOS 16; 231995/245854: промис share не завершался после
@@ -3191,14 +3206,14 @@
         try { cv.toBlob(function (b) {
           if (v !== cardFiles.v) { res(null); return; }
           if (b && b.size > CARD_MAXB && i + 1 < qs.length) { step(i + 1); return; }
-          res(b && b.size >= CARD_MINB ? new File([b], cardName(back ? '-back.jpg' : '.jpg'), { type: 'image/jpeg', lastModified: Date.now() }) : null);
+          res(b && b.size >= CARD_MINB ? sideFile(b, back) : null);
         }, 'image/jpeg', qs[i]); } catch (e) { res(null); }
       })(0);
     });
   }
   function cardFilesPrep() {   // после каждой сборки превью: старые файлы — в сторону, новые — в простое (не мешая анимации окна)
-    cardFiles.v++; cardFiles.front = cardFiles.back = null; clearTimeout(cardFiles.t); goStep(false);
-    if (!shareOK) return;
+    cardFiles.v++; cardFiles.front = cardFiles.back = null; clearTimeout(cardFiles.t); goStep(false); if (typeof dlHide === 'function') dlHide();
+    if (touchNoShare) return;   // e1.36: и для «Поделиться», и для компьютера (два скачивания) — файлы готовы до клика
     var v = cardFiles.v, c = cfg.card, b = cfg.back;
     cardFiles.t = setTimeout(function () {
       if (v !== cardFiles.v || !c) return;
@@ -3208,7 +3223,7 @@
   }
   function cardFileNow(back) {   // готовый файл стороны или собрать сейчас (синхронно, в жесте); пустой — пересобрать сторону один раз
     var f = back ? cardFiles.back : cardFiles.front;
-    if (f) return f;
+    if (f && f.__side === (back ? 'back' : 'front')) return f;
     var cv = back ? cfg.back : cfg.card; if (!cv) return null;
     f = fileFromCanvas(cv, back);
     if (f.size < CARD_MINB) { cv = composeCard(cfg.src, back ? { back: true } : undefined); f = fileFromCanvas(cv, back); if (back) cfg.back = cv; else cfg.card = cv; }
@@ -3228,8 +3243,7 @@
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
   }
   // iOS Safari без Web Share (старые версии, или открыто из приложения без поддержки файлов): программное скачивание там часто просто
-  // открывает картинку — показываем оверлей «зажми и сохрани» с двумя готовыми превью вместо попытки скачать (e1.34).
-  var IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  // открывает картинку — показываем оверлей «зажми и сохрани» с двумя готовыми превью вместо попытки скачать (e1.34). IOS — выше (e1.36).
   var cardSaveOv = document.getElementById('cardSaveOv'), cardSaveOvF = document.getElementById('cardSaveOvF'), cardSaveOvB = document.getElementById('cardSaveOvB'), cardSaveOvX = document.getElementById('cardSaveOvX');
   function showSaveOverlay(cv, back) {
     if (!cardSaveOv || !cardSaveOvF) return false;
@@ -3257,7 +3271,7 @@
       hideToast(); files.forEach(function (f) { downloadBlob(f, f.name); });
     });
   }
-  var touchNoShare = window.matchMedia('(pointer: coarse)').matches && !shareOK;   // телефон, но Web Share с файлами недоступен
+  var touchNoShare = TOUCH_DEV && !shareOK;   // телефон, но Web Share с файлами недоступен
   // отдать: телефон с Web Share — «Поделиться» с одним файлом или двумя (лицо + оборот); телефон без Web Share (в т.ч. iOS Safari
   // без поддержки файлов) — оверлей «зажми и сохрани» (JPEG card-front.jpg/card-back.jpg готовы в самом оверлее, качать не нужно,
   // а на iOS программное скачивание часто просто открывает картинку); ПК — PNG (с оборотом — два PNG)
@@ -3269,6 +3283,7 @@
         return shareFile(f, function () { goStep(second); });   // закрыли меню — шаг остаётся тем же
       }
     }
+    if (!TOUCH_DEV) { desktopSave(back); return; }   // e1.36: компьютер — оба файла одним кликом
     if (touchNoShare && showSaveOverlay(cv, back)) return;
     if (touchNoShare || IOS) {   // телефон без оверлея (разметка не нашлась) — хотя бы JPEG с понятным именем, не PNG
       cv.toBlob(function (blob) { if (blob) downloadBlob(blob, 'card-front.jpg'); }, 'image/jpeg', 0.9);
@@ -3277,6 +3292,27 @@
     }
     cv.toBlob(function (blob) { if (blob) downloadBlob(blob, cardName('.png')); }, 'image/png');
     if (back) back.toBlob(function (blob) { if (blob) downloadBlob(blob, cardName('-back.png')); }, 'image/png');
+  }
+  // e1.36 (баг Нарека на Маке: скачивался только оборот). Раньше ПК кодировал лицо и оборот в PNG параллельно (toBlob) и качал, кто первым
+  // закончит; второй файл Chrome считает «автоматическим скачиванием нескольких файлов» (спрашивает или блокирует), Safari тоже спрашивает —
+  // выживал один, какой повезёт. Теперь: оба JPEG готовы заранее, лицо качается сразу в клике (card-front.jpg), оборот — через 400 мс
+  // (card-back.jpg). Второе скачивание всё равно может спросить разрешение или быть заблокировано — поэтому под кнопкой появляется
+  // плашка с двумя превью-ссылками «Лицо» / «Оборот»: каждая — своё нажатие, его браузер не блокирует.
+  var dlUrls = [], cardDl = document.getElementById('cardDl');
+  function dlFree() { dlUrls.forEach(function (u) { setTimeout(function () { URL.revokeObjectURL(u); }, 60000); }); dlUrls = []; }
+  function dlHide() { if (cardDl) cardDl.hidden = true; dlFree(); }
+  function dlUrl(f, name) { var a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = name; dlUrls.push(a.href); document.body.appendChild(a); a.click(); a.remove(); return a.href; }
+  function desktopSave(back) {
+    var ff = cardFileNow(false), fb = back ? cardFileNow(true) : null;
+    if (!ff) return;
+    dlHide();
+    var uf = dlUrl(ff, 'card-front.jpg'), ub = null;
+    if (fb) { ub = URL.createObjectURL(fb); dlUrls.push(ub); setTimeout(function () { var a = document.createElement('a'); a.href = ub; a.download = 'card-back.jpg'; document.body.appendChild(a); a.click(); a.remove(); }, 400); }
+    if (cardDl && ub) {
+      var lf = document.getElementById('cardDlF'), lb = document.getElementById('cardDlB');
+      lf.href = uf; lf.querySelector('img').src = uf; lb.href = ub; lb.querySelector('img').src = ub;
+      cardDl.hidden = false;
+    }
   }
   function cardFlashNow() { if (cardFlash && cardFlash.animate) cardFlash.animate([{ opacity: reduced() ? 0.35 : 0.75 }, { opacity: 0 }], { duration: reduced() ? 380 : 620, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' }); }
   function goDone() { cardGo.classList.add('done'); clearTimeout(cardGo.__t); cardGo.__t = setTimeout(function () { cardGo.classList.remove('done'); }, 1600); }
@@ -3474,6 +3510,10 @@
   cardShow.addEventListener('click', function () { showNow(); });
   cardGo.addEventListener('click', function () {   // «Сохранить» — по текущим настройкам, даже без «Показать»
     if (!cfg.src || cfg.busy) return;
+    // e1.36 (баг iPhone: два шага сохраняли одну и ту же картинку). Если шрифты «не готовы» (на iOS document.fonts.check мог отвечать
+    // false и после загрузки), каждое нажатие шло медленным путём: пересборка → шаг сбрасывался на лицо → плашка снова с ЛИЦОМ.
+    // Второй шаг теперь — всегда сразу оборот: без пересборки, без проверки шрифтов и сцены.
+    if (goBack && cfg.back && shareOK) { deliverCard(cfg.card, cfg.back); cardFlashNow(); goDone(); return; }
     if (wantKey(cfg.want) === cfg.srcKey && cardFontsReady(cardLang())) {   // сцена та же — отдать прямо в нажатии
       if (r2.raf) { cancelAnimationFrame(r2.raf); r2.raf = 0; r2.front = false; r2.mode = 'none'; cfgCompose(); }   // перерисовка ещё не прошла — собрать сейчас
       else if (!cfg.card) cfgCompose();   // e1.35: превью уже собрано по текущим настройкам — не пересобирать (готовые файлы пропали бы)
@@ -3483,7 +3523,7 @@
     }
     showNow().then(function () {   // время/погода другие (или шрифты не готовы) — сначала снять; жест уже потерян → на телефоне плашка «готово»
       if (!cfg.card) return;
-      if (shareOK) { var f = cardFileNow(false); if (f) { showToast(f); goStep(!!cfg.back); } }   // e1.35: лицо — по плашке, оборот — второй кнопкой
+      if (shareOK) { var f = cardFileNow(false); if (f) { showToast(f); goStep(!!cfg.back); } }   // e1.35: лицо — по плашке, оборот — второй кнопкой (e1.36: второе нажатие кнопки — сразу оборот)
       else deliverCard(cfg.card, cfg.back);
       goDone();
     });
@@ -3508,7 +3548,7 @@
     fontsReady: function (l) { return cardFontsReady(l || cardLang()); }, fontsLoad: cardFontsLoad, paperReady: cardPaperReady, paperLoad: cardPaperLoad,bldLoad: function () { FRAMES.forEach(function (F, i) { cardBldLoad(i); }); return new Promise(function (res) { var n = 0; (function w() { if (FRAMES.every(function (F, i) { return cardBld[i] !== 'loading'; }) || ++n > 100) res(); else setTimeout(w, 100); })(); }); }, mask: cardBuildingMask, safe: function () { return ChkaPostcard.SAFE; },
     open: openCfg, close: closeCfg, show: showNow,
     want: function (w) { if (w) { cfg.want = w; dirty(); } return cfg.want; },
-    state: function () { return { open: bodyEl.classList.contains('card-open'), srcFrame: cfg.srcFrame, step: goBack ? 'back' : 'front', filesReady: { front: !!cardFiles.front, back: !!cardFiles.back }, rare: cfg.rare, seed: cfg.seed, code: cfg.code, time: cfg.want ? cardTime(cfg.want) : '', want: cfg.want, srcKey: cfg.srcKey, dirty: cfg.dirty, busy: cfg.busy, back: !!cfg.back, years: CARD_YEARS, set: JSON.parse(JSON.stringify(cardSet)), no: cardNo(), mom: MOM.map(function (m) { return m.k; }), wx: CWX, showOn: !!(cfg.want && cfg.want.show) }; },
+    state: function () { return { open: bodyEl.classList.contains('card-open'), srcFrame: cfg.srcFrame, step: goBack ? 'back' : 'front', device: TOUCH_DEV ? (shareOK ? 'share' : 'touch') : 'desktop', filesReady: { front: !!cardFiles.front, back: !!cardFiles.back }, rare: cfg.rare, seed: cfg.seed, code: cfg.code, time: cfg.want ? cardTime(cfg.want) : '', want: cfg.want, srcKey: cfg.srcKey, dirty: cfg.dirty, busy: cfg.busy, back: !!cfg.back, years: CARD_YEARS, set: JSON.parse(JSON.stringify(cardSet)), no: cardNo(), mom: MOM.map(function (m) { return m.k; }), wx: CWX, showOn: !!(cfg.want && cfg.want.show) }; },
     // замер «Момента» (s30): применить { p | s, wx }, снять кадр без табличек, вернуть сцену; ответ — маленькая копия 270×480 PNG
     probe: function (w) { return shoot(w).then(function (r) { if (!r.src) return null; var c = document.createElement('canvas'); c.width = 270; c.height = 480; c.getContext('2d').drawImage(r.src, 0, 0, 270, 480); return c.toDataURL('image/png'); }); },
     // замер праздника (s31): w как у probe + show: true; ts — секунды показа; ответ — список копий 270×480 PNG (или полного размера, если full)

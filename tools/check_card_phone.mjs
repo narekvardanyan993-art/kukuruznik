@@ -12,7 +12,7 @@ import os from 'os';
 import path from 'path';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
-import { SHARE_HOOK, CARD_DETERMINISM, phoneCardStep, cardSheetClose, cardFrameKeepStep } from './card_check.mjs';
+import { SHARE_HOOK, CARD_DETERMINISM, DOWNLOAD_HOOK, phoneCardStep, cardSheetClose, cardFrameKeepStep, desktopCardStep } from './card_check.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -55,20 +55,28 @@ const srv = await serve(root);
 const gpu = opt.renderer === 'swiftshader' ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] : ['--use-angle=metal', '--ignore-gpu-blocklist', '--enable-gpu'];
 const browser = await puppeteer.launch({ headless: 'new', args: [...gpu, '--no-sandbox', '--disable-features=CanvasNoise', '--autoplay-policy=no-user-gesture-required', '--hide-scrollbars', '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE 127.0.0.1'] });
 let problems = [];
-try {
+const errs = [];
+// открыть страницу: телефон (share-перехватчик) или компьютер 1440×900 (перехватчик скачиваний); fontsStuck — document.fonts.check всегда false
+// (так было на iPhone: e1.35 из-за этого шёл медленным путём и оба шага отдавали лицо)
+async function openPage({ desktop = false, fontsStuck = false } = {}) {
   const page = await browser.newPage();
-  const errs = [];
   page.on('pageerror', (e) => errs.push({ type: 'ошибка страницы', msg: String(e.message).slice(0, 300) }));
-  await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+  if (desktop) await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
+  else await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
   await page.evaluateOnNewDocument(CARD_DETERMINISM);
-  await page.evaluateOnNewDocument(SHARE_HOOK);
+  await page.evaluateOnNewDocument(desktop ? DOWNLOAD_HOOK : SHARE_HOOK);
+  if (fontsStuck) await page.evaluateOnNewDocument(() => { try { Object.defineProperty(FontFaceSet.prototype, 'check', { value: () => false, configurable: true }); } catch (e) {} });
   await page.goto(`http://127.0.0.1:${srv.port}/${opt.page}?perf=0&still=1`, { waitUntil: 'load', timeout: 60000 });
   for (let i = 0; i < 480 && !(await page.evaluate(() => document.documentElement.getAttribute('data-loaded') === 'all' && !document.getElementById('stage').classList.contains('loading')).catch(() => false)); i++) await sleep(250);
   await page.evaluate(() => { const w = document.getElementById('welcome'); if (w) w.remove(); });
+  const click = async (sel) => { for (let k = 0; k < 40; k++) { const y = await page.evaluate((s) => { const e = document.querySelector(s); e.scrollIntoView({ block: 'center' }); return e.getBoundingClientRect().top; }, sel); await sleep(250); const y2 = await page.evaluate((s) => document.querySelector(s).getBoundingClientRect().top, sel); if (Math.abs(y - y2) < 0.5 && y2 > 0 && y2 < (desktop ? 880 : 800)) break; } await page.click(sel); };
+  return { page, click };
+}
+try {
+  const { page, click } = await openPage();
   log('страница загружена');
   if (!(await page.evaluate(() => !!window.ChkaPostcard))) { problems.push({ type: 'прогулка', msg: 'на странице нет открытки в сторис (window.ChkaPostcard)' }); }
   else {
-    const click = async (sel) => { for (let k = 0; k < 40; k++) { const y = await page.evaluate((s) => { const e = document.querySelector(s); e.scrollIntoView({ block: 'center' }); return e.getBoundingClientRect().top; }, sel); await sleep(250); const y2 = await page.evaluate((s) => document.querySelector(s).getBoundingClientRect().top, sel); if (Math.abs(y - y2) < 0.5 && y2 > 0 && y2 < 800) break; } await page.click(sel); };
     // e1.35: кадр не сбрасывается после смены опции + нет своего переключателя языка (настоящая страница, кадр 2)
     const fk = await cardFrameKeepStep(page, { click, sleep, frame: 1 });
     problems.push(...fk.problems);
@@ -87,8 +95,27 @@ try {
       if (cb.backPng) { log(`с оборотом: share получил ${cb.name} + ${cb.backName}, ${((Date.now() - t2) / 1000).toFixed(1)} с`); if (opt.save) fs.writeFileSync(opt.save.replace(/\.png$/i, '') + '-back.png', cb.backPng); }
       await page.evaluate(() => { const b = document.getElementById('cardBack'); if (b && b.getAttribute('aria-pressed') === 'true') b.click(); });   // вернуть «без оборота»
     }
+    await page.close();
+    // e1.36: телефон, где document.fonts.check «застрял» в false (iPhone) — два шага всё равно дают лицо, потом оборот (разные картинки)
+    {
+      const { page: pg, click: ck } = await openPage({ fontsStuck: true });
+      await pg.click('#panelBtn');
+      const cf = await phoneCardStep(pg, { click: ck, sleep, back: true });
+      problems.push(...cf.problems.map((q) => ({ type: q.type, msg: 'телефон, шрифты «не готовы»: ' + q.msg })));
+      if (cf.backPng) log('телефон, шрифты «не готовы»: 2 шага → лицо + оборот');
+      await pg.close();
+    }
+    // e1.36: компьютер 1440×900 — один клик «Сохранить открытку» = card-front.jpg + card-back.jpg (без share и без второго шага)
+    {
+      const { page: pd, click: cd } = await openPage({ desktop: true });
+      const dk = await desktopCardStep(pd, { click: cd, sleep, back: true });
+      problems.push(...dk.problems);
+      if (dk.backPng) { log('компьютер: один клик → ' + JSON.stringify(dk.names)); if (opt.save) { fs.writeFileSync(opt.save.replace(/\.png$/i, '') + '-desktop-front.png', dk.png); fs.writeFileSync(opt.save.replace(/\.png$/i, '') + '-desktop-back.png', dk.backPng); } }
+      if (opt.save) await pd.screenshot({ path: opt.save.replace(/\.png$/i, '') + '-desktop-window.png' });
+      await pd.close();
+    }
   }
   problems.push(...errs);
 } finally { await browser.close(); srv.close(); }
 if (problems.length) { for (const p of problems) console.log('КРАСНОЕ:', p.type + ':', p.msg); process.exit(1); }
-console.log('ЗЕЛЁНАЯ: открытка в share — image/jpeg 1080×1920, один вызов; с оборотом — 2 файла 1080×1920 (по нажатию на каждый), оба непустые; кадр после «Показать» не сбрасывается; переключателя языка нет');
+console.log('ЗЕЛЁНАЯ: телефон — share image/jpeg 1080×1920, один вызов; с оборотом — лицо, потом оборот (по нажатию, разные, оба непустые; и при «застрявших» шрифтах); кадр после «Показать» не сбрасывается; переключателя языка нет; компьютер — один клик = card-front.jpg + card-back.jpg');

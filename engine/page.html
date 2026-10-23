@@ -912,6 +912,16 @@
   .cc-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
   .cc-meta > span[id] { display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; border-radius: 999px; border: 1.2px solid rgba(47,42,37,0.3); font: 700 12.5px/1 var(--font); letter-spacing: 0.02em; }
   .cc-meta > span[hidden] { display: none; }
+  /* e1.36: компьютер — после «Сохранить открытку» две ссылки-превью (если браузер не дал скачать второй файл) */
+  .cc-dl { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1.2px dashed rgba(47,42,37,0.35); border-radius: 12px; animation: ccDlIn 360ms var(--out) both; }
+  .cc-dl[hidden] { display: none; }
+  .cc-dl p { flex: 1; margin: 0; font: 600 12.5px/1.35 var(--font); color: var(--ink); }
+  .cc-dl a { display: flex; flex-direction: column; align-items: center; gap: 4px; font: 700 12px/1 var(--font); color: var(--ink); text-decoration: none; transition: transform 240ms var(--out), opacity 240ms var(--out); }
+  .cc-dl a:hover { transform: translateY(-2px); }
+  .cc-dl a:active { transform: scale(0.96); opacity: 0.8; }
+  .cc-dl img { width: 36px; height: 64px; object-fit: cover; border-radius: 4px; box-shadow: 0 1px 4px rgba(47,42,37,0.25); }
+  @keyframes ccDlIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .cc-dl { animation: none; } }
   #cardTo { width: 100%; min-height: 44px; padding: 8px 10px; border: 1.5px solid rgba(47,42,37,0.4); border-radius: 10px 5px 10px 5px / 5px 10px 5px 10px;
     background: rgba(255,252,244,0.9); color: var(--ink); font: 400 16px/1.2 var(--font); user-select: text; -webkit-user-select: text; outline: none; }
   #cardTo:focus { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(47,42,37,0.12); }
@@ -1149,6 +1159,7 @@ document.querySelectorAll('.chips').forEach(function (g) { g.querySelectorAll('.
   <div class="cc-prev"><canvas id="cardPrev" width="180" height="320" aria-hidden="true"></canvas><canvas id="cardPrevB" width="180" height="320" aria-hidden="true"></canvas><i class="cc-spin" aria-hidden="true"></i></div>
   <div class="cc-acts"><button type="button" id="cardShow" class="p-btn cc-show"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3.6 16.2 Q9.6 8.4 16 8.5 Q22.6 8.6 28.4 16 Q22.4 23.6 16 23.5 Q9.4 23.4 3.6 16.2Z"/><circle cx="16" cy="16" r="4.4"/><path d="M14.4 14.6 h.01" stroke-width="2.4"/></svg><span data-i18n="cardShow">Показать</span></button><button type="button" id="cardGo" class="p-btn cc-go"><svg viewBox="0 0 32 32" aria-hidden="true"><g class="i-save"><path d="M16.1 4.8 Q15.8 11.6 16 19.2"/><path d="M10.4 14.2 Q13.4 16.9 16 19.7 Q18.7 16.8 21.6 14.1"/><path d="M6.3 18.4 Q5.9 23.2 6.5 26.3 Q16 26.9 25.5 26.3 Q26.1 23.2 25.7 18.4"/></g><path class="i-ok" d="M9.4 16.8 l4.6 4.5 8.4-9.2"/></svg><span data-i18n="cardSave">Сохранить</span></button></div>
   <div class="cc-meta"><span id="cardNo" hidden></span><span id="cardRareB" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.2 L9.6 6.4 L14.8 8 L9.6 9.6 L8 14.8 L6.4 9.6 L1.2 8 L6.4 6.4Z"/></svg><span data-i18n="cardRareB">Редкая открытка</span></span></div>
+  <div class="cc-dl" id="cardDl" hidden><p data-i18n="cardDlNote">Скачали лицо и оборот. Какого-то нет в загрузках — нажмите на него:</p><a id="cardDlF" download="card-front.jpg"><img alt=""><span data-i18n="cardDlFront">Лицо</span></a><a id="cardDlB" download="card-back.jpg"><img alt=""><span data-i18n="cardDlBack">Оборот</span></a></div>
   </div>
   <section class="cc-grp" data-grp="moment">
     <h4 class="cc-gh" data-i18n="cardGrpMoment">Момент</h4>

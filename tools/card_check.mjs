@@ -14,6 +14,46 @@ export const SHARE_HOOK = () => {
   put('share', (d) => { window.__shares.push({ file: (d && d.files && d.files[0]) || null, files: (d && d.files) ? Array.from(d.files) : [], n: d && d.files ? d.files.length : 0 }); return Promise.resolve(); });
 };
 
+// e1.36: компьютер — открытка скачивается (a[download] с blob:). Перехватчик запоминает каждый файл { name, blob } и НЕ качает его.
+export const DOWNLOAD_HOOK = () => {
+  window.__dls = [];
+  const urls = new Map(), oc = URL.createObjectURL.bind(URL);
+  URL.createObjectURL = function (b) { const u = oc(b); try { urls.set(u, b); } catch (e) {} return u; };
+  const ac = HTMLAnchorElement.prototype.click;
+  HTMLAnchorElement.prototype.click = function () { if (this.download && /^blob:/.test(this.href)) { window.__dls.push({ name: this.download, blob: urls.get(this.href) || null, t: performance.now() }); return; } return ac.apply(this, arguments); };
+};
+
+// Разбор файлов открытки в странице (исходник функции — строкой, через eval: один и тот же код для share и для скачиваний).
+// Для каждого файла: тип, размер, габариты, разброс яркости (пустой?), PNG для сохранения, «отпечаток» 27×48 и похожесть на превью окна
+// (#cardPrev — лицо, #cardPrevB — оборот: средняя разница яркости, 0…255; меньше — похожее).
+const INSPECT_SRC = `(async (fl) => {
+  const thumb = (img) => { const m = document.createElement('canvas'); m.width = 27; m.height = 48; const x = m.getContext('2d'); x.drawImage(img, 0, 0, 27, 48); const d = x.getImageData(0, 0, 27, 48).data, o = []; for (let i = 0; i < d.length; i += 4) o.push(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]); return o; };
+  const diff = (a, b) => { let t = 0; for (let i = 0; i < a.length; i++) t += Math.abs(a[i] - b[i]); return +(t / a.length).toFixed(2); };
+  const pv = (id) => { const c = document.getElementById(id); return c && c.width > 1 && c.getContext ? thumb(c) : null; };
+  const pf = pv('cardPrev'), pb = pv('cardPrevB');
+  const out = [];
+  for (const f of fl) {
+    if (!f) { out.push({ missing: true }); continue; }
+    const bm = await createImageBitmap(f), c = document.createElement('canvas'); c.width = bm.width; c.height = bm.height; c.getContext('2d').drawImage(bm, 0, 0);
+    const m = document.createElement('canvas'); m.width = 108; m.height = 192; const mx = m.getContext('2d'); mx.drawImage(bm, 0, 0, 108, 192);
+    const d = mx.getImageData(0, 0, 108, 192).data; let a = 0, a2 = 0, k = 0; for (let i = 0; i < d.length; i += 4) { const L = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; a += L; a2 += L * L; k++; }
+    const sd = Math.sqrt(Math.max(0, a2 / k - (a / k) * (a / k))), th = thumb(bm);
+    out.push({ type: f.type, size: f.size, name: f.name, w: bm.width, h: bm.height, sd: +sd.toFixed(2), th, dF: pf ? diff(th, pf) : null, dB: pb ? diff(th, pb) : null, png: c.toDataURL('image/png').split(',')[1] });
+  }
+  if (out.length > 1 && !out[0].missing && !out[1].missing) out[1].d01 = diff(out[0].th, out[1].th);
+  out.forEach((q) => delete q.th);
+  return out;
+})`;
+
+// e1.36: две стороны — РАЗНЫЕ картинки, первая — лицо (ближе к превью лица), вторая — оборот (баг iPhone e1.35: оба шага отдали лицо)
+function sideChecks(files, P, how) {
+  if (files.length < 2 || files[0].missing || files[1].missing) return;
+  if (!(files[1].d01 > 4)) P(`лицо и оборот в ${how} — одна и та же картинка (разница ${files[1].d01}) — сохранится одна сторона дважды`);
+  const [f0, f1] = files;
+  if (f0.dF != null && f0.dB != null && !(f0.dF < f0.dB)) P(`первый файл (${how}) — не лицо: на превью лица похож меньше (${f0.dF}), чем на превью оборота (${f0.dB})`);
+  if (f1.dF != null && f1.dB != null && !(f1.dB < f1.dF)) P(`второй файл (${how}) — не оборот: на превью оборота похож меньше (${f1.dB}), чем на превью лица (${f1.dF})`);
+}
+
 // Выполняется в странице (evaluateOnNewDocument) — все страницы проверки. Открытка рисует зерно и износ штемпеля от зерна Date.now() (postcard.js) —
 // без подмены открытки двух прогонов одного и того же сайта разные пиксель в пиксель и сравнение «как сейчас / кандидат» краснело бы всегда.
 // Подменяем Date.now ТОЛЬКО для вызова из postcard.js (по стеку); остальной код страницы получает настоящее время.
@@ -109,19 +149,13 @@ export async function phoneCardStep(page, { click, sleep, shareMs = 20000, fonts
     await sleep(300);
     n2 = await page.evaluate(() => window.__shares.length);
   }
-  const r = await page.evaluate(async () => {
+  const r = await page.evaluate(async (src) => {
     const s = window.__shares, fl = [];
     s.forEach((q) => { const f = (q.files && q.files.length) ? q.files : (q.file ? [q.file] : []); f.forEach((x) => fl.push(x)); });
     if (!fl.length) return { n: s.length, nofile: true };
-    // «не пустой»: разброс яркости на уменьшенной копии 108×192 (однотонная заливка / пустой холст iOS — ~0)
-    const one = async (f) => { const bm = await createImageBitmap(f), c = document.createElement('canvas'); c.width = bm.width; c.height = bm.height; const x = c.getContext('2d'); x.drawImage(bm, 0, 0);
-      const m = document.createElement('canvas'); m.width = 108; m.height = 192; const mx = m.getContext('2d'); mx.drawImage(bm, 0, 0, 108, 192);
-      const d = mx.getImageData(0, 0, 108, 192).data; let a = 0, a2 = 0, k = 0; for (let i = 0; i < d.length; i += 4) { const L = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; a += L; a2 += L * L; k++; }
-      const sd = Math.sqrt(Math.max(0, a2 / k - (a / k) * (a / k)));
-      return { type: f.type, size: f.size, name: f.name, w: bm.width, h: bm.height, sd: +sd.toFixed(2), png: c.toDataURL('image/png').split(',')[1] }; };
-    const files = []; for (const f of fl) files.push(await one(f));
+    const files = await (0, eval)(src)(fl);
     return Object.assign({ n: s.length, count: fl.length, files }, files[0]);
-  });
+  }, INSPECT_SRC);
   if (r.nofile) { P('share вызван без файла'); return out; }
   const need = back ? 2 : 1;
   if (r.count !== need) P(`открытка в share: файлов ${r.count}, нужно ${need} (${back ? 'лицо + оборот' : 'без оборота — только лицо'})`);
@@ -133,6 +167,7 @@ export async function phoneCardStep(page, { click, sleep, shareMs = 20000, fonts
     if (f.size > MAXB) P(`${what} в share: ${(f.size / 1024 / 1024).toFixed(2)} МБ, нужно ≤ ~1 МБ`);
     if (!(f.sd >= 4)) P(`${what} в share пустая: однотонная картинка (разброс яркости ${f.sd}) — похоже, пустой холст`);   // e1.35: «оба файла непустые»
   });
+  sideChecks(r.files, P, 'share');
   const taps = back && n2 ? 2 : 1;
   if (r.n !== taps) P(taps === 1 ? `одно нажатие вызвало share ${r.n} раз(а)` : `два нажатия вызвали share ${r.n} раз(а)`);
   out.png = Buffer.from(r.png, 'base64'); out.size = r.size; out.name = r.name;
@@ -187,4 +222,43 @@ export async function cardFrameKeepStep(page, { click, sleep, frame = 1 }) {
   await page.evaluate(() => window.__card.close());
   await sleep(600);
   return { problems, runs: out };
+}
+
+// e1.36: шаг «открытка» на КОМПЬЮТЕРЕ (страница с DOWNLOAD_HOOK, без SHARE_HOOK, указатель — мышь). С оборотом ОДИН клик «Сохранить открытку»
+// даёт ровно 2 скачивания: card-front.jpg (лицо) и card-back.jpg (оборот), оба JPEG 1080×1920, непустые, разные; share не вызывается,
+// кнопка не превращается в «Сохранить оборот». Без оборота — одно скачивание (лицо).
+export async function desktopCardStep(page, { click, sleep, back = true, dlMs = 8000, settled = null }) {
+  const problems = [], out = { problems };
+  const P = (msg) => problems.push({ type: 'прогулка', msg });
+  for (let i = 0; i < 40 && !(await page.evaluate(() => !window.__card || window.__card.fontsReady())); i++) await sleep(250);
+  await page.evaluate(() => (window.__card && window.__card.bldLoad ? window.__card.bldLoad() : null));
+  await page.evaluate(() => { window.__dls = []; window.__shares = window.__shares || []; });
+  const tap = await cardTapSave(page, { click, sleep, back });
+  if (back && !tap.backBtn) { P('компьютер, с оборотом: в окне нет кнопки «Оборот» (#cardBack)'); return out; }
+  const need = back ? 2 : 1;
+  let n = 0;
+  for (let i = 0; i < dlMs / 200 && (n = await page.evaluate(() => window.__dls.length)) < need; i++) { await sleep(200); if (settled && await settled()) { await sleep(600); n = await page.evaluate(() => window.__dls.length); break; } }
+  await sleep(800);   // лишних скачиваний от одного клика быть не должно
+  const r = await page.evaluate(async (src) => {
+    const d = window.__dls;
+    const files = await (0, eval)(src)(d.map((q) => q.blob ? new File([q.blob], q.name, { type: q.blob.type }) : null));
+    return { n: d.length, names: d.map((q) => q.name), files, go2: !!(document.getElementById('cardGo') && document.getElementById('cardGo').classList.contains('cc-go2')), shares: (window.__shares || []).length };
+  }, INSPECT_SRC);
+  if (r.n !== need) P(`компьютер: один клик «Сохранить открытку» скачал ${r.n} файл(а), нужно ${need} (${back ? 'лицо + оборот' : 'лицо'}) — ${JSON.stringify(r.names)}`);
+  if (r.shares) P(`компьютер: вызван navigator.share (${r.shares}) — на компьютере только скачивание`);
+  if (r.go2) P('компьютер: кнопка стала «Сохранить оборот» — на компьютере второго шага быть не должно');
+  const want = ['card-front.jpg', 'card-back.jpg'].slice(0, need);
+  if (r.n === need && JSON.stringify(r.names) !== JSON.stringify(want)) P(`компьютер: имена файлов ${JSON.stringify(r.names)}, нужно ${JSON.stringify(want)}`);
+  r.files.slice(0, need).forEach((f, i) => {
+    const what = i ? 'оборот' : 'лицо';
+    if (f.missing) { P(`компьютер: ${what} — скачивание без файла`); return; }
+    if (f.type !== 'image/jpeg') P(`компьютер: ${what} — тип ${f.type}, нужен image/jpeg`);
+    if (f.w !== 1080 || f.h !== 1920) P(`компьютер: ${what} — ${f.w}×${f.h}, нужно 1080×1920`);
+    if (!(f.sd >= 4)) P(`компьютер: ${what} пустой: однотонная картинка (разброс яркости ${f.sd})`);
+  });
+  sideChecks(r.files, P, 'скачиваниях');
+  if (r.files[0] && r.files[0].png) out.png = Buffer.from(r.files[0].png, 'base64');
+  if (r.files[1] && r.files[1].png) out.backPng = Buffer.from(r.files[1].png, 'base64');
+  out.names = r.names;
+  return out;
 }
