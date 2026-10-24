@@ -24,3 +24,10 @@
 - E (pv1389610, pv1389650, pv1873794): «interior … looking east … raised bema under a rounded apse, carved gilded altar wall … white carved stone canopy … faded frescoes on pillars … dim, candles». E1 дорисовал купол — поправка «DOMELESS basilica — only a long stone barrel vault, only the apse has a half-dome» (E2, принят).
 - F0 (c_now_2014, c_now_night_2026): «Moscow cinema … wide concave curved facade, colonnade … from the square in front, almost frontal, facade = lower 55%, empty evening sky band ~35% (reserved) … blue hour, warm lamps … name sign as glowing band, posters without text … fountain basin». Gemini всё равно написал вывеску («MOSKBA KINOTEATR» латиницей).
 - F (с призраком) — не сделан: после F0 лимит Pro/Flash кончился (обновится 24.10 08:38).
+
+## Шаг 4, заход 1 (25.10.2026) — правка F0, подложки, ночи, зима (все приняты с 1-й попытки)
+- Правка вывески F0: «Generate an image: an edit of this exact attached drawing. Keep EVERYTHING identical … Only one change: remove all the letters of the sign on the curved frieze …; in their place keep only a plain, softly glowing warm light strip … no text at all. No other changes.»
+- Подложка: «Generate an image: strict local inpainting of this ORIGINAL attached drawing. Remove the church only — <перечислить части> — and fill that area with the plain continuation of what is around it: the same sky with the same light, and the same ground … continuing naturally. Every other pixel must stay identical: <перечислить, что вокруг> … Do not add any new building, object, tree or person.» Расхождение с кадром вне объекта 4–6 из 255.
+- Ночь (рецепт Ленина, эпоха 1920-х): «… the same picture at NIGHT, as an edit of this exact attached drawing … IMPORTANT: all windows and doorways are DARK, no lamps, no candles, no glow anywhere - lights will be added separately. No moon disc.» Интерьер E: «all candles are put out, the hanging lamps are unlit». F0: «the strip on the frieze is unlit, the posters are dark».
+- Зима: «… the same picture in WINTER right after a fresh snowfall … Only add fresh white snow where snow would really settle: <крыши, карнизы, ветки, земля> … no falling snow».
+

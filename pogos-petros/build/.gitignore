@@ -1,0 +1,5 @@
+# исходники кадров, ночи и зимы Gemini (по 6 МБ) — на Маке в gemini/in/, в git не идут
+source/*/*.png
+source/night/*.png
+refs/
+report/
