@@ -31,3 +31,10 @@
 - Ночь (рецепт Ленина, эпоха 1920-х): «… the same picture at NIGHT, as an edit of this exact attached drawing … IMPORTANT: all windows and doorways are DARK, no lamps, no candles, no glow anywhere - lights will be added separately. No moon disc.» Интерьер E: «all candles are put out, the hanging lamps are unlit». F0: «the strip on the frieze is unlit, the posters are dark».
 - Зима: «… the same picture in WINTER right after a fresh snowfall … Only add fresh white snow where snow would really settle: <крыши, карнизы, ветки, земля> … no falling snow».
 
+
+## Шаг 4, заход 2 — маски окон/фонарей (wmask, 25.10.2026)
+- Окна (A, B, C; новый чат, режим картинок, Pro): «Generate an image: an edit of this exact attached drawing. Keep it exactly the same, same size and framing, but paint every WINDOW of the church and its bell tower (the glass of each arched window and each small window in the walls) in pure solid blue #0000FF, filling each window shape exactly. Do NOT paint the open arches of the belfry, the doorway, <остальное>, walls, roof, tree, sky or ground. Do not paint anything else. No new objects, no text.» Звонницу A Gemini всё равно закрасил — срезано --nowin.
+- D (дверь): «… paint in pure solid blue #0000FF: (1) the dark open gap between the two door leaves (… excluding the candle lamp), and (2) the glass of the arched window at the upper right …». Щель двери в окна не идёт (--nowin), её свет — шоу D.
+- E (свечи → фонари): «… paint every small CANDLE FLAME (… sand tray … tall candlesticks … hanging lamp) as a small round dot of pure solid green #00FF00, one dot per flame …» → 13 огней.
+- F: не сделано — лимит Pro кончился (модель упала на Flash-Lite). Окна F — авто из build_building_layers, фонари F (2 столба + 5 подвесных) — вручную в source/night/pogos_f_lamps.json.
+- Файлы: A tsyoyt, B wj055q, C 8kmaiy, D n7j58u, E dqlrom (gemini/in/Gemini_Generated_Image_*).

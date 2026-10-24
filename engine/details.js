@@ -1081,7 +1081,7 @@
     style = style || 'planes';
     var behind = /:behind$/.test(style) || (!!SC(fr).closeUp && style !== 'banner'); style = style.replace(/:behind$/, '');
     var skyOnly = style === 'balloons' || style === 'fireworks';   // шары и ракеты поднимаются из-за города
-    par = { t0: now, dur: ({ drones: 22000, heli: 26000, fireworks: 23500, balloons: 20000, banner: 22000 })[style] || 11000, total: style === 'planes' ? 26000 : 0, vc: vc, fr: fr, onEnd: onEnd, puffs: [], last: [-0.12, -0.12, -0.12], flying: true, abort: 0, dv: 0.0135, style: style, behind: behind, skyOnly: skyOnly };
+    par = { t0: now, dur: ({ drones: 22000, heli: 26000, fireworks: 23500, balloons: 20000, banner: 22000, fx: FX_DUR })[style] || 11000, total: style === 'planes' ? 26000 : 0, vc: vc, fr: fr, onEnd: onEnd, puffs: [], last: [-0.12, -0.12, -0.12], flying: true, abort: 0, dv: 0.0135, style: style, behind: behind, skyOnly: skyOnly };
     if (skyOnly) skyMaskD(fr);
     if (behind) bldSprite(fr);
     active = [];   // небо освобождаем: события на время парада не начинаем
@@ -1570,6 +1570,109 @@
     ctx.beginPath(); ctx.moveTo(L[0] + 2, L[1]); ctx.lineTo(L[0] + 5, L[1] - 7); ctx.moveTo(R[0] - 2, R[1]); ctx.lineTo(R[0] - 5, R[1] - 7); ctx.stroke(); ctx.restore();
     if (t * 1000 > par.dur || kill >= 1) endParade();
   }
+  // ---- e1.37 FX (Погос-Петрос): шоу кадра из простых деталей — у кадра "parade": "fx" и "fx": {"items": [...]} (building.json → SCENE.fx).
+  //   bell  — колокол качается в арке звонницы {at:[u,v] точка подвеса, size, amp рад, period с} + расходящиеся звуковые дуги (звука в движке нет);
+  //   birds — голуби {mode: takeoff | land | circle, n, size, from:[u,v], spread:[du,dv], to:[u,v] | line:[[u,v],[u,v]] | at, r:[ru,rv]};
+  //   glow  — огоньки зажигаются по очереди и мерцают {pts:[[u,v],...], r, col, stagger с, flicker 0..1, grow:[k0,k1], alpha};
+  //   image — картинка из папки кадров {src, alpha, rise доля кадра вверх за показ} проявляется и тает.
+  //   У каждой детали t:[с0, с1] (окно показа, по умолчанию весь показ) и fade:[вход, выход] с. Длина показа — FX_DUR.
+  var FX_DUR = 16000, fxImg = {};
+  function fxImage(src) {
+    var F = root.CONFIG.FRAMES[par.fr], key = String(F.color).split('?')[0].replace(/[^\/]*$/, '') + src;
+    if (fxImg[key]) return fxImg[key].ok ? fxImg[key].im : null;
+    var im = new Image(); fxImg[key] = { im: im, ok: false }; im.onload = function () { fxImg[key].ok = true; }; im.src = key; return null;
+  }
+  function fxR(i, k) { var x = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return x - Math.floor(x); }   // детерминированный «случайный» 0..1
+  function fxBell(it, tt, len, a, col, nn) {
+    var p = P(it.at[0], it.at[1], 0), L = (it.size || 0.04) * UNIT, per = it.period || 1.6;
+    var ramp = clamp(tt / 1.5, 0, 1) * clamp((len - tt) / 2, 0, 1), ph = tt * 6.283 / per, ang = (it.amp || 0.6) * Math.sin(ph) * ramp;
+    ctx.save(); ctx.globalAlpha = a; ctx.translate(p[0], p[1]); ctx.rotate(ang);
+    ctx.strokeStyle = 'rgba(' + col + ',0.95)'; ctx.lineWidth = Math.max(0.9, L * 0.06); ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(-L * 0.3, 0); ctx.lineTo(L * 0.3, 0); ctx.moveTo(0, 0); ctx.lineTo(0, L * 0.1); ctx.stroke();   // ось и ушко
+    ctx.fillStyle = nn > 0.5 ? 'rgba(96,82,60,0.97)' : 'rgba(158,118,60,0.97)';
+    ctx.beginPath(); ctx.moveTo(-L * 0.17, L * 0.1); ctx.bezierCurveTo(-L * 0.2, L * 0.48, -L * 0.3, L * 0.72, -L * 0.46, L * 0.86);
+    ctx.lineTo(L * 0.46, L * 0.86); ctx.bezierCurveTo(L * 0.3, L * 0.72, L * 0.2, L * 0.48, L * 0.17, L * 0.1); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.globalAlpha = a * 0.35; ctx.fillStyle = 'rgba(255,240,200,1)'; ctx.fillRect(-L * 0.08, L * 0.2, L * 0.05, L * 0.5); ctx.globalAlpha = a;   // блик
+    ctx.rotate(-ang * 0.55); ctx.beginPath(); ctx.moveTo(0, L * 0.2); ctx.lineTo(0, L * 0.84); ctx.stroke();   // язык отстаёт от колокола
+    ctx.fillStyle = 'rgba(' + col + ',0.95)'; ctx.beginPath(); ctx.arc(0, L * 0.9, L * 0.07, 0, 6.283); ctx.fill();
+    ctx.restore();
+    var cx = p[0], cy = p[1] + L * 0.55;   // звуковые дуги: удар на каждом краю качания, дуга расходится и тает
+    ctx.save(); ctx.strokeStyle = 'rgba(' + (nn > 0.5 ? '235,225,200' : col) + ',1)'; ctx.lineCap = 'round';
+    for (var i = 0; i < 3; i++) {
+      var q = ((tt * 2 / per) + i / 3) % 1, rr = L * (0.9 + 3.2 * q), aa = a * ramp * 0.55 * (1 - q) * clamp(q * 6, 0, 1);
+      if (aa < 0.01) continue;
+      ctx.globalAlpha = aa; ctx.lineWidth = Math.max(0.8, L * 0.07 * (1 - 0.5 * q));
+      ctx.beginPath(); ctx.arc(cx, cy, rr, -0.55, 0.55); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx, cy, rr, Math.PI - 0.55, Math.PI + 0.55); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  function fxBirds(it, tt, len, a) {
+    var n = it.n || 10, S = (it.size || 0.022) * UNIT, mode = it.mode || 'takeoff', sp = it.spread || [0.06, 0.01];
+    for (var i = 0; i < n; i++) {
+      var r1 = fxR(i, 1), r2 = fxR(i, 2), r3 = fxR(i, 3), fl = Math.sin(tt * (11 + 4 * r3) + i * 1.7), x, y, hd, ai = a, land = false;
+      if (mode === 'circle') {   // кружат над площадью: эллипс, у каждого своя фаза и высота
+        var om = (it.speed || 0.5) * (r3 < 0.5 ? 1 : 1.08), th = r1 * 6.283 + tt * om, c0 = it.at, rr = it.r || [0.3, 0.05];
+        var pc = P(c0[0] + rr[0] * Math.cos(th) * (0.75 + 0.25 * r2), c0[1] + rr[1] * Math.sin(th) - 0.03 * (r2 - 0.5) + 0.006 * Math.sin(tt * 2 + i), 0);
+        x = pc[0]; y = pc[1]; hd = -Math.sin(th) >= 0 ? 0 : Math.PI;   // летят по касательной
+        pigeonFly(x, y, S * (0.8 + 0.4 * r2), fl, hd, ai * 0.95, false); continue;
+      }
+      var st = mode === 'land' ? [it.from[0] + sp[0] * (r1 - 0.5), it.from[1] + sp[1] * (r2 - 0.5)] : [it.from[0] + sp[0] * (r1 - 0.5), it.from[1] + sp[1] * (r2 - 0.5)];
+      var en = mode === 'land' ? (it.line ? [lerp(it.line[0][0], it.line[1][0], (i + 0.5) / n + 0.02 * (r3 - 0.5)), lerp(it.line[0][1], it.line[1][1], (i + 0.5) / n)] : it.to)
+                               : [it.to[0] + 0.25 * (r1 - 0.5), it.to[1] + 0.12 * (r2 - 0.5)];
+      var d0 = (it.delay0 || 1) + i * (it.gap || 0.18) + r3 * 0.5, fly = it.fly || 4.5, q = clamp((tt - d0) / fly, 0, 1);
+      if (mode === 'land') {
+        if (tt < d0) continue;
+        var e = 1 - Math.pow(1 - q, 2.2), cu = [lerp(st[0], en[0], 0.5), Math.min(st[1], en[1]) - 0.06];
+        x = (1 - e) * (1 - e) * st[0] + 2 * (1 - e) * e * cu[0] + e * e * en[0]; y = (1 - e) * (1 - e) * st[1] + 2 * (1 - e) * e * cu[1] + e * e * en[1];
+        var pl = P(x, y, 0);
+        if (q >= 1) { pigeon(pl[0], pl[1], S / 9, (en[0] - st[0]) >= 0 ? 1 : -1, Math.sin(tt * 1.3 + i * 2) > 0.85, ink(), ai); continue; }
+        land = q > 0.82; hd = Math.atan2(en[1] - cu[1], en[0] - cu[0]) * 0.3 + (en[0] < st[0] ? Math.PI : 0);
+        pigeonFly(pl[0], pl[1], S * (0.85 + 0.3 * r2), land ? 0.5 : fl, hd, ai * clamp(q * 8, 0, 1), land); continue;
+      }
+      // takeoff: сидят на карнизе, по очереди срываются и уходят дугой вверх, тают у края
+      var ps = P(st[0], st[1], 0);
+      if (tt < d0) { pigeon(ps[0], ps[1], S / 9, r1 < 0.5 ? 1 : -1, Math.sin(tt * 1.7 + i * 3) > 0.8, ink(), ai); continue; }
+      var e2 = Math.pow(q, 1.4), cu2 = [lerp(st[0], en[0], 0.25), st[1] - 0.05 - 0.04 * r2];
+      x = (1 - e2) * (1 - e2) * st[0] + 2 * (1 - e2) * e2 * cu2[0] + e2 * e2 * en[0]; y = (1 - e2) * (1 - e2) * st[1] + 2 * (1 - e2) * e2 * cu2[1] + e2 * e2 * en[1];
+      var pt = P(x, y, 0); hd = en[0] < st[0] ? Math.PI : 0;
+      pigeonFly(pt[0], pt[1], S * (0.85 + 0.3 * r2) * (1 - 0.35 * q), fl, hd, ai * (1 - clamp((q - 0.75) / 0.25, 0, 1)), false);
+    }
+  }
+  function fxGlow(it, tt, len, a, nn) {
+    var pts = it.pts || [], col = it.col || '255,190,110', st = it.stagger == null ? 0.6 : it.stagger, fk = it.flicker == null ? 0.25 : it.flicker, g = it.grow || [1, 1];
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (var i = 0; i < pts.length; i++) {
+      var on = clamp((tt - i * st) / 0.9, 0, 1); if (on <= 0) continue;
+      var fl = 1 - fk * (0.5 + 0.5 * Math.sin(tt * 9.1 + i * 2.3) * Math.sin(tt * 5.3 + i * 0.7)), gk = lerp(g[0], g[1], sstep(0, 1, tt / len));
+      var r = (pts[i][2] || it.r || 0.02) * UNIT * gk * (0.92 + 0.08 * fl), p = P(pts[i][0], pts[i][1], 0);
+      ctx.globalAlpha = clamp(a * on * fl * (it.alpha || 0.9) * (0.5 + 0.5 * nn), 0, 1);
+      ctx.drawImage(glowS(col), p[0] - r, p[1] - r, 2 * r, 2 * r);
+    }
+    ctx.restore();
+  }
+  function fxImageDraw(it, tt, len, a) {
+    var im = fxImage(it.src); if (!im) return;
+    var k = tt / len, dy = -(it.rise || 0) * k, a0 = P(0, dy, 0), a1 = P(1, 1 + dy, 0);
+    ctx.save(); ctx.globalAlpha = clamp(a * (it.alpha || 0.8) * (0.9 + 0.1 * Math.sin(tt * 2.1)), 0, 1);
+    ctx.drawImage(im, a0[0], a0[1], a1[0] - a0[0], a1[1] - a0[1]); ctx.restore();
+  }
+  function stepFx(now, w) {
+    var X = SC(par.fr).fx || {}, t = (now - par.t0) / 1000, D = par.dur / 1000, nn = wts().n, col = ink();
+    var kill = par.abort ? clamp((now - par.abort) / 700, 0, 1) : 0;
+    (X.items || []).forEach(function (it, j) {
+      if (it.kind === 'image') fxImage(it.src);   // грузим заранее, с первого кадра показа
+      var tw = it.t || [0, D], tt = t - tw[0], len = tw[1] - tw[0], fd = it.fade || [0.6, 0.9];
+      if (tt < 0 || tt > len) return;
+      var a = clamp(Math.min(tt / fd[0], (len - tt) / fd[1]), 0, 1) * (1 - kill);
+      if (a <= 0) return;
+      if (it.kind === 'bell') fxBell(it, tt, len, a, col, nn);
+      else if (it.kind === 'birds') fxBirds(it, tt, len, a);
+      else if (it.kind === 'glow') fxGlow(it, tt, len, a, nn);
+      else if (it.kind === 'image') fxImageDraw(it, tt, len, a);
+    });
+    if (t * 1000 > par.dur || kill >= 1) endParade();
+  }
   function stepParade(now, w) {
     if (now - par.t0 > 50000) { endParade(); return; }   // страховка: показ не может длиться дольше 50 с (кнопка не зависнет)
     if (par.style === 'drones') { stepDrones(now, w); return; }
@@ -1577,6 +1680,7 @@
     if (par.style === 'fireworks') { stepFireworks(now, w); return; }
     if (par.style === 'balloons') { stepBalloons(now, w); return; }
     if (par.style === 'banner') { stepBanner(now, w); return; }
+    if (par.style === 'fx') { stepFx(now, w); return; }   // e1.37
     var t = (now - par.t0) / par.dur, i;
     if (par.flying) {
       var u = lerp(-0.12, 1.12, clamp(t, 0, 1));   // все три идут строем, слева направо
@@ -1677,7 +1781,7 @@
     paradeAbort: abortParade,
     paradeFreeze: freezeParade,
     paradeStop: stopParadeNow,
-    paradeDur: function (style) { var st = String(style || 'planes').replace(/:behind$/, ''); return (({ drones: 22000, heli: 26000, fireworks: 23500, balloons: 20000, banner: 22000 })[st] || 11000) / 1000; },
+    paradeDur: function (style) { var st = String(style || 'planes').replace(/:behind$/, ''); return (({ drones: 22000, heli: 26000, fireworks: 23500, balloons: 20000, banner: 22000, fx: FX_DUR })[st] || 11000) / 1000; },
     paradeBusy: function () { return !!par; },
     paradeProgress: function (now) { return par ? clamp((now - par.t0) / (par.total || par.dur), 0, 1) : -1; },   // для кольца на кнопке флага
     // выключить всё (fps ниже порога или «уменьшение движения»): очистить холст, парад прервать

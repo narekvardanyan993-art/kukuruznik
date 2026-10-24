@@ -2,7 +2,7 @@
 """Ночь v2 из Gemini (e1.12, docs/ENGINE-LIFE.md «Рецепт ночи»): свет и цвет ночи Gemini поверх полного дневного рисунка.
 
   python3 tools/night_from_gemini.py tests/<здание> <кадр> (--night ночь.jpg | --like <кадр-образец>) [--wmask окна.jpg] [--mmask памятник.jpg] [--flood 0.8]
-          [--relamp] [--mon-color] [--nowin u0,v0,u1,v1;...] [--overlay DIR] [--write]
+          [--relamp] [--mon-color] [--winbld] [--nowin u0,v0,u1,v1;...] [--overlay DIR] [--write]
   --write: у кадра в building.json — "nightLamps" из _lamps.json и "nightWins": true (меняются только эти строки кадра)
 
 Gemini отдаёт только превью (~1024 px по длинной стороне), поэтому ночная картинка Gemini — не замена кадра, а КАРТА света и цвета:
@@ -275,7 +275,8 @@ def main():
         M2, sc2, par2 = align(day, wm.astype(np.uint8), blue | green)
         warp = lambda m: cv2.warpAffine(m.astype(np.uint8), M2, (W, H), flags=cv2.INTER_NEAREST).astype(bool)
         blue, green = warp(blue), warp(green)
-        blue &= bld < 0.3                                                             # окна других зданий (у памятника окон нет)
+        if '--winbld' not in a:
+            blue &= bld < 0.3                                                         # окна других зданий (у памятника окон нет); --winbld: окна и в слое здания (церковь Погос-Петрос)
         for box in (opt('--nowin') or '').split(';'):                                 # --nowin u0,v0,u1,v1[;...] — не окна (ниши стены у памятника)
             if box:
                 u0, v0, u1, v1 = map(float, box.split(','))

@@ -17,8 +17,8 @@ from pathlib import Path
 
 FIG_TYPES = ('sit', 'stand', 'chess', 'pigeon', 'balloon', 'leaf', 'grass')   # e1.22 FIGURES — тот же порядок, что в engine/viewer.js
 FIG_MAX = 25
-PARADE_KINDS = ('planes', 'drones', 'heli', 'fireworks', 'balloons', 'banner')   # виды парада (details.js): самолёты с дымом, дроны-флаг, вертолёт с флагом, салют, воздушные шары, знамя на фасаде (крупный план)
-PARADE_SECONDS = {'planes': 26, 'drones': 22, 'heli': 26, 'fireworks': 23.5, 'balloons': 20, 'banner': 22}   # длина показа (details.js: dur / total), секунды
+PARADE_KINDS = ('planes', 'drones', 'heli', 'fireworks', 'balloons', 'banner', 'fx')   # виды парада (details.js): самолёты с дымом, дроны-флаг, вертолёт с флагом, салют, воздушные шары, знамя на фасаде (крупный план)
+PARADE_SECONDS = {'planes': 26, 'drones': 22, 'heli': 26, 'fireworks': 23.5, 'balloons': 20, 'banner': 22, 'fx': 16}   # длина показа (details.js: dur / total), секунды
 
 LANGS = ('hy', 'ru', 'en')
 ENGINE = Path(__file__).resolve().parent.parent / 'engine'
@@ -375,7 +375,7 @@ def validate(bdir, b, site):
         nm = f.get('name') if isinstance(f, dict) else None
         w = 'кадр %d%s' % (i + 1, ' (%s)' % nm if isinstance(nm, str) else '')
         fr = c.obj(f, w, required=('name', 'crop', 'flag', 'cloudShadow', 'wind', 'sky', 'sun', 'life', 'hotspots', 'nightLamps', 'nightHalo', 'lamps'),
-                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'figures', 'snowMask', 'sway'))
+                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'figures', 'snowMask', 'sway', 'fx'))
         if not fr:
             continue
         if not (isinstance(nm, str) and re.fullmatch(r'[A-Za-z0-9_\-]+', nm)):

@@ -1,0 +1,1090 @@
+{
+  "format": 1,
+  "id": "pogos-petros",
+  "meta": {
+    "url": "https://chka.am/beta/tests/pogos-petros/",
+    "title": {
+      "hy": "Պողոս-Պետրոս եկեղեցի, Երևան | Չկա",
+      "ru": "Церковь Погос-Петрос, Ереван | Չկա",
+      "en": "Poghos-Petros Church, Yerevan | Չկա"
+    },
+    "description": {
+      "hy": "Պողոս-Պետրոս եկեղեցին Երևանում, գծանկար (թեստ)։"
+    },
+    "ogImage": null,
+    "ogAlt": {
+      "hy": "Պողոս-Պետրոս եկեղեցին Երևանում, գծանկար",
+      "ru": "Церковь Погос-Петрос в Ереване, рисунок",
+      "en": "Poghos-Petros Church in Yerevan, drawing"
+    },
+    "themeColor": "#f5ecda",
+    "favicon": "../../assets/favicon-32.png",
+    "appleTouchIcon": "../../assets/icon-180.png",
+    "viewerVersion": "test"
+  },
+  "app": {
+    "name": "Погос-Петрос",
+    "shortName": "Погос-Петрос"
+  },
+  "links": {
+    "home": "../../",
+    "history": "about.html"
+  },
+  "framesDir": "frames/",
+  "text": {
+    "title": {
+      "hy": "Պողոս-Պետրոս",
+      "ru": "Погос-Петрос",
+      "en": "Poghos-Petros"
+    },
+    "pageTitle": {
+      "hy": "Պողոս-Պետրոս եկեղեցի, Երևան | Չկա",
+      "ru": "Церковь Погос-Петрос, Ереван | Չկա",
+      "en": "Poghos-Petros Church, Yerevan | Չկա"
+    },
+    "plaque": {
+      "hy": "[заглушка] Պողոս-Պետրոս եկեղեցի · Երևան · գեղարվեստական վերակառուցում արխիվային լուսանկարներից",
+      "ru": "[заглушка] Церковь Погос-Петрос · Ереван · художественная реконструкция по архивным фото",
+      "en": "[заглушка] Poghos-Petros Church · Yerevan · artistic reconstruction after archive photos"
+    },
+    "panelTitle": {
+      "hy": "Պողոս-Պետրոս եկեղեցի",
+      "ru": "Церковь Погос-Петрос",
+      "en": "Poghos-Petros Church"
+    },
+    "welcome": {
+      "hy": "Բարի գալուստ Պողոս-Պետրոս եկեղեցի",
+      "ru": "Добро пожаловать к церкви Погос-Петрос",
+      "en": "Welcome to Poghos-Petros Church"
+    }
+  },
+  "facts": {
+    "church": {
+      "hy": "[заглушка] Հին եկեղեցի Երևանի կենտրոնում։",
+      "ru": "[заглушка] Старая церковь в центре Еревана.",
+      "en": "[заглушка] An old church in the centre of Yerevan."
+    },
+    "cinema": {
+      "hy": "[заглушка] Եկեղեցու տեղում կառուցվեց «Մոսկվա» կինոթատրոնը։",
+      "ru": "[заглушка] На месте церкви построили кинотеатр «Москва».",
+      "en": "[заглушка] The Moskva cinema was built on the site of the church."
+    }
+  },
+  "aboutFacts": [
+    "church",
+    "cinema"
+  ],
+  "postcardFile": "pogos-petros.png",
+  "postcard": {
+    "name": {
+      "hy": "Պողոս-Պետրոս",
+      "ru": "Погос-Петрос",
+      "en": "Poghos-Petros"
+    },
+    "years": "—",
+    "url": "chka.am/pogos-petros",
+    "no": 3,
+    "show": {
+      "frame": 0,
+      "t": 8,
+      "frames": {
+        "1": {
+          "t": 9
+        },
+        "2": {
+          "t": 12,
+          "night": 12
+        },
+        "3": {
+          "t": 8,
+          "night": 8
+        },
+        "4": {
+          "t": 12,
+          "night": 12
+        },
+        "5": {
+          "t": 9,
+          "night": 9
+        }
+      }
+    },
+    "fact": {
+      "hy": "[заглушка] Բացիկի տեքստը՝ 5-րդ քայլում։",
+      "ru": "[заглушка] Текст открытки будет на шаге 5.",
+      "en": "[заглушка] Postcard text comes in step 5."
+    }
+  },
+  "look": {
+    "snow": {
+      "accumS": 12,
+      "meltS": 30
+    },
+    "gusts": {
+      "level": [
+        0.35,
+        0.8,
+        1.0
+      ],
+      "gap": [
+        5,
+        11
+      ],
+      "attack": 1.1,
+      "hold": 0.9,
+      "decay": 3.2,
+      "calm": 0.55,
+      "boost": 1.25,
+      "flutter": 1.3,
+      "spring": 0.55,
+      "damp": 0.35,
+      "leanPx": 12,
+      "delay": 0.6,
+      "swayMaxPx": 28,
+      "leaves": {
+        "colors": [
+          [
+            62,
+            118,
+            32,
+            0.35
+          ],
+          [
+            88,
+            140,
+            48,
+            0.3
+          ],
+          [
+            118,
+            160,
+            64,
+            0.15
+          ],
+          [
+            176,
+            132,
+            70,
+            0.12
+          ],
+          [
+            150,
+            104,
+            52,
+            0.08
+          ]
+        ],
+        "size": [
+          3.5,
+          6.5
+        ]
+      }
+    },
+    "day": {
+      "skyTop": [
+        0.58,
+        0.78,
+        0.97
+      ],
+      "skyHor": [
+        0.83,
+        0.92,
+        0.99
+      ],
+      "mix": 0.8,
+      "greenHue": 0.3,
+      "greenPull": 0.78,
+      "greenSat": 1.9
+    },
+    "night": {
+      "dim": 0.64,
+      "mainLit": [
+        0,
+        0
+      ],
+      "otherLit": [
+        0.4,
+        0.6
+      ],
+      "mainWindowShare": 0
+    },
+    "frameSize": [
+      768,
+      1365
+    ],
+    "sunSide": "left",
+    "showNight": "toned",
+    "nightEdge": "solid"
+  },
+  "tuning": {
+    "BUILDING_DEPTH_PIXEL": true,
+    "MAX_SHIFT_X": 0.0156,
+    "MAX_SHIFT_Y": 0.0094,
+    "ZOOM_NEAR": 0.0156,
+    "BREATH_AMPLITUDE": 0.0031,
+    "LOOK": {
+      "sunsetSmear": {
+        "strength": 0.0
+      },
+      "lampHalo": {
+        "core": 0.85,
+        "coreSize": 2e-05,
+        "wide": 0.2,
+        "wideSize": 0.0003,
+        "ground": 0.0
+      }
+    },
+    "LAMP_BREATH": 0.03,
+    "NIGHT_MAIN_WINS": false,
+    "CLOUD_FIELD": 1.0,
+    "CLOUD_FIELD_NIGHT": 1.4,
+    "CLOUD_FIELD_SPEED": 0.02
+  },
+  "frames": [
+    {
+      "name": "pogos_a",
+      "sunset": false,
+      "crop": [
+        0,
+        0,
+        1,
+        1
+      ],
+      "flag": null,
+      "skyBirds": false,
+      "parade": "fx",
+      "cloudShadow": 0.15,
+      "wind": 1.2,
+      "sky": {
+        "ref": 0.87,
+        "end": 0.76,
+        "band": [
+          0.03,
+          0.16
+        ],
+        "clouds": 3
+      },
+      "hotspots": [
+        {
+          "key": "church",
+          "layer": "building",
+          "u": 0.6,
+          "v": 0.48,
+          "r": [
+            0.1,
+            0.1
+          ]
+        }
+      ],
+      "nightLamps": [],
+      "nightHalo": 1,
+      "lamps": [],
+      "sun": {
+        "day": [
+          0.14,
+          0.07
+        ],
+        "sunset": [
+          0.1,
+          0.3
+        ],
+        "moon": [
+          0.82,
+          0.08
+        ]
+      },
+      "life": {
+        "day": [
+          "birds",
+          "plane",
+          "cranes",
+          "kite"
+        ],
+        "sunset": [
+          "birds",
+          "plane",
+          "cranes"
+        ],
+        "night": [
+          "plane"
+        ],
+        "nightRare": [
+          70,
+          140
+        ]
+      },
+      "snowMask": true,
+      "nightWins": true,
+      "fx": {
+        "items": [
+          {
+            "kind": "bell",
+            "at": [
+              0.565,
+              0.405
+            ],
+            "size": 0.06,
+            "amp": 0.55,
+            "period": 1.7,
+            "t": [
+              0.5,
+              15.5
+            ]
+          },
+          {
+            "kind": "birds",
+            "mode": "takeoff",
+            "from": [
+              0.605,
+              0.357
+            ],
+            "spread": [
+              0.22,
+              0.004
+            ],
+            "to": [
+              0.06,
+              0.05
+            ],
+            "n": 9,
+            "size": 0.034,
+            "delay0": 3,
+            "gap": 0.35,
+            "fly": 5,
+            "fade": [
+              0.3,
+              0.8
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "pogos_b",
+      "sunset": false,
+      "crop": [
+        0,
+        0,
+        1,
+        1
+      ],
+      "flag": null,
+      "skyBirds": false,
+      "parade": "fx",
+      "cloudShadow": 0.15,
+      "wind": 1.2,
+      "sky": {
+        "ref": 0.87,
+        "end": 0.74,
+        "band": [
+          0.03,
+          0.16
+        ],
+        "clouds": 3
+      },
+      "hotspots": [],
+      "nightLamps": [],
+      "nightHalo": 1,
+      "lamps": [],
+      "sun": {
+        "day": [
+          0.14,
+          0.07
+        ],
+        "sunset": [
+          0.1,
+          0.3
+        ],
+        "moon": [
+          0.82,
+          0.08
+        ]
+      },
+      "life": {
+        "day": [
+          "birds",
+          "plane",
+          "cranes",
+          "kite"
+        ],
+        "sunset": [
+          "birds",
+          "plane",
+          "cranes"
+        ],
+        "night": [
+          "plane"
+        ],
+        "nightRare": [
+          70,
+          140
+        ]
+      },
+      "snowMask": true,
+      "nightWins": true,
+      "fx": {
+        "items": [
+          {
+            "kind": "birds",
+            "mode": "land",
+            "from": [
+              1.08,
+              0.12
+            ],
+            "spread": [
+              0.12,
+              0.06
+            ],
+            "line": [
+              [
+                0.5,
+                0.447
+              ],
+              [
+                0.8,
+                0.388
+              ]
+            ],
+            "n": 8,
+            "size": 0.03,
+            "delay0": 0.8,
+            "gap": 0.6,
+            "fly": 4.5,
+            "fade": [
+              0.3,
+              1.0
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "pogos_c",
+      "sunset": false,
+      "crop": [
+        0,
+        0,
+        1,
+        1
+      ],
+      "flag": null,
+      "skyBirds": false,
+      "parade": "fx",
+      "cloudShadow": 0.15,
+      "wind": 1.2,
+      "sky": {
+        "ref": 0.87,
+        "end": 0.55,
+        "band": [
+          0.03,
+          0.15
+        ],
+        "clouds": 3
+      },
+      "hotspots": [],
+      "nightLamps": [],
+      "nightHalo": 1,
+      "lamps": [],
+      "sun": {
+        "day": [
+          0.14,
+          0.07
+        ],
+        "sunset": [
+          0.1,
+          0.3
+        ],
+        "moon": [
+          0.82,
+          0.08
+        ]
+      },
+      "life": {
+        "day": [
+          "birds",
+          "plane",
+          "cranes",
+          "kite"
+        ],
+        "sunset": [
+          "birds",
+          "plane",
+          "cranes"
+        ],
+        "night": [
+          "plane"
+        ],
+        "nightRare": [
+          70,
+          140
+        ]
+      },
+      "snowMask": true,
+      "sway": true,
+      "nightWins": true,
+      "fx": {
+        "items": [
+          {
+            "kind": "glow",
+            "pts": [
+              [
+                0.819,
+                0.458
+              ],
+              [
+                0.784,
+                0.521
+              ],
+              [
+                0.842,
+                0.508
+              ],
+              [
+                0.842,
+                0.545
+              ],
+              [
+                0.723,
+                0.5
+              ],
+              [
+                0.648,
+                0.53
+              ],
+              [
+                0.906,
+                0.626
+              ],
+              [
+                0.99,
+                0.585
+              ],
+              [
+                0.723,
+                0.742
+              ],
+              [
+                0.492,
+                0.717
+              ],
+              [
+                0.32,
+                0.723
+              ]
+            ],
+            "r": 0.035,
+            "col": "255,196,120",
+            "stagger": 0.9,
+            "flicker": 0.3,
+            "t": [
+              0.5,
+              15.5
+            ],
+            "fade": [
+              0.5,
+              1.2
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "pogos_d",
+      "sunset": false,
+      "crop": [
+        0,
+        0,
+        1,
+        1
+      ],
+      "flag": null,
+      "skyBirds": false,
+      "parade": "fx",
+      "cloudShadow": 0.15,
+      "wind": 1.2,
+      "sky": {
+        "ref": 0.87,
+        "end": 0.1,
+        "band": [
+          0.0,
+          0.05
+        ],
+        "clouds": 1
+      },
+      "hotspots": [],
+      "nightLamps": [],
+      "nightHalo": 1,
+      "lamps": [],
+      "sun": {
+        "day": [
+          0.14,
+          0.07
+        ],
+        "sunset": [
+          0.1,
+          0.3
+        ],
+        "moon": [
+          0.82,
+          0.08
+        ]
+      },
+      "life": {
+        "day": [
+          "birds"
+        ],
+        "sunset": [
+          "birds"
+        ],
+        "night": [],
+        "nightRare": [
+          70,
+          140
+        ]
+      },
+      "nightWins": true,
+      "fx": {
+        "items": [
+          {
+            "kind": "glow",
+            "pts": [
+              [
+                0.44,
+                0.66,
+                0.22
+              ]
+            ],
+            "col": "255,170,80",
+            "alpha": 0.85,
+            "flicker": 0.35,
+            "grow": [
+              0.6,
+              1.1
+            ],
+            "fade": [
+              1.5,
+              1.5
+            ]
+          },
+          {
+            "kind": "glow",
+            "pts": [
+              [
+                0.435,
+                0.643,
+                0.04
+              ],
+              [
+                0.44,
+                0.55,
+                0.07
+              ],
+              [
+                0.44,
+                0.73,
+                0.07
+              ],
+              [
+                0.44,
+                0.83,
+                0.08
+              ]
+            ],
+            "col": "255,180,90",
+            "stagger": 0.4,
+            "flicker": 0.45,
+            "grow": [
+              0.7,
+              1.15
+            ],
+            "fade": [
+              0.8,
+              1.5
+            ],
+            "alpha": 1.0
+          }
+        ]
+      }
+    },
+    {
+      "name": "pogos_e",
+      "sunset": false,
+      "crop": [
+        0,
+        0,
+        1,
+        1
+      ],
+      "flag": null,
+      "skyBirds": false,
+      "parade": "fx",
+      "cloudShadow": 0.15,
+      "wind": 1.2,
+      "sky": {
+        "ref": 0.87,
+        "end": 0.01,
+        "band": [
+          0.0,
+          0.01
+        ],
+        "clouds": 0
+      },
+      "hotspots": [],
+      "nightLamps": [
+        [
+          0.5117,
+          0.4938,
+          0.5117,
+          0.515
+        ],
+        [
+          0.2383,
+          0.515,
+          0.2383,
+          0.5363
+        ],
+        [
+          0.8262,
+          0.5161,
+          0.8262,
+          0.537
+        ],
+        [
+          0.2559,
+          0.637,
+          0.2559,
+          0.6586
+        ],
+        [
+          0.8288,
+          0.6425,
+          0.8288,
+          0.6645
+        ],
+        [
+          0.2181,
+          0.6429,
+          0.2181,
+          0.6645
+        ],
+        [
+          0.8027,
+          0.6509,
+          0.8027,
+          0.6725
+        ],
+        [
+          0.7467,
+          0.77,
+          0.7467,
+          0.8015
+        ],
+        [
+          0.7979,
+          0.7775,
+          0.7979,
+          0.8051
+        ],
+        [
+          0.8519,
+          0.8183,
+          0.8519,
+          0.8484
+        ],
+        [
+          0.9017,
+          0.8209,
+          0.9017,
+          0.8462
+        ],
+        [
+          0.9271,
+          0.8377,
+          0.9271,
+          0.8608
+        ],
+        [
+          0.9447,
+          0.8582,
+          0.9447,
+          0.8813
+        ]
+      ],
+      "nightHalo": 1,
+      "lamps": [],
+      "sun": {
+        "day": [
+          0.14,
+          0.07
+        ],
+        "sunset": [
+          0.1,
+          0.3
+        ],
+        "moon": [
+          0.82,
+          0.08
+        ]
+      },
+      "life": {
+        "day": [],
+        "sunset": [],
+        "night": [],
+        "nightRare": [
+          70,
+          140
+        ]
+      },
+      "fx": {
+        "items": [
+          {
+            "kind": "glow",
+            "pts": [
+              [
+                0.5,
+                0.55,
+                0.35
+              ],
+              [
+                0.84,
+                0.8,
+                0.22
+              ]
+            ],
+            "col": "255,170,80",
+            "alpha": 0.35,
+            "stagger": 2,
+            "flicker": 0.1,
+            "grow": [
+              0.3,
+              1.2
+            ],
+            "fade": [
+              2,
+              2
+            ]
+          },
+          {
+            "kind": "glow",
+            "pts": [
+              [
+                0.5117,
+                0.4938
+              ],
+              [
+                0.2383,
+                0.515
+              ],
+              [
+                0.8262,
+                0.5161
+              ],
+              [
+                0.2559,
+                0.637
+              ],
+              [
+                0.8288,
+                0.6425
+              ],
+              [
+                0.2181,
+                0.6429
+              ],
+              [
+                0.8027,
+                0.6509
+              ],
+              [
+                0.7467,
+                0.77
+              ],
+              [
+                0.7979,
+                0.7775
+              ],
+              [
+                0.8519,
+                0.8183
+              ],
+              [
+                0.9017,
+                0.8209
+              ],
+              [
+                0.9271,
+                0.8377
+              ],
+              [
+                0.9447,
+                0.8582
+              ]
+            ],
+            "r": 0.018,
+            "col": "255,200,120",
+            "stagger": 0.5,
+            "flicker": 0.3,
+            "grow": [
+              0.6,
+              1.6
+            ],
+            "fade": [
+              0.6,
+              1.5
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "pogos_f",
+      "sunset": false,
+      "crop": [
+        0,
+        0,
+        1,
+        1
+      ],
+      "flag": null,
+      "skyBirds": false,
+      "parade": "fx",
+      "cloudShadow": 0.15,
+      "wind": 1.2,
+      "sky": {
+        "ref": 0.87,
+        "end": 0.78,
+        "band": [
+          0.03,
+          0.16
+        ],
+        "clouds": 3
+      },
+      "hotspots": [
+        {
+          "key": "cinema",
+          "layer": "building",
+          "u": 0.5,
+          "v": 0.66,
+          "r": [
+            0.2,
+            0.06
+          ]
+        }
+      ],
+      "nightLamps": [
+        [
+          0.115,
+          0.718,
+          0.115,
+          0.792
+        ],
+        [
+          0.94,
+          0.714,
+          0.94,
+          0.798
+        ],
+        [
+          0.35,
+          0.701,
+          0.35,
+          0.712
+        ],
+        [
+          0.43,
+          0.701,
+          0.43,
+          0.712
+        ],
+        [
+          0.51,
+          0.701,
+          0.51,
+          0.712
+        ],
+        [
+          0.588,
+          0.701,
+          0.588,
+          0.712
+        ],
+        [
+          0.66,
+          0.701,
+          0.66,
+          0.712
+        ]
+      ],
+      "nightHalo": 1,
+      "lamps": [],
+      "sun": {
+        "day": [
+          0.14,
+          0.07
+        ],
+        "sunset": [
+          0.1,
+          0.3
+        ],
+        "moon": [
+          0.82,
+          0.08
+        ]
+      },
+      "life": {
+        "day": [
+          "birds",
+          "plane",
+          "cranes",
+          "kite"
+        ],
+        "sunset": [
+          "birds",
+          "plane",
+          "cranes"
+        ],
+        "night": [
+          "plane"
+        ],
+        "nightRare": [
+          70,
+          140
+        ]
+      },
+      "snowMask": true,
+      "fx": {
+        "items": [
+          {
+            "kind": "image",
+            "src": "pogos_f_ghost.webp",
+            "alpha": 0.85,
+            "rise": 0.03,
+            "fade": [
+              4,
+              5
+            ]
+          },
+          {
+            "kind": "birds",
+            "mode": "circle",
+            "at": [
+              0.5,
+              0.8
+            ],
+            "r": [
+              0.36,
+              0.04
+            ],
+            "n": 9,
+            "size": 0.028,
+            "speed": 0.6,
+            "fade": [
+              1,
+              1.5
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
