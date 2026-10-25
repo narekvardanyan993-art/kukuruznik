@@ -13,7 +13,7 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#f5ecda">
 <meta name="viewer-version" content="test">
-<meta name="engine-version" content="e1.37">
+<meta name="engine-version" content="e1.38">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Չկա">
 <meta property="og:url" content="https://chka.am/beta/tests/pogos-petros/">
@@ -29,20 +29,20 @@
 <title>Պողոս-Պետրոս եկեղեցի, Երևան | Չկա</title>
 <script>/* ?motion=1 — показать всё движение, даже если в системе включено «Уменьшить движение» (для проверки) */
 (function () { if (/[?&]motion=1/.test(location.search)) document.documentElement.setAttribute('data-motion', 'on'); })();</script>
-<link rel="preload" href="../../engine/welcome-loader.js?v=e1.37" as="script">
-<link rel="preload" href="../../engine/welcome-letters.js?v=e1.37" as="script">
-<link rel="preload" href="../../engine/fonts/NotoSerif-latin.woff2?v=e1.37" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.37" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.37" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../../engine/welcome-loader.js?v=e1.38" as="script">
+<link rel="preload" href="../../engine/welcome-letters.js?v=e1.38" as="script">
+<link rel="preload" href="../../engine/fonts/NotoSerif-latin.woff2?v=e1.38" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.38" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.38" as="font" type="font/woff2" crossorigin>
 <style>
   /* Один шрифт для hy/ru/en — Noto Serif: латиница и кириллица (Noto Serif) и армянский (Noto Serif Armenian)
      из одной системы дизайна, лицензия OFL (fonts/LICENSE.txt). Подключён локально, один вес 400–700. */
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../../engine/fonts/NotoSerif-latin.woff2?v=e1.37) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    src: url(../../engine/fonts/NotoSerif-latin.woff2?v=e1.38) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.37) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+    src: url(../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.38) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.37) format("woff2"); unicode-range: U+0308, U+0530-058F, U+2010, U+2024, U+25CC, U+FB13-FB17; }
+    src: url(../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.38) format("woff2"); unicode-range: U+0308, U+0530-058F, U+2010, U+2024, U+25CC, U+FB13-FB17; }
   :root {
     --font: "Chka Serif", "Noto Serif", serif;
     --paper: #f5ecda; --paper-2: #ede0c2; --ink: #2f2a25;
@@ -1024,8 +1024,8 @@
 <body>
 <script>try { if (localStorage.getItem('chka-panel') === 'collapsed') document.body.classList.add('panel-collapsed'); } catch (e) {}   /* панель, свёрнутая в прошлый раз, — сразу свёрнутой, без анимации закрытия */</script>
 
-<script src="../../engine/welcome-letters.js?v=e1.37"></script>
-<script src="../../engine/welcome-loader.js?v=e1.37"></script>
+<script src="../../engine/welcome-letters.js?v=e1.38"></script>
+<script src="../../engine/welcome-loader.js?v=e1.38"></script>
 <script>
 /* ===================== CONFIG =====================
    Все параметры эффекта «3D-фото» собраны здесь, ничего похожего
@@ -1935,50 +1935,52 @@ var CONFIG = {
    "color": "frames/pogos_a.webp?v=b7bbe484",
    "depth": "frames/pogos_a_depth.webp?v=40d948b0",
    "bg": {
-    "color": "frames/pogos_a_bg.webp?v=374b6b86",
-    "depth": "frames/pogos_a_bg_depth.webp?v=052f6ca4"
+    "color": "frames/pogos_a_bg.webp?v=13cddf6c",
+    "depth": "frames/pogos_a_bg_depth.webp?v=41853e39"
    },
    "building": {
-    "color": "frames/pogos_a_building.webp?v=b43bb93c",
+    "color": "frames/pogos_a_building.webp?v=a811dc9c",
     "depth": "frames/pogos_a_depth.webp?v=40d948b0"
    },
    "env": "frames/pogos_a_env.webp?v=5e5724d3",
    "win2": "frames/pogos_a_win2.webp?v=633817e9",
    "night": "frames/pogos_a_night.webp?v=c08f1e78",
-   "snow": "frames/pogos_a_snow.webp?v=406c1d75"
+   "snow": "frames/pogos_a_snow.webp?v=406c1d75",
+   "sway": "frames/pogos_a_sway.png?v=a9ab9080"
   },
   {
    "color": "frames/pogos_b.webp?v=43cf3565",
    "depth": "frames/pogos_b_depth.webp?v=919861cc",
    "bg": {
-    "color": "frames/pogos_b_bg.webp?v=c00185b5",
-    "depth": "frames/pogos_b_bg_depth.webp?v=f3740ba8"
+    "color": "frames/pogos_b_bg.webp?v=bfc4bf24",
+    "depth": "frames/pogos_b_bg_depth.webp?v=d7485d1c"
    },
    "building": {
-    "color": "frames/pogos_b_building.webp?v=76f21c1f",
+    "color": "frames/pogos_b_building.webp?v=5a65098d",
     "depth": "frames/pogos_b_depth.webp?v=919861cc"
    },
    "env": "frames/pogos_b_env.webp?v=e16f14e1",
    "win2": "frames/pogos_b_win2.webp?v=527e153b",
    "night": "frames/pogos_b_night.webp?v=d212da55",
-   "snow": "frames/pogos_b_snow.webp?v=a8746cff"
+   "snow": "frames/pogos_b_snow.webp?v=a8746cff",
+   "sway": "frames/pogos_b_sway.png?v=d4c3ba19"
   },
   {
    "color": "frames/pogos_c.webp?v=8f332966",
    "depth": "frames/pogos_c_depth.webp?v=b51ea4f1",
    "bg": {
-    "color": "frames/pogos_c_bg.webp?v=f851af66",
-    "depth": "frames/pogos_c_bg_depth.webp?v=4d7f87ea"
+    "color": "frames/pogos_c_bg.webp?v=75d031ed",
+    "depth": "frames/pogos_c_bg_depth.webp?v=7776d1ce"
    },
    "building": {
-    "color": "frames/pogos_c_building.webp?v=2a80bdd9",
+    "color": "frames/pogos_c_building.webp?v=3d7b2aa9",
     "depth": "frames/pogos_c_depth.webp?v=b51ea4f1"
    },
    "env": "frames/pogos_c_env.webp?v=87f6b054",
    "win2": "frames/pogos_c_win2.webp?v=05efad4b",
    "night": "frames/pogos_c_night.webp?v=74f1057b",
    "snow": "frames/pogos_c_snow.webp?v=e46fbe37",
-   "sway": "frames/pogos_c_sway.png?v=dd8b096e"
+   "sway": "frames/pogos_c_sway.png?v=4a6a55c6"
   },
   {
    "color": "frames/pogos_d.webp?v=b0d1e685",
@@ -2320,6 +2322,135 @@ var CONFIG = {
    ],
    "lawn": null,
    "closeUp": null,
+   "ambient": {
+    "walkers": [
+     {
+      "preset": "far-pedestrians",
+      "path": [
+       [
+        0.0,
+        0.818
+       ],
+       [
+        0.3,
+        0.806
+       ],
+       [
+        0.55,
+        0.8
+       ],
+       [
+        0.8,
+        0.8
+       ]
+      ],
+      "size": [
+       0.028,
+       0.027
+      ],
+      "n": 2
+     },
+     {
+      "preset": "far-pedestrians",
+      "path": [
+       [
+        0.0,
+        0.758
+       ],
+       [
+        0.06,
+        0.766
+       ],
+       [
+        0.12,
+        0.78
+       ]
+      ],
+      "size": [
+       0.017,
+       0.02
+      ],
+      "n": 1
+     }
+    ],
+    "occluders": [
+     {
+      "poly": [
+       [
+        0.58,
+        0.72
+       ],
+       [
+        1.0,
+        0.68
+       ],
+       [
+        1.0,
+        0.86
+       ],
+       [
+        0.58,
+        0.86
+       ]
+      ],
+      "base": 0.85
+     }
+    ],
+    "flocks": [
+     {
+      "preset": "pigeons",
+      "at": [
+       0.3,
+       0.805
+      ],
+      "size": 0.016,
+      "n": 6,
+      "radius": 0.05,
+      "night": false
+     }
+    ],
+    "details": {
+     "glows": {
+      "items": [
+       {
+        "pts": [
+         [
+          0.37,
+          0.496,
+          0.018
+         ],
+         [
+          0.355,
+          0.496,
+          0.018
+         ],
+         [
+          0.37,
+          0.615,
+          0.029
+         ],
+         [
+          0.8,
+          0.624,
+          0.022
+         ],
+         [
+          0.157,
+          0.639,
+          0.018
+         ]
+        ],
+        "r": 0.022,
+        "col": "255,190,110",
+        "flicker": 0.4,
+        "alpha": 0.55,
+        "night": "only",
+        "bld": true
+       }
+      ]
+     }
+    }
+   },
    "skyBirds": false,
    "nightWins": true,
    "fx": {
@@ -2406,6 +2537,90 @@ var CONFIG = {
    ],
    "lawn": null,
    "closeUp": null,
+   "ambient": {
+    "walkers": [
+     {
+      "preset": "far-pedestrians",
+      "path": [
+       [
+        0.13,
+        0.745
+       ],
+       [
+        0.45,
+        0.775
+       ],
+       [
+        0.82,
+        0.815
+       ]
+      ],
+      "size": [
+       0.024,
+       0.03
+      ],
+      "n": 1
+     }
+    ],
+    "details": {
+     "perches": {
+      "spots": [
+       [
+        0.55,
+        0.437
+       ],
+       [
+        0.62,
+        0.423
+       ],
+       [
+        0.7,
+        0.408
+       ],
+       [
+        0.76,
+        0.396
+       ]
+      ],
+      "n": 2,
+      "size": 0.022
+     },
+     "glows": {
+      "items": [
+       {
+        "pts": [
+         [
+          0.532,
+          0.588,
+          0.028
+         ],
+         [
+          0.346,
+          0.575,
+          0.021
+         ],
+         [
+          0.208,
+          0.604,
+          0.018
+         ],
+         [
+          0.533,
+          0.683,
+          0.02
+         ]
+        ],
+        "r": 0.022,
+        "col": "255,190,110",
+        "flicker": 0.4,
+        "alpha": 0.55,
+        "night": "only",
+        "bld": true
+       }
+      ]
+     }
+    }
+   },
    "skyBirds": false,
    "nightWins": true,
    "fx": {
@@ -2484,6 +2699,139 @@ var CONFIG = {
    ],
    "lawn": null,
    "closeUp": null,
+   "fountains": {
+    "glints": [
+     [
+      0.22,
+      0.8
+     ],
+     [
+      0.26,
+      0.83
+     ],
+     [
+      0.3,
+      0.86
+     ],
+     [
+      0.34,
+      0.89
+     ],
+     [
+      0.38,
+      0.92
+     ],
+     [
+      0.42,
+      0.945
+     ],
+     [
+      0.46,
+      0.97
+     ],
+     [
+      0.4,
+      0.935
+     ]
+    ],
+    "jets": []
+   },
+   "ambient": {
+    "walkers": [
+     {
+      "preset": "far-pedestrians",
+      "path": [
+       [
+        0.21,
+        0.735
+       ],
+       [
+        0.32,
+        0.765
+       ],
+       [
+        0.45,
+        0.8
+       ],
+       [
+        0.6,
+        0.85
+       ]
+      ],
+      "size": [
+       0.012,
+       0.03
+      ],
+      "n": 2
+     }
+    ],
+    "details": {
+     "glows": {
+      "items": [
+       {
+        "pts": [
+         [
+          0.819,
+          0.459,
+          0.028
+         ],
+         [
+          0.647,
+          0.469,
+          0.018
+         ],
+         [
+          0.784,
+          0.521,
+          0.035
+         ],
+         [
+          0.843,
+          0.523,
+          0.035
+         ],
+         [
+          0.648,
+          0.531,
+          0.035
+         ],
+         [
+          0.723,
+          0.501,
+          0.018
+         ],
+         [
+          0.906,
+          0.626,
+          0.018
+         ],
+         [
+          0.492,
+          0.717,
+          0.018
+         ],
+         [
+          0.32,
+          0.723,
+          0.018
+         ],
+         [
+          0.723,
+          0.742,
+          0.018
+         ]
+        ],
+        "r": 0.022,
+        "col": "255,190,110",
+        "flicker": 0.4,
+        "alpha": 0.55,
+        "night": "only",
+        "bld": true
+       }
+      ]
+     }
+    }
+   },
    "skyBirds": false,
    "nightWins": true,
    "fx": {
@@ -2585,6 +2933,59 @@ var CONFIG = {
    ],
    "lawn": null,
    "closeUp": null,
+   "ambient": {
+    "details": {
+     "glows": {
+      "items": [
+       {
+        "pts": [
+         [
+          0.435,
+          0.643,
+          0.035
+         ],
+         [
+          0.44,
+          0.56,
+          0.05
+         ],
+         [
+          0.44,
+          0.74,
+          0.05
+         ]
+        ],
+        "col": "255,180,90",
+        "flicker": 0.45,
+        "alpha": 0.75
+       },
+       {
+        "pts": [
+         [
+          0.44,
+          0.66,
+          0.16
+         ]
+        ],
+        "col": "255,170,80",
+        "flicker": 0.2,
+        "alpha": 0.35
+       }
+      ]
+     },
+     "flakes": {
+      "area": [
+       0.0,
+       0.0,
+       1.0,
+       0.95
+      ],
+      "n": 14,
+      "size": 0.0035,
+      "speed": 0.05
+     }
+    }
+   },
    "skyBirds": false,
    "nightWins": true,
    "fx": {
@@ -2679,6 +3080,101 @@ var CONFIG = {
    ],
    "lawn": null,
    "closeUp": null,
+   "ambient": {
+    "details": {
+     "glows": {
+      "items": [
+       {
+        "pts": [
+         [
+          0.5117,
+          0.4938
+         ],
+         [
+          0.2383,
+          0.515
+         ],
+         [
+          0.8262,
+          0.5161
+         ],
+         [
+          0.2559,
+          0.637
+         ],
+         [
+          0.8288,
+          0.6425
+         ],
+         [
+          0.2181,
+          0.6429
+         ],
+         [
+          0.8027,
+          0.6509
+         ],
+         [
+          0.7467,
+          0.77
+         ],
+         [
+          0.7979,
+          0.7775
+         ],
+         [
+          0.8519,
+          0.8183
+         ],
+         [
+          0.9017,
+          0.8209
+         ],
+         [
+          0.9271,
+          0.8377
+         ],
+         [
+          0.9447,
+          0.8582
+         ]
+        ],
+        "r": 0.016,
+        "col": "255,200,120",
+        "flicker": 0.35,
+        "alpha": 0.6
+       },
+       {
+        "pts": [
+         [
+          0.5,
+          0.55,
+          0.3
+         ],
+         [
+          0.84,
+          0.8,
+          0.18
+         ]
+        ],
+        "col": "255,170,80",
+        "flicker": 0.2,
+        "alpha": 0.2
+       }
+      ]
+     },
+     "motes": {
+      "beam": [
+       0.36,
+       0.1,
+       0.55,
+       0.62
+      ],
+      "width": 0.22,
+      "n": 40
+     }
+    }
+   },
    "skyBirds": false,
    "fx": {
     "items": [
@@ -2821,6 +3317,125 @@ var CONFIG = {
    ],
    "lawn": null,
    "closeUp": null,
+   "fountains": {
+    "jets": [
+     [
+      0.72,
+      0.835,
+      0.04,
+      0.012
+     ],
+     [
+      0.845,
+      0.83,
+      0.055,
+      0.016
+     ],
+     [
+      0.93,
+      0.825,
+      0.03,
+      0.01
+     ]
+    ],
+    "glints": [
+     [
+      0.55,
+      0.84
+     ],
+     [
+      0.6,
+      0.83
+     ],
+     [
+      0.62,
+      0.845
+     ],
+     [
+      0.68,
+      0.84
+     ],
+     [
+      0.78,
+      0.845
+     ],
+     [
+      0.88,
+      0.84
+     ]
+    ],
+    "squash": 0.3
+   },
+   "ambient": {
+    "walkers": [
+     {
+      "preset": "far-pedestrians",
+      "path": [
+       [
+        0.0,
+        0.8
+       ],
+       [
+        0.5,
+        0.79
+       ],
+       [
+        0.98,
+        0.795
+       ]
+      ],
+      "size": [
+       0.029,
+       0.029
+      ],
+      "n": 2
+     }
+    ],
+    "details": {
+     "glows": {
+      "items": [
+       {
+        "pts": [
+         [
+          0.25,
+          0.515
+         ],
+         [
+          0.33,
+          0.505
+         ],
+         [
+          0.41,
+          0.5
+         ],
+         [
+          0.5,
+          0.498
+         ],
+         [
+          0.59,
+          0.5
+         ],
+         [
+          0.67,
+          0.505
+         ],
+         [
+          0.75,
+          0.513
+         ]
+        ],
+        "r": 0.03,
+        "col": "255,214,150",
+        "flicker": 0.05,
+        "pulse": 4,
+        "alpha": 0.55,
+        "night": "only"
+       }
+      ]
+     }
+    }
+   },
    "skyBirds": false,
    "fx": {
     "items": [
@@ -2924,12 +3539,12 @@ var CONFIG = {
   }
  }
 };
-CONFIG.ENGINE_V = 'e1.37';
+CONFIG.ENGINE_V = 'e1.38';
 /* e1.15 (s9): Safari на iPhone показывал старую страницу из кэша (восстановленная вкладка) — со старыми настройками при новом движке
    (у Ленина всплыли отменённые круги с цифрами). Страница сверяет свою версию с engine/VERSION (без кэша) при открытии, при возврате
    из кэша вкладок и после 10+ мин в фоне; новее — один раз перезагружается на свежий адрес. */
 (function () {
-  var V = 'e1.37', E = '../../engine/', hid = 0;
+  var V = 'e1.38', E = '../../engine/', hid = 0;
   function chk() {
     if (!window.fetch) return;
     fetch(E + 'VERSION?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
@@ -3125,10 +3740,10 @@ document.querySelectorAll('.chips').forEach(function (g) { g.querySelectorAll('.
 </main>
 </div>
 
-<script src="../../engine/wall-data.js?v=e1.37" defer></script>
-<script src="../../engine/wall.js?v=e1.37" defer></script>
-<script src="../../engine/postcard.js?v=e1.37" defer></script>
-<script src="../../engine/viewer.js?v=e1.37" defer>
+<script src="../../engine/wall-data.js?v=e1.38" defer></script>
+<script src="../../engine/wall.js?v=e1.38" defer></script>
+<script src="../../engine/postcard.js?v=e1.38" defer></script>
+<script src="../../engine/viewer.js?v=e1.38" defer>
 </script>
 <script>
 // e1.13: курсор ПК — чернильный кружок у острия плавно растёт над кликабельным, при загрузке рядом рисует себя чернильный круг

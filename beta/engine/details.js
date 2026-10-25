@@ -870,6 +870,38 @@
         leaf(p[0], p[1], sz, Math.sin(t * q.sp + q.ph) * 0.9 + q.ph, Math.cos(t * q.sp * 1.3 + q.ph), q.g, (0.4 + 0.5 * day) * Math.min(1, k * 6, (1 - k) * 4));
       }
     })();
+    // e1.38 огни всегда (D.glows {items: [{pts: [[u, v(, r)]], r, col, flicker 0..1, alpha, pulse с, night: 'only', bld}]}): свечи мерцают,
+    // вывеска дышит; ночью ярче и мерцание глубже. Рисуется и днём, и ночью (до выхода «только днём» ниже).
+    if (D.glows) {
+      var nn0 = w.n; ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      (D.glows.items || []).forEach(function (G, gi) {
+        var on = G.night === 'only' ? sstep(0.3, 0.9, nn0) : 1; if (on <= 0.01) return;
+        var fk = (G.flicker == null ? 0.25 : G.flicker) * (1 + 0.6 * nn0), pu = G.pulse ? 0.72 + 0.28 * Math.sin(t * 6.2832 / G.pulse + gi * 1.3) : 1;
+        G.pts.forEach(function (q, i) {
+          var fl = 1 - fk * (0.5 + 0.5 * Math.sin(t * 9.1 + i * 2.3 + gi) * Math.sin(t * 5.3 + i * 0.7));
+          var r = (q[2] || G.r || 0.02) * UNIT * (0.93 + 0.07 * fl), p = DP(f, q, !!G.bld);
+          ctx.globalAlpha = clamp(on * pu * fl * (G.alpha || 0.7) * (0.45 + 0.55 * nn0), 0, 1);
+          ctx.drawImage(glowS(G.col || '255,190,110'), p[0] - r, p[1] - r, 2 * r, 2 * r);
+        });
+      });
+      ctx.restore(); ctx.globalAlpha = 1;
+    }
+    // e1.38 редкие снежинки (D.flakes {area: [u0, v0, u1, v1], n, size, speed доля высоты кадра в с}): падают и покачиваются, у низа области тают; день и ночь
+    if (D.flakes) {
+      var FL = D.flakes, fa = FL.area || [0, 0, 1, 1];
+      if (!S.fl) { S.fl = []; for (var fi = 0; fi < (FL.n || 12); fi++) S.fl.push({ u: rnd(fa[0], fa[2]), k: Math.random(), sp: rnd(0.7, 1.3), ph: rnd(0, 6.28), z: rnd(0.5, 1) }); }
+      var dtf = S.flT != null ? clamp(t - S.flT, 0, 0.1) : 0; S.flT = t;
+      ctx.save(); ctx.lineWidth = 0.6; ctx.fillStyle = 'rgb(255,255,255)'; ctx.strokeStyle = 'rgb(90,98,116)';
+      S.fl.forEach(function (q) {
+        q.k += dtf * (FL.speed || 0.05) * q.sp / Math.max(0.05, fa[3] - fa[1]);
+        if (q.k > 1) { q.k = 0; q.u = rnd(fa[0], fa[2]); }
+        var u = q.u + 0.012 * Math.sin(t * 0.9 * q.sp + q.ph), v = fa[1] + (fa[3] - fa[1]) * q.k, p = P(u, v, 0.6);
+        var r = Math.max(0.9, (FL.size || 0.0035) * UNIT * q.z), a = Math.min(1, q.k * 8, (1 - q.k) * 5) * (0.55 + 0.45 * q.z);
+        ctx.globalAlpha = a; ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, 6.283); ctx.fill();
+        ctx.globalAlpha = a * 0.5; ctx.stroke();
+      });
+      ctx.restore(); ctx.globalAlpha = 1;
+    }
     if (day < 0.03) { ctx.restore(); return; }
     // блик солнца скользит по бронзе (раз в 7–13 с), только днём
     // e1.13 пятна света сквозь листву (D.dapple {areas: [[u0, v0, u1, v1]], n, size}): тёплые мягкие пятна дрожат и плывут с ветром; только днём
