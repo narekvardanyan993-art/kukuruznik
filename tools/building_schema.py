@@ -480,11 +480,12 @@ def validate(bdir, b, site):
                             c.numbers(q, '%s: ambient.persp' % w, 2, 0, 1)
                 if 'details' in am:   # e1.10: мелочи для крупных планов (details.js drawDetails)
                     wd = '%s: ambient.details' % w
-                    dd = c.obj(am['details'], wd, optional=('perches', 'sparrows', 'leaves', 'swallows', 'glint', 'dapple', 'motes'))
+                    dd = c.obj(am['details'], wd, optional=('perches', 'sparrows', 'leaves', 'swallows', 'glint', 'dapple', 'motes', 'glows', 'flakes'))
                     if dd:
                         spec = {'perches': (('spots',), ('n', 'size', 'bld')), 'sparrows': (('ledges',), ('n', 'size', 'bld')),
                                 'leaves': (('areas',), ('n', 'fall', 'size')), 'swallows': (('band',), ('n', 'size', 'every')), 'glint': (('poly',), ('every', 'k', 'bld')),
-                                'dapple': (('areas',), ('n', 'size')), 'motes': (('beam',), ('width', 'n'))}
+                                'dapple': (('areas',), ('n', 'size')), 'motes': (('beam',), ('width', 'n')),
+                                'glows': (('items',), ()), 'flakes': (('area',), ('n', 'size', 'speed'))}   # e1.38: огни всегда, редкие снежинки
                         for k, (req, opt) in spec.items():
                             if k in dd:
                                 o = c.obj(dd[k], '%s.%s' % (wd, k), required=req, optional=opt)
@@ -536,8 +537,8 @@ def validate(bdir, b, site):
         if 'fountains' in fr:     # e1.5: фонтаны (details.js): jets [[u, v, высота, полуширина]…], glints [[u, v]…], squash
             fo = c.obj(fr['fountains'], '%s: fountains' % w, required=('jets',), optional=('glints', 'squash', 'pool', 'blue'))
             if fo:
-                if not isinstance(fo['jets'], list) or not fo['jets']:
-                    c.err('%s: fountains.jets' % w, 'непустой список [u, v, высота, полуширина]')
+                if not isinstance(fo['jets'], list) or not (fo['jets'] or fo.get('glints')):   # e1.38: только блики (вода в арыке) — jets []
+                    c.err('%s: fountains.jets' % w, 'непустой список [u, v, высота, полуширина] (пустой — только при glints)')
                 else:
                     for q in fo['jets']:
                         c.numbers(q, '%s: fountains.jets' % w, 4, 0, 1)
