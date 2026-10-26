@@ -17,6 +17,8 @@ from pathlib import Path
 
 FIG_TYPES = ('sit', 'stand', 'chess', 'pigeon', 'balloon', 'leaf', 'grass')   # e1.22 FIGURES — тот же порядок, что в engine/viewer.js
 FIG_MAX = 25
+PIX_KINDS = ('flow', 'jet', 'ripple', 'glow', 'flame', 'win')   # e1.40 frames[].pix (viewer.js PIX)
+PIX_KEYS = ('all', 'water', 'white', 'warm', 'dark')
 PARADE_KINDS = ('planes', 'drones', 'heli', 'fireworks', 'balloons', 'banner', 'fx')   # виды парада (details.js): самолёты с дымом, дроны-флаг, вертолёт с флагом, салют, воздушные шары, знамя на фасаде (крупный план)
 PARADE_SECONDS = {'planes': 26, 'drones': 22, 'heli': 26, 'fireworks': 23.5, 'balloons': 20, 'banner': 22, 'fx': 16}   # длина показа (details.js: dur / total), секунды
 
@@ -375,7 +377,7 @@ def validate(bdir, b, site):
         nm = f.get('name') if isinstance(f, dict) else None
         w = 'кадр %d%s' % (i + 1, ' (%s)' % nm if isinstance(nm, str) else '')
         fr = c.obj(f, w, required=('name', 'crop', 'flag', 'cloudShadow', 'wind', 'sky', 'sun', 'life', 'hotspots', 'nightLamps', 'nightHalo', 'lamps'),
-                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'figures', 'snowMask', 'sway', 'fx'))
+                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'figures', 'snowMask', 'sway', 'fx', 'pix'))
         if not fr:
             continue
         if not (isinstance(nm, str) and re.fullmatch(r'[A-Za-z0-9_\-]+', nm)):
@@ -548,6 +550,34 @@ def validate(bdir, b, site):
                     c.number(fo['squash'], '%s: fountains.squash' % w, 0.05, 1)
         c.number(fr['cloudShadow'], '%s: cloudShadow' % w, 0, 1)
         c.number(fr['wind'], '%s: wind' % w, 0, 10)
+        if 'pix' in fr:   # e1.40: живость из самого рисунка (viewer.js PIX) — сдвиг/яркость пикселей рисунка в рамке, маска из цвета рисунка
+            wp = '%s: pix' % w
+            if not isinstance(fr['pix'], list) or not fr['pix']:
+                c.err(wp, 'должен быть непустой список деталей')
+            else:
+                if len(fr['pix']) > 10:
+                    c.err(wp, 'не больше 10 деталей на кадр (uniform-векторы шейдера)')
+                for j, it in enumerate(fr['pix']):
+                    wj = '%s[%d]' % (wp, j + 1)
+                    kind = it.get('kind') if isinstance(it, dict) else None
+                    geo = 'seg' if kind == 'flow' else 'box'
+                    o2 = c.obj(it, wj, required=('kind', geo, 'p'), optional=('key', 'lo', 'hi', 'note'))
+                    if not o2:
+                        continue
+                    if kind not in PIX_KINDS:
+                        c.err(wj + '.kind', 'неизвестный вид %r (можно: %s)' % (kind, ', '.join(PIX_KINDS)))
+                    g = it[geo]
+                    if not (isinstance(g, list) and len(g) == 4 and all(is_num(x) and -0.1 <= x <= 1.1 for x in g)):
+                        c.err('%s.%s' % (wj, geo), 'четыре доли кадра [u0, v0, u1, v1]')
+                    elif geo == 'box' and not (g[2] > g[0] and g[3] > g[1]):
+                        c.err(wj + '.box', 'рамка [u0, v0, u1, v1]: u1 > u0, v1 > v0')
+                    if it.get('key', 'all') not in PIX_KEYS:
+                        c.err(wj + '.key', 'маска %r (можно: %s)' % (it.get('key'), ', '.join(PIX_KEYS)))
+                    for kk in ('lo', 'hi'):
+                        if kk in it and not is_num(it[kk]):
+                            c.err('%s.%s' % (wj, kk), 'должно быть число')
+                    if not (isinstance(it['p'], list) and 1 <= len(it['p']) <= 4 and all(is_num(x) for x in it['p'])):
+                        c.err(wj + '.p', 'от 1 до 4 чисел вида')
         sk = c.obj(fr['sky'], '%s: sky' % w, required=('ref', 'end', 'band', 'clouds'), optional=('cloudScale',))
         if sk:
             c.number(sk['ref'], '%s: sky.ref' % w, 0, 2)

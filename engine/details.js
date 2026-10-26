@@ -1607,6 +1607,8 @@
   //   birds — голуби {mode: takeoff | land | circle, n, size, from:[u,v], spread:[du,dv], to:[u,v] | line:[[u,v],[u,v]] | at, r:[ru,rv]};
   //   glow  — огоньки зажигаются по очереди и мерцают {pts:[[u,v],...], r, col, stagger с, flicker 0..1, grow:[k0,k1], alpha};
   //   image — картинка из папки кадров {src, alpha, rise доля кадра вверх за показ} проявляется и тает.
+  //   e1.40: sunset / candles — шоу без деталей: обработка пикселей самого рисунка в шейдере сцены (viewer.js showGrade, PIX);
+  //          details.js только ведёт время показа (Details.fxShade) — кодом ничего не рисуется.
   //   У каждой детали t:[с0, с1] (окно показа, по умолчанию весь показ) и fade:[вход, выход] с. Длина показа — FX_DUR.
   var FX_DUR = 16000, fxImg = {};
   function fxImage(src) {
@@ -1692,13 +1694,15 @@
   function stepFx(now, w) {
     var X = SC(par.fr).fx || {}, t = (now - par.t0) / 1000, D = par.dur / 1000, nn = wts().n, col = ink();
     var kill = par.abort ? clamp((now - par.abort) / 700, 0, 1) : 0;
+    par.shade = null;
     (X.items || []).forEach(function (it, j) {
       if (it.kind === 'image') fxImage(it.src);   // грузим заранее, с первого кадра показа
       var tw = it.t || [0, D], tt = t - tw[0], len = tw[1] - tw[0], fd = it.fade || [0.6, 0.9];
       if (tt < 0 || tt > len) return;
       var a = clamp(Math.min(tt / fd[0], (len - tt) / fd[1]), 0, 1) * (1 - kill);
       if (a <= 0) return;
-      if (it.kind === 'bell') fxBell(it, tt, len, a, col, nn);
+      if (it.kind === 'sunset' || it.kind === 'candles') par.shade = { fr: par.fr, kind: it.kind === 'sunset' ? 1 : 2, t: tt, len: len, a: a };   // e1.40
+      else if (it.kind === 'bell') fxBell(it, tt, len, a, col, nn);
       else if (it.kind === 'birds') fxBirds(it, tt, len, a);
       else if (it.kind === 'glow') fxGlow(it, tt, len, a, nn);
       else if (it.kind === 'image') fxImageDraw(it, tt, len, a);
@@ -1816,6 +1820,7 @@
     paradeStop: stopParadeNow,
     paradeDur: function (style) { var st = String(style || 'planes').replace(/:behind$/, ''); return (({ drones: 22000, heli: 26000, fireworks: 23500, balloons: 20000, banner: 22000, fx: FX_DUR })[st] || 11000) / 1000; },
     paradeBusy: function () { return !!par; },
+    fxShade: function () { return par && par.style === 'fx' && par.shade ? par.shade : null; },   // e1.40: шоу кадра для шейдера сцены (вид 1 sunset / 2 candles, с, длина, проявление)
     paradeProgress: function (now) { return par ? clamp((now - par.t0) / (par.total || par.dur), 0, 1) : -1; },   // для кольца на кнопке флага
     // выключить всё (fps ниже порога или «уменьшение движения»): очистить холст, парад прервать
     off: function () { active = []; glints = []; perch = null; if (par) endParade(); clear(); showT0 = null; }

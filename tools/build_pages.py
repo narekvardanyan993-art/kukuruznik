@@ -191,6 +191,8 @@ def make_config(b, frames_url, stamp=None):
         C['GUSTS'] = look['gusts']
     if any(f.get('figures') for f in fr):   # e1.22: фигуры рисунка (только если заданы у кадров — у остальных зданий CONFIG тот же)
         C['FIGURES'] = [f.get('figures') for f in fr]
+    if any(f.get('pix') for f in fr):   # e1.40: живость из самого рисунка (только если задана у кадров — у остальных зданий CONFIG тот же)
+        C['PIX'] = [f.get('pix') or [] for f in fr]
     C.update({
         'NIGHT_MAIN_LIT': look['night']['mainLit'],
         'NIGHT_OTHER_LIT': look['night']['otherLit'],
