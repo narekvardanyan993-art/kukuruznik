@@ -1769,26 +1769,27 @@
     cloudT += dtc * (wx.wind - 1);   // при ветре облака бегут быстрее
     ocSlow += Math.max(-dtc / 4, Math.min(dtc / 8, wx.oc - ocSlow));
     wx.oc = ocSlow;
-    if (wx.wind > 1.6 && key !== 'night' && !par && now >= nextKite && !active.some(function (a) { return a.kind === 'kite'; }) && KINDS.kite) {   // ветрено — в небе змей
+    // e1.39 DRAWN_ONLY (здание, tuning): на экране только рисунки Gemini — код не рисует небо-события, солнце/луну, облака, птиц, фонтаны, ambient (шоу fx остаётся)
+    var DO = !!root.CONFIG.DRAWN_ONLY;
+    if (!DO && wx.wind > 1.6 && key !== 'night' && !par && now >= nextKite && !active.some(function (a) { return a.kind === 'kite'; }) && KINDS.kite) {   // ветрено — в небе змей
       var ek = KINDS.kite(fr); if (ek) { ek.kind = 'kite'; ek.t0 = now; active.push(ek); }
       nextKite = now + rnd(14000, 22000);
     }
     UNIT = unit();
     // e1.21 (s17): life.nightRare [мин, макс] с — ночью не больше ОДНОГО события (огонёк самолёта) и редко; без настройки — как было
     var nRare = key === 'night' && SC(fr).life && SC(fr).life.nightRare;
-    if (key && !par && now >= nextAt && active.length < (nRare ? 1 : 2)) { spawn(fr, key); nextAt = now + (nRare ? rnd(nRare[0], nRare[1]) * 1000 : rnd(8000, 15000)); }
+    if (!DO && key && !par && now >= nextAt && active.length < (nRare ? 1 : 2)) { spawn(fr, key); nextAt = now + (nRare ? rnd(nRare[0], nRare[1]) * 1000 : rnd(8000, 15000)); }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H); drawn = true;
     var w = wts();
-    drawSun(now, w, fr);
-    drawClouds(now, w, wx);
+    if (!DO) { drawSun(now, w, fr); drawClouds(now, w, wx); }
     var fz = V.weather && V.weather().flash;
-    if (fz > 0.02) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; cloudMul = Math.min(1, fz * 1.4); drawClouds(now, w, wx); cloudMul = 1; ctx.restore(); }   // гроза: облака светятся изнутри
-    if (SC(fr).skyBirds !== false) drawAmbientBirds(now, w);   // e1.8: кадр может выключить три одиночные птицы (свои стаи в ambient.flocks)
-    if (SC(fr).closeUp) drawCloseUp(now, w, f, SC(fr).closeUp);
-    if (SC(fr).fountains) drawFountains(now, w, f, SC(fr).fountains);
+    if (!DO && fz > 0.02) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; cloudMul = Math.min(1, fz * 1.4); drawClouds(now, w, wx); cloudMul = 1; ctx.restore(); }   // гроза: облака светятся изнутри
+    if (!DO && SC(fr).skyBirds !== false) drawAmbientBirds(now, w);   // e1.8: кадр может выключить три одиночные птицы (свои стаи в ambient.flocks)
+    if (!DO && SC(fr).closeUp) drawCloseUp(now, w, f, SC(fr).closeUp);
+    if (!DO && SC(fr).fountains) drawFountains(now, w, f, SC(fr).fountains);
     var MV = SC(fr).motionVideo, mvOn = MV && V.motionOn && V.motionOn(fr);
-    if (SC(fr).ambient) {   // e1.14: на кадре с синемаграфом спрайтовых машин, людей и сценок нет (2D-картинки поверх видео); птицы и мелочи остаются
+    if (!DO && SC(fr).ambient) {   // e1.14: на кадре с синемаграфом спрайтовых машин, людей и сценок нет (2D-картинки поверх видео); птицы и мелочи остаются
       var AM = SC(fr).ambient;
       if (mvOn && MV.hideLife !== false) AM = MV._A || (MV._A = { flocks: AM.flocks, details: AM.details, occluders: AM.occluders, lightBirds: AM.lightBirds });
       drawAmbientLife(now, w, f, AM);

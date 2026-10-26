@@ -38,3 +38,11 @@
 - E (свечи → фонари): «… paint every small CANDLE FLAME (… sand tray … tall candlesticks … hanging lamp) as a small round dot of pure solid green #00FF00, one dot per flame …» → 13 огней.
 - F: не сделано — лимит Pro кончился (модель упала на Flash-Lite). Окна F — авто из build_building_layers, фонари F (2 столба + 5 подвесных) — вручную в source/night/pogos_f_lamps.json.
 - Файлы: A tsyoyt, B wj055q, C 8kmaiy, D n7j58u, E dqlrom (gemini/in/Gemini_Generated_Image_*).
+
+## Шаг 4, заход 4 (27.10.2026) — люди в рисунке (Gemini 3.1 Pro, «Создание изображений», 9:16, вложение — сам кадр up2/<L>.jpg)
+- Каркас: «Generate an image: an edit of this exact attached drawing. Keep EVERYTHING identical - … Only one change: add ONE … sitting/standing still … small in scale (…), drawn in exactly the same pencil-and-watercolor manner …, with a soft shadow … Do not change anything else. No other people, no text.»
+- A (vrz6ez, 1-я попытка): старик 1920-х (кепка, длинное пальто, белая борода, трость) на старой деревянной скамье у стены, под башней.
+- C (16oueh, 2-я: 1-я — «I seem to be encountering an error», помог повтор «Please try again: generate the edited image…»): женщина 1920-х (тёмная юбка, шаль на голове, корзинка) у арки башни.
+- F0 (htbap6, 1-я): каменная скамья слева от фонтана, современная пара (куртки, джинсы).
+- Gemini перерисовывает весь кадр (небо, облака) — берём только область фигуры (people4.py).
+- D пасмурное небо: 3 попытки — ошибка / «something went wrong» / зависание 4 мин; колокол: «I cannot generate images» дважды → лимит картинок кончился. Не сделано: D, колокол, голуби, F с призраком.

@@ -1372,7 +1372,7 @@
     gl.uniform1f(US.uSunset, tod.s);
     gl.uniform1f(US.uNightSky, tod.sky);
     gl.uniform1f(US.uNightGnd, tod.gnd);
-    gl.uniform1f(US.uStars, tod.stars);
+    gl.uniform1f(US.uStars, CONFIG.DRAWN_ONLY ? 0 : tod.stars);   // e1.39: звёзды кодом — нет
     gl.uniform2f(US.uFadeZoom, fx.zoomA, fx.zoomB);
     gl.uniform1f(US.uAspect, aspect);
     gl.uniform1f(US.uWindAmp, fx.windAmp);
@@ -2630,6 +2630,7 @@
     return null;
   }
   function drawPrecip(now, dt, rm) {
+    if (CONFIG.DRAWN_ONLY) { leaves.length = 0; if (pc && pc.style.display !== 'none') { pctx.clearRect(0, 0, pc.width, pc.height); pc.style.display = 'none'; } return; }   // e1.39: дождь, снежинки, листья, радуга кодом — нет
     var rainK = wx.cur[2], snowK = wx.cur[3], leafK = clamp((wx.wind - 1.4) / 1.6, 0, 1) * (1 - snowK);
     var rbA = 0;   // радуга после дождя: 4 с проявляется, держится, 6 с тает (всего ~30 с); ночью и в тучах — нет
     if (wx.rainbowT0) {
