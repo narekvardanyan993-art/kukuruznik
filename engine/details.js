@@ -1691,17 +1691,119 @@
     ctx.save(); ctx.globalAlpha = clamp(a * (it.alpha || 0.8) * (0.9 + 0.1 * Math.sin(tt * 2.1)), 0, 1);
     ctx.drawImage(im, a0[0], a0[1], a1[0] - a0[0], a1[1] - a0[1]); ctx.restore();
   }
+  // ---- e1.41 РИСУНКИ GEMINI В ШОУ (Погос-Петрос, заход 6): код только двигает/поворачивает/режет готовые картинки из папки кадров
+  //   (вырезаны из листов Gemini на однотонном фоне, RGBA PNG), сам ничего не рисует. Картинки нет — ничего не рисуется.
+  //   swing — колокол качается на оси {src, at:[u,v] ось (верх колокола), h доля высоты кадра, amp рад, period с, bld — на слое здания};
+  //   flock — стая взлетает {frames:[src…] позы крыльев (0 — сидит), from:[u,v], spread:[du,dv], to:[u,v], n, h, delay0, gap, fly, flap Гц};
+  //   moon — луна восходит {src, from:[u,v], to:[u,v], h, refl:{dv, poly:[[u,v]…], alpha} — отражение в воде (перевёрнута, дрожит полосами)};
+  //   flakes — снегопад картинками-снежинками {srcs:[…], area:[u0,v0,u1,v1], n, h:[мин,макс], speed доля высоты/с, dens:[[доля показа, 0..1]…]}.
+  //   Тот же снег всегда — кадр "spriteSnow": {srcs, area, n, h, speed} (без шоу, редкий).
+  var spImgs = {};
+  function spImg(fr, src) {
+    var F = root.CONFIG.FRAMES[fr]; if (!F || !src) return null;
+    var key = String(F.color).split('?')[0].replace(/[^\/]*$/, '') + src;
+    if (spImgs[key]) return spImgs[key].ok ? spImgs[key].im : null;
+    var im = new Image(); spImgs[key] = { im: im, ok: false }; im.onload = function () { spImgs[key].ok = true; }; im.src = key; return null;
+  }
+  function spP(f, u, v, bld) { return bld && V.projectB ? V.projectB(f, u, v) : P(u, v, 0); }
+  function spH(f, u, v, h, bld) { var a = spP(f, u, v, bld), b = spP(f, u, v + h, bld); return Math.abs(b[1] - a[1]); }
+  function spDraw(im, x, y, hp, ang, flip, ax, ay) {   // картинка высотой hp px, точка привязки (ax, ay) — доли картинки
+    if (!im || !im.width) return;
+    var wp = hp * im.width / im.height;
+    ctx.save(); ctx.translate(x, y); if (ang) ctx.rotate(ang); if (flip) ctx.scale(-1, 1);
+    ctx.drawImage(im, -wp * (ax == null ? 0.5 : ax), -hp * (ay == null ? 0.5 : ay), wp, hp); ctx.restore();
+  }
+  function nightK() { return 1 - 0.45 * wts().n; }   // ночью картинки шоу тише (рисунок сцены ночью темнее)
+  function fxSwing(it, tt, len, a) {
+    var f = V.entry(par.fr), im = spImg(par.fr, it.src); if (!f || !im) return;
+    var p = spP(f, it.at[0], it.at[1], it.bld), hp = spH(f, it.at[0], it.at[1], it.h || 0.05, it.bld);
+    var ramp = clamp(tt / 1.5, 0, 1) * clamp((len - tt) / 2.5, 0, 1), per = it.period || 1.7;
+    var ang = (it.amp || 0.5) * Math.sin(tt * 6.2832 / per) * ramp, rot = ang;
+    if (it.poses && it.poseRad) {   // e1.41: колокол нарисован Gemini в трёх положениях (прямо, влево, вправо) — берём ближайшее, докручиваем остаток
+      var pi = Math.abs(ang) < it.poseRad * 0.5 ? 0 : (ang > 0 ? 1 : 2), pim = spImg(par.fr, it.poses[pi]);   // поворот +: низ колокола уходит влево
+      if (pim) { im = pim; rot = ang - (pi === 0 ? 0 : (pi === 1 ? it.poseRad : -it.poseRad)); }
+    }
+    ctx.save(); ctx.globalAlpha = clamp(a * nightK(), 0, 1); spDraw(im, p[0], p[1], hp, rot, false, 0.5, 0.02); ctx.restore();
+  }
+  function fxFlock(it, tt, len, a) {
+    var f = V.entry(par.fr), fr = it.frames || []; if (!f || !fr.length) return;
+    var ims = fr.map(function (s) { return spImg(par.fr, s); }); if (!ims[0]) return;
+    var n = it.n || 8, sp = it.spread || [0.1, 0.01], H0 = it.h || 0.03;
+    ctx.save();
+    for (var i = 0; i < n; i++) {
+      var r1 = fxR(i, 1), r2 = fxR(i, 2), r3 = fxR(i, 3);
+      var st = [it.from[0] + sp[0] * (r1 - 0.5), it.from[1] + sp[1] * (r2 - 0.5)], en = [it.to[0] + 0.25 * (r1 - 0.5), it.to[1] + 0.1 * (r2 - 0.5)];
+      var d0 = (it.delay0 || 1.5) + i * (it.gap || 0.3) + r3 * 0.5, q = clamp((tt - d0) / (it.fly || 5), 0, 1);
+      var e2 = Math.pow(q, 1.35), cu = [lerp(st[0], en[0], 0.25), st[1] - 0.05 - 0.05 * r2];
+      var x = (1 - e2) * (1 - e2) * st[0] + 2 * (1 - e2) * e2 * cu[0] + e2 * e2 * en[0], y = (1 - e2) * (1 - e2) * st[1] + 2 * (1 - e2) * e2 * cu[1] + e2 * e2 * en[1];
+      var flip = en[0] < st[0], pose;
+      if (tt < d0) pose = 0;   // сидит на карнизе
+      else { var nf = Math.max(1, ims.length - 1), ph = (tt - d0) * (it.flap || 4.5) * (0.85 + 0.3 * r3) + r1 * nf; pose = 1 + (Math.floor(ph) % nf); if (q > 0.6 && fxR(i, Math.floor(tt * 2)) > 0.6) pose = 1; }   // взмахи; дальше — планирует
+      var im = ims[pose] || ims[0]; if (!im) continue;
+      var pp = spP(f, x, y, it.bld && tt < d0), hp = spH(f, x, y, H0, false) * (0.85 + 0.3 * r2) * (1 - 0.45 * q);
+      ctx.globalAlpha = clamp(a * nightK() * (1 - clamp((q - 0.8) / 0.2, 0, 1)), 0, 1);
+      spDraw(im, pp[0], pp[1], hp, tt < d0 ? 0 : 0.15 * Math.sin(tt * 3 + i), flip, 0.5, tt < d0 ? 0.95 : 0.5);
+    }
+    ctx.restore();
+  }
+  function fxMoon(it, tt, len, a) {
+    var f = V.entry(par.fr), im = spImg(par.fr, it.src); if (!f || !im) return;
+    var k = sstep(0, 1, clamp(tt / (len * 0.8), 0, 1)), u = lerp(it.from[0], it.to[0], k), v = lerp(it.from[1], it.to[1], k);
+    var p = P(u, v, 0), hp = spH(f, u, v, it.h || 0.05, false), al = clamp(a * clamp(tt / 2, 0, 1), 0, 1);
+    var R = it.refl;
+    if (R && R.poly) {   // отражение: та же луна вверх ногами, в маске воды, полосами со сдвигом (рябь)
+      ctx.save(); ctx.beginPath();
+      R.poly.forEach(function (q, j) { var pq = P(q[0], q[1], 0); if (j) ctx.lineTo(pq[0], pq[1]); else ctx.moveTo(pq[0], pq[1]); }); ctx.closePath(); ctx.clip();
+      var pr = P(u + (R.du || 0), (R.v0 || 0.9) + (R.dv || 0.4) * (it.from[1] - v), 0), wp = hp * im.width / im.height, nS = 10;
+      ctx.globalAlpha = al * (R.alpha || 0.5);
+      for (var s = 0; s < nS; s++) {
+        var sy = s / nS, sh = 1 / nS, off = Math.sin(tt * 3.1 + s * 1.7) * wp * 0.08;
+        ctx.save(); ctx.translate(pr[0] + off, pr[1]); ctx.scale(1, -1);
+        ctx.drawImage(im, 0, im.height * sy, im.width, im.height * sh, -wp / 2, -hp / 2 + hp * sy, wp, hp * sh + 0.5); ctx.restore();
+      }
+      ctx.restore();
+    }
+    ctx.save(); ctx.globalAlpha = al; spDraw(im, p[0], p[1], hp, 0, false); ctx.restore();
+  }
+  var flk = {};
+  function flakesDraw(fr, f, it, now, dens, key) {
+    var ims = (it.srcs || []).map(function (s) { return spImg(fr, s); }).filter(Boolean); if (!ims.length) return;
+    var A = it.area || [0, 0, 1, 1], n = Math.round((it.n || 20) * clamp(dens, 0, 1)), hh = it.h || [0.006, 0.012], spd = it.speed || 0.06, t = now / 1000;
+    var a0 = P(A[0], A[1], 0), a1 = P(A[2], A[3], 0), Hpx = a1[1] - a0[1], Wpx = a1[0] - a0[0];
+    var fh = Math.abs(P(0, 1, 0)[1] - P(0, 0, 0)[1]);
+    ctx.save();
+    for (var i = 0; i < n; i++) {
+      var r1 = fxR(i, 11), r2 = fxR(i, 12), r3 = fxR(i, 13), sz = lerp(hh[0], hh[1], r2), z = 0.6 + 0.4 * r2;   // крупные — ближе и быстрее
+      var cyc = Hpx / (spd * fh * z) || 10, ph = ((t / cyc + r1) % 1);
+      var x = a0[0] + Wpx * ((r3 + 0.04 * Math.sin(t * (0.6 + r2) + i * 2.1)) % 1), y = a0[1] + Hpx * ph;
+      ctx.globalAlpha = clamp(Math.min(ph / 0.08, (1 - ph) / 0.12, 1) * (0.75 + 0.25 * r1) * nightK(), 0, 1);
+      spDraw(ims[i % ims.length], x, y, sz * fh, t * (0.6 + r3) * (r1 < 0.5 ? 1 : -1), false);
+    }
+    ctx.restore();
+  }
+  function fxFlakes(it, tt, len, a, now) {
+    var f = V.entry(par.fr); if (!f) return;
+    var D = it.dens || [[0, 0.2], [0.35, 1], [0.7, 1], [1, 0.1]], k = tt / len, d = D[0][1];
+    for (var j = 1; j < D.length; j++) if (k <= D[j][0]) { d = lerp(D[j - 1][1], D[j][1], (k - D[j - 1][0]) / Math.max(1e-3, D[j][0] - D[j - 1][0])); break; } else d = D[j][1];
+    flakesDraw(par.fr, f, it, now, d * a, 'fx');
+  }
   function stepFx(now, w) {
     var X = SC(par.fr).fx || {}, t = (now - par.t0) / 1000, D = par.dur / 1000, nn = wts().n, col = ink();
     var kill = par.abort ? clamp((now - par.abort) / 700, 0, 1) : 0;
     par.shade = null;
     (X.items || []).forEach(function (it, j) {
       if (it.kind === 'image') fxImage(it.src);   // грузим заранее, с первого кадра показа
+      [it.src].concat(it.frames || [], it.srcs || [], it.poses || []).forEach(function (s) { if (s && it.kind !== 'image') spImg(par.fr, s); });   // e1.41: картинки шоу — заранее
       var tw = it.t || [0, D], tt = t - tw[0], len = tw[1] - tw[0], fd = it.fade || [0.6, 0.9];
       if (tt < 0 || tt > len) return;
       var a = clamp(Math.min(tt / fd[0], (len - tt) / fd[1]), 0, 1) * (1 - kill);
       if (a <= 0) return;
-      if (it.kind === 'sunset' || it.kind === 'candles') par.shade = { fr: par.fr, kind: it.kind === 'sunset' ? 1 : 2, t: tt, len: len, a: a };   // e1.40
+      var SHK = { sunset: 1, candles: 2, dusk: 3, doorlight: 4 };   // e1.40–e1.41: шоу-обработка пикселей сцены в шейдере (viewer.js showGrade)
+      if (SHK[it.kind]) par.shade = { fr: par.fr, kind: SHK[it.kind], t: tt, len: len, a: a };
+      else if (it.kind === 'swing') fxSwing(it, tt, len, a);
+      else if (it.kind === 'flock') fxFlock(it, tt, len, a);
+      else if (it.kind === 'moon') fxMoon(it, tt, len, a);
+      else if (it.kind === 'flakes') fxFlakes(it, tt, len, a, now);
       else if (it.kind === 'bell') fxBell(it, tt, len, a, col, nn);
       else if (it.kind === 'birds') fxBirds(it, tt, len, a);
       else if (it.kind === 'glow') fxGlow(it, tt, len, a, nn);
@@ -1798,6 +1900,7 @@
       if (mvOn && MV.hideLife !== false) AM = MV._A || (MV._A = { flocks: AM.flocks, details: AM.details, occluders: AM.occluders, lightBirds: AM.lightBirds });
       drawAmbientLife(now, w, f, AM);
     }
+    if (SC(fr).spriteSnow && !(par && par.fr === fr && (SC(fr).fx || {}).items && SC(fr).fx.items.some(function (q) { return q.kind === 'flakes'; }))) flakesDraw(fr, f, SC(fr).spriteSnow, now, 1, 'amb');   // e1.41: редкий снег картинками Gemini (всегда; в шоу — шоу)
     for (var i = active.length - 1; i >= 0; i--) {
       var e = active[i], t = (now - e.t0) / e.dur;
       if (t >= 1) { active.splice(i, 1); continue; }

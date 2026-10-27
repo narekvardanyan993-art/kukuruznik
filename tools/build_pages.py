@@ -233,7 +233,8 @@ def scene(f, stamp_name=None):
           'moon': sun['moon'], 'lawn': f.get('lawn'), 'closeUp': f.get('closeUp')}
     if 'cloudScale' in sky:
         sc['cloudScale'] = sky['cloudScale']
-    for k in ('bldDepth', 'showBand', 'fountains', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'fx'):   # e1.37: fx — шоу кадра из деталей (details.js stepFx)   # e1.5: только если заданы у кадра — у остальных зданий настройки страницы не меняются
+    for k in ('bldDepth', 'showBand', 'fountains', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'fx', 'spriteSnow'):   # e1.41: spriteSnow — редкий снег картинками Gemini
+          # e1.37: fx — шоу кадра из деталей (details.js stepFx)   # e1.5: только если заданы у кадра — у остальных зданий настройки страницы не меняются
         if k in f:
             sc[k] = f[k]
     if stamp_name and isinstance(sc.get('motionVideo'), dict) and sc['motionVideo'].get('mask'):   # s24: маска синемаграфа — со ?v=<хэш> (движок берёт base + mask)
@@ -459,7 +460,7 @@ def build_beta(site, bdirs=None, root=None, with_local=False):
         written.append(str(out.relative_to(site)))
         if bd in own:   # кадры здания — рядом со страницей: beta/tests/<имя>/frames/*.webp
             fdir = Path(root or ROOT) / bd / 'frames'   # + синемаграф (e1.13): <кадр>_motion.mp4 и маска
-            for src in sorted(list(fdir.glob('*.webp')) + list(fdir.glob('*_motion*.mp4')) + list(fdir.glob('*_motion*.webm')) + list(fdir.glob('*_motion_mask.png')) + list(fdir.glob('*_fig.png')) + list(fdir.glob('*_motion*cars.json')) + list(fdir.glob('*_sway.png'))):   # e1.15: + треки машин для ночных фар; e1.26: поля качания крон
+            for src in sorted(list(fdir.glob('*.webp')) + list(fdir.glob('*_motion*.mp4')) + list(fdir.glob('*_motion*.webm')) + list(fdir.glob('*_motion_mask.png')) + list(fdir.glob('*_fig.png')) + list(fdir.glob('*_motion*cars.json')) + list(fdir.glob('*_sway.png')) + list(fdir.glob('show_*.png'))):   # e1.15: + треки машин для ночных фар; e1.26: поля качания крон; e1.41: картинки шоу (Gemini, RGBA)
                 dst = out.parent / 'frames' / src.name
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(src, dst)

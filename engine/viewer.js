@@ -559,8 +559,10 @@
       '    float inb = step(0.0, bp.x) * step(bp.x, 1.0) * step(0.0, bp.y) * step(bp.y, 1.0) * smoothstep(0.0, 4.0, min(min(bp.x, 1.0 - bp.x) * bs.x, min(bp.y, 1.0 - bp.y) * bs.y));',
       '    if (K.x > 4.5 && K.x < 5.5) {',   // flame: мерцание огня P.x, частота P.y; P.z — радиус тёплого света (px), P.w — очередь в шоу candles
       '      float on = 1.0, sk = 0.0;',
+      '      float grow = 1.0; vec2 ell = vec2(1.0);',
       '      if (show.x > 1.5 && show.x < 2.5) { sk = show.w; on = smoothstep(1.4 + 0.85 * P.w, 2.1 + 0.85 * P.w, show.y); }',
-      '      vec2 cc = (G.xy + G.zw) * 0.5 * W; vec2 dd = (qp - cc) / P.z;',
+      '      if (show.x > 3.5 && show.x < 4.5) { sk = show.w; on = smoothstep(0.8 + 0.6 * P.w, 2.0 + 0.6 * P.w, show.y); grow = mix(0.25, 1.0, smoothstep(0.08, 0.55, show.y / max(show.z, 0.1))); ell = vec2(1.0, 0.62); }',   // e1.41 doorlight: свет из двери растёт и заливает снег
+      '      vec2 cc = (G.xy + G.zw) * 0.5 * W; vec2 dd = (qp - cc) * ell / (P.z * grow);',
       '      warm += sk * on * exp(-dot(dd, dd) * 1.6) * 0.75;',
       '      if (inb < 0.002) continue;',
       '      float m = inb * pixKey(K.y, K.z, K.w, c), fi = float(i);',
@@ -574,6 +576,7 @@
       '    if (m < 0.002) continue;',
       '    if (K.x > 5.5) {',   // win: окно загорается в шоу sunset (P.x сила, P.y очередь)
       '      if (show.x > 0.5 && show.x < 1.5) { float kk = show.y / max(show.z, 0.1); wn = max(wn, m * P.x * show.w * smoothstep(0.62 + 0.035 * P.y, 0.74 + 0.035 * P.y, kk)); }',
+      '      if (show.x > 2.5 && show.x < 3.5) { float kk = show.y / max(show.z, 0.1); wn = max(wn, m * P.x * show.w * smoothstep(0.30 + 0.06 * P.y, 0.38 + 0.06 * P.y, kk)); }',   // e1.41 dusk: окна по одному
       '    } else if (K.x < 2.5) {',   // jet: дрожь P.x px, длина волны P.y px, бег вверх P.z px/с, мерцание P.w
       '      float ph = (qp.y + P.z * t) / P.y * 6.2832;',
       '      off.x += P.x * m * (0.35 + 0.65 * (1.0 - bp.y)) * sin(ph + qp.x * 0.07);',
@@ -604,6 +607,14 @@
       '    c *= 1.0 - 0.30 * e * smoothstep(0.30, 0.90, k) * (1.0 - lit) * (1.0 - winB) * (1.0 - skyW);',   // куда свет ушёл — там тень
       '    c *= 1.0 - 0.22 * e * smoothstep(0.62, 0.95, k) * (1.0 - winB);',   // сумерки
       '    c += ' + v3(LK.windowGlow.color) + ' * winB * ' + glf(LK.windowGlow.strength) + ' * e * smoothstep(0.66, 0.86, k);',   // окна загораются (тот же свет окон, что ночью)
+      '  } else if (show.x > 2.5 && show.x < 3.5) {',   // e1.41 dusk (C): сумерки сгущаются, небо темнеет, окна загораются по одному (pix win), луна — картинкой Gemini
+      '    float du = e * smoothstep(0.02, 0.45, k);',
+      '    c = mix(c, c * vec3(0.60, 0.64, 0.86), du * (1.0 - winB) * (1.0 - 0.35 * skyW));',
+      '    c = mix(c, c * vec3(0.62, 0.66, 0.88) + vec3(0.0, 0.01, 0.03), du * skyW * 0.55);',
+      '    c += ' + v3(LK.windowGlow.color) + ' * winB * ' + glf(LK.windowGlow.strength) + ' * e;',
+      '  } else if (show.x > 3.5 && show.x < 4.5) {',   // e1.41 doorlight (D): чуть темнеет к вечеру, свет свечей из двери заливает снег
+      '    c *= 1.0 - 0.32 * e * smoothstep(0.03, 0.35, k) * (1.0 - smoothstep(0.85, 1.0, k));',
+      '    c *= 1.0 + vec3(1.05, 0.58, 0.18) * wl * 1.9;',
       '  } else {',
       '    float col = smoothstep(0.42, 0.85, k), dark = e * (1.0 - smoothstep(0.50, 0.90, k));',
       '    c = mix(c, vec3(lum) * vec3(1.03, 1.0, 0.95), e * (1.0 - col));',   // фрески ч/б → цвет
