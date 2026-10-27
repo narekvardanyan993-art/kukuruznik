@@ -1,6 +1,8 @@
 """Заход 6: вырезать картинки шоу из листа Gemini на однотонном фоне (белом) → RGBA PNG (по уроку: фон — заливкой от краёв,
 закрытые светлые места внутри фигуры остаются). Каждая крупная фигура листа — отдельный файл, слева направо, сверху вниз.
-python3 pogos-petros/build/scripts/cut6.py <gemini_id> <имя> [--max 256] [--min 0.02] [--thr 28]
+python3 pogos-petros/build/scripts/cut6.py <gemini_id> <имя> [--max 256] [--min 0.02] [--thr 28] [--disc 0.98 [--core 185]] [--shrink 2] [--feather 2]
+Заход 7 (луна): --disc K — ореол срезается по кругу: круг по светлому ядру (яркость > --core), радиус ядра × K, вне круга альфа 0 (тёмное кольцо ореола уходит);
+--shrink px — сужение альфы; --feather px — растушёвка края (внутрь, по краю круга). Без этих флагов — как раньше.
 → pogos-petros/gemini/show/<имя>_<n>.png и копия в tests/pogos-petros/frames/show_<имя>_<n>.png
 """
 import sys, shutil, numpy as np
@@ -11,6 +13,7 @@ R = Path(__file__).resolve().parents[2]; T = R.parent/'tests/pogos-petros/frames
 gid, name = sys.argv[1], sys.argv[2]
 def arg(k, d): return type(d)(sys.argv[sys.argv.index(k)+1]) if k in sys.argv else d
 MAXH, MINF, THR = arg('--max', 256), arg('--min', 0.02), arg('--thr', 28.0)
+DISC, CORE, SHRINK, FEATHER = arg('--disc', 0.0), arg('--core', 185.0), arg('--shrink', 0), arg('--feather', 0.0)
 src = R/'gemini/in'/('Gemini_Generated_Image_%s.jpeg' % gid)
 im = np.asarray(Image.open(src).convert('RGB')).astype(np.float32); H, W = im.shape[:2]
 edge = np.concatenate([im[0], im[-1], im[:, 0], im[:, -1]]); bgc = np.median(edge, 0)
@@ -36,6 +39,14 @@ for k, (y0, x0, y1, x1, i) in enumerate(objs):
     m = (lab2[y0:y1, x0:x1] == i)
     a = alpha[y0:y1, x0:x1] * ndimage.binary_dilation(m, iterations=3)
     rgb = im[y0:y1, x0:x1]
+    if DISC > 0:   # заход 7: круг по светлому ядру, ореол снаружи — альфа 0
+        Lm = rgb.mean(-1); core = ndimage.binary_fill_holes(ndimage.binary_opening((Lm > CORE) & (a > 0.5), iterations=2))
+        cl, cn = ndimage.label(core); ks = ndimage.sum(core, cl, range(1, cn + 1)); core = cl == (1 + int(np.argmax(ks)))
+        cy, cx = ndimage.center_of_mass(core); rr = np.sqrt(core.sum() / np.pi)
+        yy, xx = np.mgrid[0:a.shape[0], 0:a.shape[1]]; dist = np.hypot(yy - cy, xx - cx)
+        a = a * np.clip((DISC * rr - dist) / max(FEATHER, 1.0), 0, 1)
+    if SHRINK > 0: a = ndimage.grey_erosion(a, footprint=np.hypot(*np.mgrid[-SHRINK:SHRINK + 1, -SHRINK:SHRINK + 1]) <= SHRINK + 0.3)
+    if FEATHER > 0 and not DISC: a = ndimage.gaussian_filter(a, FEATHER * 0.5)
     a3 = np.clip(a, 1e-3, 1)[..., None]
     rgb = np.clip((rgb - bgc * (1 - a3)) / a3, 0, 255)   # без белой каймы
     rgba = np.dstack([rgb, a * 255]).astype(np.uint8)

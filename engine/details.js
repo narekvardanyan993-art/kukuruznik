@@ -1606,7 +1606,7 @@
   //   bell  — колокол качается в арке звонницы {at:[u,v] точка подвеса, size, amp рад, period с} + расходящиеся звуковые дуги (звука в движке нет);
   //   birds — голуби {mode: takeoff | land | circle, n, size, from:[u,v], spread:[du,dv], to:[u,v] | line:[[u,v],[u,v]] | at, r:[ru,rv]};
   //   glow  — огоньки зажигаются по очереди и мерцают {pts:[[u,v],...], r, col, stagger с, flicker 0..1, grow:[k0,k1], alpha};
-  //   image — картинка из папки кадров {src, alpha, rise доля кадра вверх за показ} проявляется и тает.
+  //   image — картинка из папки кадров {src, alpha, rise доля кадра вверх за показ, ease — плавный вход/выход (e1.42)} проявляется и тает; окно t:[с0,с1] — до с0 её нет совсем.
   //   e1.40: sunset / candles — шоу без деталей: обработка пикселей самого рисунка в шейдере сцены (viewer.js showGrade, PIX);
   //          details.js только ведёт время показа (Details.fxShade) — кодом ничего не рисуется.
   //   У каждой детали t:[с0, с1] (окно показа, по умолчанию весь показ) и fade:[вход, выход] с. Длина показа — FX_DUR.
@@ -1688,12 +1688,13 @@
   function fxImageDraw(it, tt, len, a) {
     var im = fxImage(it.src); if (!im) return;
     var k = tt / len, dy = -(it.rise || 0) * k, a0 = P(0, dy, 0), a1 = P(1, 1 + dy, 0);
-    ctx.save(); ctx.globalAlpha = clamp(a * (it.alpha || 0.8) * (0.9 + 0.1 * Math.sin(tt * 2.1)), 0, 1);
+    var ae = it.ease ? a * a * (3 - 2 * a) : a;   // e1.42: ease — плавный вход и выход (нулевой наклон у краёв), без «щелчка» в первую секунду
+    ctx.save(); ctx.globalAlpha = clamp(ae * (it.alpha || 0.8) * (0.9 + 0.1 * Math.sin(tt * 2.1)), 0, 1);
     ctx.drawImage(im, a0[0], a0[1], a1[0] - a0[0], a1[1] - a0[1]); ctx.restore();
   }
   // ---- e1.41 РИСУНКИ GEMINI В ШОУ (Погос-Петрос, заход 6): код только двигает/поворачивает/режет готовые картинки из папки кадров
   //   (вырезаны из листов Gemini на однотонном фоне, RGBA PNG), сам ничего не рисует. Картинки нет — ничего не рисуется.
-  //   swing — колокол качается на оси {src, at:[u,v] ось (верх колокола), h доля высоты кадра, amp рад, period с, bld — на слое здания};
+  //   swing — колокол качается на оси {src, at:[u,v] ось (верх колокола), h доля высоты кадра, amp рад, period с, bld — на слое здания; e1.42: mask + maskRect — колонны рисунка закрывают колокол};
   //   flock — стая взлетает {frames:[src…] позы крыльев (0 — сидит), from:[u,v], spread:[du,dv], to:[u,v], n, h, delay0, gap, fly, flap Гц};
   //   moon — луна восходит {src, from:[u,v], to:[u,v], h, refl:{dv, poly:[[u,v]…], alpha} — отражение в воде (перевёрнута, дрожит полосами)};
   //   flakes — снегопад картинками-снежинками {srcs:[…], area:[u0,v0,u1,v1], n, h:[мин,макс], speed доля высоты/с, dens:[[доля показа, 0..1]…]}.
@@ -1714,8 +1715,10 @@
     ctx.drawImage(im, -wp * (ax == null ? 0.5 : ax), -hp * (ay == null ? 0.5 : ay), wp, hp); ctx.restore();
   }
   function nightK() { return 1 - 0.45 * wts().n; }   // ночью картинки шоу тише (рисунок сцены ночью темнее)
+  var swLay = null;
   function fxSwing(it, tt, len, a) {
     var f = V.entry(par.fr), im = spImg(par.fr, it.src); if (!f || !im) return;
+    var mk = it.mask ? spImg(par.fr, it.mask) : null; if (it.mask && !mk) return;   // e1.42: маска «впереди колокола» не загрузилась — колокол не рисуем (иначе мигнёт поверх колонн)
     var p = spP(f, it.at[0], it.at[1], it.bld), hp = spH(f, it.at[0], it.at[1], it.h || 0.05, it.bld);
     var ramp = clamp(tt / 1.5, 0, 1) * clamp((len - tt) / 2.5, 0, 1), per = it.period || 1.7;
     var ang = (it.amp || 0.5) * Math.sin(tt * 6.2832 / per) * ramp, rot = ang;
@@ -1723,7 +1726,20 @@
       var pi = Math.abs(ang) < it.poseRad * 0.5 ? 0 : (ang > 0 ? 1 : 2), pim = spImg(par.fr, it.poses[pi]);   // поворот +: низ колокола уходит влево
       if (pim) { im = pim; rot = ang - (pi === 0 ? 0 : (pi === 1 ? it.poseRad : -it.poseRad)); }
     }
-    ctx.save(); ctx.globalAlpha = clamp(a * nightK(), 0, 1); spDraw(im, p[0], p[1], hp, rot, false, 0.5, 0.02); ctx.restore();
+    if (!mk) { ctx.save(); ctx.globalAlpha = clamp(a * nightK(), 0, 1); spDraw(im, p[0], p[1], hp, rot, false, 0.5, 0.02); ctx.restore(); return; }
+    // e1.42: колокол ЗА колоннами — рисуем на своём холсте, стираем там, где рисунок закрыт камнем (it.mask — RGBA, альфа = камень; it.maskRect [u0,v0,u1,v1] — рамка маски на кадре;
+    //   маска едет вместе со слоем здания, как сам колокол при bld), потом кладём результат на сцену
+    if (!swLay) swLay = document.createElement('canvas');
+    if (swLay.width !== cv.width || swLay.height !== cv.height) { swLay.width = cv.width; swLay.height = cv.height; }
+    var lc = swLay.getContext('2d'), main = ctx;
+    lc.setTransform(1, 0, 0, 1, 0, 0); lc.clearRect(0, 0, swLay.width, swLay.height); lc.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx = lc;
+    try {
+      ctx.globalAlpha = clamp(a * nightK(), 0, 1); spDraw(im, p[0], p[1], hp, rot, false, 0.5, 0.02); ctx.globalAlpha = 1;
+      var r = it.maskRect || [0, 0, 1, 1], m0 = spP(f, r[0], r[1], it.bld), m1 = spP(f, r[2], r[3], it.bld);
+      ctx.save(); ctx.globalCompositeOperation = 'destination-out'; ctx.drawImage(mk, m0[0], m0[1], m1[0] - m0[0], m1[1] - m0[1]); ctx.restore();
+    } finally { ctx = main; }
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(swLay, 0, 0); ctx.restore();
   }
   function fxFlock(it, tt, len, a) {
     var f = V.entry(par.fr), fr = it.frames || []; if (!f || !fr.length) return;
@@ -1793,7 +1809,7 @@
     par.shade = null;
     (X.items || []).forEach(function (it, j) {
       if (it.kind === 'image') fxImage(it.src);   // грузим заранее, с первого кадра показа
-      [it.src].concat(it.frames || [], it.srcs || [], it.poses || []).forEach(function (s) { if (s && it.kind !== 'image') spImg(par.fr, s); });   // e1.41: картинки шоу — заранее
+      [it.src, it.mask].concat(it.frames || [], it.srcs || [], it.poses || []).forEach(function (s) { if (s && it.kind !== 'image') spImg(par.fr, s); });   // e1.41: картинки шоу — заранее
       var tw = it.t || [0, D], tt = t - tw[0], len = tw[1] - tw[0], fd = it.fade || [0.6, 0.9];
       if (tt < 0 || tt > len) return;
       var a = clamp(Math.min(tt / fd[0], (len - tt) / fd[1]), 0, 1) * (1 - kill);

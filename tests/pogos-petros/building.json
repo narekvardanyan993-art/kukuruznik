@@ -273,10 +273,10 @@
             "kind": "swing",
             "src": "show_bell_1.png",
             "at": [
-              0.645,
-              0.365
+              0.6455,
+              0.361
             ],
-            "h": 0.055,
+            "h": 0.019,
             "amp": 0.38,
             "period": 1.8,
             "bld": true,
@@ -293,7 +293,14 @@
               "show_bell_2.png",
               "show_bell_3.png"
             ],
-            "poseRad": 0.15
+            "poseRad": 0.15,
+            "mask": "show_bellmask_a.png",
+            "maskRect": [
+              0.55208,
+              0.35824,
+              0.72526,
+              0.4359
+            ]
           },
           {
             "kind": "flock",
@@ -1274,7 +1281,12 @@
             "fade": [
               4,
               5
-            ]
+            ],
+            "t": [
+              1.0,
+              16
+            ],
+            "ease": true
           }
         ]
       },
