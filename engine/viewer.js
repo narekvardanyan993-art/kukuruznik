@@ -313,6 +313,7 @@
   // пружиной (инерция, лёгкий перехлёст) и качаются чаще в порыв, порыв идёт по кадру слева направо, листья летят гроздьями в порыв,
   // в метель снег кружит и идёт косо.
   var SNOWM = NI && !!CONFIG.SNOW && FRAMES.some(function (f) { return f.snow; });
+  var NOON = CONFIG.NOON || null;   // e1.43 (Погос-Петрос): нейтральный яркий полдень вместо «золотого часа» рисунка; оранжевое — только закату. Без настройки — кода в шейдере нет
   var GUSTS = CONFIG.GUSTS || null;
   // e1.26 SWAY (s23, look.gusts.swayMaxPx + frames[].sway): крона качается, НЕ затягивая фон. Раньше выборка сдвигалась по маске
   // дерева в точке экрана: у наветренного края кроны в крону затягивало небо, дома и столбы (размазня), подветренный край обрезался
@@ -348,7 +349,7 @@
   // Шоу кадра без деталей (e1.40): fx-деталь sunset (тёплый свет ползёт по стене справа налево, тени глубже, окна загораются)
   // и candles (сумрак и ч/б → свечи по одной → цвет фресок) — это обработка пикселей сцены (uShowA/B), не рисунок кодом.
   // У зданий без pix (Кукурузник, Ленин) строк в шейдере нет — шейдер прежний.
-  var PIX_KINDS = { flow: 1, jet: 2, ripple: 3, glow: 4, flame: 5, win: 6 }, PIX_KEYS = { all: 0, water: 1, white: 2, warm: 3, dark: 4 };
+  var PIX_KINDS = { flow: 1, jet: 2, ripple: 3, glow: 4, flame: 5, win: 6, halo: 7, drift: 8 }, PIX_KEYS = { all: 0, water: 1, white: 2, warm: 3, dark: 4 };
   var PIXS = (CONFIG.PIX || []).map(function (a) { return Array.isArray(a) ? a : []; });
   var PN = PIXS.reduce(function (m, a) { return Math.max(m, a.length); }, 0);
   if (PN > 0 && useGL) {
@@ -436,7 +437,7 @@
     'uniform float uAspect;',     // ширина/высота экрана
     'uniform float uWindAmp;',    // амплитуда ветра на макушке дерева, в долях картинки
     'uniform float uWindOn;' + (GUSTS ? '\nuniform vec3 uWindG;' : ''),     // 1 — ветер включён; e1.25 uWindG: x наклон крон сейчас, y — с задержкой (правый край кадра), z — фаза качания
-    'uniform vec4 uWeather;' + (SNOWM ? '\nuniform vec2 uSnowM;' : ''),   // e1.25: снег по маске у кадра A/B: -1 — формула, 0..1 — маска (проявляется 1,5 с после загрузки)
+    'uniform vec4 uWeather;' + (SNOWM ? '\nuniform vec2 uSnowM;' : '') + (NOON ? '\nuniform vec2 uNoon;' : ''),   // e1.25: снег по маске у кадра A/B: -1 — формула, 0..1 — маска (проявляется 1,5 с после загрузки)
     'uniform float uFlash;',      // молния: 0..1 — небо и облака вспыхивают (ночью заметнее)     // погода: x пасмурно, y туман, z мокрая земля (дождь), w снег; 0 — как без погоды
     'uniform vec2  uCellPx;',     // размер ячейки звёздной сетки в пикселях экрана
     'uniform vec4  uShoot;',      // падающая звезда: старт xy (экран 0..1), направление xy
@@ -571,9 +572,20 @@
       '      gain *= 1.0 + m * (P.x * fl + sk * (mix(-0.55, 0.9, on)));',
       '      continue;',
       '    }',
+      '    if (K.x > 6.5 && K.x < 7.5) {',   // e1.43 halo: фреска мягко светится в шоу candles (P.x сила, P.y радиус свечения px, P.z с — когда загорается); пиксели рисунка светлеют, ничего не рисуется
+      '      float on = 0.0;',
+      '      if (show.x > 1.5 && show.x < 2.5) on = show.w * smoothstep(P.z, P.z + 2.2, show.y) * (1.0 - smoothstep(show.z - 3.5, show.z - 1.0, show.y));',
+      '      if (on < 0.002) continue;',
+      '      vec2 dq = max(max(G.xy * W - qp, qp - G.zw * W), 0.0); float hl = exp(-dot(dq, dq) / (P.y * P.y));',
+      '      float pul = 1.0 + 0.06 * sin(t * 1.3 + float(i) * 2.0);',
+      '      gain *= 1.0 + on * P.x * pul * (0.45 * inb + 0.3 * hl);',
+      '      warm += on * P.x * hl * 0.10;',
+      '      continue;',
+      '    }',
       '    if (inb < 0.002) continue;',
       '    float m = inb * pixKey(K.y, K.z, K.w, c);',
       '    if (m < 0.002) continue;',
+      '    if (K.x > 7.5) { off.x += P.x * sin(6.2832 * t / P.y + P.z) * m; continue; }',   // e1.43 drift: облака неба рисунка медленно плывут туда-обратно (P.x px кадра, период P.y с, фаза P.z) — сдвиг выборки, ничего не рисуется
       '    if (K.x > 5.5) {',   // win: окно загорается в шоу sunset (P.x сила, P.y очередь)
       '      if (show.x > 0.5 && show.x < 1.5) { float kk = show.y / max(show.z, 0.1); wn = max(wn, m * P.x * show.w * smoothstep(0.62 + 0.035 * P.y, 0.74 + 0.035 * P.y, kk)); }',
       '      if (show.x > 2.5 && show.x < 3.5) { float kk = show.y / max(show.z, 0.1); wn = max(wn, m * P.x * show.w * smoothstep(0.30 + 0.06 * P.y, 0.38 + 0.06 * P.y, kk)); }',   // e1.41 dusk: окна по одному
@@ -615,8 +627,13 @@
       '  } else if (show.x > 3.5 && show.x < 4.5) {',   // e1.41 doorlight (D): чуть темнеет к вечеру, свет свечей из двери заливает снег
       '    c *= 1.0 - 0.32 * e * smoothstep(0.03, 0.35, k) * (1.0 - smoothstep(0.85, 1.0, k));',
       '    c *= 1.0 + vec3(1.05, 0.58, 0.18) * wl * 1.9;',
+      '  } else if (show.x > 4.5 && show.x < 5.5) {',   // e1.43 cinema (F): кадр темнеет и выцветает (виньетка как в кино), призрак — картинкой Gemini; на выходе цвет возвращается
+      '    c = mix(c, vec3(lum) * vec3(0.95, 1.0, 1.07), 0.85 * e);',
+      '    vec2 vq = q - 0.5;',
+      '    c *= (1.0 - 0.5 * e) * (1.0 - 0.55 * e * smoothstep(0.06, 0.42, dot(vq, vq)));',
       '  } else {',
-      '    float col = smoothstep(0.42, 0.85, k), dark = e * (1.0 - smoothstep(0.50, 0.90, k));',
+      '    float lk = show.z > 20.0 ? 1.0 : 0.0;',   // e1.43: длинное шоу (E, 24 с) — цвет и свет возвращаются раньше, пик (свечи + фрески светятся) держится ≥ 8 с
+      '    float col = mix(smoothstep(0.42, 0.85, k), smoothstep(0.24, 0.46, k), lk), dark = e * (1.0 - mix(smoothstep(0.50, 0.90, k), smoothstep(0.28, 0.50, k), lk));',
       '    c = mix(c, vec3(lum) * vec3(1.03, 1.0, 0.95), e * (1.0 - col));',   // фрески ч/б → цвет
       '    c *= 1.0 - 0.55 * dark;',
       '    c *= 1.0 + vec3(0.95, 0.55, 0.18) * wl;',   // тёплый свет горящих свечей на стенах
@@ -635,7 +652,7 @@
       '}'
     ].join('\n') + '\n' : '') +
     // Готовый цвет пикселя одного кадра: параллакс, ветер, закат, ночь.
-    'vec4 shadeFrame(sampler2D bg, sampler2D depth, sampler2D bld, sampler2D em, vec3 kd, float starQ, vec2 skyRef, vec4 crop, vec4 flag,' + (SPILL > 0 ? ' vec2 ek,' : '') + (NI ? ' sampler2D sg, sampler2D sb, sampler2D ng, sampler2D nb, vec3 has,' : '') + (NI && MVD ? ' mat4 cal,' : '') + (FN > 0 || PN > 0 ? ' float slot,' : '') + (PN > 0 ? ' vec4 show,' : '') + (SNOWM ? ' float snowM,' : '') + ' vec2 uv, vec2 sc) {',
+    'vec4 shadeFrame(sampler2D bg, sampler2D depth, sampler2D bld, sampler2D em, vec3 kd, float starQ, vec2 skyRef, vec4 crop, vec4 flag,' + (SPILL > 0 ? ' vec2 ek,' : '') + (NI ? ' sampler2D sg, sampler2D sb, sampler2D ng, sampler2D nb, vec3 has,' : '') + (NI && MVD ? ' mat4 cal,' : '') + (FN > 0 || PN > 0 ? ' float slot,' : '') + (PN > 0 ? ' vec4 show,' : '') + (SNOWM ? ' float snowM,' : '') + (NOON ? ' float noonK,' : '') + ' vec2 uv, vec2 sc) {',
     '  uv = crop.xy + uv * crop.zw;',   // обрезка белого края бумаги: показываем только внутренний прямоугольник кадра
     // фон и земля: у каждого пикселя свой сдвиг (3 итерации против «резины» на краях)
     '  vec2 p = uv;',
@@ -741,6 +758,26 @@
     '    hv.y = clamp(hv.y * (1.0 + gw * (GREEN_SAT - 1.0)) + gw * 0.05, 0.0, 1.0);',
     '    c = mix(c, hsv2rgb(hv), step(0.001, gw));',
     '    c = mix(cOrig, c, DAY_MIX);',
+    // e1.43 NOON: рисунок Gemini нарисован «золотым часом» (оранжевые стены, оранжевая полоса у горизонта) — днём это полдень:
+    // баланс белого к нейтральному (яркость пикселя та же), оранжевые тона спокойнее, тени светлее (тёмный штрих карандаша не трогаем),
+    // ярче, тёплая полоса неба у горизонта — в голубое. На закате (uSunset) и в шоу заката/сумерек уходит: оранжевое — только им.
+    NOON ? [
+      '    float nk = noonK * (1.0 - uSunset)' + (PN > 0 ? ' * (1.0 - show.w * smoothstep(0.0, 0.35, show.y / max(show.z, 0.01)) * (step(0.5, show.x) * step(show.x, 1.5) + step(2.5, show.x) * step(show.x, 3.5)))' : '') + ';',
+      '    if (nk > 0.001) {',
+      '      float nl = dot(c, vec3(0.299, 0.587, 0.114));',
+      '      vec3 cw = c * ' + v3(NOON.wb) + ';',
+      '      cw *= nl / max(dot(cw, vec3(0.299, 0.587, 0.114)), 0.001);',
+      '      vec3 nh = rgb2hsv(clamp(cw, 0.0, 1.0));',
+      '      nh.y *= 1.0 - ' + glf(1 - NOON.sat) + ' * smoothstep(0.0, 0.025, nh.x) * (1.0 - smoothstep(0.12, 0.17, nh.x));',
+      '      cw = hsv2rgb(nh);',
+      '      float nl2 = dot(cw, vec3(0.299, 0.587, 0.114));',
+      '      cw += ' + glf(NOON.lift) + ' * (1.0 - cw) * smoothstep(0.10, 0.28, nl2) * (1.0 - smoothstep(0.45, 0.80, nl2));',
+      '      cw = clamp(cw * ' + glf(NOON.bright) + ', 0.0, 1.0);',
+      '      float nsw = smoothstep(0.35, 0.85, sky) * smoothstep(0.55, 0.85, rel) * (1.0 - smoothstep(skyRef.y - 0.03, skyRef.y + 0.01, uv.y)) * ' + glf(NOON.sky) + ';',
+      '      cw = mix(cw, skyCol * clamp(rel, 0.0, 1.06), nsw);',
+      '      c = mix(c, cw, nk);',
+      '    }'
+    ].join('\n') : '',
     '  }',
     '  float winNight = eb.r * b.a + eg.g * inv;',
     '  float winBase = max(eb.b * b.a, eg.a * inv);',
@@ -836,10 +873,10 @@
     '  vec2 uv = vUv * uCoverScale + uCoverOffset;',
     '  uv = 0.5 + (uv - 0.5) / uScale;',
     '  vec2 uvA = 0.5 + (uv - 0.5) / uFadeZoom.x;',
-    '  vec4 sa = shadeFrame(uBgA, uDepthA, uBldA, uEmA, uKdA, uStarQ.x, uSkyRef.xy, uCropA, uFlagA, ' + (SPILL > 0 ? 'uEmKA, ' : '') + (NI ? 'uSGA, uSBA, uNGA, uNBA, uHasA, ' : '') + (NI && MVD ? 'uMvCalA, ' : '') + (FN > 0 || PN > 0 ? '0.0, ' : '') + (PN > 0 ? 'uShowA, ' : '') + (SNOWM ? 'uSnowM.x, ' : '') + 'uvA, vUv);',
+    '  vec4 sa = shadeFrame(uBgA, uDepthA, uBldA, uEmA, uKdA, uStarQ.x, uSkyRef.xy, uCropA, uFlagA, ' + (SPILL > 0 ? 'uEmKA, ' : '') + (NI ? 'uSGA, uSBA, uNGA, uNBA, uHasA, ' : '') + (NI && MVD ? 'uMvCalA, ' : '') + (FN > 0 || PN > 0 ? '0.0, ' : '') + (PN > 0 ? 'uShowA, ' : '') + (SNOWM ? 'uSnowM.x, ' : '') + (NOON ? 'uNoon.x, ' : '') + 'uvA, vUv);',
     '  if (uMix > 0.0) {',
     '    vec2 uvB = 0.5 + (uv - 0.5) / uFadeZoom.y;',
-    '    sa = mix(sa, shadeFrame(uBgB, uDepthB, uBldB, uEmB, uKdB, uStarQ.y, uSkyRef.zw, uCropB, uFlagB, ' + (SPILL > 0 ? 'uEmKB, ' : '') + (NI ? 'uSGB, uSBB, uNGB, uNBB, uHasB, ' : '') + (NI && MVD ? 'uMvCalB, ' : '') + (FN > 0 || PN > 0 ? '1.0, ' : '') + (PN > 0 ? 'uShowB, ' : '') + (SNOWM ? 'uSnowM.y, ' : '') + 'uvB, vUv), uMix);',
+    '    sa = mix(sa, shadeFrame(uBgB, uDepthB, uBldB, uEmB, uKdB, uStarQ.y, uSkyRef.zw, uCropB, uFlagB, ' + (SPILL > 0 ? 'uEmKB, ' : '') + (NI ? 'uSGB, uSBB, uNGB, uNBB, uHasB, ' : '') + (NI && MVD ? 'uMvCalB, ' : '') + (FN > 0 || PN > 0 ? '1.0, ' : '') + (PN > 0 ? 'uShowB, ' : '') + (SNOWM ? 'uSnowM.y, ' : '') + (NOON ? 'uNoon.y, ' : '') + 'uvB, vUv), uMix);',
     '  }',
     '  vec3 c = sa.rgb;',
     CF > 0 ? '  float shadow = vCloud;' : '  float shadow = cloudShadow(uv, uCloudT);',
@@ -958,7 +995,8 @@
     .concat(FIGB ? ['uFigBoxA', 'uFigBoxB'] : [])
     .concat(PN > 0 ? ['uPixA', 'uPixB', 'uPixN', 'uPixT', 'uShowA', 'uShowB'] : [])
     .concat(GUSTS ? ['uWindG'] : [])
-    .concat(SNOWM ? ['uSnowM'] : []);
+    .concat(SNOWM ? ['uSnowM'] : [])
+    .concat(NOON ? ['uNoon'] : []);
 
   var quadBuf = null, gridBuf = null, gridIdx = null, gridN = 0;   // e1.19: четыре вершины (второй проход) и сетка сцены (CLOUD_FIELD)
   function initGLProgram() {   // возвращает Promise: шейдеры компилируются в фоне, приветствие и анимации не замирают
@@ -1521,6 +1559,7 @@
     gl.uniform1f(US.uWindAmp, fx.windAmp);
     gl.uniform1f(US.uWindOn, fx.windOn ? 1 : 0);
     gl.uniform4f(US.uWeather, wx.cur[0], wx.cur[1], wx.cur[2], wx.cover);
+    if (NOON) gl.uniform2f(US.uNoon, NOON.K[fa.idx] == null ? 1 : NOON.K[fa.idx], fb ? (NOON.K[fb.idx] == null ? 1 : NOON.K[fb.idx]) : 0);
     if (SNOWM) gl.uniform2f(US.uSnowM, snowCode(fa, performance.now()), fb ? snowCode(fb, performance.now()) : -1);
     if (GUSTS) gl.uniform3f(US.uWindG, fx.leanA, fx.leanB, wx.windPh);
     gl.uniform1f(US.uFlash, wx.flash || 0);
@@ -1767,6 +1806,7 @@
   window.__viewer = {
     stage: stage, tod: tod, weather: function () { return wx; },
     testBolt: function () { nextFlash = performance.now(); },   // для проверки: следующая молния — сейчас
+    tilt: function (x, y) { demoStop(); ret = null; targetX = curX = x; targetY = curY = y; },   // e1.43: для снимков — наклон к краю сразу (−1..1)
     frame: function () { return frameIndex; }, fading: function () { return !!fade; }, entry: function (i) { return store[i]; },
     motionOn: function (i) { return !!mvConf(i) && !(MV[i] && MV[i].fail); },
     mvState: function (i) {   // e1.17: для проверки — какие клипы кадра сейчас в текстурах (день/ночь)
@@ -1794,6 +1834,12 @@
   // "cover"-масштаб/офсет — и в JS, чтобы точки-подсказки считали
   // экранную позицию той же формулой, что и шейдер.
   var coverUvW = 1, coverUvH = 1, coverOffX = 0, coverOffY = 0;
+  // e1.43 КАМЕРА ШОУ (Погос-Петрос A): fx.cam {at:[u,v] точка кадра, zoom, to:[x,y] доли экрана — куда приезжает точка, t:[наезд от, до, отъезд от, до] с}.
+  //   Это только «cover» (какой кусок кадра на экране): шейдер, детали, точки — всё считается от него, кадр и рисунки не меняются.
+  //   Наклон на время наезда слабее во столько же раз (параллакс на экране тот же). Остановили шоу — камера плавно уходит обратно.
+  var baseCov = null, CAM = { k: 0, C: null, fr: -1 };
+  var CAM_ON = (CONFIG.SCENE || []).some(function (s) { return s && s.fx && s.fx.cam; });
+  function camCurve(T, t) { var e = function (a, b) { var x = clamp((t - a) / Math.max(0.01, b - a), 0, 1); return x * x * (3 - 2 * x); }; return e(T[0], T[1]) * (1 - e(T[2], T[3])); }
   var lastCssW = 0, lastCssH = 0;
 
   function resize(force) {
@@ -1812,6 +1858,7 @@
     coverUvH = cssH / (natH * factor);
     coverOffX = (1 - coverUvW) / 2;
     coverOffY = (1 - coverUvH) / 2;
+    baseCov = [coverUvW, coverUvH, coverOffX, coverOffY];   // e1.43: камера шоу (наезд) меняет cover на время показа — исходный здесь
   }
   window.addEventListener('resize', function () { resize(true); fitTitle(); if (window.__penFit) window.__penFit(); });
   window.addEventListener('orientationchange', function () { setTimeout(function () { resize(true); }, 200); });
@@ -2446,6 +2493,25 @@
     var fa = store[fade ? fade.from : frameIndex];
     var fb = fade ? store[fade.to] : null;
     if (!fa || (fade && !fb)) { requestAnimationFrame(frame); return; }   // кадр ещё не восстановлен
+    if (CONFIG.TILT_K) {   // e1.43: у кадра своя сила наклона (E/F Погос-Петроса — вдвое слабее: меньше «резины»); у остальных зданий настройки нет
+      var tkA = CONFIG.TILT_K[fa.idx] == null ? 1 : CONFIG.TILT_K[fa.idx], tkB = fb ? (CONFIG.TILT_K[fb.idx] == null ? 1 : CONFIG.TILT_K[fb.idx]) : tkA, tk = tkA + (tkB - tkA) * (fb ? mixState : 0);
+      shiftX = tiltX * CONFIG.MAX_SHIFT_X * tk + breathX; shiftY = tiltY * CONFIG.MAX_SHIFT_Y * tk + breathY; zoom *= tk;
+    }
+    if (CAM_ON && baseCov) {   // e1.43: камера шоу (см. CAM)
+      coverUvW = baseCov[0]; coverUvH = baseCov[1]; coverOffX = baseCov[2]; coverOffY = baseCov[3];
+      var ck = null; try { ck = window.Details && window.Details.fxClock ? window.Details.fxClock(now) : null; } catch (eC) { ck = null; }
+      var cs = ck && ck.fr === fa.idx && !fade ? (((CONFIG.SCENE[ck.fr] || {}).fx) || {}).cam : null;
+      if (cs) { CAM.C = cs; CAM.fr = ck.fr; CAM.k = camCurve(cs.t, ck.t) * (1 - ck.kill); }
+      else if (CAM.k > 0) CAM.k = (CAM.fr === fa.idx && !fade && CAM.k > 0.003) ? CAM.k * (1 - lerpK(0.05, dt)) : 0;
+      if (CAM.k > 0 && CAM.C) {
+        var cC = CAM.C, cZ = 1 + (cC.zoom - 1) * CAM.k, cS = CONFIG.BASE_SCALE, cr = fa.crop, cTo = cC.to || [0.5, 0.45];
+        var cU = 0.5 + ((cC.at[0] - cr[0]) / cr[2] - 0.5) * cS, cV = 0.5 + ((cC.at[1] - cr[1]) / cr[3] - 0.5) * cS;
+        var s0x = (cU - coverOffX) / coverUvW, s0y = (cV - coverOffY) / coverUvH;
+        coverUvW /= cZ; coverUvH /= cZ;
+        coverOffX = cU - (s0x + (cTo[0] - s0x) * CAM.k) * coverUvW; coverOffY = cV - (s0y + (cTo[1] - s0y) * CAM.k) * coverUvH;
+        shiftX /= cZ; shiftY /= cZ; zoom /= cZ;
+      }
+    }
 
     if (useGL) {
       var tAmb = (now - t0) / 1000; // настоящее время: ветер, мерцание звёзд, «дыхание» фонарей

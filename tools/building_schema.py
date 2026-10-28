@@ -17,7 +17,7 @@ from pathlib import Path
 
 FIG_TYPES = ('sit', 'stand', 'chess', 'pigeon', 'balloon', 'leaf', 'grass')   # e1.22 FIGURES — тот же порядок, что в engine/viewer.js
 FIG_MAX = 25
-PIX_KINDS = ('flow', 'jet', 'ripple', 'glow', 'flame', 'win')   # e1.40 frames[].pix (viewer.js PIX)
+PIX_KINDS = ('flow', 'jet', 'ripple', 'glow', 'flame', 'win', 'halo', 'drift')   # e1.43: halo — свечение фрески в шоу candles, drift — облака неба плывут; e1.40 frames[].pix (viewer.js PIX)
 PIX_KEYS = ('all', 'water', 'white', 'warm', 'dark')
 PARADE_KINDS = ('planes', 'drones', 'heli', 'fireworks', 'balloons', 'banner', 'fx')   # виды парада (details.js): самолёты с дымом, дроны-флаг, вертолёт с флагом, салют, воздушные шары, знамя на фасаде (крупный план)
 PARADE_SECONDS = {'planes': 26, 'drones': 22, 'heli': 26, 'fireworks': 23.5, 'balloons': 20, 'banner': 22, 'fx': 16}   # длина показа (details.js: dur / total), секунды
@@ -305,12 +305,20 @@ def validate(bdir, b, site):
                 c.err('aboutFacts', 'факта «%s» нет в facts' % k)
 
     # --- look ---
-    look = c.obj(b['look'], 'look', required=('day', 'night', 'frameSize', 'sunSide'), optional=('hotspots', 'showNight', 'nightEdge', 'bronzeKeep', 'snow', 'gusts'))
+    look = c.obj(b['look'], 'look', required=('day', 'night', 'frameSize', 'sunSide'), optional=('hotspots', 'showNight', 'nightEdge', 'bronzeKeep', 'snow', 'gusts', 'noon'))
     if look and 'snow' in look:   # e1.25 (s22): {accumS, meltS} — снег копится/тает, секунды
         so = c.obj(look['snow'], 'look.snow', required=('accumS', 'meltS'))
         for k in ('accumS', 'meltS'):
             if so and k in so and not (isinstance(so[k], (int, float)) and not isinstance(so[k], bool) and 1 <= so[k] <= 600):
                 c.err('look.snow.' + k, 'секунды, число 1..600')
+    if look and 'noon' in look:   # e1.43: нейтральный яркий дневной свет (рисунок Gemini «золотой час» → полдень; оранжевое остаётся закату)
+        no = c.obj(look['noon'], 'look.noon', required=('wb', 'sat', 'lift', 'bright', 'sky'))
+        if no:
+            if 'wb' in no:
+                c.numbers(no['wb'], 'look.noon.wb', 3, 0.5, 1.5)
+            for k, lo_, hi_ in (('sat', 0, 1.5), ('lift', 0, 0.5), ('bright', 0.7, 1.4), ('sky', 0, 1)):
+                if k in no:
+                    c.number(no[k], 'look.noon.' + k, lo_, hi_)
     if look and 'gusts' in look:   # e1.25 (s22): ветер порывами
         go = c.obj(look['gusts'], 'look.gusts', required=('level', 'gap', 'attack', 'hold', 'decay', 'calm', 'boost', 'flutter', 'spring', 'damp', 'leanPx', 'delay'),
                    optional=('swayMaxPx', 'leaves'))   # e1.26 (s23): крона тянется по ветру без затягивания фона; летящие листья
@@ -377,7 +385,7 @@ def validate(bdir, b, site):
         nm = f.get('name') if isinstance(f, dict) else None
         w = 'кадр %d%s' % (i + 1, ' (%s)' % nm if isinstance(nm, str) else '')
         fr = c.obj(f, w, required=('name', 'crop', 'flag', 'cloudShadow', 'wind', 'sky', 'sun', 'life', 'hotspots', 'nightLamps', 'nightHalo', 'lamps'),
-                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'figures', 'snowMask', 'sway', 'fx', 'pix', 'spriteSnow'))
+                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'figures', 'snowMask', 'sway', 'fx', 'pix', 'spriteSnow', 'tiltK', 'noon'))
         if not fr:
             continue
         if not (isinstance(nm, str) and re.fullmatch(r'[A-Za-z0-9_\-]+', nm)):
@@ -530,6 +538,10 @@ def validate(bdir, b, site):
             c.boolean(fr['sway'], '%s: sway' % w)
         if 'depthRaw' in fr:      # e1.5: карта глубины кадра без растяжки контраста (значения файла = глубина в шейдере)
             c.boolean(fr['depthRaw'], '%s: depthRaw' % w)
+        if 'tiltK' in fr:         # e1.43: сила наклона кадра (1 — как у всех; E/F Погос-Петроса 0,2 — почти плоско, без «резины»)
+            c.number(fr['tiltK'], '%s: tiltK' % w, 0.1, 1.5)
+        if 'noon' in fr:          # e1.43: доля полуденной обработки кадра (look.noon), 0..1
+            c.number(fr['noon'], '%s: noon' % w, 0, 1)
         if 'bldDepth' in fr:      # e1.5: здание кадра жёстко на этой глубине (0 — далеко, 1 — близко)
             c.number(fr['bldDepth'], '%s: bldDepth' % w, 0, 1)
         if 'showBand' in fr:      # e1.5: полоса парада [v верх, v низ] вместо sky.band
