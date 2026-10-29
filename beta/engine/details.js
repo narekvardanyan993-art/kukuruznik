@@ -1114,6 +1114,7 @@
     var behind = /:behind$/.test(style) || (!!SC(fr).closeUp && style !== 'banner'); style = style.replace(/:behind$/, '');
     var skyOnly = style === 'balloons' || style === 'fireworks';   // шары и ракеты поднимаются из-за города
     par = { t0: now, dur: ({ drones: 22000, heli: 26000, fireworks: 23500, balloons: 20000, banner: 22000, fx: FX_DUR })[style] || 11000, total: style === 'planes' ? 26000 : 0, vc: vc, fr: fr, onEnd: onEnd, puffs: [], last: [-0.12, -0.12, -0.12], flying: true, abort: 0, dv: 0.0135, style: style, behind: behind, skyOnly: skyOnly };
+    if (style === 'fx' && SC(fr).fx && SC(fr).fx.dur) par.dur = SC(fr).fx.dur * 1000;   // e1.43: своя длина шоу кадра (fx.dur, с; E — 24 с: дольше кульминация)
     if (skyOnly) skyMaskD(fr);
     if (behind) bldSprite(fr);
     active = [];   // небо освобождаем: события на время парада не начинаем
@@ -1685,12 +1686,34 @@
     }
     ctx.restore();
   }
+  // e1.45 blend (Погос-Петрос, заход 10, надпись D): картинка-маска кладётся не краской, а режимом смешивания со сценой
+  // (свой холст поверх, CSS mix-blend-mode): multiply — пиксели рисунка под маской темнеют, screen — светлеют. Код ничего не рисует сам.
+  var blendL = {};
+  function blendLayer(mode) {
+    var B = blendL[mode];
+    if (!B) {
+      var c = document.createElement('canvas'); c.style.cssText = cv.style.cssText; c.style.mixBlendMode = mode;
+      cv.parentNode.insertBefore(c, cv.nextSibling); B = blendL[mode] = { c: c, x: c.getContext('2d'), drawn: false };
+      B.x.imageSmoothingEnabled = true; B.x.imageSmoothingQuality = 'high';
+    }
+    if (B.c.width !== cv.width || B.c.height !== cv.height) { B.c.width = cv.width; B.c.height = cv.height; }
+    if (!B.drawn) { B.x.setTransform(dpr, 0, 0, dpr, 0, 0); B.x.clearRect(0, 0, W, H); }
+    B.drawn = true; return B.x;
+  }
+  function blendClear() { for (var k in blendL) { var B = blendL[k]; if (B.drawn) { B.x.setTransform(1, 0, 0, 1, 0, 0); B.x.clearRect(0, 0, B.c.width, B.c.height); B.drawn = false; } } }
   function fxImageDraw(it, tt, len, a) {
-    var im = fxImage(it.src); if (!im) return;
+    var im = it.rect ? spImg(par.fr, it.src) : fxImage(it.src); if (!im) return;
     var k = tt / len, dy = -(it.rise || 0) * k, a0 = P(0, dy, 0), a1 = P(1, 1 + dy, 0);
+    if (it.rect) { var fe = V.entry(par.fr), R = it.rect; if (!fe) return; a0 = spP(fe, R[0], R[1] + dy, it.bld); a1 = spP(fe, R[2], R[3] + dy, it.bld); }   // e1.45: картинка на свою рамку кадра (доли), bld — со слоем здания
     var ae = it.ease ? a * a * (3 - 2 * a) : a;   // e1.42: ease — плавный вход и выход (нулевой наклон у краёв), без «щелчка» в первую секунду
+    if (it.blend) {
+      var bx = blendLayer(it.blend); bx.save(); bx.globalAlpha = clamp(ae * (it.alpha == null ? 1 : it.alpha), 0, 1);
+      bx.drawImage(im, a0[0], a0[1], a1[0] - a0[0], a1[1] - a0[1]); bx.restore(); return;
+    }
     ctx.save(); ctx.globalAlpha = clamp(ae * (it.alpha || 0.8) * (0.9 + 0.1 * Math.sin(tt * 2.1)), 0, 1);
-    ctx.drawImage(im, a0[0], a0[1], a1[0] - a0[0], a1[1] - a0[1]); ctx.restore();
+    ctx.drawImage(im, a0[0], a0[1], a1[0] - a0[0], a1[1] - a0[1]);
+    if (it.glow) { ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = clamp(ae * it.glow, 0, 1); ctx.drawImage(im, a0[0], a0[1], a1[0] - a0[0], a1[1] - a0[1]); }   // e1.43: призрак «ярко проявляется» — тот же рисунок вторым слоем «экраном» (светлее, без новых пикселей)
+    ctx.restore();
   }
   // ---- e1.41 РИСУНКИ GEMINI В ШОУ (Погос-Петрос, заход 6): код только двигает/поворачивает/режет готовые картинки из папки кадров
   //   (вырезаны из листов Gemini на однотонном фоне, RGBA PNG), сам ничего не рисует. Картинки нет — ничего не рисуется.
@@ -1744,12 +1767,18 @@
   function fxFlock(it, tt, len, a) {
     var f = V.entry(par.fr), fr = it.frames || []; if (!f || !fr.length) return;
     var ims = fr.map(function (s) { return spImg(par.fr, s); }); if (!ims[0]) return;
-    var n = it.n || 8, sp = it.spread || [0.1, 0.01], H0 = it.h || 0.03;
+    var sp = it.spread || [0.1, 0.01], H0 = it.h || 0.03;
+    // e1.43: froms — голуби сидят в РАЗНЫХ местах [[u, v, du, сколько, toU, toV], …] и улетают каждый в свою сторону; exit — улетают за кадр
+    //   (to далеко за краем) и больше не рисуются, без растворения в воздухе
+    var srcs = it.froms || [[it.from[0], it.from[1], sp[0], it.n || 8, it.to[0], it.to[1]]], bird = [];
+    srcs.forEach(function (S, si) { for (var j = 0; j < (S[3] || 1); j++) bird.push(S.concat([si, j])); });
+    var n = bird.length;
     ctx.save();
     for (var i = 0; i < n; i++) {
-      var r1 = fxR(i, 1), r2 = fxR(i, 2), r3 = fxR(i, 3);
-      var st = [it.from[0] + sp[0] * (r1 - 0.5), it.from[1] + sp[1] * (r2 - 0.5)], en = [it.to[0] + 0.25 * (r1 - 0.5), it.to[1] + 0.1 * (r2 - 0.5)];
+      var r1 = fxR(i, 1), r2 = fxR(i, 2), r3 = fxR(i, 3), B = bird[i];
+      var st = [B[0] + B[2] * (r1 - 0.5), B[1] + sp[1] * (r2 - 0.5)], en = [B[4] + (it.froms ? 0.12 : 0.25) * (r1 - 0.5), B[5] + 0.1 * (r2 - 0.5)];
       var d0 = (it.delay0 || 1.5) + i * (it.gap || 0.3) + r3 * 0.5, q = clamp((tt - d0) / (it.fly || 5), 0, 1);
+      if (it.exit && q >= 1) continue;   // улетел за кадр — больше не появляется
       var e2 = Math.pow(q, 1.35), cu = [lerp(st[0], en[0], 0.25), st[1] - 0.05 - 0.05 * r2];
       var x = (1 - e2) * (1 - e2) * st[0] + 2 * (1 - e2) * e2 * cu[0] + e2 * e2 * en[0], y = (1 - e2) * (1 - e2) * st[1] + 2 * (1 - e2) * e2 * cu[1] + e2 * e2 * en[1];
       var flip = en[0] < st[0], pose;
@@ -1757,7 +1786,7 @@
       else { var nf = Math.max(1, ims.length - 1), ph = (tt - d0) * (it.flap || 4.5) * (0.85 + 0.3 * r3) + r1 * nf; pose = 1 + (Math.floor(ph) % nf); if (q > 0.6 && fxR(i, Math.floor(tt * 2)) > 0.6) pose = 1; }   // взмахи; дальше — планирует
       var im = ims[pose] || ims[0]; if (!im) continue;
       var pp = spP(f, x, y, it.bld && tt < d0), hp = spH(f, x, y, H0, false) * (0.85 + 0.3 * r2) * (1 - 0.45 * q);
-      ctx.globalAlpha = clamp(a * nightK() * (1 - clamp((q - 0.8) / 0.2, 0, 1)), 0, 1);
+      ctx.globalAlpha = clamp(a * nightK() * (it.exit ? 1 : 1 - clamp((q - 0.8) / 0.2, 0, 1)), 0, 1);
       spDraw(im, pp[0], pp[1], hp, tt < d0 ? 0 : 0.15 * Math.sin(tt * 3 + i), flip, 0.5, tt < d0 ? 0.95 : 0.5);
     }
     ctx.restore();
@@ -1808,13 +1837,13 @@
     var kill = par.abort ? clamp((now - par.abort) / 700, 0, 1) : 0;
     par.shade = null;
     (X.items || []).forEach(function (it, j) {
-      if (it.kind === 'image') fxImage(it.src);   // грузим заранее, с первого кадра показа
-      [it.src, it.mask].concat(it.frames || [], it.srcs || [], it.poses || []).forEach(function (s) { if (s && it.kind !== 'image') spImg(par.fr, s); });   // e1.41: картинки шоу — заранее
+      if (it.kind === 'image' && !it.rect) fxImage(it.src);   // грузим заранее, с первого кадра показа
+      [it.src, it.mask].concat(it.frames || [], it.srcs || [], it.poses || []).forEach(function (s) { if (s && (it.kind !== 'image' || it.rect)) spImg(par.fr, s); });   // e1.41: картинки шоу — заранее
       var tw = it.t || [0, D], tt = t - tw[0], len = tw[1] - tw[0], fd = it.fade || [0.6, 0.9];
       if (tt < 0 || tt > len) return;
       var a = clamp(Math.min(tt / fd[0], (len - tt) / fd[1]), 0, 1) * (1 - kill);
       if (a <= 0) return;
-      var SHK = { sunset: 1, candles: 2, dusk: 3, doorlight: 4 };   // e1.40–e1.41: шоу-обработка пикселей сцены в шейдере (viewer.js showGrade)
+      var SHK = { sunset: 1, candles: 2, dusk: 3, doorlight: 4, cinema: 5 };   // e1.43 cinema (F): кадр темнеет и выцветает, призрак проявляется, цвет возвращается   // e1.40–e1.41: шоу-обработка пикселей сцены в шейдере (viewer.js showGrade)
       if (SHK[it.kind]) par.shade = { fr: par.fr, kind: SHK[it.kind], t: tt, len: len, a: a };
       else if (it.kind === 'swing') fxSwing(it, tt, len, a);
       else if (it.kind === 'flock') fxFlock(it, tt, len, a);
@@ -1873,7 +1902,7 @@
   }
 
   function setShow(k) { if (cv && Math.abs(k - showK) > 0.004) { showK = k; cv.style.opacity = k >= 0.999 ? '' : k.toFixed(3); } }
-  function clear() { if (ctx && drawn) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); drawn = false; } }
+  function clear() { if (ctx && drawn) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); drawn = false; } blendClear(); }
 
   function frame(now) {
     if (!V) return;
@@ -1902,7 +1931,7 @@
     var nRare = key === 'night' && SC(fr).life && SC(fr).life.nightRare;
     if (!DO && key && !par && now >= nextAt && active.length < (nRare ? 1 : 2)) { spawn(fr, key); nextAt = now + (nRare ? rnd(nRare[0], nRare[1]) * 1000 : rnd(8000, 15000)); }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, W, H); drawn = true;
+    ctx.clearRect(0, 0, W, H); drawn = true; blendClear();
     var w = wts();
     if (!DO) { drawSun(now, w, fr); drawClouds(now, w, wx); }
     var fz = V.weather && V.weather().flash;
@@ -1939,6 +1968,11 @@
     paradeStop: stopParadeNow,
     paradeDur: function (style) { var st = String(style || 'planes').replace(/:behind$/, ''); return (({ drones: 22000, heli: 26000, fireworks: 23500, balloons: 20000, banner: 22000, fx: FX_DUR })[st] || 11000) / 1000; },
     paradeBusy: function () { return !!par; },
+    fxClock: function (now) {   // e1.43: время шоу fx для камеры просмотрщика (наезд A): кадр, секунда показа (с учётом «заморозки»), гашение при остановке
+      if (!par || par.style !== 'fx') return null;
+      var n = par.fix != null ? par.t0 + par.fix : now;
+      return { fr: par.fr, t: (n - par.t0) / 1000, len: par.dur / 1000, kill: par.abort ? clamp((now - par.abort) / 700, 0, 1) : 0 };
+    },
     fxShade: function () { return par && par.style === 'fx' && par.shade ? par.shade : null; },   // e1.40: шоу кадра для шейдера сцены (вид 1 sunset / 2 candles, с, длина, проявление)
     paradeProgress: function (now) { return par ? clamp((now - par.t0) / (par.total || par.dur), 0, 1) : -1; },   // для кольца на кнопке флага
     // выключить всё (fps ниже порога или «уменьшение движения»): очистить холст, парад прервать
