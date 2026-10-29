@@ -385,7 +385,7 @@ def validate(bdir, b, site):
         nm = f.get('name') if isinstance(f, dict) else None
         w = 'кадр %d%s' % (i + 1, ' (%s)' % nm if isinstance(nm, str) else '')
         fr = c.obj(f, w, required=('name', 'crop', 'flag', 'cloudShadow', 'wind', 'sky', 'sun', 'life', 'hotspots', 'nightLamps', 'nightHalo', 'lamps'),
-                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'figures', 'snowMask', 'sway', 'fx', 'pix', 'spriteSnow', 'tiltK', 'noon', 'poses'))
+                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'figures', 'snowMask', 'sway', 'fx', 'pix', 'spriteSnow', 'tiltK', 'noon', 'poses', 'snowFall'))
         if not fr:
             continue
         if not (isinstance(nm, str) and re.fullmatch(r'[A-Za-z0-9_\-]+', nm)):
@@ -560,6 +560,16 @@ def validate(bdir, b, site):
                             c.numbers(ao['every'], wa + '.every', 2, 0.1, 60)
                         if 'fade' in ao:
                             c.number(ao['fade'], wa + '.fade', 0, 5)
+        if 'snowFall' in fr:      # e1.46: снегопад картинками Gemini при погоде «снег» {srcs, area, n, h:[мин,макс], speed, wind}
+            sf = c.obj(fr['snowFall'], '%s: snowFall' % w, required=('srcs',), optional=('area', 'n', 'h', 'speed', 'wind'))
+            if sf:
+                if not (isinstance(sf['srcs'], list) and sf['srcs'] and all(isinstance(x, str) and x.startswith('show_') and x.endswith('.png') for x in sf['srcs'])):
+                    c.err('%s: snowFall.srcs' % w, 'список картинок show_*.png')
+                if 'area' in sf: c.numbers(sf['area'], '%s: snowFall.area' % w, 4, 0, 1)
+                if 'n' in sf: c.number(sf['n'], '%s: snowFall.n' % w, 1, 80)
+                if 'h' in sf: c.numbers(sf['h'], '%s: snowFall.h' % w, 2, 0.001, 0.05)
+                if 'speed' in sf: c.number(sf['speed'], '%s: snowFall.speed' % w, 0.005, 0.5)
+                if 'wind' in sf: c.number(sf['wind'], '%s: snowFall.wind' % w, -1, 1)
         if 'tiltK' in fr:         # e1.43: сила наклона кадра (1 — как у всех; E/F Погос-Петроса 0,2 — почти плоско, без «резины»)
             c.number(fr['tiltK'], '%s: tiltK' % w, 0.1, 1.5)
         if 'noon' in fr:          # e1.43: доля полуденной обработки кадра (look.noon), 0..1
@@ -620,6 +630,12 @@ def validate(bdir, b, site):
                 c.err('%s: fx.tod' % w, 'список [[секунда, p], …] (секунды по возрастанию, p от 0 — день до 2,1667 — ночь)')
         if isinstance(fxo, dict):
             for j, it in enumerate(fxo.get('items') or []):
+                if isinstance(it, dict) and it.get('kind') == 'letters':   # e1.46: надпись по буквам (атласы fix11.py insc)
+                    wl = '%s: fx.items[%d]' % (w, j + 1)
+                    for kk in ('rect', 'size', 'dark', 'fire', 'glow', 'cells'):
+                        if kk not in it: c.err(wl, 'letters: нет %s' % kk)
+                    if isinstance(it.get('cells'), list) and not all(isinstance(q, list) and len(q) == 6 and all(is_num(x) for x in q) for q in it['cells']):
+                        c.err(wl + '.cells', 'список [sx, sy, w, h, dx, dy]')
                 if isinstance(it, dict) and it.get('kind') == 'image':
                     if 'blend' in it and it['blend'] not in ('multiply', 'screen'):
                         c.err('%s: fx.items[%d].blend' % (w, j + 1), 'multiply или screen')

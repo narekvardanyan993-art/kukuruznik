@@ -239,7 +239,8 @@ def scene(f, stamp_name=None):
           'moon': sun['moon'], 'lawn': f.get('lawn'), 'closeUp': f.get('closeUp')}
     if 'cloudScale' in sky:
         sc['cloudScale'] = sky['cloudScale']
-    for k in ('bldDepth', 'showBand', 'fountains', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'fx', 'spriteSnow'):   # e1.41: spriteSnow — редкий снег картинками Gemini
+    for k in ('bldDepth', 'showBand', 'fountains', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'fx', 'spriteSnow', 'snowFall'):   # e1.46: snowFall — снегопад картинками Gemini при погоде «снег»
+            # e1.41: spriteSnow — редкий снег картинками Gemini
           # e1.37: fx — шоу кадра из деталей (details.js stepFx)   # e1.5: только если заданы у кадра — у остальных зданий настройки страницы не меняются
         if k in f:
             sc[k] = f[k]

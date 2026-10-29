@@ -35,6 +35,7 @@
  "WINDOW_FADE_MS": 1500,
  "NIGHT_MAIN_WINS": true,
  "DRAWN_ONLY": false,
+ "SWAY_SOFT": false,
  "WIN_SPILL": 0,
  "WIN_SPILL_PX": 7,
  "CLOUD_FIELD": 0,

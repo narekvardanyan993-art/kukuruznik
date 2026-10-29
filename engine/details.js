@@ -1611,7 +1611,7 @@
   //   e1.40: sunset / candles — шоу без деталей: обработка пикселей самого рисунка в шейдере сцены (viewer.js showGrade, PIX);
   //          details.js только ведёт время показа (Details.fxShade) — кодом ничего не рисуется.
   //   У каждой детали t:[с0, с1] (окно показа, по умолчанию весь показ) и fade:[вход, выход] с. Длина показа — FX_DUR.
-  var FX_DUR = 16000, fxImg = {};
+  var FX_DUR = 16000, fxImg = {}, fxNightC = null;
   function fxImage(src) {
     var F = root.CONFIG.FRAMES[par.fr], key = String(F.color).split('?')[0].replace(/[^\/]*$/, '') + src;
     if (fxImg[key]) return fxImg[key].ok ? fxImg[key].im : null;
@@ -1701,6 +1701,26 @@
     B.drawn = true; return B.x;
   }
   function blendClear() { for (var k in blendL) { var B = blendL[k]; if (B.drawn) { B.x.setTransform(1, 0, 0, 1, 0, 0); B.x.clearRect(0, 0, B.c.width, B.c.height); B.drawn = false; } } }
+  // e1.46 letters (D): буквы проступают по одной и горят как огонь, потом гаснут по одной. {rect, bld, size:[w,h] px атласа-рамки, dark, fire, glow — атласы
+  //   (pogos-petros/build/scripts/fix11.py insc: буквы уже в перспективе люнета), cells:[[sx,sy,w,h,dx,dy]…], step с между буквами, rise, burn, out, outStep}.
+  //   Код не рисует: желобок затемняет камень (multiply), раскалённая буква и свечение высветляют пиксели камня (screen) и мерцают.
+  function fxLetters(it, tt, len, a) {
+    var fe = V.entry(par.fr), dk = spImg(par.fr, it.dark), fi = spImg(par.fr, it.fire), gl = spImg(par.fr, it.glow); if (!fe || !dk || !fi || !gl) return;
+    var R = it.rect, a0 = spP(fe, R[0], R[1], it.bld), a1 = spP(fe, R[2], R[3], it.bld), sz = it.size || [1, 1];
+    var kx = (a1[0] - a0[0]) / sz[0], ky = (a1[1] - a0[1]) / sz[1], st = it.step || 0.3, burn = it.burn || 2, off = len - (it.out || 3), cells = it.cells || [];
+    var bd = blendLayer('multiply'), bs = blendLayer('screen'); bd.save(); bs.save();
+    for (var i = 0; i < cells.length; i++) {
+      var c = cells[i], ti = tt - i * st; if (ti <= 0) continue;
+      var ign = sstep(0, it.rise || 0.5, ti), endK = 1 - sstep(0, 1.2, tt - off - i * (it.outStep || 0.1)); if (endK <= 0) continue;
+      var heat = ign * (0.55 + 0.45 * Math.exp(-ti / burn)) * endK;
+      var fl = 0.8 + 0.2 * (0.6 * Math.sin(tt * 13.1 + i * 1.7) + 0.4 * Math.sin(tt * 21.7 + i * 4.3)), fl2 = 0.75 + 0.25 * (0.5 * Math.sin(tt * 9.3 + i * 2.9) + 0.5 * Math.sin(tt * 17.3 + i * 0.7));
+      var dx = a0[0] + c[4] * kx, dy = a0[1] + c[5] * ky, dw = c[2] * kx, dh = c[3] * ky, j = 0.35 * Math.sin(tt * 23 + i);
+      bd.globalAlpha = clamp(a * ign * endK, 0, 1); bd.drawImage(dk, c[0], c[1], c[2], c[3], dx, dy, dw, dh);
+      bs.globalAlpha = clamp(a * heat * fl, 0, 1); bs.drawImage(fi, c[0], c[1], c[2], c[3], dx, dy, dw, dh);
+      bs.globalAlpha = clamp(a * heat * fl2 * (it.glowK || 1), 0, 1); bs.drawImage(gl, c[0], c[1], c[2], c[3], dx + j, dy - Math.abs(j) * 0.5, dw, dh);   // свечение камня дрожит на полпикселя — «мерцание»
+    }
+    bd.restore(); bs.restore();
+  }
   function fxImageDraw(it, tt, len, a) {
     var im = it.rect ? spImg(par.fr, it.src) : fxImage(it.src); if (!im) return;
     var k = tt / len, dy = -(it.rise || 0) * k, a0 = P(0, dy, 0), a1 = P(1, 1 + dy, 0);
@@ -1710,7 +1730,15 @@
       var bx = blendLayer(it.blend); bx.save(); bx.globalAlpha = clamp(ae * (it.alpha == null ? 1 : it.alpha), 0, 1);
       bx.drawImage(im, a0[0], a0[1], a1[0] - a0[0], a1[1] - a0[1]); bx.restore(); return;
     }
-    ctx.save(); ctx.globalAlpha = clamp(ae * (it.alpha || 0.8) * (0.9 + 0.1 * Math.sin(tt * 2.1)), 0, 1);
+    var nn = wts().n;
+    if (nn > 0.02) {   // e1.46: ночью картинка шоу (призрак) — в тон ночи: тот же рисунок, холоднее и темнее (source-atop на своём холсте)
+      var tw = Math.max(1, Math.round(a1[0] - a0[0])), th = Math.max(1, Math.round(a1[1] - a0[1]));
+      if (!fxNightC) fxNightC = document.createElement('canvas');
+      if (fxNightC.width !== tw || fxNightC.height !== th) { fxNightC.width = tw; fxNightC.height = th; }
+      var nx = fxNightC.getContext('2d'); nx.globalCompositeOperation = 'source-over'; nx.clearRect(0, 0, tw, th); nx.drawImage(im, 0, 0, tw, th);
+      nx.globalCompositeOperation = 'source-atop'; nx.fillStyle = 'rgba(28,38,72,' + (0.62 * nn).toFixed(3) + ')'; nx.fillRect(0, 0, tw, th); im = fxNightC;
+    }
+    ctx.save(); ctx.globalAlpha = clamp(ae * (it.alpha || 0.8) * (0.9 + 0.1 * Math.sin(tt * 2.1)) * (1 - 0.25 * nn), 0, 1);
     ctx.drawImage(im, a0[0], a0[1], a1[0] - a0[0], a1[1] - a0[1]);
     if (it.glow) { ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = clamp(ae * it.glow, 0, 1); ctx.drawImage(im, a0[0], a0[1], a1[0] - a0[0], a1[1] - a0[1]); }   // e1.43: призрак «ярко проявляется» — тот же рисунок вторым слоем «экраном» (светлее, без новых пикселей)
     ctx.restore();
@@ -1811,16 +1839,20 @@
     ctx.save(); ctx.globalAlpha = al; spDraw(im, p[0], p[1], hp, 0, false); ctx.restore();
   }
   var flk = {};
+  var flkSt = {};   // e1.46: какие снежинки идут в этом круге падения (решается наверху — снежинка не возникает посреди экрана)
   function flakesDraw(fr, f, it, now, dens, key) {
     var ims = (it.srcs || []).map(function (s) { return spImg(fr, s); }).filter(Boolean); if (!ims.length) return;
-    var A = it.area || [0, 0, 1, 1], n = Math.round((it.n || 20) * clamp(dens, 0, 1)), hh = it.h || [0.006, 0.012], spd = it.speed || 0.06, t = now / 1000;
+    var A = it.area || [0, 0, 1, 1], n = it.n || 20, hh = it.h || [0.006, 0.012], spd = it.speed || 0.06, t = now / 1000;
+    var S = flkSt[key + fr] || (flkSt[key + fr] = { ci: [], on: [] }), wq = V.weather ? V.weather() : null, wd = (it.wind || 0) * (wq ? (wq.windEff || wq.wind || 1) : 1);
     var a0 = P(A[0], A[1], 0), a1 = P(A[2], A[3], 0), Hpx = a1[1] - a0[1], Wpx = a1[0] - a0[0];
     var fh = Math.abs(P(0, 1, 0)[1] - P(0, 0, 0)[1]);
     ctx.save();
     for (var i = 0; i < n; i++) {
       var r1 = fxR(i, 11), r2 = fxR(i, 12), r3 = fxR(i, 13), sz = lerp(hh[0], hh[1], r2), z = 0.6 + 0.4 * r2;   // крупные — ближе и быстрее
-      var cyc = Hpx / (spd * fh * z) || 10, ph = ((t / cyc + r1) % 1);
-      var x = a0[0] + Wpx * ((r3 + 0.04 * Math.sin(t * (0.6 + r2) + i * 2.1)) % 1), y = a0[1] + Hpx * ph;
+      var cyc = Hpx / (spd * fh * z) || 10, ph = ((t / cyc + r1) % 1), ci = Math.floor(t / cyc + r1);
+      if (S.ci[i] !== ci) { S.ci[i] = ci; S.on[i] = fxR(i, 14) < clamp(dens, 0, 1) && (S.on[i] !== undefined || ph < 0.15 || dens >= 0.999); }
+      if (!S.on[i]) continue;
+      var x = a0[0] + Wpx * (((r3 + 0.04 * Math.sin(t * (0.6 + r2) + i * 2.1) + wd * ph * z) % 1 + 1) % 1), y = a0[1] + Hpx * ph;   // e1.46: ветер сносит вбок
       ctx.globalAlpha = clamp(Math.min(ph / 0.08, (1 - ph) / 0.12, 1) * (0.75 + 0.25 * r1) * nightK(), 0, 1);
       spDraw(ims[i % ims.length], x, y, sz * fh, t * (0.6 + r3) * (r1 < 0.5 ? 1 : -1), false);
     }
@@ -1838,7 +1870,7 @@
     par.shade = null;
     (X.items || []).forEach(function (it, j) {
       if (it.kind === 'image' && !it.rect) fxImage(it.src);   // грузим заранее, с первого кадра показа
-      [it.src, it.mask].concat(it.frames || [], it.srcs || [], it.poses || []).forEach(function (s) { if (s && (it.kind !== 'image' || it.rect)) spImg(par.fr, s); });   // e1.41: картинки шоу — заранее
+      [it.src, it.mask, it.dark, it.fire, it.glow].concat(it.frames || [], it.srcs || [], it.poses || []).forEach(function (s) { if (s && (it.kind !== 'image' || it.rect)) spImg(par.fr, s); });   // e1.41: картинки шоу — заранее
       var tw = it.t || [0, D], tt = t - tw[0], len = tw[1] - tw[0], fd = it.fade || [0.6, 0.9];
       if (tt < 0 || tt > len) return;
       var a = clamp(Math.min(tt / fd[0], (len - tt) / fd[1]), 0, 1) * (1 - kill);
@@ -1848,6 +1880,7 @@
       else if (it.kind === 'swing') fxSwing(it, tt, len, a);
       else if (it.kind === 'flock') fxFlock(it, tt, len, a);
       else if (it.kind === 'moon') fxMoon(it, tt, len, a);
+      else if (it.kind === 'letters') fxLetters(it, tt, len, a);
       else if (it.kind === 'flakes') fxFlakes(it, tt, len, a, now);
       else if (it.kind === 'bell') fxBell(it, tt, len, a, col, nn);
       else if (it.kind === 'birds') fxBirds(it, tt, len, a);
@@ -1945,6 +1978,7 @@
       if (mvOn && MV.hideLife !== false) AM = MV._A || (MV._A = { flocks: AM.flocks, details: AM.details, occluders: AM.occluders, lightBirds: AM.lightBirds });
       drawAmbientLife(now, w, f, AM);
     }
+    if (SC(fr).snowFall && V.weather) { var wq0 = V.weather(), sk0 = wq0 && wq0.cur ? wq0.cur[3] : 0; if (sk0 > 0.005 || flkSt['fall' + fr]) flakesDraw(fr, f, SC(fr).snowFall, now, sk0, 'fall'); }   // e1.46: погода «снег» — падают снежинки Gemini (кадры со snowFall)
     if (SC(fr).spriteSnow && !(par && par.fr === fr && (SC(fr).fx || {}).items && SC(fr).fx.items.some(function (q) { return q.kind === 'flakes'; }))) flakesDraw(fr, f, SC(fr).spriteSnow, now, 1, 'amb');   // e1.41: редкий снег картинками Gemini (всегда; в шоу — шоу)
     for (var i = active.length - 1; i >= 0; i--) {
       var e = active[i], t = (now - e.t0) / e.dur;
