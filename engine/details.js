@@ -1686,10 +1686,30 @@
     }
     ctx.restore();
   }
+  // e1.45 blend (Погос-Петрос, заход 10, надпись D): картинка-маска кладётся не краской, а режимом смешивания со сценой
+  // (свой холст поверх, CSS mix-blend-mode): multiply — пиксели рисунка под маской темнеют, screen — светлеют. Код ничего не рисует сам.
+  var blendL = {};
+  function blendLayer(mode) {
+    var B = blendL[mode];
+    if (!B) {
+      var c = document.createElement('canvas'); c.style.cssText = cv.style.cssText; c.style.mixBlendMode = mode;
+      cv.parentNode.insertBefore(c, cv.nextSibling); B = blendL[mode] = { c: c, x: c.getContext('2d'), drawn: false };
+      B.x.imageSmoothingEnabled = true; B.x.imageSmoothingQuality = 'high';
+    }
+    if (B.c.width !== cv.width || B.c.height !== cv.height) { B.c.width = cv.width; B.c.height = cv.height; }
+    if (!B.drawn) { B.x.setTransform(dpr, 0, 0, dpr, 0, 0); B.x.clearRect(0, 0, W, H); }
+    B.drawn = true; return B.x;
+  }
+  function blendClear() { for (var k in blendL) { var B = blendL[k]; if (B.drawn) { B.x.setTransform(1, 0, 0, 1, 0, 0); B.x.clearRect(0, 0, B.c.width, B.c.height); B.drawn = false; } } }
   function fxImageDraw(it, tt, len, a) {
-    var im = fxImage(it.src); if (!im) return;
+    var im = it.rect ? spImg(par.fr, it.src) : fxImage(it.src); if (!im) return;
     var k = tt / len, dy = -(it.rise || 0) * k, a0 = P(0, dy, 0), a1 = P(1, 1 + dy, 0);
+    if (it.rect) { var fe = V.entry(par.fr), R = it.rect; if (!fe) return; a0 = spP(fe, R[0], R[1] + dy, it.bld); a1 = spP(fe, R[2], R[3] + dy, it.bld); }   // e1.45: картинка на свою рамку кадра (доли), bld — со слоем здания
     var ae = it.ease ? a * a * (3 - 2 * a) : a;   // e1.42: ease — плавный вход и выход (нулевой наклон у краёв), без «щелчка» в первую секунду
+    if (it.blend) {
+      var bx = blendLayer(it.blend); bx.save(); bx.globalAlpha = clamp(ae * (it.alpha == null ? 1 : it.alpha), 0, 1);
+      bx.drawImage(im, a0[0], a0[1], a1[0] - a0[0], a1[1] - a0[1]); bx.restore(); return;
+    }
     ctx.save(); ctx.globalAlpha = clamp(ae * (it.alpha || 0.8) * (0.9 + 0.1 * Math.sin(tt * 2.1)), 0, 1);
     ctx.drawImage(im, a0[0], a0[1], a1[0] - a0[0], a1[1] - a0[1]);
     if (it.glow) { ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = clamp(ae * it.glow, 0, 1); ctx.drawImage(im, a0[0], a0[1], a1[0] - a0[0], a1[1] - a0[1]); }   // e1.43: призрак «ярко проявляется» — тот же рисунок вторым слоем «экраном» (светлее, без новых пикселей)
@@ -1817,8 +1837,8 @@
     var kill = par.abort ? clamp((now - par.abort) / 700, 0, 1) : 0;
     par.shade = null;
     (X.items || []).forEach(function (it, j) {
-      if (it.kind === 'image') fxImage(it.src);   // грузим заранее, с первого кадра показа
-      [it.src, it.mask].concat(it.frames || [], it.srcs || [], it.poses || []).forEach(function (s) { if (s && it.kind !== 'image') spImg(par.fr, s); });   // e1.41: картинки шоу — заранее
+      if (it.kind === 'image' && !it.rect) fxImage(it.src);   // грузим заранее, с первого кадра показа
+      [it.src, it.mask].concat(it.frames || [], it.srcs || [], it.poses || []).forEach(function (s) { if (s && (it.kind !== 'image' || it.rect)) spImg(par.fr, s); });   // e1.41: картинки шоу — заранее
       var tw = it.t || [0, D], tt = t - tw[0], len = tw[1] - tw[0], fd = it.fade || [0.6, 0.9];
       if (tt < 0 || tt > len) return;
       var a = clamp(Math.min(tt / fd[0], (len - tt) / fd[1]), 0, 1) * (1 - kill);
@@ -1882,7 +1902,7 @@
   }
 
   function setShow(k) { if (cv && Math.abs(k - showK) > 0.004) { showK = k; cv.style.opacity = k >= 0.999 ? '' : k.toFixed(3); } }
-  function clear() { if (ctx && drawn) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); drawn = false; } }
+  function clear() { if (ctx && drawn) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); drawn = false; } blendClear(); }
 
   function frame(now) {
     if (!V) return;
@@ -1911,7 +1931,7 @@
     var nRare = key === 'night' && SC(fr).life && SC(fr).life.nightRare;
     if (!DO && key && !par && now >= nextAt && active.length < (nRare ? 1 : 2)) { spawn(fr, key); nextAt = now + (nRare ? rnd(nRare[0], nRare[1]) * 1000 : rnd(8000, 15000)); }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, W, H); drawn = true;
+    ctx.clearRect(0, 0, W, H); drawn = true; blendClear();
     var w = wts();
     if (!DO) { drawSun(now, w, fr); drawClouds(now, w, wx); }
     var fz = V.weather && V.weather().flash;

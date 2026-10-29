@@ -349,7 +349,7 @@
   // Шоу кадра без деталей (e1.40): fx-деталь sunset (тёплый свет ползёт по стене справа налево, тени глубже, окна загораются)
   // и candles (сумрак и ч/б → свечи по одной → цвет фресок) — это обработка пикселей сцены (uShowA/B), не рисунок кодом.
   // У зданий без pix (Кукурузник, Ленин) строк в шейдере нет — шейдер прежний.
-  var PIX_KINDS = { flow: 1, jet: 2, ripple: 3, glow: 4, flame: 5, win: 6, halo: 7, drift: 8 }, PIX_KEYS = { all: 0, water: 1, white: 2, warm: 3, dark: 4 };
+  var PIX_KINDS = { flow: 1, jet: 2, ripple: 3, glow: 4, flame: 5, win: 6, halo: 7, drift: 8, nglow: 9 }, PIX_KEYS = { all: 0, water: 1, white: 2, warm: 3, dark: 4 };
   var PIXS = (CONFIG.PIX || []).map(function (a) { return Array.isArray(a) ? a : []; });
   var PN = PIXS.reduce(function (m, a) { return Math.max(m, a.length); }, 0);
   if (PN > 0 && useGL) {
@@ -536,9 +536,9 @@
       '  return 1.0 - smoothstep(lo, hi, lum);',   // тёмное: стекло окна
       '}',
       // сдвиг выборки (px кадра), множитель яркости, тёплый свет вокруг огней (шоу candles); q — точка кадра, c — цвет рисунка в ней
-      'vec4 pixFx(float slot, vec2 q, vec3 c, vec4 show, out float wn) {',
+      'vec4 pixFx(float slot, vec2 q, vec3 c, vec3 cn0, vec4 show, out float wn, out float ngn) {',   // e1.45: cn0 — цвет ночного рисунка в точке (для nglow), ngn — множитель яркости ночного рисунка
       '  float nn = slot < 0.5 ? uPixN.x : uPixN.y;',
-      '  vec2 off = vec2(0.0); float gain = 1.0, warm = 0.0, t = uPixT, lum = dot(c, vec3(0.299, 0.587, 0.114)); wn = 0.0;',
+      '  vec2 off = vec2(0.0); float gain = 1.0, warm = 0.0, t = uPixT, lum = dot(c, vec3(0.299, 0.587, 0.114)); wn = 0.0; ngn = 1.0;',
       '  vec2 W = vec2(' + glf(FW) + ', ' + glf(FH) + '), qp = q * W;',
       '  for (int i = 0; i < ' + PN + '; i++) {',
       '    if (float(i) >= nn) break;',
@@ -583,6 +583,15 @@
       '      continue;',
       '    }',
       '    if (inb < 0.002) continue;',
+      // e1.45 nglow: огни ночного рисунка Gemini (фонари, окна, отсветы) мягко мерцают — только ночью, маска — тёплое светлое ночного рисунка;
+      // P.x сила, P.y частота, P.z ячейка px (своя фаза у каждого огня), P.w — доля медленного «дыхания». Ничего не рисуется — меняется яркость пикселей.
+      '    if (K.x > 8.5) {',
+      '      float mn = inb * pixKey(3.0, K.z, K.w, cn0); if (mn < 0.002) continue;',
+      '      float h = h21(floor(qp / P.z)), ph = h * 6.2832;',
+      '      float fl = 0.55 * sin(t * P.y * 6.1 + ph) + 0.30 * sin(t * P.y * 10.3 + ph * 2.3) + 0.15 * sin(t * P.y * 17.9 + ph * 4.1);',
+      '      ngn *= 1.0 + mn * P.x * mix(fl, sin(t * 0.9 + ph), P.w);',
+      '      continue;',
+      '    }',
       '    float m = inb * pixKey(K.y, K.z, K.w, c);',
       '    if (m < 0.002) continue;',
       '    if (K.x > 7.5) { off.x += P.x * sin(6.2832 * t / P.y + P.z) * m; continue; }',   // e1.43 drift: облака неба рисунка медленно плывут туда-обратно (P.x px кадра, период P.y с, фаза P.z) — сдвиг выборки, ничего не рисуется
@@ -688,7 +697,7 @@
     '    p.x += 0.0008 * sin(uTime * 2.7 + p.y * 300.0);',
     '  }',
     '  vec2 pc = clamp(p, 0.0, 1.0);',
-    PN > 0 ? '  float pxW = 0.0; vec4 px = pixFx(slot, pc, texture2D(bg, pc).rgb, show, pxW); pc = clamp(pc + px.xy, 0.0, 1.0);' : '',   // e1.40 PIX: живость земли из самого рисунка
+    PN > 0 ? '  float pxW = 0.0, pxN = 1.0; vec4 px = pixFx(slot, pc, texture2D(bg, pc).rgb, ' + (NI ? 'texture2D(ng, pc).rgb' : 'vec3(0.0)') + ', show, pxW, pxN); pc = clamp(pc + px.xy, 0.0, 1.0);' : '',   // e1.40 PIX: живость земли из самого рисунка
     '  vec3 c = texture2D(bg, pc).rgb;' + (PN > 0 ? ' c *= px.z;' : ''),
     // e1.14 синемаграф: видео Veo (rgb, в альфе — маска движения) — часть рисунка земли: тот же параллакс по глубине, ветер, дневная обработка,
     // ночь и погода, что у рисунка; ночью — ночная картинка × (видео / рисунок): неподвижное = ночной рисунок без шва, движущееся темнеет так же
@@ -715,7 +724,7 @@
     '    }',
     '  }',
     (FIGB ? '  { vec4 fbx = slot < 0.5 ? uFigBoxA : uFigBoxB; if (pb.x > fbx.x && pb.x < fbx.z && pb.y > fbx.y && pb.y < fbx.w) { vec4 ef = texture2D(depth, pb); if (ef.b < 0.008 && ef.a > 0.004) pb -= figWarp(slot, pb, ef.a); } }\n' : '') +   // e1.22: фигуры на слое здания (листья на постаменте)
-    PN > 0 ? '  vec4 pxb = vec4(0.0, 0.0, 1.0, 0.0); float pxbW = 0.0; { vec4 b0 = texture2D(bld, pb); if (b0.a > 0.02) { pxb = pixFx(slot, pb, b0.rgb / b0.a, show, pxbW); pb += pxb.xy; } }' : '',   // e1.40 PIX: живость слоя здания (окна, фонтан, свечи)
+    PN > 0 ? '  vec4 pxb = vec4(0.0, 0.0, 1.0, 0.0); float pxbW = 0.0, pxbN = 1.0; { vec4 b0 = texture2D(bld, pb); if (b0.a > 0.02) { pxb = pixFx(slot, pb, b0.rgb / b0.a, ' + (NI ? 'texture2D(nb, pb).rgb' : 'vec3(0.0)') + ', show, pxbW, pxbN); pb += pxb.xy; } }' : '',   // e1.40 PIX: живость слоя здания (окна, фонтан, свечи)
     '  vec4 b = texture2D(bld, pb);' + (PN > 0 ? ' b.rgb *= pxb.z;' : ''),                         // цвет уже умножен на альфу
     SPILL > 0 ? '  vec4 eb = texture2D(em, vec2(pb.x, clamp(pb.y, 0.0, 1.0) * ek.x));' : '  vec4 eb = texture2D(em, pb);',                         // окна главного здания: r = свет ночью, b = сама маска
     '  c = b.rgb + c * (1.0 - b.a);',
@@ -804,7 +813,7 @@
     // e1.14 look.nightEdge "solid": у мягкого края вырезки ночью — сама ночная картинка (её небо у силуэта), а не подложка под зданием:
     // подложка × средний тон кольца светлее ночного неба и давала светлую «обводку» вокруг статуи (s8). Без флага — как было.
     NI ? '    float bn = ' + (CONFIG.NIGHT_EDGE === 'solid' ? 'smoothstep(0.0, 0.3, b.a)' : 'b.a') + ';' : '',
-    NI ? (PN > 0 ? '    ngc *= px.z; vec3 cn = texture2D(nb, pb).rgb * pxb.z * bn + ngc * (1.0 - bn);' : '    vec3 cn = texture2D(nb, pb).rgb * bn + ngc * (1.0 - bn);') : '',
+    NI ? (PN > 0 ? '    ngc *= px.z * pxN; vec3 cn = texture2D(nb, pb).rgb * pxb.z * pxbN * bn + ngc * (1.0 - bn);' : '    vec3 cn = texture2D(nb, pb).rgb * bn + ngc * (1.0 - bn);') : '',
     NI ? '    cn *= mix(' + CONFIG.NIGHT_DIM.toFixed(3) + ', 1.0, smoothstep(0.30, 0.60, dot(cn, vec3(0.299, 0.587, 0.114))));' : '',
     NI ? '    c = mix(c, cn, uNightMix);' : '',
     NI ? '  }' : '',
@@ -2528,6 +2537,7 @@
       applyTod(todP(todAnim.T0 + (todAnim.T1 - todAnim.T0) * tfe));
       if (tf >= 1) { applyTod(todAnim.p1); todAnim = null; }
     }
+    if (SHOW_TOD) stepShowTod(now);
 
     // Пока открыта карточка подсказки, картинка за ней стоит: точки и карточка не «плывут» за мышью,
     // GPU не тратится на размытый фон.
@@ -2700,6 +2710,29 @@
   // время суток: p = 0 день, 1 закат, 2.1667 ночь (последние 0.1667 — доезжают огни и звёзды)
   var TOD_P = { day: 0, sunset: 1, night: 2.1667 };
   var todAnim = null;
+  // e1.45 SHOW_TOD (Погос-Петрос, заход 10): шоу кадра ведёт время суток — fx.tod [[с, p], …] (p: 0 день, 1 закат, 2.1667 ночь).
+  // Сама смена — те же рисунки Gemini, что у кнопок «День/Закат/Ночь» (закат- и ночь-картинка кадра плавно проявляются), код ничего не рисует.
+  // Первая секунда — мягкий вход из текущего времени суток; после показа (или при остановке) — плавный возврат к нему.
+  // Нажали «День/Закат/Ночь» во время показа — это и станет временем после показа. У зданий без fx.tod кода нет.
+  var SHOW_TOD = (CONFIG.SCENE || []).some(function (q) { return !!(q && q.fx && q.fx.tod); }), stod = { on: false, base: 0 };
+  function todKeyAt(K, t) {
+    if (t <= K[0][0]) return K[0][1];
+    for (var i = 1; i < K.length; i++) if (t <= K[i][0]) { var a = K[i - 1], b = K[i]; return a[1] + (b[1] - a[1]) * sstep(a[0], b[0], t); }
+    return K[K.length - 1][1];
+  }
+  function stepShowTod(now) {
+    var ck = null; try { ck = window.Details && window.Details.fxClock ? window.Details.fxClock(now) : null; } catch (e) { ck = null; }
+    var K = ck && ck.fr === frameIndex && !fade ? ((CONFIG.SCENE[ck.fr] || {}).fx || {}).tod : null;
+    if (K && K.length) {
+      if (!stod.on) { stod.on = true; stod.base = todAnim ? todAnim.p1 : tod.p; }
+      if (todAnim) { stod.base = todAnim.p1; todAnim = null; }
+      var w = clamp(ck.t / 1.0, 0, 1) * (1 - ck.kill);
+      applyTod(stod.base + (todKeyAt(K, ck.t) - stod.base) * w);
+    } else if (stod.on) {
+      stod.on = false;
+      if (Math.abs(tod.p - stod.base) > 0.002) todAnim = { t0: null, T0: todT(tod.p), T1: todT(stod.base), p1: stod.base };
+    }
+  }
   function sstep(a, b, x) { x = clamp((x - a) / (b - a), 0, 1); return x * x * (3 - 2 * x); }
   function todT(p) { return p <= 1 ? CONFIG.DAY_SUNSET_S * p : CONFIG.DAY_SUNSET_S + CONFIG.SUNSET_NIGHT_S * (p - 1); }
   function todP(T) { return T <= CONFIG.DAY_SUNSET_S ? T / CONFIG.DAY_SUNSET_S : 1 + (T - CONFIG.DAY_SUNSET_S) / CONFIG.SUNSET_NIGHT_S; }

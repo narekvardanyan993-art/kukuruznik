@@ -17,7 +17,7 @@ from pathlib import Path
 
 FIG_TYPES = ('sit', 'stand', 'chess', 'pigeon', 'balloon', 'leaf', 'grass')   # e1.22 FIGURES — тот же порядок, что в engine/viewer.js
 FIG_MAX = 25
-PIX_KINDS = ('flow', 'jet', 'ripple', 'glow', 'flame', 'win', 'halo', 'drift')   # e1.43: halo — свечение фрески в шоу candles, drift — облака неба плывут; e1.40 frames[].pix (viewer.js PIX)
+PIX_KINDS = ('flow', 'jet', 'ripple', 'glow', 'flame', 'win', 'halo', 'drift', 'nglow')   # e1.45: nglow — огни ночного рисунка Gemini мерцают   # e1.43: halo — свечение фрески в шоу candles, drift — облака неба плывут; e1.40 frames[].pix (viewer.js PIX)
 PIX_KEYS = ('all', 'water', 'white', 'warm', 'dark')
 PARADE_KINDS = ('planes', 'drones', 'heli', 'fireworks', 'balloons', 'banner', 'fx')   # виды парада (details.js): самолёты с дымом, дроны-флаг, вертолёт с флагом, салют, воздушные шары, знамя на фасаде (крупный план)
 PARADE_SECONDS = {'planes': 26, 'drones': 22, 'heli': 26, 'fireworks': 23.5, 'balloons': 20, 'banner': 22, 'fx': 16}   # длина показа (details.js: dur / total), секунды
@@ -612,6 +612,19 @@ def validate(bdir, b, site):
                             c.err('%s.%s' % (wj, kk), 'должно быть число')
                     if not (isinstance(it['p'], list) and 1 <= len(it['p']) <= 4 and all(is_num(x) for x in it['p'])):
                         c.err(wj + '.p', 'от 1 до 4 чисел вида')
+        fxo = fr.get('fx')
+        if isinstance(fxo, dict) and 'tod' in fxo:   # e1.45: шоу ведёт время суток — [[с, p], …], с по возрастанию, p 0 (день) … 2,1667 (ночь)
+            K = fxo['tod']
+            if not (isinstance(K, list) and len(K) >= 2 and all(isinstance(q, list) and len(q) == 2 and is_num(q[0]) and is_num(q[1]) and 0 <= q[1] <= 2.1667 for q in K)
+                    and all(K[i][0] < K[i + 1][0] for i in range(len(K) - 1))):
+                c.err('%s: fx.tod' % w, 'список [[секунда, p], …] (секунды по возрастанию, p от 0 — день до 2,1667 — ночь)')
+        if isinstance(fxo, dict):
+            for j, it in enumerate(fxo.get('items') or []):
+                if isinstance(it, dict) and it.get('kind') == 'image':
+                    if 'blend' in it and it['blend'] not in ('multiply', 'screen'):
+                        c.err('%s: fx.items[%d].blend' % (w, j + 1), 'multiply или screen')
+                    if 'rect' in it and not (isinstance(it['rect'], list) and len(it['rect']) == 4 and all(is_num(x) for x in it['rect']) and it['rect'][2] > it['rect'][0] and it['rect'][3] > it['rect'][1]):
+                        c.err('%s: fx.items[%d].rect' % (w, j + 1), 'рамка [u0, v0, u1, v1] в долях кадра')
         sk = c.obj(fr['sky'], '%s: sky' % w, required=('ref', 'end', 'band', 'clouds'), optional=('cloudScale',))
         if sk:
             c.number(sk['ref'], '%s: sky.ref' % w, 0, 2)
