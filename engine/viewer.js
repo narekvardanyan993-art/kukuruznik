@@ -1065,6 +1065,87 @@
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
     return t;
   }
+  // ---------- e1.44 ПОЗЫ (Погос-Петрос: пара на F, старик и голуби на A) ----------
+  // Кадр: "poses": {layer: "bld" | "bg", actors: [{rect:[u0,v0,u1,v1], srcs:[null | "show_pose_….png", …], every:[мин, макс] с, fade с, night:false, order:"random"|"cycle"}]}.
+  // Картинки поз нарисовал Gemini (правка того же кадра, вырезана по отличию; голуби — лист Gemini), null — поза самого рисунка.
+  // Код ничего не рисует: смешивает пиксели картинок с пикселями рисунка в куске текстуры слоя (texSubImage2D), поэтому дневная/полуденная обработка,
+  // параллакс и ночь — те же, что у всего кадра. night:false — ночью актёра нет (голуби). «Уменьшить движение» — позы стоят.
+  var POSES = CONFIG.POSES || null;
+  function posesInit(f, r, i) {
+    var P = POSES[i], W = r.w, H = r.h, all = P.actors || [];
+    var u0 = 1, v0 = 1, u1 = 0, v1 = 0;
+    all.forEach(function (a) { u0 = Math.min(u0, a.rect[0]); v0 = Math.min(v0, a.rect[1]); u1 = Math.max(u1, a.rect[2]); v1 = Math.max(v1, a.rect[3]); });
+    var x0 = Math.max(0, Math.floor(u0 * W)), y0 = Math.max(0, Math.floor(v0 * H)), x1 = Math.min(W, Math.ceil(u1 * W)), y1 = Math.min(H, Math.ceil(v1 * H));
+    var w = x1 - x0, h = y1 - y0; if (w < 2 || h < 2) return;
+    var bld = P.layer !== 'bg', src = bld ? r.bldPm : (r.ground4 || r.ground), ch = bld || r.ground4 ? 4 : 3;
+    var base = new Uint8Array(w * h * 4);
+    for (var y = 0; y < h; y++) for (var x = 0; x < w; x++) {
+      var o = ((y0 + y) * W + x0 + x) * ch, q = (y * w + x) * 4;
+      base[q] = src[o]; base[q + 1] = src[o + 1]; base[q + 2] = src[o + 2]; base[q + 3] = ch === 4 ? src[o + 3] : 255;
+    }
+    var st = { x0: x0, y0: y0, w: w, h: h, bld: bld, ch: ch, base: base, out: new Uint8Array(w * h * (ch === 4 ? 4 : 3)), actors: [], dirty: true, last: -1, nightK: -1 };
+    all.forEach(function (a, k) {
+      var A = { cfg: a, ims: [], cur: 0, prev: 0, t0: 0, next: 0, k: k };
+      A.box = [Math.round(a.rect[0] * W) - x0, Math.round(a.rect[1] * H) - y0, Math.round(a.rect[2] * W) - x0, Math.round(a.rect[3] * H) - y0];
+      (a.srcs || []).forEach(function (sname, j) {
+        A.ims[j] = null; if (!sname) return;
+        var im = new Image(); im.crossOrigin = 'anonymous';
+        im.onload = function () {
+          try {
+            var bw = A.box[2] - A.box[0], bh = A.box[3] - A.box[1], cv = document.createElement('canvas'); cv.width = bw; cv.height = bh;
+            var x = cv.getContext('2d', { willReadFrequently: true }); x.drawImage(im, 0, 0, bw, bh); A.ims[j] = x.getImageData(0, 0, bw, bh).data; st.dirty = true;
+          } catch (e) { logErr('pose', e); }
+        };
+        im.onerror = function () { logErr('pose', sname + ' не загрузилась'); };
+        im.src = String(FRAMES[i].color).split('?')[0].replace(/[^\/]*$/, '') + sname;
+      });
+      st.actors.push(A);
+    });
+    f.poses = st;
+  }
+  function poseRnd(a, b) { return a + Math.random() * (b - a); }
+  function posesStep(f, now) {
+    var st = f && f.poses; if (!st) return;
+    var t = now / 1000, still = reduced(), nk = tod.night > 0.5 ? 1 : 0, busy = false;
+    if (nk !== st.nightK) { st.nightK = nk; st.dirty = true; }
+    st.actors.forEach(function (A) {
+      var c = A.cfg, n = (c.srcs || []).length, ev = c.every || [3, 6], fd = c.fade == null ? 0.6 : c.fade;
+      if (!A.next) A.next = t + poseRnd(ev[0], ev[1]) * (0.3 + 0.7 * Math.random());
+      if (!still && n > 1 && t >= A.next) {
+        A.prev = A.cur;
+        if (c.order === 'cycle') A.cur = (A.cur + 1) % n; else { var j = Math.floor(Math.random() * (n - 1)); A.cur = j >= A.cur ? j + 1 : j; }
+        A.t0 = t; A.next = t + poseRnd(ev[0], ev[1]); st.dirty = true;
+      }
+      A.mix = fd > 0 ? Math.min(1, (t - A.t0) / fd) : 1;
+      if (A.mix < 1 && A.prev !== A.cur) busy = true;
+    });
+    if (!st.dirty && !busy) return;
+    if (busy && now - st.last < 50) return;   // смена позы: ~20 обновлений куска в секунду, не на каждый кадр
+    st.last = now; st.dirty = false;
+    var w = st.w, h = st.h, b = st.base, o = st.out, oc = st.ch === 4 ? 4 : 3, i, n = w * h;
+    var acc = new Float32Array(n * 4);
+    for (i = 0; i < n; i++) { acc[i * 4] = b[i * 4]; acc[i * 4 + 1] = b[i * 4 + 1]; acc[i * 4 + 2] = b[i * 4 + 2]; acc[i * 4 + 3] = b[i * 4 + 3]; }
+    st.actors.forEach(function (A) {
+      var c = A.cfg, vis = c.night === false ? 1 - st.nightK : 1; if (vis <= 0) return;
+      var layers = [[A.cur, A.prev !== A.cur ? A.mix : 1]];
+      if (A.prev !== A.cur && A.mix < 1) layers.unshift([A.prev, 1]);   // уходящая поза снизу, новая проявляется поверх
+      var bx = A.box, bw = bx[2] - bx[0];
+      layers.forEach(function (L) {
+        var d = A.ims[L[0]], k = L[1] * vis; if (!d || k <= 0) return;
+        for (var y = Math.max(0, bx[1]); y < Math.min(h, bx[3]); y++) for (var x = Math.max(0, bx[0]); x < Math.min(w, bx[2]); x++) {
+          var s = ((y - bx[1]) * bw + (x - bx[0])) * 4, a = d[s + 3] / 255 * k; if (a <= 0.002) continue;
+          var q = (y * w + x) * 4;
+          if (st.bld) {   // текстура здания — цвет умножен на альфу
+            acc[q] = d[s] * a + acc[q] * (1 - a); acc[q + 1] = d[s + 1] * a + acc[q + 1] * (1 - a); acc[q + 2] = d[s + 2] * a + acc[q + 2] * (1 - a); acc[q + 3] = 255 * a + acc[q + 3] * (1 - a);
+          } else { acc[q] = d[s] * a + acc[q] * (1 - a); acc[q + 1] = d[s + 1] * a + acc[q + 1] * (1 - a); acc[q + 2] = d[s + 2] * a + acc[q + 2] * (1 - a); }
+        }
+      });
+    });
+    for (i = 0; i < n; i++) { o[i * oc] = acc[i * 4]; o[i * oc + 1] = acc[i * 4 + 1]; o[i * oc + 2] = acc[i * 4 + 2]; if (oc === 4) o[i * oc + 3] = acc[i * 4 + 3]; }
+    gl.bindTexture(gl.TEXTURE_2D, st.bld ? f.bldTex : f.bgTex);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, st.x0, st.y0, w, h, oc === 4 ? gl.RGBA : gl.RGB, gl.UNSIGNED_BYTE, o);
+  }
   function uploadDay(f, r) {
     var steps = [
       function () { f.bgTex = r.ground4 ? texRGBA(r.w, r.h, r.ground4) : texRGB(r.w, r.h, r.ground); },   // земля: кадр с подложкой на месте здания (+ в альфе глубина здания по точкам, если включена)
@@ -1756,7 +1837,7 @@
       var scI = (CONFIG.SCENE && CONFIG.SCENE[i]) || {};
       if (scI.bldDepth != null) { entry.dB = scI.bldDepth; entry.kB = scI.bldDepth * 2 - 1; entry.bldD = null; }   // e1.5: здание кадра — жёстко на этой глубине (крупный план: статуя не «плывёт» отдельно от постамента и фона)
       var up = useGL ? uploadDay(entry, r) : Promise.resolve(makeLayers(entry, r));
-      return up.then(function () { store[i] = entry; if (window.__fillThumb) window.__fillThumb(i); return entry; });
+      return up.then(function () { if (useGL && POSES && POSES[i]) safe('poses', function () { posesInit(entry, r, i); }); store[i] = entry; if (window.__fillThumb) window.__fillThumb(i); return entry; });
     });
     dayP[i].catch(function () { dayP[i] = null; });
     return dayP[i];
@@ -1806,7 +1887,8 @@
   window.__viewer = {
     stage: stage, tod: tod, weather: function () { return wx; },
     testBolt: function () { nextFlash = performance.now(); },   // для проверки: следующая молния — сейчас
-    tilt: function (x, y) { demoStop(); ret = null; targetX = curX = x; targetY = curY = y; },   // e1.43: для снимков — наклон к краю сразу (−1..1)
+    tilt: function (x, y) { demoStop(); ret = null; targetX = curX = x; targetY = curY = y; },
+    pose: function (fi, k, j) { var st = store[fi] && store[fi].poses; if (!st) return false; var A = st.actors[k]; A.prev = A.cur = j; A.mix = 1; A.next = 1e12; st.dirty = true; return true; },   // e1.44: для снимков — актёр k кадра fi в позе j, без смены   // e1.43: для снимков — наклон к краю сразу (−1..1)
     frame: function () { return frameIndex; }, fading: function () { return !!fade; }, entry: function (i) { return store[i]; },
     motionOn: function (i) { return !!mvConf(i) && !(MV[i] && MV[i].fail); },
     mvState: function (i) {   // e1.17: для проверки — какие клипы кадра сейчас в текстурах (день/ночь)
@@ -2532,6 +2614,7 @@
       lastDraw = { fa: fa, fb: fb, mix: mixState, shiftX: shiftX, shiftY: shiftY, zoom: zoom, t: t, tAmb: tAmb };
       safe('weather', function () { stepWeather(now); });
       if (NI) safe('video', function () { mvPlan(fade ? fade.from : frameIndex, fade ? fade.to : null, rm); });
+      if (POSES && !glLost) safe('poses', function () { posesStep(fa, now); if (fb) posesStep(fb, now); });   // e1.44: позы фигур рисунка
       if (!glLost && !(gl.isContextLost && gl.isContextLost())) safe('draw', function () { drawGL(fa, fb, mixState, shiftX, shiftY, zoom, t, tAmb); });
       safe('precip', function () { drawPrecip(now, dt, rm); });
       if (window.Details && window.Details.frame && !detailsBroken) {   // живые детали: тот же цикл, не свой rAF; 30 ошибок подряд — детали выключаются, кадр живёт

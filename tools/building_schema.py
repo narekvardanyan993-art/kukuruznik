@@ -385,7 +385,7 @@ def validate(bdir, b, site):
         nm = f.get('name') if isinstance(f, dict) else None
         w = 'кадр %d%s' % (i + 1, ' (%s)' % nm if isinstance(nm, str) else '')
         fr = c.obj(f, w, required=('name', 'crop', 'flag', 'cloudShadow', 'wind', 'sky', 'sun', 'life', 'hotspots', 'nightLamps', 'nightHalo', 'lamps'),
-                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'figures', 'snowMask', 'sway', 'fx', 'pix', 'spriteSnow', 'tiltK', 'noon'))
+                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'figures', 'snowMask', 'sway', 'fx', 'pix', 'spriteSnow', 'tiltK', 'noon', 'poses'))
         if not fr:
             continue
         if not (isinstance(nm, str) and re.fullmatch(r'[A-Za-z0-9_\-]+', nm)):
@@ -538,6 +538,28 @@ def validate(bdir, b, site):
             c.boolean(fr['sway'], '%s: sway' % w)
         if 'depthRaw' in fr:      # e1.5: карта глубины кадра без растяжки контраста (значения файла = глубина в шейдере)
             c.boolean(fr['depthRaw'], '%s: depthRaw' % w)
+        if 'poses' in fr:         # e1.44: позы фигур рисунка {layer, actors:[{rect, srcs, every, fade, night, order}]}
+            po = c.obj(fr['poses'], '%s: poses' % w, required=('actors',), optional=('layer',))
+            if po:
+                if po.get('layer', 'bld') not in ('bld', 'bg'):
+                    c.err('%s: poses.layer' % w, 'bld или bg')
+                acts = po.get('actors')
+                if not isinstance(acts, list) or not acts:
+                    c.err('%s: poses.actors' % w, 'непустой список актёров')
+                else:
+                    for j, a in enumerate(acts):
+                        wa = '%s: poses.actors[%d]' % (w, j + 1)
+                        ao = c.obj(a, wa, required=('rect', 'srcs'), optional=('every', 'fade', 'night', 'order', 'note'))
+                        if not ao:
+                            continue
+                        if c.numbers(ao['rect'], wa + '.rect', 4, 0, 1) and not (ao['rect'][0] < ao['rect'][2] and ao['rect'][1] < ao['rect'][3]):
+                            c.err(wa + '.rect', '[u0, v0, u1, v1]: u0 < u1, v0 < v1')
+                        if not (isinstance(ao['srcs'], list) and ao['srcs'] and all(s is None or (isinstance(s, str) and s.startswith('show_') and s.endswith('.png')) for s in ao['srcs'])):
+                            c.err(wa + '.srcs', 'список картинок show_*.png (null — поза самого рисунка)')
+                        if 'every' in ao:
+                            c.numbers(ao['every'], wa + '.every', 2, 0.1, 60)
+                        if 'fade' in ao:
+                            c.number(ao['fade'], wa + '.fade', 0, 5)
         if 'tiltK' in fr:         # e1.43: сила наклона кадра (1 — как у всех; E/F Погос-Петроса 0,2 — почти плоско, без «резины»)
             c.number(fr['tiltK'], '%s: tiltK' % w, 0.1, 1.5)
         if 'noon' in fr:          # e1.43: доля полуденной обработки кадра (look.noon), 0..1
