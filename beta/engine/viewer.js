@@ -323,6 +323,9 @@
   // не сдвигается никогда — он виден как есть или закрыт кроной (ближнее кроны — по глубине — крона не закрывает).
   // Сдвиг A мягко ограничен swayMaxPx (px кадра). Без настройки — прежний ветер e1.25, шейдер Кукурузника прежний.
   var SWAY = !!(GUSTS && GUSTS.swayMaxPx > 0 && FRAMES.some(function (f) { return f.sway; }));
+  // e1.46 SWAY_SOFT (tuning, Погос-Петрос): поле качания = мягкая маска кроны (R) + высота (B) + фаза (A). Пиксель берёт цвет из p − A·маска:
+  // крона сдвигается целиком, край маски мягкий (сдвиг → 0), фон вне маски не двигается и не тянется. Без настройки — режим e1.26 (Ленин).
+  var SWAY_SOFT = SWAY && !!CONFIG.SWAY_SOFT;
   var EH = (FH + 1) >> 1;   // строк в одном этаже карты окружения (она вдвое мельче кадра)
   // e1.22 FIGURES (s18): мелкие фигуры рисунка (люди, игроки в нарды, голуби, шарик, листья, трава) чуть движутся на месте — не спрайты,
   // а сдвиг выборки самой картинки внутри мягкой маски фигуры (prep.js кладёт маску в альфу карты окружения там, где нет дерева).
@@ -551,7 +554,7 @@
       '      if (s < -3.0 || s > L + 3.0 || abs(n) > w + 3.0) continue;',
       '      float m = (1.0 - smoothstep(w - 3.0, w + 2.0, abs(n))) * smoothstep(-3.0, 6.0, s) * (1.0 - smoothstep(L - 6.0, L + 3.0, s)) * pixKey(K.y, K.z, K.w, c);',
       '      if (m < 0.002) continue;',
-      '      float ph = s - P.z * t;',
+      '      float ph = s - P.z * (t + (show.x > 5.5 && show.x < 6.5 ? 1.6 * show.y : 0.0));',   // e1.47: в грозу ручей бежит быстрее
       '      off += (nr * (0.8 * sin(ph * 0.23 + n * 0.31) + 0.35 * sin(ph * 0.61 - n * 0.9)) + dr * 0.7 * sin(ph * 0.11 + 1.7)) * P.w * m;',
       '      gain *= 1.0 + 0.32 * m * smoothstep(0.50, 0.80, lum) * (sin(ph * 0.17 + 2.0 * sin(n * 0.45 + s * 0.04)) * 0.5 + 0.2);',   // блики рисунка бегут по течению
       '      continue;',
@@ -587,8 +590,8 @@
       // P.x сила, P.y частота, P.z ячейка px (своя фаза у каждого огня), P.w — доля медленного «дыхания». Ничего не рисуется — меняется яркость пикселей.
       '    if (K.x > 8.5) {',
       '      float mn = inb * pixKey(3.0, K.z, K.w, cn0); if (mn < 0.002) continue;',
-      '      float h = h21(floor(qp / P.z)), ph = h * 6.2832;',
-      '      float fl = 0.55 * sin(t * P.y * 6.1 + ph) + 0.30 * sin(t * P.y * 10.3 + ph * 2.3) + 0.15 * sin(t * P.y * 17.9 + ph * 4.1);',
+      '      float ph = wxNoise(qp / (P.z * 3.0)) * 6.2832, ph2 = wxNoise(qp / (P.z * 2.0) + 31.7) * 6.2832;',   // e1.46: фаза — плавный шум, без клеток («квадраты» света ночью, iPhone e1.45)
+      '      float fl = 0.55 * sin(t * P.y * 6.1 + ph) + 0.30 * sin(t * P.y * 10.3 + ph2) + 0.15 * sin(t * P.y * 17.9 + ph + ph2);',
       '      ngn *= 1.0 + mn * P.x * mix(fl, sin(t * 0.9 + ph), P.w);',
       '      continue;',
       '    }',
@@ -608,7 +611,7 @@
       '      off += P.x * m * vec2(sin(a1), cos(a2));',
       '      gain *= 1.0 + P.w * m * smoothstep(0.55, 0.85, lum) * sin(a1 * 1.3 + a2);',
       '    } else {',   // glow: дыхание P.x, период P.y с, ячейка P.z px (своя фаза у каждого окна), ночью ярче на P.w
-      '      float h = h21(floor(qp / P.z));',
+      '      float h = wxNoise(qp / (P.z * 2.0));',   // e1.46: плавно, без клеток
       '      gain *= 1.0 + m * (P.x * (0.5 + 0.5 * sin(6.2832 * (t / (P.y * (0.8 + 0.4 * h)) + h))) + P.w * uNightGnd);',
       '    }',
       '  }',
@@ -636,6 +639,8 @@
       '  } else if (show.x > 3.5 && show.x < 4.5) {',   // e1.41 doorlight (D): чуть темнеет к вечеру, свет свечей из двери заливает снег
       '    c *= 1.0 - 0.32 * e * smoothstep(0.03, 0.35, k) * (1.0 - smoothstep(0.85, 1.0, k));',
       '    c *= 1.0 + vec3(1.05, 0.58, 0.18) * wl * 1.9;',
+      '  } else if (show.x > 5.5 && show.x < 6.5) {',   // e1.47 storm (C): сцена в тон грозового рисунка Gemini (сам рисунок — картинкой шоу поверх, ручей виден в её «окне»)
+      '    c = mix(c, c * vec3(0.50, 0.56, 0.70), e);',
       '  } else if (show.x > 4.5 && show.x < 5.5) {',   // e1.43 cinema (F): кадр темнеет и выцветает (виньетка как в кино), призрак — картинкой Gemini; на выходе цвет возвращается
       '    c = mix(c, vec3(lum) * vec3(0.95, 1.0, 1.07), 0.85 * e);',
       '    vec2 vq = q - 0.5;',
@@ -673,7 +678,12 @@
     '  vec4 env = texture2D(depth, p);' +                     // r глубина, g небо, b высота дерева, a фаза дерева
       (FN > 0 ? '\n  if (env.b < 0.008 && env.a > 0.004) p -= figWarp(slot, p, env.a);' : ''),   // e1.22: фигура рисунка (маска в альфе, где нет дерева)
     // ветер: чем выше точка дерева, тем сильнее сдвиг; корень неподвижен; у каждого дерева своя фаза и период 5–7 с
-    SWAY ? [   // e1.26: крона тянется по ветру, наветренный край стоит, фон не двигается (см. SWAY выше)
+    SWAY_SOFT ? [   // e1.46: сдвиг только внутри мягкой маски кроны (см. SWAY_SOFT)
+      '  if (uWindOn > 0.5) {',
+      '    vec4 s0 = swayF(depth, p);',
+      '    if (s0.r > 0.004) { p.x -= swayA(s0, p.x) * s0.r; env = envT(depth, p); }',
+      '  }'
+    ].join('\n') : SWAY ? [   // e1.26: крона тянется по ветру, наветренный край стоит, фон не двигается (см. SWAY выше)
       '  if (uWindOn > 0.5) {',
       '    vec4 s0 = swayF(depth, p);',
       '    if (s0.b > 0.002) {',
@@ -1115,7 +1125,7 @@
   function poseRnd(a, b) { return a + Math.random() * (b - a); }
   function posesStep(f, now) {
     var st = f && f.poses; if (!st) return;
-    var t = now / 1000, still = reduced(), nk = tod.night > 0.5 ? 1 : 0, busy = false;
+    var t = now / 1000, still = reduced(), nk = Math.round(sstep(0.06, 0.4, tod.night) * 20) / 20, busy = false;   // e1.46: позы гаснут к ночи плавно (все актёры): ночью — только ночной рисунок
     if (nk !== st.nightK) { st.nightK = nk; st.dirty = true; }
     st.actors.forEach(function (A) {
       var c = A.cfg, n = (c.srcs || []).length, ev = c.every || [3, 6], fd = c.fade == null ? 0.6 : c.fade;
@@ -1135,7 +1145,7 @@
     var acc = new Float32Array(n * 4);
     for (i = 0; i < n; i++) { acc[i * 4] = b[i * 4]; acc[i * 4 + 1] = b[i * 4 + 1]; acc[i * 4 + 2] = b[i * 4 + 2]; acc[i * 4 + 3] = b[i * 4 + 3]; }
     st.actors.forEach(function (A) {
-      var c = A.cfg, vis = c.night === false ? 1 - st.nightK : 1; if (vis <= 0) return;
+      var c = A.cfg, vis = 1 - st.nightK; if (vis <= 0) return;   // e1.46: и старик/пара — дневные пиксели поверх ночи давали шов
       var layers = [[A.cur, A.prev !== A.cur ? A.mix : 1]];
       if (A.prev !== A.cur && A.mix < 1) layers.unshift([A.prev, 1]);   // уходящая поза снизу, новая проявляется поверх
       var bx = A.box, bw = bx[2] - bx[0];
