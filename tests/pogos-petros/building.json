@@ -413,21 +413,23 @@
         "actors": [
           {
             "rect": [
-              0.34,
-              0.7,
-              0.47,
-              0.785
+              0.3,
+              0.69,
+              0.52,
+              0.8
             ],
             "srcs": [
-              "show_pose_a_man1.png",
-              "show_pose_a_man2.png"
+              "show_pose_a_old1.png",
+              "show_pose_a_old2.png",
+              "show_pose_a_old3.png"
             ],
             "every": [
-              2.5,
-              5
+              1.5,
+              3.0
             ],
-            "fade": 0.5,
-            "note": "старик кормит голубей: рука бросает крошки ↔ берёт крошки (Gemini Flash d4tfho / afqo28)"
+            "fade": 0.35,
+            "order": "cycle",
+            "note": "старик кормит голубей: рука у кармана → достаёт крошки → бросает, рука вытянута (Gemini Flash, заход 12)"
           },
           {
             "rect": [
@@ -512,6 +514,43 @@
         ],
         "speed": 0.085,
         "wind": 0.22
+      },
+      "leafFly": {
+        "srcs": [
+          "show_leaf_1.png",
+          "show_leaf_2.png",
+          "show_leaf_3.png",
+          "show_leaf_4.png",
+          "show_leaf_5.png",
+          "show_leaf_6.png",
+          "show_leaf_7.png",
+          "show_leaf_8.png"
+        ],
+        "from": [
+          [
+            0.84,
+            0.56,
+            0.99,
+            0.74
+          ],
+          [
+            -0.06,
+            0.45,
+            -0.01,
+            0.85
+          ]
+        ],
+        "n": [
+          2,
+          7
+        ],
+        "h": [
+          0.015,
+          0.024
+        ],
+        "drift": 0.16,
+        "fall": 0.035,
+        "note": "в порыв ветра листья (лист Gemini) срываются с кроны и из-за левого края, летят по ветру, кружатся, уходят за край; днём, без снега"
       }
     },
     {
@@ -637,6 +676,66 @@
         ],
         "speed": 0.085,
         "wind": 0.22
+      },
+      "leafFly": {
+        "srcs": [
+          "show_leaf_1.png",
+          "show_leaf_2.png",
+          "show_leaf_3.png",
+          "show_leaf_4.png",
+          "show_leaf_5.png",
+          "show_leaf_6.png",
+          "show_leaf_7.png",
+          "show_leaf_8.png"
+        ],
+        "from": [
+          [
+            0.0,
+            0.47,
+            0.14,
+            0.7
+          ],
+          [
+            -0.06,
+            0.45,
+            -0.01,
+            0.85
+          ]
+        ],
+        "n": [
+          2,
+          7
+        ],
+        "h": [
+          0.015,
+          0.024
+        ],
+        "drift": 0.16,
+        "fall": 0.035,
+        "note": "в порыв ветра листья (лист Gemini) срываются с кроны и из-за левого края, летят по ветру, кружатся, уходят за край; днём, без снега"
+      },
+      "poses": {
+        "layer": "bld",
+        "actors": [
+          {
+            "rect": [
+              0.4557,
+              0.7414,
+              0.6536,
+              0.8059
+            ],
+            "srcs": [
+              null,
+              "show_pose_b_dog1.png"
+            ],
+            "every": [
+              1.8,
+              4.0
+            ],
+            "fade": 0.3,
+            "note": "собака у стены: спит ↔ подняла голову ↔ виляет хвостом (Gemini Pro + Flash, заход 12); ночью спит — в ночном рисунке"
+          }
+        ]
       }
     },
     {
@@ -693,69 +792,143 @@
       "sway": true,
       "nightWins": false,
       "fx": {
-        "tod": [
-          [
-            0,
-            0
-          ],
-          [
-            1,
-            0
-          ],
-          [
-            5,
-            1
-          ],
-          [
-            9,
-            2.1667
-          ]
-        ],
+        "dur": 22,
         "items": [
           {
-            "kind": "moon",
-            "src": "show_moon_1.png",
-            "from": [
-              0.45,
-              0.565
-            ],
-            "to": [
-              0.44,
-              0.35
-            ],
-            "h": 0.042,
+            "kind": "storm",
             "t": [
-              6,
-              16
+              0.5,
+              21
             ],
             "fade": [
               3,
-              1.6
+              4
             ],
-            "refl": {
-              "poly": [
-                [
-                  0.3,
-                  0.8
-                ],
-                [
-                  0.345,
-                  0.8
-                ],
-                [
-                  0.645,
-                  0.975
-                ],
-                [
-                  0.575,
-                  0.995
-                ]
+            "note": "сцена в тон грозы, ручей бежит быстрее (виден в окне картинки)"
+          },
+          {
+            "kind": "image",
+            "src": "show_storm_c.webp",
+            "alpha": 1.0,
+            "steady": true,
+            "ease": true,
+            "hole": "show_storm_c_hole.png",
+            "t": [
+              0.5,
+              21
+            ],
+            "fade": [
+              3,
+              4
+            ],
+            "note": "грозовой рисунок Gemini Pro (p0g34y), совмещён с кадром"
+          },
+          {
+            "kind": "image",
+            "src": "show_flash_c.webp",
+            "alpha": 1.0,
+            "steady": true,
+            "t": [
+              6.0,
+              6.55
+            ],
+            "fade": [
+              0.06,
+              0.4
+            ],
+            "note": "вспышка молнии (Gemini Pro 9znfht)"
+          },
+          {
+            "kind": "image",
+            "src": "show_flash_c.webp",
+            "alpha": 0.75,
+            "steady": true,
+            "t": [
+              6.75,
+              7.1
+            ],
+            "fade": [
+              0.05,
+              0.28
+            ]
+          },
+          {
+            "kind": "image",
+            "src": "show_flash_c.webp",
+            "alpha": 1.0,
+            "steady": true,
+            "t": [
+              11.2,
+              11.8
+            ],
+            "fade": [
+              0.06,
+              0.45
+            ]
+          },
+          {
+            "kind": "image",
+            "src": "show_flash_c.webp",
+            "alpha": 0.9,
+            "steady": true,
+            "t": [
+              15.6,
+              16.1
+            ],
+            "fade": [
+              0.05,
+              0.35
+            ]
+          },
+          {
+            "kind": "flakes",
+            "srcs": [
+              "show_rain_1.png",
+              "show_rain_2.png",
+              "show_rain_3.png",
+              "show_rain_4.png",
+              "show_rain_5.png",
+              "show_rain_6.png",
+              "show_rain_7.png",
+              "show_rain_8.png"
+            ],
+            "area": [
+              0,
+              0,
+              1,
+              1
+            ],
+            "n": 70,
+            "h": [
+              0.05,
+              0.09
+            ],
+            "speed": 0.9,
+            "angle": -0.27,
+            "wind": 0.5,
+            "t": [
+              3.5,
+              19.5
+            ],
+            "dens": [
+              [
+                0,
+                0
               ],
-              "v0": 0.895,
-              "du": 0.06,
-              "dv": 0.06,
-              "alpha": 0.55
-            }
+              [
+                0.15,
+                1
+              ],
+              [
+                0.85,
+                1
+              ],
+              [
+                1,
+                0
+              ]
+            ],
+            "note": "дождь — струи Gemini, косо, ветер сносит"
           }
         ]
       },
@@ -823,6 +996,43 @@
         ],
         "speed": 0.085,
         "wind": 0.22
+      },
+      "leafFly": {
+        "srcs": [
+          "show_leaf_1.png",
+          "show_leaf_2.png",
+          "show_leaf_3.png",
+          "show_leaf_4.png",
+          "show_leaf_5.png",
+          "show_leaf_6.png",
+          "show_leaf_7.png",
+          "show_leaf_8.png"
+        ],
+        "from": [
+          [
+            0.0,
+            0.49,
+            0.25,
+            0.7
+          ],
+          [
+            -0.06,
+            0.45,
+            -0.01,
+            0.85
+          ]
+        ],
+        "n": [
+          2,
+          7
+        ],
+        "h": [
+          0.015,
+          0.024
+        ],
+        "drift": 0.16,
+        "fall": 0.035,
+        "note": "в порыв ветра листья (лист Gemini) срываются с кроны и из-за левого края, летят по ветру, кружатся, уходят за край; днём, без снега"
       }
     },
     {

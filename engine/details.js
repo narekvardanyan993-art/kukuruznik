@@ -1617,6 +1617,12 @@
     if (fxImg[key]) return fxImg[key].ok ? fxImg[key].im : null;
     var im = new Image(); fxImg[key] = { im: im, ok: false }; im.onload = function () { fxImg[key].ok = true; }; im.src = key; return null;
   }
+  function fxInteg(tt, len, fd) {   // e1.47: ∫ проявления шоу (вход fd[0], выход fd[1]) от 0 до tt, с
+    var f0 = Math.max(fd[0], 1e-3), f1 = Math.max(fd[1], 1e-3);
+    if (tt < f0) return tt * tt / (2 * f0);
+    if (tt < len - f1) return tt - f0 / 2;
+    var r = Math.max(0, len - tt); return len - f0 / 2 - f1 / 2 - r * r / (2 * f1);
+  }
   function fxR(i, k) { var x = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return x - Math.floor(x); }   // детерминированный «случайный» 0..1
   function fxBell(it, tt, len, a, col, nn) {
     var p = P(it.at[0], it.at[1], 0), L = (it.size || 0.04) * UNIT, per = it.period || 1.6;
@@ -1730,15 +1736,17 @@
       var bx = blendLayer(it.blend); bx.save(); bx.globalAlpha = clamp(ae * (it.alpha == null ? 1 : it.alpha), 0, 1);
       bx.drawImage(im, a0[0], a0[1], a1[0] - a0[0], a1[1] - a0[1]); bx.restore(); return;
     }
-    var nn = wts().n;
-    if (nn > 0.02) {   // e1.46: ночью картинка шоу (призрак) — в тон ночи: тот же рисунок, холоднее и темнее (source-atop на своём холсте)
+    var nn = wts().n, hl = it.hole ? spImg(par.fr, it.hole) : null; if (it.hole && !hl) return;
+    if (nn > 0.02 || hl) {   // e1.46: ночью картинка шоу (призрак) — в тон ночи: тот же рисунок, холоднее и темнее (source-atop на своём холсте)
       var tw = Math.max(1, Math.round(a1[0] - a0[0])), th = Math.max(1, Math.round(a1[1] - a0[1]));
       if (!fxNightC) fxNightC = document.createElement('canvas');
       if (fxNightC.width !== tw || fxNightC.height !== th) { fxNightC.width = tw; fxNightC.height = th; }
       var nx = fxNightC.getContext('2d'); nx.globalCompositeOperation = 'source-over'; nx.clearRect(0, 0, tw, th); nx.drawImage(im, 0, 0, tw, th);
-      nx.globalCompositeOperation = 'source-atop'; nx.fillStyle = 'rgba(28,38,72,' + (0.62 * nn).toFixed(3) + ')'; nx.fillRect(0, 0, tw, th); im = fxNightC;
+      if (nn > 0.02) { nx.globalCompositeOperation = 'source-atop'; nx.fillStyle = 'rgba(28,38,72,' + (0.62 * nn).toFixed(3) + ')'; nx.fillRect(0, 0, tw, th); }
+      if (hl) { nx.globalCompositeOperation = 'destination-out'; nx.drawImage(hl, 0, 0, tw, th); }   // e1.47 hole: окно в картинке шоу — там живая сцена
+      nx.globalCompositeOperation = 'source-over'; im = fxNightC;
     }
-    ctx.save(); ctx.globalAlpha = clamp(ae * (it.alpha || 0.8) * (0.9 + 0.1 * Math.sin(tt * 2.1)) * (1 - 0.25 * nn), 0, 1);
+    ctx.save(); ctx.globalAlpha = clamp(ae * (it.alpha || 0.8) * (it.steady ? 1 : 0.9 + 0.1 * Math.sin(tt * 2.1)) * (1 - 0.25 * nn), 0, 1);   // e1.47 steady — без «дыхания»
     ctx.drawImage(im, a0[0], a0[1], a1[0] - a0[0], a1[1] - a0[1]);
     if (it.glow) { ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = clamp(ae * it.glow, 0, 1); ctx.drawImage(im, a0[0], a0[1], a1[0] - a0[0], a1[1] - a0[1]); }   // e1.43: призрак «ярко проявляется» — тот же рисунок вторым слоем «экраном» (светлее, без новых пикселей)
     ctx.restore();
@@ -1839,6 +1847,46 @@
     ctx.save(); ctx.globalAlpha = al; spDraw(im, p[0], p[1], hp, 0, false); ctx.restore();
   }
   var flk = {};
+  // e1.47 leafFly (Погос-Петрос A/B/C): {srcs — листья Gemini (show_leaf_*.png), from:[[u0,v0,u1,v1]…] кроны, n:[тихо, буря] листьев на порыв, h:[мин,макс] доля
+  //   высоты кадра, drift доля ширины/с в порыв, fall доля высоты/с}. Начало порыва (wx.gRise) — гроздь листьев срывается с крон, летит по ветру
+  //   (слева направо), кружится (поворот + «переворот» сжатием по ширине), уходит за край. Только днём, без снега и не во время шоу кадра.
+  var lfS = {};
+  function leafStep(fr, f, it, now) {
+    var wq = V.weather ? V.weather() : null, S = lfS[fr] || (lfS[fr] = { L: [], rise: 0, last: now }); if (!wq) return;
+    var dt = Math.min(0.1, Math.max(0, (now - S.last) / 1000)); S.last = now;
+    var ims = (it.srcs || []).map(function (s) { return spImg(fr, s); }); if (!ims.some(Boolean)) return;
+    var ok = wts().n < 0.35 && !(wq.cur && wq.cur[3] > 0.02) && !(par && par.fr === fr);
+    if (wq.gRise && wq.gRise !== S.rise) {
+      S.rise = wq.gRise;
+      if (ok) {
+        var nr = it.n || [2, 6], lv = clamp(((wq.gLevel || 0.6) - 0.6) / 0.4, 0, 1), k = Math.round(lerp(nr[0], nr[1], lv) * (0.7 + 0.6 * Math.random()));
+        for (var j = 0; j < k && S.L.length < 24; j++) {
+          var B = it.from[Math.floor(Math.random() * it.from.length)], hh = it.h || [0.012, 0.02];
+          S.L.push({ u: lerp(B[0], B[2], Math.random()), v: lerp(B[1], B[3], Math.random()), vu: 0, vv: 0, t0: now + j * (120 + Math.random() * 380),
+            im: Math.floor(Math.random() * ims.length), h: lerp(hh[0], hh[1], Math.random()), rot: Math.random() * 6.28, spin: (Math.random() < 0.5 ? -1 : 1) * (1.5 + 3 * Math.random()),
+            fl: 2.5 + 3 * Math.random(), ph: Math.random() * 6.28 });
+        }
+      }
+    }
+    if (!S.L.length) return;
+    var fh = Math.abs(P(0, 1, 0)[1] - P(0, 0, 0)[1]), wE = (wq.windEff || wq.wind || 1), g = wq.gust || 0;
+    ctx.save();
+    for (var i = S.L.length - 1; i >= 0; i--) {
+      var L = S.L[i]; if (now < L.t0) continue;
+      var t = (now - L.t0) / 1000;
+      L.vu += ((it.drift || 0.14) * (0.35 + 1.1 * g) * wE - L.vu) * Math.min(1, dt * 1.6);
+      L.vv += ((it.fall || 0.03) * (1 - 0.6 * g) - L.vv) * Math.min(1, dt * 0.9);
+      L.u += (L.vu + 0.025 * Math.sin(t * 2.3 + L.ph)) * dt; L.v += (L.vv + 0.02 * Math.cos(t * L.fl + L.ph)) * dt;
+      if (L.u > 1.08 || L.u < -0.08 || L.v > 1.04 || t > 14) { S.L.splice(i, 1); continue; }
+      var im = ims[L.im] || ims.find(Boolean); if (!im) continue;
+      var p = P(L.u, L.v, 0), hp = L.h * fh, a = clamp(t / 0.25, 0, 1) * (ok ? 1 : clamp(1 - (now - (S.off || now)) / 600, 0, 1)) * nightK();
+      ctx.globalAlpha = clamp(a, 0, 1);
+      ctx.save(); ctx.translate(p[0], p[1]); ctx.rotate(L.rot + L.spin * t); ctx.scale(0.25 + 0.75 * Math.abs(Math.cos(t * L.fl * 0.7 + L.ph)), 1);
+      var wp = hp * im.width / im.height; ctx.drawImage(im, -wp / 2, -hp / 2, wp, hp); ctx.restore();
+    }
+    if (!ok && !S.off) S.off = now; if (ok) S.off = 0;
+    ctx.restore();
+  }
   var flkSt = {};   // e1.46: какие снежинки идут в этом круге падения (решается наверху — снежинка не возникает посреди экрана)
   function flakesDraw(fr, f, it, now, dens, key) {
     var ims = (it.srcs || []).map(function (s) { return spImg(fr, s); }).filter(Boolean); if (!ims.length) return;
@@ -1854,7 +1902,7 @@
       if (!S.on[i]) continue;
       var x = a0[0] + Wpx * (((r3 + 0.04 * Math.sin(t * (0.6 + r2) + i * 2.1) + wd * ph * z) % 1 + 1) % 1), y = a0[1] + Hpx * ph;   // e1.46: ветер сносит вбок
       ctx.globalAlpha = clamp(Math.min(ph / 0.08, (1 - ph) / 0.12, 1) * (0.75 + 0.25 * r1) * nightK(), 0, 1);
-      spDraw(ims[i % ims.length], x, y, sz * fh, t * (0.6 + r3) * (r1 < 0.5 ? 1 : -1), false);
+      spDraw(ims[i % ims.length], x, y, sz * fh, it.angle != null ? it.angle : t * (0.6 + r3) * (r1 < 0.5 ? 1 : -1), false);   // e1.47 angle: струи дождя — косо, без вращения
     }
     ctx.restore();
   }
@@ -1870,13 +1918,13 @@
     par.shade = null;
     (X.items || []).forEach(function (it, j) {
       if (it.kind === 'image' && !it.rect) fxImage(it.src);   // грузим заранее, с первого кадра показа
-      [it.src, it.mask, it.dark, it.fire, it.glow].concat(it.frames || [], it.srcs || [], it.poses || []).forEach(function (s) { if (s && (it.kind !== 'image' || it.rect)) spImg(par.fr, s); });   // e1.41: картинки шоу — заранее
+      [it.src, it.mask, it.dark, it.fire, it.glow, it.hole].concat(it.frames || [], it.srcs || [], it.poses || []).forEach(function (s) { if (s && (it.kind !== 'image' || it.rect)) spImg(par.fr, s); });   // e1.41: картинки шоу — заранее
       var tw = it.t || [0, D], tt = t - tw[0], len = tw[1] - tw[0], fd = it.fade || [0.6, 0.9];
       if (tt < 0 || tt > len) return;
       var a = clamp(Math.min(tt / fd[0], (len - tt) / fd[1]), 0, 1) * (1 - kill);
       if (a <= 0) return;
-      var SHK = { sunset: 1, candles: 2, dusk: 3, doorlight: 4, cinema: 5 };   // e1.43 cinema (F): кадр темнеет и выцветает, призрак проявляется, цвет возвращается   // e1.40–e1.41: шоу-обработка пикселей сцены в шейдере (viewer.js showGrade)
-      if (SHK[it.kind]) par.shade = { fr: par.fr, kind: SHK[it.kind], t: tt, len: len, a: a };
+      var SHK = { sunset: 1, candles: 2, dusk: 3, doorlight: 4, cinema: 5, storm: 6 };   // e1.47 storm (C): тон сцены + быстрый ручей   // e1.43 cinema (F): кадр темнеет и выцветает, призрак проявляется, цвет возвращается   // e1.40–e1.41: шоу-обработка пикселей сцены в шейдере (viewer.js showGrade)
+      if (SHK[it.kind]) par.shade = { fr: par.fr, kind: SHK[it.kind], t: it.kind === 'storm' ? fxInteg(tt, len, fd) : tt, len: len, a: a };   // e1.47: storm — t = интеграл проявления (ручей ускоряется и замедляется без скачка)
       else if (it.kind === 'swing') fxSwing(it, tt, len, a);
       else if (it.kind === 'flock') fxFlock(it, tt, len, a);
       else if (it.kind === 'moon') fxMoon(it, tt, len, a);
@@ -1978,6 +2026,7 @@
       if (mvOn && MV.hideLife !== false) AM = MV._A || (MV._A = { flocks: AM.flocks, details: AM.details, occluders: AM.occluders, lightBirds: AM.lightBirds });
       drawAmbientLife(now, w, f, AM);
     }
+    if (SC(fr).leafFly) leafStep(fr, f, SC(fr).leafFly, now);   // e1.47: в порыв ветра листья (рисунки Gemini) срываются с крон и улетают
     if (SC(fr).snowFall && V.weather) { var wq0 = V.weather(), sk0 = wq0 && wq0.cur ? wq0.cur[3] : 0; if (sk0 > 0.005 || flkSt['fall' + fr]) flakesDraw(fr, f, SC(fr).snowFall, now, sk0, 'fall'); }   // e1.46: погода «снег» — падают снежинки Gemini (кадры со snowFall)
     if (SC(fr).spriteSnow && !(par && par.fr === fr && (SC(fr).fx || {}).items && SC(fr).fx.items.some(function (q) { return q.kind === 'flakes'; }))) flakesDraw(fr, f, SC(fr).spriteSnow, now, 1, 'amb');   // e1.41: редкий снег картинками Gemini (всегда; в шоу — шоу)
     for (var i = active.length - 1; i >= 0; i--) {

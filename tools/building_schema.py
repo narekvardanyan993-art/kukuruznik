@@ -385,7 +385,7 @@ def validate(bdir, b, site):
         nm = f.get('name') if isinstance(f, dict) else None
         w = 'кадр %d%s' % (i + 1, ' (%s)' % nm if isinstance(nm, str) else '')
         fr = c.obj(f, w, required=('name', 'crop', 'flag', 'cloudShadow', 'wind', 'sky', 'sun', 'life', 'hotspots', 'nightLamps', 'nightHalo', 'lamps'),
-                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'figures', 'snowMask', 'sway', 'fx', 'pix', 'spriteSnow', 'tiltK', 'noon', 'poses', 'snowFall'))
+                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'figures', 'snowMask', 'sway', 'fx', 'pix', 'spriteSnow', 'tiltK', 'noon', 'poses', 'snowFall', 'leafFly'))
         if not fr:
             continue
         if not (isinstance(nm, str) and re.fullmatch(r'[A-Za-z0-9_\-]+', nm)):
@@ -560,6 +560,15 @@ def validate(bdir, b, site):
                             c.numbers(ao['every'], wa + '.every', 2, 0.1, 60)
                         if 'fade' in ao:
                             c.number(ao['fade'], wa + '.fade', 0, 5)
+        if 'leafFly' in fr:       # e1.47: листья на ветру (рисунки Gemini) {srcs, from:[[u0,v0,u1,v1]…], n:[тихо,буря], h, drift, fall}
+            lf = c.obj(fr['leafFly'], '%s: leafFly' % w, required=('srcs', 'from'), optional=('n', 'h', 'drift', 'fall', 'note'))
+            if lf:
+                if not (isinstance(lf['srcs'], list) and lf['srcs'] and all(isinstance(x, str) and x.startswith('show_') and x.endswith('.png') for x in lf['srcs'])):
+                    c.err('%s: leafFly.srcs' % w, 'список картинок show_*.png')
+                if not (isinstance(lf['from'], list) and lf['from'] and all(isinstance(q, list) and len(q) == 4 and all(is_num(x) and -0.2 <= x <= 1.2 for x in q) for q in lf['from'])):
+                    c.err('%s: leafFly.from' % w, 'список рамок [u0, v0, u1, v1] (доли кадра, можно чуть за краем)')
+                if 'n' in lf: c.numbers(lf['n'], '%s: leafFly.n' % w, 2, 0, 24)
+                if 'h' in lf: c.numbers(lf['h'], '%s: leafFly.h' % w, 2, 0.002, 0.08)
         if 'snowFall' in fr:      # e1.46: снегопад картинками Gemini при погоде «снег» {srcs, area, n, h:[мин,макс], speed, wind}
             sf = c.obj(fr['snowFall'], '%s: snowFall' % w, required=('srcs',), optional=('area', 'n', 'h', 'speed', 'wind'))
             if sf:
