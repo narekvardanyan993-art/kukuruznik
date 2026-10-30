@@ -197,6 +197,8 @@ def make_config(b, frames_url, stamp=None):
         C['TILT_K'] = [f.get('tiltK', 1) for f in fr]
     if look.get('noon'):   # e1.43: нейтральный дневной свет (только если задан у здания)
         C['NOON'] = dict(look['noon'], K=[f.get('noon', 1) for f in fr])
+    if any(f.get('wx') for f in fr):   # e1.48: погода кадра [пасмурно, туман, мокро, снег на земле, частицы] (только если задана у кадров)
+        C['WX_FRAME'] = [list((f.get('wx') or {}).get('k', [1, 1, 1, 1])) + [1 if (f.get('wx') or {}).get('particles', True) else 0] for f in fr]
     if any(f.get('pix') for f in fr):   # e1.40: живость из самого рисунка (только если задана у кадров — у остальных зданий CONFIG тот же)
         C['PIX'] = [f.get('pix') or [] for f in fr]
     C.update({

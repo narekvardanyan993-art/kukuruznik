@@ -322,7 +322,9 @@
   // уходит на A и накрывает фон, влево — наоборот. Точку кроны для пикселя находим итерациями q = p - A·u(q); фон рядом с кроной
   // не сдвигается никогда — он виден как есть или закрыт кроной (ближнее кроны — по глубине — крона не закрывает).
   // Сдвиг A мягко ограничен swayMaxPx (px кадра). Без настройки — прежний ветер e1.25, шейдер Кукурузника прежний.
-  var SWAY = !!(GUSTS && GUSTS.swayMaxPx > 0 && FRAMES.some(function (f) { return f.sway; }));
+  // e1.48 NO_SWAY (tuning, Погос-Петрос заход 13): кроны не качаются совсем — сдвиг выборки размазывал фон (листья Gemini летят, это details.js)
+  var NO_SWAY = !!CONFIG.NO_SWAY;
+  var SWAY = !NO_SWAY && !!(GUSTS && GUSTS.swayMaxPx > 0 && FRAMES.some(function (f) { return f.sway; }));
   // e1.46 SWAY_SOFT (tuning, Погос-Петрос): поле качания = мягкая маска кроны (R) + высота (B) + фаза (A). Пиксель берёт цвет из p − A·маска:
   // крона сдвигается целиком, край маски мягкий (сдвиг → 0), фон вне маски не двигается и не тянется. Без настройки — режим e1.26 (Ленин).
   var SWAY_SOFT = SWAY && !!CONFIG.SWAY_SOFT;
@@ -696,7 +698,7 @@
       '    }',
       '  }'
     ].join('\n') : [
-    '  if (uWindOn > 0.5 && env.b > 0.004) {',
+    '  if (' + (NO_SWAY ? 'false && ' : '') + 'uWindOn > 0.5 && env.b > 0.004) {',   // e1.48 NO_SWAY
     '    float per = 5.0 + 2.0 * fract(env.a * 7.13);',
     GUSTS ? '    p.x += uWindAmp * env.b * sin(uWindG.z * 6.2832 / per + env.a * 19.0) - mix(uWindG.x, uWindG.y, clamp(p.x, 0.0, 1.0)) * env.b * (0.75 + 0.5 * fract(env.a * 3.7));'   // e1.25: качание по фазе порывов + наклон по ветру (порыв приходит слева)
       : '    p.x += uWindAmp * env.b * sin(uTime * 6.2832 / per + env.a * 19.0);',
@@ -1658,7 +1660,8 @@
     gl.uniform1f(US.uAspect, aspect);
     gl.uniform1f(US.uWindAmp, fx.windAmp);
     gl.uniform1f(US.uWindOn, fx.windOn ? 1 : 0);
-    gl.uniform4f(US.uWeather, wx.cur[0], wx.cur[1], wx.cur[2], wx.cover);
+    var wq = wxFrameK(fa, fb, mix);   // e1.48 WX_FRAME: погода кадра (интерьер — без погоды, крупный план — без снега на полу)
+    gl.uniform4f(US.uWeather, wx.cur[0] * wq[0], wx.cur[1] * wq[1], wx.cur[2] * wq[2], wx.cover * wq[3]);
     if (NOON) gl.uniform2f(US.uNoon, NOON.K[fa.idx] == null ? 1 : NOON.K[fa.idx], fb ? (NOON.K[fb.idx] == null ? 1 : NOON.K[fb.idx]) : 0);
     if (SNOWM) gl.uniform2f(US.uSnowM, snowCode(fa, performance.now()), fb ? snowCode(fb, performance.now()) : -1);
     if (GUSTS) gl.uniform3f(US.uWindG, fx.leanA, fx.leanB, wx.windPh);
@@ -2970,15 +2973,26 @@
     });
     return null;
   }
+  // e1.48 WX_FRAME (frames[].wx, Погос-Петрос): [пасмурно, туман, мокро, снег на земле, частицы] — множители погоды кадра; без настройки — 1
+  var WX_ONE = [1, 1, 1, 1, 1];
+  function wxFrameK(fa, fb, m) {
+    var W = CONFIG.WX_FRAME; if (!W) return WX_ONE;
+    var a = W[fa.idx] || WX_ONE, b2 = fb ? (W[fb.idx] || WX_ONE) : a, k = fb ? m : 0;
+    return a.map(function (x, i) { return x + (b2[i] - x) * k; });
+  }
   function drawPrecip(now, dt, rm) {
-    if (CONFIG.DRAWN_ONLY) { leaves.length = 0; if (pc && pc.style.display !== 'none') { pctx.clearRect(0, 0, pc.width, pc.height); pc.style.display = 'none'; } return; }   // e1.39: дождь, снежинки, листья, радуга кодом — нет
-    var rainK = wx.cur[2], snowK = wx.cur[3], leafK = clamp((wx.wind - 1.4) / 1.6, 0, 1) * (1 - snowK);
+    if (CONFIG.DRAWN_ONLY && !CONFIG.WX_PARTICLES) { leaves.length = 0; if (pc && pc.style.display !== 'none') { pctx.clearRect(0, 0, pc.width, pc.height); pc.style.display = 'none'; } return; }   // e1.39: дождь, снежинки, листья, радуга кодом — нет
+    var pkT = CONFIG.WX_FRAME && CONFIG.WX_FRAME[frameIndex] ? CONFIG.WX_FRAME[frameIndex][4] : 1;   // e1.48: частицы кадра (интерьер — нет), плавно 0,4 с
+    wx.pK = wx.pK == null ? pkT : wx.pK + (pkT - wx.pK) * Math.min(1, (rm ? 400 : dt) / 400);
+    var rainK = wx.cur[2] * wx.pK, snowK = wx.cur[3] * wx.pK, leafK = CONFIG.DRAWN_ONLY ? 0 : clamp((wx.wind - 1.4) / 1.6, 0, 1) * (1 - snowK);   // e1.48: DRAWN_ONLY + WX_PARTICLES — только дождь и снег
+    if (CONFIG.DRAWN_ONLY) leaves.length = 0;
     var rbA = 0;   // радуга после дождя: 4 с проявляется, держится, 6 с тает (всего ~30 с); ночью и в тучах — нет
     if (wx.rainbowT0) {
       var ra0 = (now - wx.rainbowT0) / 1000;
       rbA = clamp(ra0 / 5, 0, 1) * clamp((30 - ra0) / 7, 0, 1) * (1 - tod.night) * (1 - wx.cur[0]) * (1 - wx.cur[1]) * (1 - rainK) * (1 - snowK);
       if (ra0 > 30) { wx.rainbowT0 = 0; showWxName(); }
     }
+    if (CONFIG.DRAWN_ONLY) rbA = 0;   // e1.48: радуга кодом — нет
     wx.flash = 0;
     if (rainK < 0.01 && snowK < 0.01 && leafK < 0.01 && rbA < 0.01 && !(GUSTS && leaves.length)) { if (pc && pc.style.display !== 'none') { pctx.clearRect(0, 0, pc.width, pc.height); pc.style.display = 'none'; } return; }
     precipCanvas();
@@ -2995,7 +3009,7 @@
     pctx.clearRect(0, 0, W, H);
     var skyEnd = (CONFIG.DAY.SKY_END[frameIndex] || 0.55) * H;
     // молния: только буря + дождь; короткая двойная вспышка раз в 7–15 с
-    var storm = rainK > 0.5 && windIdx === 2 && tod.night > 0.5 && !rm;   // гроза — ночью: дождь + буря
+    var storm = !CONFIG.DRAWN_ONLY && rainK > 0.5 && windIdx === 2 && tod.night > 0.5 && !rm;   // гроза — ночью: дождь + буря
     if (storm) {
       if (!nextFlash) { nextFlash = now + 1200 + pRng() * 1500; wx.nextSheet = now + 600; }
       if (now >= wx.nextSheet && flash === null) { wx.sheetT0 = now; wx.sheetK = 0.25 + 0.35 * pRng(); wx.nextSheet = now + 1400 + pRng() * 2600; }   // зарница: облака вспыхивают изнутри

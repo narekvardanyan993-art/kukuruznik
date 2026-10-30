@@ -385,7 +385,7 @@ def validate(bdir, b, site):
         nm = f.get('name') if isinstance(f, dict) else None
         w = 'кадр %d%s' % (i + 1, ' (%s)' % nm if isinstance(nm, str) else '')
         fr = c.obj(f, w, required=('name', 'crop', 'flag', 'cloudShadow', 'wind', 'sky', 'sun', 'life', 'hotspots', 'nightLamps', 'nightHalo', 'lamps'),
-                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'figures', 'snowMask', 'sway', 'fx', 'pix', 'spriteSnow', 'tiltK', 'noon', 'poses', 'snowFall', 'leafFly'))
+                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'figures', 'snowMask', 'sway', 'fx', 'pix', 'spriteSnow', 'tiltK', 'noon', 'poses', 'snowFall', 'leafFly', 'wx'))
         if not fr:
             continue
         if not (isinstance(nm, str) and re.fullmatch(r'[A-Za-z0-9_\-]+', nm)):
@@ -724,6 +724,13 @@ def validate(bdir, b, site):
                     c.numbers(cu['banner'], '%s: closeUp.banner' % w, 4, 0, 1)
                     if isinstance(cu['banner'], list) and len(cu['banner']) == 4 and all(isinstance(x, (int, float)) for x in cu['banner']) and cu['banner'][2] <= cu['banner'][1]:
                         c.err('%s: closeUp.banner' % w, 'низ знамени должен быть ниже карниза (третье число больше второго)')
+        if 'wx' in fr:   # e1.48: погода кадра — k: [пасмурно, туман, мокро, снег на земле] множители 0..1, particles: частицы дождя/снега
+            wo = c.obj(fr['wx'], '%s: wx' % w, required=(), optional=('k', 'particles', 'note'))
+            if wo:
+                if 'k' in wo:
+                    c.numbers(wo['k'], '%s: wx.k' % w, 4, 0, 1)
+                if 'particles' in wo:
+                    c.boolean(wo['particles'], '%s: wx.particles' % w)
         hs = fr['hotspots']
         if not isinstance(hs, list):
             c.err('%s: hotspots' % w, 'должен быть список точек-подсказок')

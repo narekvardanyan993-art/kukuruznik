@@ -60,14 +60,79 @@
   },
   "facts": {
     "church": {
-      "hy": "[заглушка] Հին եկեղեցի Երևանի կենտրոնում։",
-      "ru": "[заглушка] Старая церковь в центре Еревана.",
-      "en": "[заглушка] An old church in the centre of Yerevan."
+      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+      "ru": "Старейшая и крупнейшая церковь старого Еревана; основана в V–VI вв. (Википедия, Музей истории Еревана)",
+      "en": "[заглушка] The oldest and largest church of old Yerevan, founded in the 5th–6th c."
+    },
+    "belfry": {
+      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+      "ru": "Трёхъярусную колокольню с ротондой на колоннах пристроили к западному входу позже — «не в стиле» самой базилики (Википедия, Музей истории Еревана)",
+      "en": "[заглушка] The three-tier belfry with a columned rotunda was added to the west entrance later, unlike the basilica itself."
+    },
+    "roof": {
+      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+      "ru": "Бескупольная базилика с двускатной крышей; в XIX в. каменную кровлю перекрыли жестью (Википедия)",
+      "en": "[заглушка] A domeless basilica with a gable roof; in the 19th c. the stone roof was covered with tin."
+    },
+    "rebuilt": {
+      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+      "ru": "Землетрясение 1679 г. разрушило церковь; её отстроили на уцелевшей восточной части — на хачкарах в стенах даты 1691 и 1692 (Википедия)",
+      "en": "[заглушка] The 1679 earthquake ruined the church; it was rebuilt on the surviving east part — khachkars in the walls are dated 1691 and 1692."
+    },
+    "repairs": {
+      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+      "ru": "Надписи о ремонтах 1778 и 1820 гг.; в 1820-м — «на средства благословенного народа этой церкви», на деньги прихожан (Википедия)",
+      "en": "[заглушка] Inscriptions record repairs in 1778 and 1820 — the latter paid for by the parishioners."
+    },
+    "doors": {
+      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+      "ru": "Входы — с юга, запада и севера; у северного, со стороны нынешней Абовяна, позже пристроили арочный притвор (Википедия, Музей истории Еревана)",
+      "en": "[заглушка] Entrances faced south, west and north; an arched porch was later added to the north one."
+    },
+    "shahar": {
+      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+      "ru": "Церковь стояла в старом квартале Шаар, на углу нынешних улиц Абовяна и Туманяна (Википедия, Музей истории Еревана)",
+      "en": "[заглушка] The church stood in the old Shahar quarter, at the corner of today’s Abovyan and Tumanyan streets."
+    },
+    "mosque": {
+      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+      "ru": "Рядом стояла мечеть Залхан (Шаарская): её минарет и колокольня церкви — на одном снимке 1923 г. (pastvu 1445782)",
+      "en": "[заглушка] The Zalkhan (Shahar) mosque stood nearby: its minaret and the belfry appear in one 1923 photo."
+    },
+    "door_bayazet": {
+      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+      "ru": "Двустворчатая железная южная дверь — из крепости Старый Баязет: в 1835 г. её купил и подарил церкви тер Вардан. Сейчас она в Музее истории Еревана (Википедия, Музей истории Еревана)",
+      "en": "[заглушка] The double iron south door came from the Old Bayazet fortress, bought and donated by Ter Vardan in 1835; it is now in the History Museum of Yerevan."
+    },
+    "chapels": {
+      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+      "ru": "У алтаря — два придела, Св. Степаноса и Иоанна Крестителя, оба построены в 1831 г. (Музей истории Еревана)",
+      "en": "[заглушка] Two side chapels by the altar — St. Stepanos and St. John the Baptist — both built in 1831."
+    },
+    "frescoes": {
+      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+      "ru": "При разборке алтаря нашли шесть слоёв росписи разных веков; снос приостановили, реставратор Б. Юкин снял 14,25 м² фресок (Музей истории Еревана)",
+      "en": "[заглушка] Dismantling the altar revealed six layers of murals; demolition was paused and restorer B. Yukin removed 14.25 m² of frescoes."
+    },
+    "frescoes_now": {
+      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+      "ru": "Нижний слой — растительный орнамент, выше — апостолы Пётр и Павел. Фрески — в Национальной галерее и Историческом музее Армении (Википедия, Музей истории Еревана)",
+      "en": "[заглушка] The lowest layer is a plant ornament, above it the apostles Peter and Paul. The frescoes are in the National Gallery and History Museum of Armenia."
     },
     "cinema": {
-      "hy": "[заглушка] Եկեղեցու տեղում կառուցվեց «Մոսկվա» կինոթատրոնը։",
-      "ru": "[заглушка] На месте церкви построили кинотеатр «Москва».",
-      "en": "[заглушка] The Moskva cinema was built on the site of the church."
+      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+      "ru": "На месте церкви — кинотеатр «Москва» (арх. Т. Ерканян и Г. Кочар), открыт 12 декабря 1936 г. фильмом «Пэпо» (Википедия)",
+      "en": "[заглушка] The Moscow Cinema (architects T. Yerkanyan and G. Kochar) stands on the site; it opened on 12 December 1936 with the film “Pepo”."
+    },
+    "tamanyan": {
+      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+      "ru": "Против сноса выступал Александр Таманян (письмо 2 марта 1930 г.: «памятник очень значим, его надо сохранить»); перед сносом здание обмерили (Музей истории Еревана)",
+      "en": "[заглушка] Alexander Tamanyan opposed the demolition (letter of 2 March 1930); the building was measured and documented before it was torn down."
+    },
+    "open_hall": {
+      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+      "ru": "В 2010 г. землю открытого зала «Москвы» решили отдать под новую церковь на месте старой; после протеста (~18 000 подписей) план отменили (Википедия)",
+      "en": "[заглушка] In 2010 the cinema’s open-air hall was to be given for a new church on the old site; after a protest (~18,000 signatures) the plan was dropped."
     }
   },
   "aboutFacts": [
@@ -179,13 +244,13 @@
     "nightEdge": "solid",
     "noon": {
       "wb": [
-        0.95,
+        0.97,
         1.0,
-        1.09
+        1.03
       ],
-      "sat": 0.8,
-      "lift": 0.16,
-      "bright": 1.06,
+      "sat": 1.0,
+      "lift": 0.0,
+      "bright": 1.04,
       "sky": 0.9
     }
   },
@@ -205,6 +270,24 @@
         "wide": 0.2,
         "wideSize": 0.0003,
         "ground": 0.0
+      },
+      "weather": {
+        "overcastGray": 0.2,
+        "overcastDim": 0.08,
+        "overcastShadow": 0.12,
+        "wetDim": 0.07,
+        "rainDay": [
+          46,
+          56,
+          80,
+          0.72
+        ],
+        "rainNight": [
+          190,
+          200,
+          222,
+          0.6
+        ]
       }
     },
     "LAMP_BREATH": 0.03,
@@ -214,7 +297,24 @@
     "CLOUD_FIELD_SPEED": 0.02,
     "DRAWN_ONLY": true,
     "WIND_AMP_PX": 8,
-    "SWAY_SOFT": true
+    "SWAY_SOFT": false,
+    "NO_SWAY": true,
+    "WX_PARTICLES": true,
+    "WEATHER": {
+      "rain": [
+        0.35,
+        0,
+        0.45,
+        0
+      ],
+      "snow": [
+        0.35,
+        0,
+        0,
+        1
+      ]
+    },
+    "RAIN_DROPS": 380
   },
   "frames": [
     {
@@ -242,14 +342,22 @@
       },
       "hotspots": [
         {
+          "key": "belfry",
+          "layer": "building",
+          "u": 0.62,
+          "v": 0.34
+        },
+        {
           "key": "church",
           "layer": "building",
-          "u": 0.6,
-          "v": 0.48,
-          "r": [
-            0.1,
-            0.1
-          ]
+          "u": 0.645,
+          "v": 0.66
+        },
+        {
+          "key": "roof",
+          "layer": "building",
+          "u": 0.3,
+          "v": 0.56
         }
       ],
       "nightLamps": [],
@@ -370,7 +478,6 @@
           }
         ]
       },
-      "sway": true,
       "pix": [
         {
           "kind": "drift",
@@ -490,31 +597,6 @@
           }
         ]
       },
-      "snowFall": {
-        "srcs": [
-          "show_flake_1.png",
-          "show_flake_2.png",
-          "show_flake_3.png",
-          "show_flake_4.png",
-          "show_flake_5.png",
-          "show_flake_6.png",
-          "show_flake_7.png",
-          "show_flake_8.png"
-        ],
-        "area": [
-          0,
-          0,
-          1,
-          0.97
-        ],
-        "n": 44,
-        "h": [
-          0.007,
-          0.015
-        ],
-        "speed": 0.085,
-        "wind": 0.22
-      },
       "leafFly": {
         "srcs": [
           "show_leaf_1.png",
@@ -576,7 +658,26 @@
         ],
         "clouds": 0
       },
-      "hotspots": [],
+      "hotspots": [
+        {
+          "key": "rebuilt",
+          "layer": "building",
+          "u": 0.55,
+          "v": 0.6
+        },
+        {
+          "key": "repairs",
+          "layer": "building",
+          "u": 0.7,
+          "v": 0.41
+        },
+        {
+          "key": "doors",
+          "layer": "building",
+          "u": 0.33,
+          "v": 0.69
+        }
+      ],
       "nightLamps": [],
       "nightHalo": 1,
       "lamps": [],
@@ -630,7 +731,6 @@
         ],
         "items": []
       },
-      "sway": true,
       "pix": [
         {
           "kind": "nglow",
@@ -652,31 +752,6 @@
           "note": "огни ночного рисунка Gemini мерцают (фонари, окна, отсветы)"
         }
       ],
-      "snowFall": {
-        "srcs": [
-          "show_flake_1.png",
-          "show_flake_2.png",
-          "show_flake_3.png",
-          "show_flake_4.png",
-          "show_flake_5.png",
-          "show_flake_6.png",
-          "show_flake_7.png",
-          "show_flake_8.png"
-        ],
-        "area": [
-          0,
-          0,
-          1,
-          0.97
-        ],
-        "n": 44,
-        "h": [
-          0.007,
-          0.015
-        ],
-        "speed": 0.085,
-        "wind": 0.22
-      },
       "leafFly": {
         "srcs": [
           "show_leaf_1.png",
@@ -761,7 +836,26 @@
         ],
         "clouds": 0
       },
-      "hotspots": [],
+      "hotspots": [
+        {
+          "key": "mosque",
+          "layer": "bg",
+          "u": 0.36,
+          "v": 0.6
+        },
+        {
+          "key": "belfry",
+          "layer": "building",
+          "u": 0.75,
+          "v": 0.34
+        },
+        {
+          "key": "shahar",
+          "layer": "bg",
+          "u": 0.55,
+          "v": 0.8
+        }
+      ],
       "nightLamps": [],
       "nightHalo": 1,
       "lamps": [],
@@ -789,7 +883,6 @@
         ]
       },
       "snowMask": true,
-      "sway": true,
       "nightWins": false,
       "fx": {
         "dur": 22,
@@ -972,31 +1065,6 @@
           "note": "огни ночного рисунка Gemini мерцают (фонари, окна, отсветы)"
         }
       ],
-      "snowFall": {
-        "srcs": [
-          "show_flake_1.png",
-          "show_flake_2.png",
-          "show_flake_3.png",
-          "show_flake_4.png",
-          "show_flake_5.png",
-          "show_flake_6.png",
-          "show_flake_7.png",
-          "show_flake_8.png"
-        ],
-        "area": [
-          0,
-          0,
-          1,
-          0.97
-        ],
-        "n": 44,
-        "h": [
-          0.007,
-          0.015
-        ],
-        "speed": 0.085,
-        "wind": 0.22
-      },
       "leafFly": {
         "srcs": [
           "show_leaf_1.png",
@@ -1058,7 +1126,26 @@
         ],
         "clouds": 0
       },
-      "hotspots": [],
+      "hotspots": [
+        {
+          "key": "door_bayazet",
+          "layer": "building",
+          "u": 0.36,
+          "v": 0.6
+        },
+        {
+          "key": "rebuilt",
+          "layer": "building",
+          "u": 0.8,
+          "v": 0.63
+        },
+        {
+          "key": "repairs",
+          "layer": "building",
+          "u": 0.38,
+          "v": 0.41
+        }
+      ],
       "nightLamps": [],
       "nightHalo": 1,
       "lamps": [],
@@ -1316,29 +1403,15 @@
           "note": "огни ночного рисунка Gemini мерцают (фонари, окна, отсветы)"
         }
       ],
-      "spriteSnow": {
-        "srcs": [
-          "show_flake_1.png",
-          "show_flake_2.png",
-          "show_flake_3.png",
-          "show_flake_4.png",
-          "show_flake_5.png",
-          "show_flake_6.png",
-          "show_flake_7.png",
-          "show_flake_8.png"
-        ],
-        "area": [
-          0,
-          0,
+      "wx": {
+        "k": [
           1,
-          0.96
+          1,
+          1,
+          0
         ],
-        "n": 9,
-        "h": [
-          0.005,
-          0.011
-        ],
-        "speed": 0.05
+        "particles": true,
+        "note": "снег уже нарисован зимой: на полу без «пыли» формулы, только падающие снежинки"
       }
     },
     {
@@ -1364,7 +1437,26 @@
         ],
         "clouds": 0
       },
-      "hotspots": [],
+      "hotspots": [
+        {
+          "key": "chapels",
+          "layer": "building",
+          "u": 0.5,
+          "v": 0.46
+        },
+        {
+          "key": "frescoes",
+          "layer": "building",
+          "u": 0.5,
+          "v": 0.27
+        },
+        {
+          "key": "frescoes_now",
+          "layer": "building",
+          "u": 0.17,
+          "v": 0.6
+        }
+      ],
       "nightLamps": [],
       "nightHalo": 1,
       "lamps": [],
@@ -1579,7 +1671,17 @@
       ],
       "noon": 0.45,
       "tiltK": 0.2,
-      "nightWins": false
+      "nightWins": false,
+      "wx": {
+        "k": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "particles": false,
+        "note": "интерьер: ни дождя, ни снега"
+      }
     },
     {
       "name": "pogos_f",
@@ -1609,11 +1711,19 @@
           "key": "cinema",
           "layer": "building",
           "u": 0.5,
-          "v": 0.55,
-          "r": [
-            0.25,
-            0.08
-          ]
+          "v": 0.48
+        },
+        {
+          "key": "tamanyan",
+          "layer": "building",
+          "u": 0.25,
+          "v": 0.4
+        },
+        {
+          "key": "open_hall",
+          "layer": "bg",
+          "u": 0.78,
+          "v": 0.74
         }
       ],
       "nightLamps": [],
@@ -1833,32 +1943,7 @@
           }
         ]
       },
-      "nightWins": false,
-      "snowFall": {
-        "srcs": [
-          "show_flake_1.png",
-          "show_flake_2.png",
-          "show_flake_3.png",
-          "show_flake_4.png",
-          "show_flake_5.png",
-          "show_flake_6.png",
-          "show_flake_7.png",
-          "show_flake_8.png"
-        ],
-        "area": [
-          0,
-          0,
-          1,
-          0.97
-        ],
-        "n": 44,
-        "h": [
-          0.007,
-          0.015
-        ],
-        "speed": 0.085,
-        "wind": 0.22
-      }
+      "nightWins": false
     }
   ]
 }
