@@ -322,7 +322,9 @@
   // уходит на A и накрывает фон, влево — наоборот. Точку кроны для пикселя находим итерациями q = p - A·u(q); фон рядом с кроной
   // не сдвигается никогда — он виден как есть или закрыт кроной (ближнее кроны — по глубине — крона не закрывает).
   // Сдвиг A мягко ограничен swayMaxPx (px кадра). Без настройки — прежний ветер e1.25, шейдер Кукурузника прежний.
-  var SWAY = !!(GUSTS && GUSTS.swayMaxPx > 0 && FRAMES.some(function (f) { return f.sway; }));
+  // e1.48 NO_SWAY (tuning, Погос-Петрос заход 13): кроны не качаются совсем — сдвиг выборки размазывал фон (листья Gemini летят, это details.js)
+  var NO_SWAY = !!CONFIG.NO_SWAY;
+  var SWAY = !NO_SWAY && !!(GUSTS && GUSTS.swayMaxPx > 0 && FRAMES.some(function (f) { return f.sway; }));
   // e1.46 SWAY_SOFT (tuning, Погос-Петрос): поле качания = мягкая маска кроны (R) + высота (B) + фаза (A). Пиксель берёт цвет из p − A·маска:
   // крона сдвигается целиком, край маски мягкий (сдвиг → 0), фон вне маски не двигается и не тянется. Без настройки — режим e1.26 (Ленин).
   var SWAY_SOFT = SWAY && !!CONFIG.SWAY_SOFT;
@@ -696,7 +698,7 @@
       '    }',
       '  }'
     ].join('\n') : [
-    '  if (uWindOn > 0.5 && env.b > 0.004) {',
+    '  if (' + (NO_SWAY ? 'false && ' : '') + 'uWindOn > 0.5 && env.b > 0.004) {',   // e1.48 NO_SWAY
     '    float per = 5.0 + 2.0 * fract(env.a * 7.13);',
     GUSTS ? '    p.x += uWindAmp * env.b * sin(uWindG.z * 6.2832 / per + env.a * 19.0) - mix(uWindG.x, uWindG.y, clamp(p.x, 0.0, 1.0)) * env.b * (0.75 + 0.5 * fract(env.a * 3.7));'   // e1.25: качание по фазе порывов + наклон по ветру (порыв приходит слева)
       : '    p.x += uWindAmp * env.b * sin(uTime * 6.2832 / per + env.a * 19.0);',
@@ -1118,16 +1120,58 @@
         im.onerror = function () { logErr('pose', sname + ' не загрузилась'); };
         im.src = String(FRAMES[i].color).split('?')[0].replace(/[^\/]*$/, '') + sname;
       });
+      if (a.video) {   // e1.49: живое место из видео Veo — <video> (без звука, по кругу), кадры видео смешиваются с рисунком по маске
+        var dir = String(FRAMES[i].color).split('?')[0].replace(/[^\/]*$/, ''), bw2 = A.box[2] - A.box[0], bh2 = A.box[3] - A.box[1];
+        var vd = document.createElement('video'); vd.muted = true; vd.defaultMuted = true; vd.loop = true; vd.playsInline = true; vd.preload = 'auto'; vd.crossOrigin = 'anonymous';
+        vd.setAttribute('muted', ''); vd.setAttribute('playsinline', ''); vd.setAttribute('webkit-playsinline', '');
+        vd.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none;z-index:-1';
+        document.body.appendChild(vd); vd.src = dir + (vd.canPlayType('video/mp4; codecs="avc1.4d401f"') ? a.video : a.video.replace(/\.mp4$/, '.webm'));   // нет H.264 — запасной WebM
+        A.vid = vd; A.vv = 0; A.vT = -1; A.vLast = 0; A.vdata = null;
+        A.vcv = document.createElement('canvas'); A.vcv.width = bw2; A.vcv.height = bh2; A.vcx = A.vcv.getContext('2d', { willReadFrequently: true });
+        if (a.mask) {
+          var mi = new Image(); mi.crossOrigin = 'anonymous';
+          mi.onload = function () { try { var c2 = document.createElement('canvas'); c2.width = bw2; c2.height = bh2; var x2 = c2.getContext('2d', { willReadFrequently: true }); x2.drawImage(mi, 0, 0, bw2, bh2); var dd = x2.getImageData(0, 0, bw2, bh2).data, mm = new Uint8Array(bw2 * bh2); for (var q2 = 0; q2 < mm.length; q2++) mm[q2] = dd[q2 * 4]; A.vmask = mm; } catch (e) { logErr('video mask', e); } };
+          mi.onerror = function () { logErr('video mask', a.mask + ' не загрузилась'); };
+          mi.src = dir + a.mask;
+        }
+        vd.addEventListener('error', function () { logErr('video', a.video + ' не загрузилось'); A.vbad = true; });
+        VIDS.push(A);
+      }
       st.actors.push(A);
     });
+    st.hasWx = all.some(function (a) { return a.wx; });
     f.poses = st;
+  }
+  var VIDS = [];   // e1.49: актёры-видео всех кадров (пауза, когда кадр не на экране)
+  function vidsGc(now) {
+    VIDS.forEach(function (A) { if (A.vid && !A.vid.paused && now - (A.seen || 0) > 400) { try { A.vid.pause(); } catch (e) {} } });
   }
   function poseRnd(a, b) { return a + Math.random() * (b - a); }
   function posesStep(f, now) {
     var st = f && f.poses; if (!st) return;
     var t = now / 1000, still = reduced(), nk = Math.round(sstep(0.06, 0.4, tod.night) * 20) / 20, busy = false;   // e1.46: позы гаснут к ночи плавно (все актёры): ночью — только ночной рисунок
     if (nk !== st.nightK) { st.nightK = nk; st.dirty = true; }
+    var wxRaw = typeof wx !== 'undefined' ? sstep(0.04, 0.6, Math.max(wx.cur[2], wx.cur[3])) : 0, wk = Math.round(wxRaw * 20) / 20;   // e1.49: непогода (дождь/снег) 0..1
+    if (wk !== st.wxK) { st.wxK = wk; st.dirty = true; }
+    var dtS = st.lastT ? Math.min(0.25, t - st.lastT) : 0; st.lastT = t;
+    if (!st.gcT || now - st.gcT > 500) { st.gcT = now; vidsGc(now); }
     st.actors.forEach(function (A) {
+      if (!A.vid) return;
+      A.seen = now;
+      var tgt = A.vbad ? 0 : (1 - sstep(0.06, 0.4, tod.night)) * (1 - wxRaw) * (still ? 0 : 1), pv = A.vv;
+      A.vv = dtS > 0 ? A.vv + (tgt - A.vv) * Math.min(1, dtS / 0.6) : tgt; if (Math.abs(A.vv - tgt) < 0.01) A.vv = tgt;
+      if (Math.abs(A.vv - pv) > 0.004) st.dirty = true;
+      var vd = A.vid;
+      if (A.vv > 0.005) {
+        if (vd.paused) { var pr = vd.play(); if (pr && pr.catch) pr.catch(function () {}); }
+        if (vd.readyState >= 2 && vd.currentTime !== A.vT && now - A.vLast >= 40) {
+          try { A.vcx.drawImage(vd, 0, 0, A.vcv.width, A.vcv.height); A.vdata = A.vcx.getImageData(0, 0, A.vcv.width, A.vcv.height).data; A.vT = vd.currentTime; A.vLast = now; st.dirty = true; }
+          catch (e) { logErr('video frame', e); A.vbad = true; }
+        }
+      } else if (!vd.paused) { try { vd.pause(); } catch (e) {} }
+    });
+    st.actors.forEach(function (A) {
+      if (A.vid) return;
       var c = A.cfg, n = (c.srcs || []).length, ev = c.every || [3, 6], fd = c.fade == null ? 0.6 : c.fade;
       if (!A.next) A.next = t + poseRnd(ev[0], ev[1]) * (0.3 + 0.7 * Math.random());
       if (!still && n > 1 && t >= A.next) {
@@ -1138,14 +1182,26 @@
       A.mix = fd > 0 ? Math.min(1, (t - A.t0) / fd) : 1;
       if (A.mix < 1 && A.prev !== A.cur) busy = true;
     });
+    if (st.actors.some(function (A) { return A.vid && A.vv > 0.005; })) busy = true;   // e1.49: видео идёт
     if (!st.dirty && !busy) return;
     if (busy && now - st.last < 50) return;   // смена позы: ~20 обновлений куска в секунду, не на каждый кадр
     st.last = now; st.dirty = false;
     var w = st.w, h = st.h, b = st.base, o = st.out, oc = st.ch === 4 ? 4 : 3, i, n = w * h;
-    var acc = new Float32Array(n * 4);
+    var acc = new Float32Array(n * 4), ordA = st.actors.filter(function (A) { return !A.cfg.wx && !A.vid; }).concat(st.actors.filter(function (A) { return A.vid; }), st.actors.filter(function (A) { return A.cfg.wx; }));   // e1.49
     for (i = 0; i < n; i++) { acc[i * 4] = b[i * 4]; acc[i * 4 + 1] = b[i * 4 + 1]; acc[i * 4 + 2] = b[i * 4 + 2]; acc[i * 4 + 3] = b[i * 4 + 3]; }
-    st.actors.forEach(function (A) {
-      var c = A.cfg, vis = 1 - st.nightK; if (vis <= 0) return;   // e1.46: и старик/пара — дневные пиксели поверх ночи давали шов
+    ordA.forEach(function (A) {
+      var c = A.cfg, vis = (1 - st.nightK) * (c.wx ? st.wxK : (st.hasWx ? 1 - st.wxK : 1)); if (vis <= 0) return;   // e1.49: погодная версия — в непогоду, остальные актёры — в ясную
+      if (A.vid) {   // e1.49: кадр видео по маске
+        var vdd = A.vdata, vm = A.vmask, k2 = A.vv * (st.hasWx ? 1 - st.wxK : 1); if (!vdd || !vm || k2 <= 0.003) return;
+        var vb = A.box, vw = vb[2] - vb[0];
+        for (var y2 = Math.max(0, vb[1]); y2 < Math.min(h, vb[3]); y2++) for (var x2 = Math.max(0, vb[0]); x2 < Math.min(w, vb[2]); x2++) {
+          var p2 = (y2 - vb[1]) * vw + (x2 - vb[0]), a2 = vm[p2] / 255 * k2; if (a2 <= 0.002) continue;
+          var s2 = p2 * 4, q3 = (y2 * w + x2) * 4;
+          acc[q3] = vdd[s2] * a2 + acc[q3] * (1 - a2); acc[q3 + 1] = vdd[s2 + 1] * a2 + acc[q3 + 1] * (1 - a2); acc[q3 + 2] = vdd[s2 + 2] * a2 + acc[q3 + 2] * (1 - a2);
+          if (st.bld) acc[q3 + 3] = 255 * a2 + acc[q3 + 3] * (1 - a2);
+        }
+        return;
+      }   // e1.46: и старик/пара — дневные пиксели поверх ночи давали шов
       var layers = [[A.cur, A.prev !== A.cur ? A.mix : 1]];
       if (A.prev !== A.cur && A.mix < 1) layers.unshift([A.prev, 1]);   // уходящая поза снизу, новая проявляется поверх
       var bx = A.box, bw = bx[2] - bx[0];
@@ -1658,7 +1714,8 @@
     gl.uniform1f(US.uAspect, aspect);
     gl.uniform1f(US.uWindAmp, fx.windAmp);
     gl.uniform1f(US.uWindOn, fx.windOn ? 1 : 0);
-    gl.uniform4f(US.uWeather, wx.cur[0], wx.cur[1], wx.cur[2], wx.cover);
+    var wq = wxFrameK(fa, fb, mix);   // e1.48 WX_FRAME: погода кадра (интерьер — без погоды, крупный план — без снега на полу)
+    gl.uniform4f(US.uWeather, wx.cur[0] * wq[0], wx.cur[1] * wq[1], wx.cur[2] * wq[2], wx.cover * wq[3]);
     if (NOON) gl.uniform2f(US.uNoon, NOON.K[fa.idx] == null ? 1 : NOON.K[fa.idx], fb ? (NOON.K[fb.idx] == null ? 1 : NOON.K[fb.idx]) : 0);
     if (SNOWM) gl.uniform2f(US.uSnowM, snowCode(fa, performance.now()), fb ? snowCode(fb, performance.now()) : -1);
     if (GUSTS) gl.uniform3f(US.uWindG, fx.leanA, fx.leanB, wx.windPh);
@@ -2970,15 +3027,26 @@
     });
     return null;
   }
+  // e1.48 WX_FRAME (frames[].wx, Погос-Петрос): [пасмурно, туман, мокро, снег на земле, частицы] — множители погоды кадра; без настройки — 1
+  var WX_ONE = [1, 1, 1, 1, 1];
+  function wxFrameK(fa, fb, m) {
+    var W = CONFIG.WX_FRAME; if (!W) return WX_ONE;
+    var a = W[fa.idx] || WX_ONE, b2 = fb ? (W[fb.idx] || WX_ONE) : a, k = fb ? m : 0;
+    return a.map(function (x, i) { return x + (b2[i] - x) * k; });
+  }
   function drawPrecip(now, dt, rm) {
-    if (CONFIG.DRAWN_ONLY) { leaves.length = 0; if (pc && pc.style.display !== 'none') { pctx.clearRect(0, 0, pc.width, pc.height); pc.style.display = 'none'; } return; }   // e1.39: дождь, снежинки, листья, радуга кодом — нет
-    var rainK = wx.cur[2], snowK = wx.cur[3], leafK = clamp((wx.wind - 1.4) / 1.6, 0, 1) * (1 - snowK);
+    if (CONFIG.DRAWN_ONLY && !CONFIG.WX_PARTICLES) { leaves.length = 0; if (pc && pc.style.display !== 'none') { pctx.clearRect(0, 0, pc.width, pc.height); pc.style.display = 'none'; } return; }   // e1.39: дождь, снежинки, листья, радуга кодом — нет
+    var pkT = CONFIG.WX_FRAME && CONFIG.WX_FRAME[frameIndex] ? CONFIG.WX_FRAME[frameIndex][4] : 1;   // e1.48: частицы кадра (интерьер — нет), плавно 0,4 с
+    wx.pK = wx.pK == null ? pkT : wx.pK + (pkT - wx.pK) * Math.min(1, (rm ? 400 : dt) / 400);
+    var rainK = wx.cur[2] * wx.pK, snowK = wx.cur[3] * wx.pK, leafK = CONFIG.DRAWN_ONLY ? 0 : clamp((wx.wind - 1.4) / 1.6, 0, 1) * (1 - snowK);   // e1.48: DRAWN_ONLY + WX_PARTICLES — только дождь и снег
+    if (CONFIG.DRAWN_ONLY) leaves.length = 0;
     var rbA = 0;   // радуга после дождя: 4 с проявляется, держится, 6 с тает (всего ~30 с); ночью и в тучах — нет
     if (wx.rainbowT0) {
       var ra0 = (now - wx.rainbowT0) / 1000;
       rbA = clamp(ra0 / 5, 0, 1) * clamp((30 - ra0) / 7, 0, 1) * (1 - tod.night) * (1 - wx.cur[0]) * (1 - wx.cur[1]) * (1 - rainK) * (1 - snowK);
       if (ra0 > 30) { wx.rainbowT0 = 0; showWxName(); }
     }
+    if (CONFIG.DRAWN_ONLY) rbA = 0;   // e1.48: радуга кодом — нет
     wx.flash = 0;
     if (rainK < 0.01 && snowK < 0.01 && leafK < 0.01 && rbA < 0.01 && !(GUSTS && leaves.length)) { if (pc && pc.style.display !== 'none') { pctx.clearRect(0, 0, pc.width, pc.height); pc.style.display = 'none'; } return; }
     precipCanvas();
@@ -2995,7 +3063,7 @@
     pctx.clearRect(0, 0, W, H);
     var skyEnd = (CONFIG.DAY.SKY_END[frameIndex] || 0.55) * H;
     // молния: только буря + дождь; короткая двойная вспышка раз в 7–15 с
-    var storm = rainK > 0.5 && windIdx === 2 && tod.night > 0.5 && !rm;   // гроза — ночью: дождь + буря
+    var storm = !CONFIG.DRAWN_ONLY && rainK > 0.5 && windIdx === 2 && tod.night > 0.5 && !rm;   // гроза — ночью: дождь + буря
     if (storm) {
       if (!nextFlash) { nextFlash = now + 1200 + pRng() * 1500; wx.nextSheet = now + 600; }
       if (now >= wx.nextSheet && flash === null) { wx.sheetT0 = now; wx.sheetK = 0.25 + 0.35 * pRng(); wx.nextSheet = now + 1400 + pRng() * 2600; }   // зарница: облака вспыхивают изнутри

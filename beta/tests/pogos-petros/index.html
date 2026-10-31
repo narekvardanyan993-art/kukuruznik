@@ -13,7 +13,7 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#f5ecda">
 <meta name="viewer-version" content="test">
-<meta name="engine-version" content="e1.47">
+<meta name="engine-version" content="e1.49">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Չկա">
 <meta property="og:url" content="https://chka.am/beta/tests/pogos-petros/">
@@ -29,20 +29,20 @@
 <title>Պողոս-Պետրոս եկեղեցի, Երևան | Չկա</title>
 <script>/* ?motion=1 — показать всё движение, даже если в системе включено «Уменьшить движение» (для проверки) */
 (function () { if (/[?&]motion=1/.test(location.search)) document.documentElement.setAttribute('data-motion', 'on'); })();</script>
-<link rel="preload" href="../../engine/welcome-loader.js?v=e1.47" as="script">
-<link rel="preload" href="../../engine/welcome-letters.js?v=e1.47" as="script">
-<link rel="preload" href="../../engine/fonts/NotoSerif-latin.woff2?v=e1.47" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.47" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.47" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../../engine/welcome-loader.js?v=e1.49" as="script">
+<link rel="preload" href="../../engine/welcome-letters.js?v=e1.49" as="script">
+<link rel="preload" href="../../engine/fonts/NotoSerif-latin.woff2?v=e1.49" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.49" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.49" as="font" type="font/woff2" crossorigin>
 <style>
   /* Один шрифт для hy/ru/en — Noto Serif: латиница и кириллица (Noto Serif) и армянский (Noto Serif Armenian)
      из одной системы дизайна, лицензия OFL (fonts/LICENSE.txt). Подключён локально, один вес 400–700. */
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../../engine/fonts/NotoSerif-latin.woff2?v=e1.47) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    src: url(../../engine/fonts/NotoSerif-latin.woff2?v=e1.49) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.47) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+    src: url(../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.49) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.47) format("woff2"); unicode-range: U+0308, U+0530-058F, U+2010, U+2024, U+25CC, U+FB13-FB17; }
+    src: url(../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.49) format("woff2"); unicode-range: U+0308, U+0530-058F, U+2010, U+2024, U+25CC, U+FB13-FB17; }
   :root {
     --font: "Chka Serif", "Noto Serif", serif;
     --paper: #f5ecda; --paper-2: #ede0c2; --ink: #2f2a25;
@@ -1024,8 +1024,8 @@
 <body>
 <script>try { if (localStorage.getItem('chka-panel') === 'collapsed') document.body.classList.add('panel-collapsed'); } catch (e) {}   /* панель, свёрнутая в прошлый раз, — сразу свёрнутой, без анимации закрытия */</script>
 
-<script src="../../engine/welcome-letters.js?v=e1.47"></script>
-<script src="../../engine/welcome-loader.js?v=e1.47"></script>
+<script src="../../engine/welcome-letters.js?v=e1.49"></script>
+<script src="../../engine/welcome-loader.js?v=e1.49"></script>
 <script>
 /* ===================== CONFIG =====================
    Все параметры эффекта «3D-фото» собраны здесь, ничего похожего
@@ -1067,7 +1067,9 @@ var CONFIG = {
  "WINDOW_FADE_MS": 1500,
  "NIGHT_MAIN_WINS": false,
  "DRAWN_ONLY": true,
- "SWAY_SOFT": true,
+ "SWAY_SOFT": false,
+ "NO_SWAY": true,
+ "WX_PARTICLES": true,
  "WIN_SPILL": 0,
  "WIN_SPILL_PX": 7,
  "CLOUD_FIELD": 1.0,
@@ -1183,14 +1185,14 @@ var CONFIG = {
    0
   ],
   "rain": [
-   0.85,
-   0.3,
-   1,
+   0.35,
+   0,
+   0.45,
    0
   ],
   "snow": [
-   0.6,
-   0.25,
+   0.35,
+   0,
    0,
    1
   ],
@@ -1207,7 +1209,7 @@ var CONFIG = {
   2.4,
   4.5
  ],
- "RAIN_DROPS": 240,
+ "RAIN_DROPS": 380,
  "SNOW_FLAKES": 190,
  "PERF_MIN_FPS": 45,
  "FALLBACK_LAYER_K": 0.6,
@@ -1756,8 +1758,8 @@ var CONFIG = {
     0.82,
     0.84
    ],
-   "overcastDim": 0.16,
-   "overcastGray": 0.35,
+   "overcastDim": 0.08,
+   "overcastGray": 0.2,
    "fogDay": [
     0.88,
     0.88,
@@ -1776,18 +1778,18 @@ var CONFIG = {
     0.99
    ],
    "snowK": 0.95,
-   "wetDim": 0.12,
+   "wetDim": 0.07,
    "rainDay": [
-    55,
-    65,
-    88,
-    0.55
+    46,
+    56,
+    80,
+    0.72
    ],
    "rainNight": [
-    185,
-    195,
-    215,
-    0.45
+    190,
+    200,
+    222,
+    0.6
    ],
    "snowColor": [
     255,
@@ -1800,7 +1802,7 @@ var CONFIG = {
     0.94,
     1.0
    ],
-   "overcastShadow": 0.3
+   "overcastShadow": 0.12
   }
  },
  "SHOW_NIGHT": "toned",
@@ -1837,147 +1839,91 @@ var CONFIG = {
    "actors": [
     {
      "rect": [
-      0.3,
-      0.69,
-      0.52,
-      0.8
+      0.28,
+      0.68,
+      0.62,
+      0.855
      ],
-     "srcs": [
-      "show_pose_a_old1.png",
-      "show_pose_a_old2.png",
-      "show_pose_a_old3.png"
-     ],
-     "every": [
-      1.5,
-      3.0
-     ],
-     "fade": 0.35,
-     "order": "cycle",
-     "note": "старик кормит голубей: рука у кармана → достаёт крошки → бросает, рука вытянута (Gemini Flash, заход 12)"
+     "video": "vid_a_old.mp4",
+     "mask": "vid_a_old_mask.png",
+     "note": "старик кормит голубей, голуби клюют — видео Veo (кусок 4,5–10 с туда-обратно, 10,9 с); ночью и в непогоду — рисунок"
     },
     {
      "rect": [
-      0.31,
-      0.787,
-      0.435,
-      0.83
-     ],
-     "srcs": [
-      "show_pose_a_pgL1.png",
-      "show_pose_a_pgL2.png"
-     ],
-     "every": [
-      1.2,
-      3.5
-     ],
-     "fade": 0.25,
-     "night": false,
-     "note": "голубь слева: клюёт ↔ поднял голову"
-    },
-    {
-     "rect": [
-      0.435,
-      0.78,
-      0.483,
-      0.83
-     ],
-     "srcs": [
-      "show_pose_a_pgM1.png",
-      "show_pose_a_pgM2.png"
-     ],
-     "every": [
-      0.9,
-      2.6
-     ],
-     "fade": 0.2,
-     "night": false,
-     "note": "голубь в середине"
-    },
-    {
-     "rect": [
-      0.483,
-      0.775,
-      0.535,
-      0.83
-     ],
-     "srcs": [
-      "show_pose_a_pgR1.png",
-      "show_pose_a_pgR2.png"
-     ],
-     "every": [
-      1.0,
-      3.0
-     ],
-     "fade": 0.2,
-     "night": false,
-     "note": "голубь справа"
-    }
-   ]
-  },
-  {
-   "layer": "bld",
-   "actors": [
-    {
-     "rect": [
-      0.4557,
-      0.7414,
-      0.6536,
-      0.8059
-     ],
-     "srcs": [
-      null,
-      "show_pose_b_dog1.png"
-     ],
-     "every": [
-      1.8,
-      4.0
-     ],
-     "fade": 0.3,
-     "note": "собака у стены: спит ↔ подняла голову ↔ виляет хвостом (Gemini Pro + Flash, заход 12); ночью спит — в ночном рисунке"
-    }
-   ]
-  },
-  null,
-  null,
-  null,
-  {
-   "layer": "bld",
-   "actors": [
-    {
-     "rect": [
-      0.22,
+      0.26,
       0.66,
+      0.6,
+      0.86
+     ],
+     "srcs": [
+      "show_wx_a_bench.png"
+     ],
+     "wx": true,
+     "fade": 0.6,
+     "note": "в дождь/снег скамейка пустая — старик ушёл (правка Gemini Pro)"
+    }
+   ]
+  },
+  {
+   "layer": "bld",
+   "actors": [
+    {
+     "rect": [
+      0.43,
+      0.72,
+      0.68,
+      0.82
+     ],
+     "video": "vid_b_dog.mp4",
+     "mask": "vid_b_dog_mask.png",
+     "note": "собака у стены — видео Veo: дышит, водит ушами, виляет хвостом, чешется (петля 9 с, кроссфейд конца с началом); ночью и в непогоду — рисунок"
+    },
+    {
+     "rect": [
       0.4,
-      0.88
+      0.66,
+      0.72,
+      0.84
      ],
      "srcs": [
-      null,
-      "show_pose_f_man1.png"
+      "show_wx_b_kennel.png"
      ],
-     "every": [
-      3,
-      6
+     "wx": true,
+     "fade": 0.6,
+     "note": "в дождь/снег собака в будке у стены (правка Gemini Pro)"
+    }
+   ]
+  },
+  null,
+  null,
+  null,
+  {
+   "layer": "bld",
+   "actors": [
+    {
+     "rect": [
+      0.06,
+      0.667,
+      0.42,
+      0.875
      ],
-     "fade": 0.7,
-     "note": "парень: руки сцеплены ↔ объясняет, жест рукой (Gemini Flash t919n1)"
+     "video": "vid_f_pair.mp4",
+     "mask": "vid_f_pair_mask.png",
+     "note": "пара разговаривает, жесты — видео Veo; ночью и в непогоду — рисунок"
     },
     {
      "rect": [
-      0.08,
-      0.66,
-      0.25,
-      0.88
+      0.04,
+      0.668,
+      0.44,
+      0.877
      ],
      "srcs": [
-      null,
-      "show_pose_f_woman1.png"
+      "show_wx_f_umbrella.png"
      ],
-     "every": [
-      4,
-      7
-     ],
-     "fade": 0.7,
-     "note": "девушка: слушает ↔ смеётся, рука у волос (Gemini Flash 7tus1z)"
+     "wx": true,
+     "fade": 0.6,
+     "note": "в дождь/снег пара под зонтом (правка Gemini Pro)"
     }
    ]
   }
@@ -1992,13 +1938,13 @@ var CONFIG = {
  ],
  "NOON": {
   "wb": [
-   0.95,
+   0.97,
    1.0,
-   1.09
+   1.03
   ],
-  "sat": 0.8,
-  "lift": 0.16,
-  "bright": 1.06,
+  "sat": 1.0,
+  "lift": 0.0,
+  "bright": 1.04,
   "sky": 0.9,
   "K": [
    1,
@@ -2009,6 +1955,50 @@ var CONFIG = {
    1
   ]
  },
+ "WX_FRAME": [
+  [
+   1,
+   1,
+   1,
+   1,
+   1
+  ],
+  [
+   1,
+   1,
+   1,
+   1,
+   1
+  ],
+  [
+   1,
+   1,
+   1,
+   1,
+   1
+  ],
+  [
+   1,
+   1,
+   1,
+   0,
+   1
+  ],
+  [
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   1,
+   1,
+   1,
+   1,
+   1
+  ]
+ ],
  "PIX": [
   [
    {
@@ -2517,8 +2507,7 @@ var CONFIG = {
    "env": "frames/pogos_a_env.webp?v=5e5724d3",
    "win2": "frames/pogos_a_win2.webp?v=633817e9",
    "night": "frames/pogos_a_night.webp?v=dbc4666d",
-   "snow": "frames/pogos_a_snow.webp?v=e64d5bdf",
-   "sway": "frames/pogos_a_sway.png?v=2372e037"
+   "snow": "frames/pogos_a_snow.webp?v=e64d5bdf"
   },
   {
    "color": "frames/pogos_b.webp?v=2339ef06",
@@ -2535,8 +2524,7 @@ var CONFIG = {
    "win2": "frames/pogos_b_win2.webp?v=527e153b",
    "sunset": "frames/pogos_b_sunset.webp?v=62a3a1be",
    "night": "frames/pogos_b_night.webp?v=7232481b",
-   "snow": "frames/pogos_b_snow.webp?v=fb92bbb3",
-   "sway": "frames/pogos_b_sway.png?v=7cd74544"
+   "snow": "frames/pogos_b_snow.webp?v=fb92bbb3"
   },
   {
    "color": "frames/pogos_c.webp?v=24d472c9",
@@ -2552,8 +2540,7 @@ var CONFIG = {
    "env": "frames/pogos_c_env.webp?v=87f6b054",
    "win2": "frames/pogos_c_win2.webp?v=05efad4b",
    "night": "frames/pogos_c_night.webp?v=928fcf3b",
-   "snow": "frames/pogos_c_snow.webp?v=bd2464ba",
-   "sway": "frames/pogos_c_sway.png?v=565c84cf"
+   "snow": "frames/pogos_c_snow.webp?v=bd2464ba"
   },
   {
    "color": "frames/pogos_d.webp?v=b0d1e685",
@@ -2605,30 +2592,122 @@ var CONFIG = {
  "HOTSPOTS": [
   [
    {
+    "key": "belfry",
+    "layer": "building",
+    "u": 0.62,
+    "v": 0.34
+   },
+   {
     "key": "church",
     "layer": "building",
-    "u": 0.6,
-    "v": 0.48,
-    "r": [
-     0.1,
-     0.1
-    ]
+    "u": 0.645,
+    "v": 0.66
+   },
+   {
+    "key": "roof",
+    "layer": "building",
+    "u": 0.3,
+    "v": 0.56
    }
   ],
-  [],
-  [],
-  [],
-  [],
+  [
+   {
+    "key": "rebuilt",
+    "layer": "building",
+    "u": 0.55,
+    "v": 0.6
+   },
+   {
+    "key": "repairs",
+    "layer": "building",
+    "u": 0.7,
+    "v": 0.41
+   },
+   {
+    "key": "doors",
+    "layer": "building",
+    "u": 0.33,
+    "v": 0.69
+   }
+  ],
+  [
+   {
+    "key": "mosque",
+    "layer": "bg",
+    "u": 0.36,
+    "v": 0.6
+   },
+   {
+    "key": "belfry",
+    "layer": "building",
+    "u": 0.75,
+    "v": 0.34
+   },
+   {
+    "key": "shahar",
+    "layer": "bg",
+    "u": 0.55,
+    "v": 0.8
+   }
+  ],
+  [
+   {
+    "key": "door_bayazet",
+    "layer": "building",
+    "u": 0.36,
+    "v": 0.6
+   },
+   {
+    "key": "rebuilt",
+    "layer": "building",
+    "u": 0.8,
+    "v": 0.63
+   },
+   {
+    "key": "repairs",
+    "layer": "building",
+    "u": 0.38,
+    "v": 0.41
+   }
+  ],
+  [
+   {
+    "key": "chapels",
+    "layer": "building",
+    "u": 0.5,
+    "v": 0.46
+   },
+   {
+    "key": "frescoes",
+    "layer": "building",
+    "u": 0.5,
+    "v": 0.27
+   },
+   {
+    "key": "frescoes_now",
+    "layer": "building",
+    "u": 0.17,
+    "v": 0.6
+   }
+  ],
   [
    {
     "key": "cinema",
     "layer": "building",
     "u": 0.5,
-    "v": 0.55,
-    "r": [
-     0.25,
-     0.08
-    ]
+    "v": 0.48
+   },
+   {
+    "key": "tamanyan",
+    "layer": "building",
+    "u": 0.25,
+    "v": 0.4
+   },
+   {
+    "key": "open_hall",
+    "layer": "bg",
+    "u": 0.78,
+    "v": 0.74
    }
   ]
  ],
@@ -2854,31 +2933,6 @@ var CONFIG = {
      }
     ]
    },
-   "snowFall": {
-    "srcs": [
-     "show_flake_1.png",
-     "show_flake_2.png",
-     "show_flake_3.png",
-     "show_flake_4.png",
-     "show_flake_5.png",
-     "show_flake_6.png",
-     "show_flake_7.png",
-     "show_flake_8.png"
-    ],
-    "area": [
-     0,
-     0,
-     1,
-     0.97
-    ],
-    "n": 44,
-    "h": [
-     0.007,
-     0.015
-    ],
-    "speed": 0.085,
-    "wind": 0.22
-   },
    "leafFly": {
     "srcs": [
      "show_leaf_1.png",
@@ -2972,31 +3026,6 @@ var CONFIG = {
      ]
     ],
     "items": []
-   },
-   "snowFall": {
-    "srcs": [
-     "show_flake_1.png",
-     "show_flake_2.png",
-     "show_flake_3.png",
-     "show_flake_4.png",
-     "show_flake_5.png",
-     "show_flake_6.png",
-     "show_flake_7.png",
-     "show_flake_8.png"
-    ],
-    "area": [
-     0,
-     0,
-     1,
-     0.97
-    ],
-    "n": 44,
-    "h": [
-     0.007,
-     0.015
-    ],
-    "speed": 0.085,
-    "wind": 0.22
    },
    "leafFly": {
     "srcs": [
@@ -3207,31 +3236,6 @@ var CONFIG = {
       "note": "дождь — струи Gemini, косо, ветер сносит"
      }
     ]
-   },
-   "snowFall": {
-    "srcs": [
-     "show_flake_1.png",
-     "show_flake_2.png",
-     "show_flake_3.png",
-     "show_flake_4.png",
-     "show_flake_5.png",
-     "show_flake_6.png",
-     "show_flake_7.png",
-     "show_flake_8.png"
-    ],
-    "area": [
-     0,
-     0,
-     1,
-     0.97
-    ],
-    "n": 44,
-    "h": [
-     0.007,
-     0.015
-    ],
-    "speed": 0.085,
-    "wind": 0.22
    },
    "leafFly": {
     "srcs": [
@@ -3491,30 +3495,6 @@ var CONFIG = {
       "note": "надпись ՍՈՒՐԲ ՊՈՂՈՍ ՊԵՏՐՈՍ: буквы в перспективе люнета (гомография, fix11.py insc) проступают по одной, горят огнём, гаснут по одной"
      }
     ]
-   },
-   "spriteSnow": {
-    "srcs": [
-     "show_flake_1.png",
-     "show_flake_2.png",
-     "show_flake_3.png",
-     "show_flake_4.png",
-     "show_flake_5.png",
-     "show_flake_6.png",
-     "show_flake_7.png",
-     "show_flake_8.png"
-    ],
-    "area": [
-     0,
-     0,
-     1,
-     0.96
-    ],
-    "n": 9,
-    "h": [
-     0.005,
-     0.011
-    ],
-    "speed": 0.05
    }
   },
   {
@@ -3623,31 +3603,6 @@ var CONFIG = {
       "glow": 0.35
      }
     ]
-   },
-   "snowFall": {
-    "srcs": [
-     "show_flake_1.png",
-     "show_flake_2.png",
-     "show_flake_3.png",
-     "show_flake_4.png",
-     "show_flake_5.png",
-     "show_flake_6.png",
-     "show_flake_7.png",
-     "show_flake_8.png"
-    ],
-    "area": [
-     0,
-     0,
-     1,
-     0.97
-    ],
-    "n": 44,
-    "h": [
-     0.007,
-     0.015
-    ],
-    "speed": 0.085,
-    "wind": 0.22
    }
   }
  ],
@@ -3707,23 +3662,88 @@ var CONFIG = {
  },
  "I18N": {
   "church": {
-   "hy": "[заглушка] Հին եկեղեցի Երևանի կենտրոնում։",
-   "ru": "[заглушка] Старая церковь в центре Еревана.",
-   "en": "[заглушка] An old church in the centre of Yerevan."
+   "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+   "ru": "Старейшая и крупнейшая церковь старого Еревана; основана в V–VI вв. (Википедия, Музей истории Еревана)",
+   "en": "[заглушка] The oldest and largest church of old Yerevan, founded in the 5th–6th c."
+  },
+  "belfry": {
+   "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+   "ru": "Трёхъярусную колокольню с ротондой на колоннах пристроили к западному входу позже — «не в стиле» самой базилики (Википедия, Музей истории Еревана)",
+   "en": "[заглушка] The three-tier belfry with a columned rotunda was added to the west entrance later, unlike the basilica itself."
+  },
+  "roof": {
+   "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+   "ru": "Бескупольная базилика с двускатной крышей; в XIX в. каменную кровлю перекрыли жестью (Википедия)",
+   "en": "[заглушка] A domeless basilica with a gable roof; in the 19th c. the stone roof was covered with tin."
+  },
+  "rebuilt": {
+   "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+   "ru": "Землетрясение 1679 г. разрушило церковь; её отстроили на уцелевшей восточной части — на хачкарах в стенах даты 1691 и 1692 (Википедия)",
+   "en": "[заглушка] The 1679 earthquake ruined the church; it was rebuilt on the surviving east part — khachkars in the walls are dated 1691 and 1692."
+  },
+  "repairs": {
+   "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+   "ru": "Надписи о ремонтах 1778 и 1820 гг.; в 1820-м — «на средства благословенного народа этой церкви», на деньги прихожан (Википедия)",
+   "en": "[заглушка] Inscriptions record repairs in 1778 and 1820 — the latter paid for by the parishioners."
+  },
+  "doors": {
+   "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+   "ru": "Входы — с юга, запада и севера; у северного, со стороны нынешней Абовяна, позже пристроили арочный притвор (Википедия, Музей истории Еревана)",
+   "en": "[заглушка] Entrances faced south, west and north; an arched porch was later added to the north one."
+  },
+  "shahar": {
+   "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+   "ru": "Церковь стояла в старом квартале Шаар, на углу нынешних улиц Абовяна и Туманяна (Википедия, Музей истории Еревана)",
+   "en": "[заглушка] The church stood in the old Shahar quarter, at the corner of today’s Abovyan and Tumanyan streets."
+  },
+  "mosque": {
+   "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+   "ru": "Рядом стояла мечеть Залхан (Шаарская): её минарет и колокольня церкви — на одном снимке 1923 г. (pastvu 1445782)",
+   "en": "[заглушка] The Zalkhan (Shahar) mosque stood nearby: its minaret and the belfry appear in one 1923 photo."
+  },
+  "door_bayazet": {
+   "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+   "ru": "Двустворчатая железная южная дверь — из крепости Старый Баязет: в 1835 г. её купил и подарил церкви тер Вардан. Сейчас она в Музее истории Еревана (Википедия, Музей истории Еревана)",
+   "en": "[заглушка] The double iron south door came from the Old Bayazet fortress, bought and donated by Ter Vardan in 1835; it is now in the History Museum of Yerevan."
+  },
+  "chapels": {
+   "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+   "ru": "У алтаря — два придела, Св. Степаноса и Иоанна Крестителя, оба построены в 1831 г. (Музей истории Еревана)",
+   "en": "[заглушка] Two side chapels by the altar — St. Stepanos and St. John the Baptist — both built in 1831."
+  },
+  "frescoes": {
+   "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+   "ru": "При разборке алтаря нашли шесть слоёв росписи разных веков; снос приостановили, реставратор Б. Юкин снял 14,25 м² фресок (Музей истории Еревана)",
+   "en": "[заглушка] Dismantling the altar revealed six layers of murals; demolition was paused and restorer B. Yukin removed 14.25 m² of frescoes."
+  },
+  "frescoes_now": {
+   "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+   "ru": "Нижний слой — растительный орнамент, выше — апостолы Пётр и Павел. Фрески — в Национальной галерее и Историческом музее Армении (Википедия, Музей истории Еревана)",
+   "en": "[заглушка] The lowest layer is a plant ornament, above it the apostles Peter and Paul. The frescoes are in the National Gallery and History Museum of Armenia."
   },
   "cinema": {
-   "hy": "[заглушка] Եկեղեցու տեղում կառուցվեց «Մոսկվա» կինոթատրոնը։",
-   "ru": "[заглушка] На месте церкви построили кинотеатр «Москва».",
-   "en": "[заглушка] The Moskva cinema was built on the site of the church."
+   "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+   "ru": "На месте церкви — кинотеатр «Москва» (арх. Т. Ерканян и Г. Кочар), открыт 12 декабря 1936 г. фильмом «Пэпо» (Википедия)",
+   "en": "[заглушка] The Moscow Cinema (architects T. Yerkanyan and G. Kochar) stands on the site; it opened on 12 December 1936 with the film “Pepo”."
+  },
+  "tamanyan": {
+   "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+   "ru": "Против сноса выступал Александр Таманян (письмо 2 марта 1930 г.: «памятник очень значим, его надо сохранить»); перед сносом здание обмерили (Музей истории Еревана)",
+   "en": "[заглушка] Alexander Tamanyan opposed the demolition (letter of 2 March 1930); the building was measured and documented before it was torn down."
+  },
+  "open_hall": {
+   "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
+   "ru": "В 2010 г. землю открытого зала «Москвы» решили отдать под новую церковь на месте старой; после протеста (~18 000 подписей) план отменили (Википедия)",
+   "en": "[заглушка] In 2010 the cinema’s open-air hall was to be given for a new church on the old site; after a protest (~18,000 signatures) the plan was dropped."
   }
  }
 };
-CONFIG.ENGINE_V = 'e1.47';
+CONFIG.ENGINE_V = 'e1.49';
 /* e1.15 (s9): Safari на iPhone показывал старую страницу из кэша (восстановленная вкладка) — со старыми настройками при новом движке
    (у Ленина всплыли отменённые круги с цифрами). Страница сверяет свою версию с engine/VERSION (без кэша) при открытии, при возврате
    из кэша вкладок и после 10+ мин в фоне; новее — один раз перезагружается на свежий адрес. */
 (function () {
-  var V = 'e1.47', E = '../../engine/', hid = 0;
+  var V = 'e1.49', E = '../../engine/', hid = 0;
   function chk() {
     if (!window.fetch) return;
     fetch(E + 'VERSION?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
@@ -3919,10 +3939,10 @@ document.querySelectorAll('.chips').forEach(function (g) { g.querySelectorAll('.
 </main>
 </div>
 
-<script src="../../engine/wall-data.js?v=e1.47" defer></script>
-<script src="../../engine/wall.js?v=e1.47" defer></script>
-<script src="../../engine/postcard.js?v=e1.47" defer></script>
-<script src="../../engine/viewer.js?v=e1.47" defer>
+<script src="../../engine/wall-data.js?v=e1.49" defer></script>
+<script src="../../engine/wall.js?v=e1.49" defer></script>
+<script src="../../engine/postcard.js?v=e1.49" defer></script>
+<script src="../../engine/viewer.js?v=e1.49" defer>
 </script>
 <script>
 // e1.13: курсор ПК — чернильный кружок у острия плавно растёт над кликабельным, при загрузке рядом рисует себя чернильный круг
