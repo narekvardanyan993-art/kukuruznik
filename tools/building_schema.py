@@ -549,12 +549,22 @@ def validate(bdir, b, site):
                 else:
                     for j, a in enumerate(acts):
                         wa = '%s: poses.actors[%d]' % (w, j + 1)
-                        ao = c.obj(a, wa, required=('rect', 'srcs'), optional=('every', 'fade', 'night', 'order', 'note'))
+                        ao = c.obj(a, wa, required=('rect',), optional=('srcs', 'every', 'fade', 'night', 'order', 'note', 'video', 'mask', 'wx'))   # e1.49: video/mask — живое место Veo, wx — погодная версия
                         if not ao:
                             continue
                         if c.numbers(ao['rect'], wa + '.rect', 4, 0, 1) and not (ao['rect'][0] < ao['rect'][2] and ao['rect'][1] < ao['rect'][3]):
                             c.err(wa + '.rect', '[u0, v0, u1, v1]: u0 < u1, v0 < v1')
-                        if not (isinstance(ao['srcs'], list) and ao['srcs'] and all(s is None or (isinstance(s, str) and s.startswith('show_') and s.endswith('.png')) for s in ao['srcs'])):
+                        if 'video' in ao:   # e1.49
+                            if not (isinstance(ao['video'], str) and ao['video'].startswith('vid_') and ao['video'].endswith('.mp4')):
+                                c.err(wa + '.video', 'видео vid_*.mp4')
+                            elif isinstance(b.get('framesDir'), str):
+                                c.file(posixpath.join(b['framesDir'], ao['video']), wa + '.video', 'видео')
+                            if not (isinstance(ao.get('mask'), str) and ao['mask'].startswith('vid_') and ao['mask'].endswith('_mask.png')):
+                                c.err(wa + '.mask', 'у видео нужна маска vid_*_mask.png')
+                            continue
+                        if 'wx' in ao:
+                            c.boolean(ao['wx'], wa + '.wx')
+                        if not (isinstance(ao.get('srcs'), list) and ao['srcs'] and all(s is None or (isinstance(s, str) and s.startswith('show_') and s.endswith('.png')) for s in ao.get('srcs') or [])):
                             c.err(wa + '.srcs', 'список картинок show_*.png (null — поза самого рисунка)')
                         if 'every' in ao:
                             c.numbers(ao['every'], wa + '.every', 2, 0.1, 60)

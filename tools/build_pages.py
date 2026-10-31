@@ -469,7 +469,7 @@ def build_beta(site, bdirs=None, root=None, with_local=False):
         written.append(str(out.relative_to(site)))
         if bd in own:   # кадры здания — рядом со страницей: beta/tests/<имя>/frames/*.webp
             fdir = Path(root or ROOT) / bd / 'frames'   # + синемаграф (e1.13): <кадр>_motion.mp4 и маска
-            for src in sorted(list(fdir.glob('*.webp')) + list(fdir.glob('*_motion*.mp4')) + list(fdir.glob('*_motion*.webm')) + list(fdir.glob('*_motion_mask.png')) + list(fdir.glob('*_fig.png')) + list(fdir.glob('*_motion*cars.json')) + list(fdir.glob('*_sway.png')) + list(fdir.glob('show_*.png'))):   # e1.15: + треки машин для ночных фар; e1.26: поля качания крон; e1.41: картинки шоу (Gemini, RGBA)
+            for src in sorted(list(fdir.glob('*.webp')) + list(fdir.glob('*_motion*.mp4')) + list(fdir.glob('*_motion*.webm')) + list(fdir.glob('*_motion_mask.png')) + list(fdir.glob('*_fig.png')) + list(fdir.glob('*_motion*cars.json')) + list(fdir.glob('*_sway.png')) + list(fdir.glob('show_*.png')) + list(fdir.glob('vid_*.mp4')) + list(fdir.glob('vid_*.webm')) + list(fdir.glob('vid_*_mask.png'))):   # e1.15: + треки машин для ночных фар; e1.26: поля качания крон; e1.41: картинки шоу (Gemini, RGBA)
                 dst = out.parent / 'frames' / src.name
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(src, dst)

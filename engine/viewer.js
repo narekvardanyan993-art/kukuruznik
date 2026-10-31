@@ -1120,16 +1120,58 @@
         im.onerror = function () { logErr('pose', sname + ' не загрузилась'); };
         im.src = String(FRAMES[i].color).split('?')[0].replace(/[^\/]*$/, '') + sname;
       });
+      if (a.video) {   // e1.49: живое место из видео Veo — <video> (без звука, по кругу), кадры видео смешиваются с рисунком по маске
+        var dir = String(FRAMES[i].color).split('?')[0].replace(/[^\/]*$/, ''), bw2 = A.box[2] - A.box[0], bh2 = A.box[3] - A.box[1];
+        var vd = document.createElement('video'); vd.muted = true; vd.defaultMuted = true; vd.loop = true; vd.playsInline = true; vd.preload = 'auto'; vd.crossOrigin = 'anonymous';
+        vd.setAttribute('muted', ''); vd.setAttribute('playsinline', ''); vd.setAttribute('webkit-playsinline', '');
+        vd.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none;z-index:-1';
+        document.body.appendChild(vd); vd.src = dir + (vd.canPlayType('video/mp4; codecs="avc1.4d401f"') ? a.video : a.video.replace(/\.mp4$/, '.webm'));   // нет H.264 — запасной WebM
+        A.vid = vd; A.vv = 0; A.vT = -1; A.vLast = 0; A.vdata = null;
+        A.vcv = document.createElement('canvas'); A.vcv.width = bw2; A.vcv.height = bh2; A.vcx = A.vcv.getContext('2d', { willReadFrequently: true });
+        if (a.mask) {
+          var mi = new Image(); mi.crossOrigin = 'anonymous';
+          mi.onload = function () { try { var c2 = document.createElement('canvas'); c2.width = bw2; c2.height = bh2; var x2 = c2.getContext('2d', { willReadFrequently: true }); x2.drawImage(mi, 0, 0, bw2, bh2); var dd = x2.getImageData(0, 0, bw2, bh2).data, mm = new Uint8Array(bw2 * bh2); for (var q2 = 0; q2 < mm.length; q2++) mm[q2] = dd[q2 * 4]; A.vmask = mm; } catch (e) { logErr('video mask', e); } };
+          mi.onerror = function () { logErr('video mask', a.mask + ' не загрузилась'); };
+          mi.src = dir + a.mask;
+        }
+        vd.addEventListener('error', function () { logErr('video', a.video + ' не загрузилось'); A.vbad = true; });
+        VIDS.push(A);
+      }
       st.actors.push(A);
     });
+    st.hasWx = all.some(function (a) { return a.wx; });
     f.poses = st;
+  }
+  var VIDS = [];   // e1.49: актёры-видео всех кадров (пауза, когда кадр не на экране)
+  function vidsGc(now) {
+    VIDS.forEach(function (A) { if (A.vid && !A.vid.paused && now - (A.seen || 0) > 400) { try { A.vid.pause(); } catch (e) {} } });
   }
   function poseRnd(a, b) { return a + Math.random() * (b - a); }
   function posesStep(f, now) {
     var st = f && f.poses; if (!st) return;
     var t = now / 1000, still = reduced(), nk = Math.round(sstep(0.06, 0.4, tod.night) * 20) / 20, busy = false;   // e1.46: позы гаснут к ночи плавно (все актёры): ночью — только ночной рисунок
     if (nk !== st.nightK) { st.nightK = nk; st.dirty = true; }
+    var wxRaw = typeof wx !== 'undefined' ? sstep(0.04, 0.6, Math.max(wx.cur[2], wx.cur[3])) : 0, wk = Math.round(wxRaw * 20) / 20;   // e1.49: непогода (дождь/снег) 0..1
+    if (wk !== st.wxK) { st.wxK = wk; st.dirty = true; }
+    var dtS = st.lastT ? Math.min(0.25, t - st.lastT) : 0; st.lastT = t;
+    if (!st.gcT || now - st.gcT > 500) { st.gcT = now; vidsGc(now); }
     st.actors.forEach(function (A) {
+      if (!A.vid) return;
+      A.seen = now;
+      var tgt = A.vbad ? 0 : (1 - sstep(0.06, 0.4, tod.night)) * (1 - wxRaw) * (still ? 0 : 1), pv = A.vv;
+      A.vv = dtS > 0 ? A.vv + (tgt - A.vv) * Math.min(1, dtS / 0.6) : tgt; if (Math.abs(A.vv - tgt) < 0.01) A.vv = tgt;
+      if (Math.abs(A.vv - pv) > 0.004) st.dirty = true;
+      var vd = A.vid;
+      if (A.vv > 0.005) {
+        if (vd.paused) { var pr = vd.play(); if (pr && pr.catch) pr.catch(function () {}); }
+        if (vd.readyState >= 2 && vd.currentTime !== A.vT && now - A.vLast >= 40) {
+          try { A.vcx.drawImage(vd, 0, 0, A.vcv.width, A.vcv.height); A.vdata = A.vcx.getImageData(0, 0, A.vcv.width, A.vcv.height).data; A.vT = vd.currentTime; A.vLast = now; st.dirty = true; }
+          catch (e) { logErr('video frame', e); A.vbad = true; }
+        }
+      } else if (!vd.paused) { try { vd.pause(); } catch (e) {} }
+    });
+    st.actors.forEach(function (A) {
+      if (A.vid) return;
       var c = A.cfg, n = (c.srcs || []).length, ev = c.every || [3, 6], fd = c.fade == null ? 0.6 : c.fade;
       if (!A.next) A.next = t + poseRnd(ev[0], ev[1]) * (0.3 + 0.7 * Math.random());
       if (!still && n > 1 && t >= A.next) {
@@ -1140,14 +1182,26 @@
       A.mix = fd > 0 ? Math.min(1, (t - A.t0) / fd) : 1;
       if (A.mix < 1 && A.prev !== A.cur) busy = true;
     });
+    if (st.actors.some(function (A) { return A.vid && A.vv > 0.005; })) busy = true;   // e1.49: видео идёт
     if (!st.dirty && !busy) return;
     if (busy && now - st.last < 50) return;   // смена позы: ~20 обновлений куска в секунду, не на каждый кадр
     st.last = now; st.dirty = false;
     var w = st.w, h = st.h, b = st.base, o = st.out, oc = st.ch === 4 ? 4 : 3, i, n = w * h;
-    var acc = new Float32Array(n * 4);
+    var acc = new Float32Array(n * 4), ordA = st.actors.filter(function (A) { return !A.cfg.wx && !A.vid; }).concat(st.actors.filter(function (A) { return A.vid; }), st.actors.filter(function (A) { return A.cfg.wx; }));   // e1.49
     for (i = 0; i < n; i++) { acc[i * 4] = b[i * 4]; acc[i * 4 + 1] = b[i * 4 + 1]; acc[i * 4 + 2] = b[i * 4 + 2]; acc[i * 4 + 3] = b[i * 4 + 3]; }
-    st.actors.forEach(function (A) {
-      var c = A.cfg, vis = 1 - st.nightK; if (vis <= 0) return;   // e1.46: и старик/пара — дневные пиксели поверх ночи давали шов
+    ordA.forEach(function (A) {
+      var c = A.cfg, vis = (1 - st.nightK) * (c.wx ? st.wxK : (st.hasWx ? 1 - st.wxK : 1)); if (vis <= 0) return;   // e1.49: погодная версия — в непогоду, остальные актёры — в ясную
+      if (A.vid) {   // e1.49: кадр видео по маске
+        var vdd = A.vdata, vm = A.vmask, k2 = A.vv * (st.hasWx ? 1 - st.wxK : 1); if (!vdd || !vm || k2 <= 0.003) return;
+        var vb = A.box, vw = vb[2] - vb[0];
+        for (var y2 = Math.max(0, vb[1]); y2 < Math.min(h, vb[3]); y2++) for (var x2 = Math.max(0, vb[0]); x2 < Math.min(w, vb[2]); x2++) {
+          var p2 = (y2 - vb[1]) * vw + (x2 - vb[0]), a2 = vm[p2] / 255 * k2; if (a2 <= 0.002) continue;
+          var s2 = p2 * 4, q3 = (y2 * w + x2) * 4;
+          acc[q3] = vdd[s2] * a2 + acc[q3] * (1 - a2); acc[q3 + 1] = vdd[s2 + 1] * a2 + acc[q3 + 1] * (1 - a2); acc[q3 + 2] = vdd[s2 + 2] * a2 + acc[q3 + 2] * (1 - a2);
+          if (st.bld) acc[q3 + 3] = 255 * a2 + acc[q3 + 3] * (1 - a2);
+        }
+        return;
+      }   // e1.46: и старик/пара — дневные пиксели поверх ночи давали шов
       var layers = [[A.cur, A.prev !== A.cur ? A.mix : 1]];
       if (A.prev !== A.cur && A.mix < 1) layers.unshift([A.prev, 1]);   // уходящая поза снизу, новая проявляется поверх
       var bx = A.box, bw = bx[2] - bx[0];
