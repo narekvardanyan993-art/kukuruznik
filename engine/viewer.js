@@ -1213,10 +1213,13 @@
     o.set(st.base);
     if (vis > 0) for (var k = 0, n = idx.length; k < n; k++) {
       var p = idx[k], a = al[k] * vis, s4 = p * 4, q = p * ch;
-      if (rf) { var p3 = p * 3, dv = Math.max(Math.abs(vdd[s4] - rf[p3]), Math.abs(vdd[s4 + 1] - rf[p3 + 1]), Math.abs(vdd[s4 + 2] - rf[p3 + 2])), kd = (dv - st.dlo) * st.dk; if (kd <= 0) continue; if (kd < 1) a *= kd * kd * (3 - 2 * kd); }   // e1.50 diff
+      if (rf) { var p3 = p * 3, dv = Math.max(Math.abs(vdd[s4] - rf[p3]), Math.abs(vdd[s4 + 1] - rf[p3 + 1]), Math.abs(vdd[s4 + 2] - rf[p3 + 2])), kd = (dv - st.dlo) * st.dk; if (kd <= 0 && !gr) continue; a *= kd <= 0 ? 0 : (kd < 1 ? kd * kd * (3 - 2 * kd) : 1); }   // e1.50 diff (e1.51: у слоя здания дальше — проверка подложки)
       var b1 = 1 - a, ke = 1;
       if (gr) { var dg = Math.max(Math.abs(vdd[s4] - gr[p * 3]), Math.abs(vdd[s4 + 1] - gr[p * 3 + 1]), Math.abs(vdd[s4 + 2] - gr[p * 3 + 2])), kg = (dg - st.dlo) * st.dk; ke = kg <= 0 ? 0 : (kg >= 1 ? 1 : kg * kg * (3 - 2 * kg)); }   // e1.50: видео = подложка → здание прозрачно
-      if (ke < 1) { o[q] = vdd[s4] * a * ke + o[q] * b1; o[q + 1] = vdd[s4 + 1] * a * ke + o[q + 1] * b1; o[q + 2] = vdd[s4 + 2] * a * ke + o[q + 2] * b1; o[q + 3] = 255 * a * ke + o[q + 3] * b1; continue; }
+      if (ke < 1) {   // e1.51: видео здесь = подложка → здание стирается на полную силу маски (а не на долю «отличия от рисунка»: светлый камень, похожий на небо, оставался бледным следом)
+        var ae = Math.max(a, al[k] * vis * (1 - ke)), be = 1 - ae;
+        o[q] = vdd[s4] * ae * ke + o[q] * be; o[q + 1] = vdd[s4 + 1] * ae * ke + o[q + 1] * be; o[q + 2] = vdd[s4 + 2] * ae * ke + o[q + 2] * be; o[q + 3] = 255 * ae * ke + o[q + 3] * be; continue;
+      }
       o[q] = vdd[s4] * a + o[q] * b1; o[q + 1] = vdd[s4 + 1] * a + o[q + 1] * b1; o[q + 2] = vdd[s4 + 2] * a + o[q + 2] * b1;
       if (st.bld) o[q + 3] = 255 * a + o[q + 3] * b1;   // текстура здания — цвет умножен на альфу (видео непрозрачно)
     }
@@ -3755,8 +3758,9 @@
   if (cardSaveOv) cardSaveOv.addEventListener('click', function (e) { if (e.target === cardSaveOv) hideSaveOverlay(); });
   var toastT = 0, toastFile = null;
   function hideToast() { clearTimeout(toastT); toastFile = null; if (cardToast) cardToast.classList.remove('on'); }
-  function showToast(file) {   // file — файл или список (лицо + оборот); share не открылся без жеста — второе нажатие по плашке откроет его наверняка
-    toastFile = file; if (!cardToast) return;
+  var toastAfter = null;   // e1.51: что сделать после share по плашке (запасной путь: кнопка становится «Сохранить оборот»)
+  function showToast(file, after) {   // file — файл или список (лицо + оборот); share не открылся без жеста — второе нажатие по плашке откроет его наверняка
+    toastFile = file; toastAfter = after || null; if (!cardToast) return;
     cardToast.querySelector('span').textContent = CONFIG.UI_I18N.cardReady[currentLang];
     cardToast.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(hideToast, 9000);
   }
@@ -3770,11 +3774,29 @@
     });
   }
   var touchNoShare = TOUCH_DEV && !shareOK;   // телефон, но Web Share с файлами недоступен
+  // e1.51 (просьба Нарека): лицо + оборот — ОДНИМ нажатием, navigator.share({files: [лицо, оборот]}); файлы собраны заранее (cardFilesPrep).
+  // Запасной путь (двухшаговый, e1.35) — только если share с двумя файлами вернул ошибку или canShare их не берёт: дальше по файлу на нажатие
+  // (плашка «Открытка готова» → лицо, потом «Сохранить оборот»). cardTwo держится до перезагрузки страницы.
+  var cardTwo = false;
+  function share2(files) {
+    var p; try { p = navigator.share({ files: files }); } catch (e) { p = Promise.reject(e); }
+    return p.then(hideToast, function (e) {
+      if (e && e.name === 'AbortError') { hideToast(); return; }   // человек закрыл меню сам
+      cardTwo = true; goStep(false);   // два файла не прошли — запасной путь: лицо по плашке (новый жест), потом «Сохранить оборот»
+      showToast(files[0], function () { goStep(true); });
+    });
+  }
   // отдать: телефон с Web Share — «Поделиться» с одним файлом или двумя (лицо + оборот); телефон без Web Share (в т.ч. iOS Safari
   // без поддержки файлов) — оверлей «зажми и сохрани» (JPEG card-front.jpg/card-back.jpg готовы в самом оверлее, качать не нужно,
   // а на iOS программное скачивание часто просто открывает картинку); ПК — PNG (с оборотом — два PNG)
   function deliverCard(cv, back) {
-    if (shareOK) {   // e1.35: один файл на share; с оборотом — два нажатия (лицо, потом «Сохранить оборот»)
+    if (shareOK) {   // e1.51: с оборотом — оба файла одним share; запасной путь (e1.35) — по файлу на нажатие (лицо, потом «Сохранить оборот»)
+      if (back && !goBack && !cardTwo) {
+        var f1 = cardFileNow(false), f2 = cardFileNow(true), both = f1 && f2 ? [f1, f2] : null, can = false;
+        try { can = !!both && navigator.canShare({ files: both }); } catch (e) { can = false; }
+        if (can) { share2(both); return; }
+        if (both) cardTwo = true;   // два файла share не берёт — сразу двухшаговый путь
+      }
       var second = goBack && !!back, f = cardFileNow(second);
       if (f && navigator.canShare({ files: [f] })) {
         goStep(!second && !!back);   // после лица кнопка сразу «Сохранить оборот» (не ждём промис: на части iOS он не завершается)
@@ -3814,7 +3836,10 @@
   }
   function cardFlashNow() { if (cardFlash && cardFlash.animate) cardFlash.animate([{ opacity: reduced() ? 0.35 : 0.75 }, { opacity: 0 }], { duration: reduced() ? 380 : 620, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' }); }
   function goDone() { cardGo.classList.add('done'); clearTimeout(cardGo.__t); cardGo.__t = setTimeout(function () { cardGo.classList.remove('done'); }, 1600); }
-  if (cardToast) cardToast.addEventListener('click', function () { if (toastFile) shareFile(toastFile); });
+  if (cardToast) cardToast.addEventListener('click', function () {   // e1.51: список из двух файлов — share2 (с запасным путём); после share по плашке — toastAfter
+    var f = toastFile, af = toastAfter; toastAfter = null; if (!f) return;
+    if (Array.isArray(f) && f.length > 1 && !cardTwo) share2(f); else { shareFile(Array.isArray(f) ? f[0] : f); if (af) af(); }
+  });
 
   // окно: отметки, превью, «Показать»
   function cfgMarks() {
@@ -4021,7 +4046,7 @@
     }
     showNow().then(function () {   // время/погода другие (или шрифты не готовы) — сначала снять; жест уже потерян → на телефоне плашка «готово»
       if (!cfg.card) return;
-      if (shareOK) { var f = cardFileNow(false); if (f) { showToast(f); goStep(!!cfg.back); } }   // e1.35: лицо — по плашке, оборот — второй кнопкой (e1.36: второе нажатие кнопки — сразу оборот)
+      if (shareOK) { var f = cardFileNow(false), fb2 = cfg.back && !cardTwo ? cardFileNow(true) : null; if (f && fb2) showToast([f, fb2]); else if (f) { showToast(f); goStep(!!cfg.back); } }   // e1.51: с оборотом — оба файла одной плашкой   // e1.35: лицо — по плашке, оборот — второй кнопкой (e1.36: второе нажатие кнопки — сразу оборот)
       else deliverCard(cfg.card, cfg.back);
       goDone();
     });
@@ -4046,7 +4071,7 @@
     fontsReady: function (l) { return cardFontsReady(l || cardLang()); }, fontsLoad: cardFontsLoad, paperReady: cardPaperReady, paperLoad: cardPaperLoad,bldLoad: function () { FRAMES.forEach(function (F, i) { cardBldLoad(i); }); return new Promise(function (res) { var n = 0; (function w() { if (FRAMES.every(function (F, i) { return cardBld[i] !== 'loading'; }) || ++n > 100) res(); else setTimeout(w, 100); })(); }); }, mask: cardBuildingMask, safe: function () { return ChkaPostcard.SAFE; },
     open: openCfg, close: closeCfg, show: showNow,
     want: function (w) { if (w) { cfg.want = w; dirty(); } return cfg.want; },
-    state: function () { return { open: bodyEl.classList.contains('card-open'), srcFrame: cfg.srcFrame, step: goBack ? 'back' : 'front', device: TOUCH_DEV ? (shareOK ? 'share' : 'touch') : 'desktop', filesReady: { front: !!cardFiles.front, back: !!cardFiles.back }, rare: cfg.rare, seed: cfg.seed, code: cfg.code, time: cfg.want ? cardTime(cfg.want) : '', want: cfg.want, srcKey: cfg.srcKey, dirty: cfg.dirty, busy: cfg.busy, back: !!cfg.back, years: CARD_YEARS, set: JSON.parse(JSON.stringify(cardSet)), no: cardNo(), mom: MOM.map(function (m) { return m.k; }), wx: CWX, showOn: !!(cfg.want && cfg.want.show) }; },
+    state: function () { return { open: bodyEl.classList.contains('card-open'), srcFrame: cfg.srcFrame, step: goBack ? 'back' : 'front', two: cardTwo, device: TOUCH_DEV ? (shareOK ? 'share' : 'touch') : 'desktop', filesReady: { front: !!cardFiles.front, back: !!cardFiles.back }, rare: cfg.rare, seed: cfg.seed, code: cfg.code, time: cfg.want ? cardTime(cfg.want) : '', want: cfg.want, srcKey: cfg.srcKey, dirty: cfg.dirty, busy: cfg.busy, back: !!cfg.back, years: CARD_YEARS, set: JSON.parse(JSON.stringify(cardSet)), no: cardNo(), mom: MOM.map(function (m) { return m.k; }), wx: CWX, showOn: !!(cfg.want && cfg.want.show) }; },
     // замер «Момента» (s30): применить { p | s, wx }, снять кадр без табличек, вернуть сцену; ответ — маленькая копия 270×480 PNG
     probe: function (w) { return shoot(w).then(function (r) { if (!r.src) return null; var c = document.createElement('canvas'); c.width = 270; c.height = 480; c.getContext('2d').drawImage(r.src, 0, 0, 270, 480); return c.toDataURL('image/png'); }); },
     // замер праздника (s31): w как у probe + show: true; ts — секунды показа; ответ — список копий 270×480 PNG (или полного размера, если full)

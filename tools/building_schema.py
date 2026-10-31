@@ -671,8 +671,14 @@ def validate(bdir, b, site):
             for j, it in enumerate(fxo.get('items') or []):
                 if isinstance(it, dict) and it.get('kind') == 'letters':   # e1.46: надпись по буквам (атласы fix11.py insc)
                     wl = '%s: fx.items[%d]' % (w, j + 1)
-                    for kk in ('rect', 'size', 'dark', 'fire', 'glow', 'cells'):
+                    for kk in ('rect', 'size', 'cells') + (() if 'carve' in it else ('dark', 'fire', 'glow')):   # e1.51: carve — резьба (атласы fix16.py insc)
                         if kk not in it: c.err(wl, 'letters: нет %s' % kk)
+                    if 'carve' in it:
+                        cv = it['carve']
+                        if not (isinstance(cv, dict) and all(isinstance(cv.get(q), str) and cv[q].startswith('show_') for q in ('groove', 'light', 'ember1', 'ember2'))):
+                            c.err(wl + '.carve', '{groove, light, ember1, ember2} — картинки show_*')
+                        elif isinstance(b.get('framesDir'), str):
+                            for q in ('groove', 'light', 'ember1', 'ember2'): c.file(posixpath.join(b['framesDir'], cv[q]), '%s.carve.%s' % (wl, q), 'картинка')
                     if isinstance(it.get('cells'), list) and not all(isinstance(q, list) and len(q) == 6 and all(is_num(x) for x in q) for q in it['cells']):
                         c.err(wl + '.cells', 'список [sx, sy, w, h, dx, dy]')
                 if isinstance(it, dict) and it.get('kind') == 'image':

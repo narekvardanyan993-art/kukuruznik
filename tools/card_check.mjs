@@ -11,7 +11,12 @@ export const SHARE_HOOK = () => {
   window.__shares = [];
   const put = (k, v) => { try { Object.defineProperty(Navigator.prototype, k, { value: v, configurable: true, writable: true }); } catch (e) {} };
   put('canShare', (d) => !!(d && d.files && d.files.length));
-  put('share', (d) => { window.__shares.push({ file: (d && d.files && d.files[0]) || null, files: (d && d.files) ? Array.from(d.files) : [], n: d && d.files ? d.files.length : 0 }); return Promise.resolve(); });
+  // e1.51: window.__shareFail2 (ставит проверка запасного пути) — share с несколькими файлами отклоняется, как на телефоне, который так не умеет
+  put('share', (d) => {
+    const files = (d && d.files) ? Array.from(d.files) : [], rej = !!window.__shareFail2 && files.length > 1;
+    window.__shares.push({ file: files[0] || null, files, n: files.length, rejected: rej });
+    return rej ? Promise.reject(new DOMException('share с несколькими файлами отклонён (проверка запасного пути)', 'DataError')) : Promise.resolve();
+  });
 };
 
 // e1.36: компьютер — открытка скачивается (a[download] с blob:). Перехватчик запоминает каждый файл { name, blob } и НЕ качает его.
@@ -98,7 +103,7 @@ export async function cardSheetClose(page, sleep) {
 
 // Шаг «открытка» телефонной прогулки. page — страница с SHARE_HOOK; click(sel) — нажатие (у check_site с виртуальным временем); sleep(ms).
 // Возвращает { problems: [{type, msg}], png?: Buffer (что ушло в share, после JPEG), size?, name? }.
-export async function phoneCardStep(page, { click, sleep, shareMs = 20000, fontsMs = 10000, back = false, settled = null }) {   // back: с оборотом — ровно 2 файла (лицо + оборот), оба JPEG 1080×1920   // shareMs/fontsMs — пределы ожидания (в проверке сайта — 20 и 10 с; короче — только в самопроверке)
+export async function phoneCardStep(page, { click, sleep, shareMs = 20000, fontsMs = 10000, back = false, settled = null, fail2 = false }) {   // e1.51 fail2: share с 2 файлами отклоняется — проверка запасного пути   // back: с оборотом — ровно 2 файла (лицо + оборот), оба JPEG 1080×1920   // shareMs/fontsMs — пределы ожидания (в проверке сайта — 20 и 10 с; короче — только в самопроверке)
   // settled (только самопроверка, tools/test_card_check.mjs): async () => true, когда страница-подделка закончила все свои вызовы share — ждём это событие вместо фиксированного окна; боевые проверки settled не передают
   const problems = [], out = { problems };
   const P = (msg) => problems.push({ type: 'прогулка', msg });
@@ -114,7 +119,7 @@ export async function phoneCardStep(page, { click, sleep, shareMs = 20000, fonts
   if (!paperOk) P(`бумага открытки не догрузилась заранее (за ${fontsMs / 1000} с): открытка, снятая сразу после открытия окна, уйдёт без неё`);
   // карта здания для обхода памятника грузится в простое (до ~6 с после загрузки); ждём её (≤10 с), чтобы открытка двух копий сайта не зависела от того, успела ли она
   await page.evaluate(() => (window.__card && window.__card.bldLoad ? window.__card.bldLoad() : null));
-  await page.evaluate(() => { window.__shares = []; window.__lastImageBlob = null; window.__download = null; });
+  await page.evaluate((f2) => { window.__shares = []; window.__lastImageBlob = null; window.__download = null; window.__shareFail2 = f2; }, !!fail2);
   const tap = await cardTapSave(page, { click, sleep, back });
   out.sheet = tap.sheet;
   if (back && !tap.backBtn) { P('с оборотом: в окне нет кнопки «Оборот» (#cardBack)'); return out; }
@@ -131,27 +136,31 @@ export async function phoneCardStep(page, { click, sleep, shareMs = 20000, fonts
   if (settled) { for (let i = 0; i < shareMs / 200 && !(await settled()); i++) await sleep(200); }   // самопроверка: ждём, пока подделка сделает ВСЕ свои вызовы share (второй вызов «twice»), а не гадаем паузой
   await sleep(300);   // второго вызова share от одного нажатия быть не должно
   const n1 = await page.evaluate(() => window.__shares.length), c1 = await page.evaluate(() => { const s = window.__shares[0]; return s.files && s.files.length ? s.files.length : (s.file ? 1 : 0); });
-  // e1.35: с оборотом — два нажатия, по файлу на share (iOS с двумя файлами в одном share сохранял только оборот). После лица кнопка
-  // «Сохранить» становится «Сохранить оборот» (#cardGo.cc-go2) — нажимаем её и ждём второй share. Старые страницы (≤ e1.34) отдают 2 файла сразу.
-  let n2 = 0;
-  if (back && n1 === 1 && c1 === 1) {
+  // e1.51 (просьба Нарека): с оборотом — ОДНО нажатие → ОДИН share с двумя файлами (лицо, оборот). Двухшаговый путь e1.35 — только запасной:
+  // share с двумя файлами отклонён (fail2: так делает перехватчик) → плашка «Открытка готова» (#cardToast.on) → лицо, потом «Сохранить оборот» (#cardGo.cc-go2).
+  let n2 = 0, taps = 1;
+  if (back && !fail2 && c1 !== 2) { P(`с оборотом: одно нажатие отдало в share ${c1} файл(а) — нужно оба (лицо + оборот) одним share`); }
+  if (back && fail2) {
+    taps = 3;
+    if (c1 !== 2) { P(`запасной путь: первое нажатие отдало ${c1} файл(а) — сначала должна быть попытка с обоими файлами`); return out; }
+    let toast = false;
+    for (let i = 0; i < 25 && !(toast = await page.evaluate(() => { const b = document.getElementById('cardToast'); return !!b && b.classList.contains('on'); })); i++) await sleep(200);
+    if (!toast) { P('запасной путь: share с двумя файлами отклонён, а плашки «Открытка готова» (#cardToast.on) нет — сохранить нечем'); return out; }
+    await click('#cardToast');
+    for (let i = 0; i < shareMs / 200 && (n2 = await page.evaluate(() => window.__shares.length)) < 2; i++) await sleep(200);
+    if (n2 < 2) { P('запасной путь: нажатие по плашке не вызвало share (лицо)'); return out; }
     let step2 = false;
     for (let i = 0; i < 25 && !(step2 = await page.evaluate(() => { const b = document.getElementById('cardGo'); return !!b && b.classList.contains('cc-go2'); })); i++) await sleep(200);
-    if (!step2) { P('с оборотом: после лица кнопка не стала «Сохранить оборот» (#cardGo.cc-go2) — оборот не сохранить'); return out; }
-    if (settled) await page.evaluate(() => { window.__fake.done = false; });
+    if (!step2) { P('запасной путь: после лица кнопка не стала «Сохранить оборот» (#cardGo.cc-go2) — оборот не сохранить'); return out; }
+    if (settled) await page.evaluate(() => { if (window.__fake) window.__fake.done = false; });
     await click('#cardGo');
-    for (let i = 0; i < shareMs / 200 && (n2 = await page.evaluate(() => window.__shares.length)) < 2; i++) {
-      await sleep(200);
-      if (settled && await settled()) { await sleep(200); n2 = await page.evaluate(() => window.__shares.length); break; }
-    }
-    if (n2 < 2) { P(`с оборотом: второе нажатие «Сохранить оборот» не вызвало share за ${shareMs / 1000} с`); return out; }
-    if (settled) { for (let i = 0; i < shareMs / 200 && !(await settled()); i++) await sleep(200); }
+    for (let i = 0; i < shareMs / 200 && (n2 = await page.evaluate(() => window.__shares.length)) < 3; i++) await sleep(200);
+    if (n2 < 3) { P(`запасной путь: «Сохранить оборот» не вызвало share за ${shareMs / 1000} с`); return out; }
     await sleep(300);
-    n2 = await page.evaluate(() => window.__shares.length);
   }
   const r = await page.evaluate(async (src) => {
     const s = window.__shares, fl = [];
-    s.forEach((q) => { const f = (q.files && q.files.length) ? q.files : (q.file ? [q.file] : []); f.forEach((x) => fl.push(x)); });
+    s.forEach((q) => { if (q.rejected) return; const f = (q.files && q.files.length) ? q.files : (q.file ? [q.file] : []); f.forEach((x) => fl.push(x)); });   // e1.51: отклонённый share — не сохранён
     if (!fl.length) return { n: s.length, nofile: true };
     const files = await (0, eval)(src)(fl);
     return Object.assign({ n: s.length, count: fl.length, files }, files[0]);
@@ -168,8 +177,7 @@ export async function phoneCardStep(page, { click, sleep, shareMs = 20000, fonts
     if (!(f.sd >= 4)) P(`${what} в share пустая: однотонная картинка (разброс яркости ${f.sd}) — похоже, пустой холст`);   // e1.35: «оба файла непустые»
   });
   sideChecks(r.files, P, 'share');
-  const taps = back && n2 ? 2 : 1;
-  if (r.n !== taps) P(taps === 1 ? `одно нажатие вызвало share ${r.n} раз(а)` : `два нажатия вызвали share ${r.n} раз(а)`);
+  if (r.n !== taps) P(taps === 1 ? `одно нажатие вызвало share ${r.n} раз(а)` : `запасной путь: ${taps} нажатия вызвали share ${r.n} раз(а)`);
   out.png = Buffer.from(r.png, 'base64'); out.size = r.size; out.name = r.name;
   if (r.files[1]) {
     out.backPng = Buffer.from(r.files[1].png, 'base64'); out.backName = r.files[1].name;

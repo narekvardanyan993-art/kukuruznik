@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Самопроверка проверки открытки (tools/card_check.mjs): на настоящем Chrome, на крошечной странице-подделке.
-//   зелёная — share получает image/jpeg 1080×1920 одним вызовом;
+//   зелёная — share получает image/jpeg 1080×1920 одним вызовом (с оборотом — лицо + оборот одним вызовом, e1.51; запасной путь — по файлу);
 //   красная (проверка НЕ ослаблена) — файла нет / не тот размер / не JPEG / два вызова share / share вызван без файла.
 // Запуск: node tools/test_card_check.mjs  (в облаке: PUPPETEER_EXECUTABLE_PATH=…/chrome). Код выхода 0 — всё как должно быть, 2 — нет Chrome (пропуск).
 // Пределы ожидания здесь: share — 15 с по событию (подделка сама сообщает «закончила»; красные идут быстро, зелёные не зависят от скорости машины), шрифты/бумага — 0,75 с (красный случай ждёт ровно столько); логика та же, что в боевых проверках.
@@ -13,7 +13,7 @@ import { SHARE_HOOK, CARD_DETERMINISM, DOWNLOAD_HOOK, phoneCardStep, desktopCard
 const ENGINE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'engine');
 
 // e1.28: нажатие «Открытка» открывает окно (body.card-open) с #cardGo, открытку отдаёт #cardGo; режим legacy — старая страница e1.27 (сразу share).
-const PAGE = (mode) => `<!doctype html><meta charset=utf-8><style>#cardGo{display:none}body.card-open #cardGo{display:block}</style><body><button id=cardBtn style="width:120px;height:60px">card</button><button id=cardGo style="width:120px;height:60px">save</button><canvas id=cardPrev width=90 height=160></canvas><canvas id=cardPrevB width=90 height=160></canvas><button id=cardCfgClose>x</button><button id=cardBack aria-pressed=false onclick="this.setAttribute('aria-pressed', this.getAttribute('aria-pressed') === 'true' ? 'false' : 'true')">back</button><script>
+const PAGE = (mode) => `<!doctype html><meta charset=utf-8><style>#cardGo{display:none}body.card-open #cardGo{display:block}</style><body><button id=cardBtn style="width:120px;height:60px">card</button><button id=cardGo style="width:120px;height:60px">save</button><canvas id=cardPrev width=90 height=160></canvas><canvas id=cardPrevB width=90 height=160></canvas><button id=cardCfgClose>x</button><div id=cardToast style="width:120px;height:40px;background:#eee"><span>ready</span></div><button id=cardBack aria-pressed=false onclick="this.setAttribute('aria-pressed', this.getAttribute('aria-pressed') === 'true' ? 'false' : 'true')">back</button><script>
 window.ChkaPostcard = {}; window.__fake = { clicks: 0, done: false, t0: 0, tShare: 0, err: null };   // журнал подделки: проверка ждёт done (событие), а не гадает паузой
 window.__card = { fontsReady: () => ${mode === 'fonts' ? 'false' : 'true'}, paperReady: () => ${mode === 'paper' ? 'false' : 'true'} };
 // картинка-подделка: градиент + полосы (не однотонная — «непустая»); flat — однотонная заливка (пустой холст iOS)
@@ -36,7 +36,7 @@ const sendDesk = async () => {   // e1.36: компьютер — один кл�
   const b = m === 'desk_same' ? f : await mk(1080, 1920, 'image/jpeg', false, 'back');
   await new Promise((r) => setTimeout(r, 400)); dl(b, 'card-back.jpg');
 };
-let step2 = false;   // e1.35: с оборотом — второе нажатие «Сохранить оборот» (кнопка с классом cc-go2)
+let step2 = false, toastF = null;   // запасной путь (e1.51): плашка #cardToast → лицо, потом «Сохранить оборот» (кнопка с классом cc-go2)
 const send = async () => { const F = window.__fake; F.t0 = performance.now(); try { await send1(); F.tShare = performance.now(); } catch (e) { F.err = String(e); } finally { F.done = true; } };
 const send1 = async () => {
   const m = ${JSON.stringify(mode)};
@@ -46,16 +46,24 @@ const send1 = async () => {
   if (DESK) { await sendDesk(); return; }
   const mkBack = () => mk(m === 'backsmall' ? 540 : 1080, m === 'backsmall' ? 960 : 1920, 'image/jpeg', m === 'backblank', 'back');
   const mkFront = () => mk(m === 'small' ? 540 : 1080, m === 'small' ? 960 : 1920, m === 'png' ? 'image/png' : 'image/jpeg', m === 'blank', 'front');
-  if (step2) { step2 = false; go.classList.remove('cc-go2'); if (m !== 'noback2') navigator.share({ files: [m === 'same' || m === 'swap' ? await mkFront() : await mkBack()] }); return; }   // второе нажатие — оборот (same/swap — ошибки e1.35)
+  if (step2) { step2 = false; go.classList.remove('cc-go2'); if (m !== 'fb_noback2') navigator.share({ files: [await mkBack()] }); return; }   // запасной путь: второе нажатие — оборот
   const f = m === 'swap' ? await mkBack() : await mkFront();
-  if (withBack && m === 'legacy2') { navigator.share({ files: [f, await mkBack()] }); return; }   // ≤ e1.34: оба файла одним share
+  if (withBack && m !== 'two') {   // e1.51: одно нажатие — оба файла одним share; отклонён — запасной путь: плашка → лицо, потом «Сохранить оборот»
+    const b = m === 'same' ? f : (m === 'swap' ? await mkFront() : await mkBack());
+    try { await navigator.share({ files: [f, b] }); } catch (e) {
+      if (m === 'fb_none') return;
+      toastF = f; document.getElementById('cardToast').classList.add('on');
+    }
+    return;
+  }
   navigator.share({ files: [f] });
   if (withBack && m !== 'back1') { step2 = true; go.classList.add('cc-go2'); }   // e1.35: лицо ушло — кнопка «Сохранить оборот»
   if (m === 'twice') navigator.share({ files: [f] });
 };
 document.getElementById('cardBtn').onclick = () => { if (${JSON.stringify(mode)} === 'legacy') { window.__fake.clicks++; send(); } else document.body.classList.add('card-open'); };
 document.getElementById('cardGo').onclick = () => { window.__fake.clicks++; if (${JSON.stringify(mode)} !== 'mute') send(); else window.__fake.done = true; };
-document.getElementById('cardCfgClose').onclick = () => document.body.classList.remove('card-open');</script>`;
+document.getElementById('cardCfgClose').onclick = () => document.body.classList.remove('card-open');
+document.getElementById('cardToast').onclick = () => { const t = document.getElementById('cardToast'); if (!toastF) return; t.classList.remove('on'); navigator.share({ files: [toastF] }); toastF = null; if (${JSON.stringify(mode)} !== 'fb_noback') { step2 = true; document.getElementById('cardGo').classList.add('cc-go2'); } };</script>`;
 const srv = http.createServer((q, r) => {
   if (q.url.startsWith('/engine/postcard.js')) { r.writeHead(200, { 'Content-Type': 'text/javascript' }); r.end(fs.readFileSync(path.join(ENGINE, 'postcard.js'))); return; }
   if (q.url.startsWith('/determinism')) { r.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); r.end('<!doctype html><meta charset=utf-8><script src="/engine/postcard.js"></script>'); return; }
@@ -85,18 +93,20 @@ const clickOf = (page) => async (sel) => {
 };
 const cases = [['ok', null], ['legacy', null], ['mute', 'не ушла в share'], ['small', '540×960'], ['png', 'тип image/png'], ['none', 'не ушла в share'], ['nofile', 'без файла'], ['twice', '2 раз'], ['fonts', 'шрифты открытки'], ['paper', 'бумага открытки'], ['blank', 'открытка в share пустая']];   // e1.35: пустой (однотонный) файл = красное   // e1.33: бумага грузится заранее — не успела = красное
 let bad = 0;
-// e1.29: с оборотом — 2 файла 1080×1920; e1.35: по одному на share, два нажатия (ok), старые страницы — оба сразу (legacy2)
-const backCases = [['ok', null], ['legacy2', null], ['back1', 'не стала «Сохранить оборот»'], ['noback2', 'не вызвало share'], ['backsmall', 'оборот в share: 540×960'], ['backblank', 'оборот в share пустая'],
-  ['same', 'одна и та же картинка'], ['swap', 'не лицо']];   // e1.36: баг iPhone — оба шага отдали лицо (same); стороны перепутаны (swap)
-for (const [mode, want] of backCases) {
+// e1.51: с оборотом — ОДНО нажатие, один share с двумя файлами 1080×1920 (лицо, оборот); двухшаговая страница e1.35 (two) — красная.
+// Запасной путь (fail2: перехватчик отклоняет share с двумя файлами): плашка → лицо → «Сохранить оборот» → оборот.
+const backCases = [['ok', null], ['two', 'одним share'], ['backsmall', 'оборот в share: 540×960'], ['backblank', 'оборот в share пустая'],
+  ['same', 'одна и та же картинка'], ['swap', 'не лицо'],   // e1.36: баг iPhone — обе стороны = лицо (same); стороны перепутаны (swap)
+  ['ok', null, true], ['fb_none', 'плашки «Открытка готова»', true], ['fb_noback', 'не стала «Сохранить оборот»', true], ['fb_noback2', 'не вызвало share', true]];
+for (const [mode, want, fail2] of backCases) {
   const page = await browser.newPage();
   await page.evaluateOnNewDocument(SHARE_HOOK);
   await page.goto(`http://127.0.0.1:${port}/?${mode}`);
-  const r = await phoneCardStep(page, { click: clickOf(page), sleep, shareMs: SHARE_MS, fontsMs: FONTS_MS, back: true, settled: settledOf(page) });
+  const r = await phoneCardStep(page, { click: clickOf(page), sleep, shareMs: SHARE_MS, fontsMs: FONTS_MS, back: true, settled: settledOf(page), fail2: !!fail2 });
   const msgs = r.problems.map((p) => p.msg).join(' | ');
   const ok = want === null ? r.problems.length === 0 && !!r.backPng : r.problems.some((p) => p.msg.includes(want));
   if (!ok) bad++;
-  console.log(`${ok ? 'OK   ' : 'ОШИБКА'}  оборот/${mode.padEnd(9)} ${want === null ? 'зелёная (2 файла)' : 'красная «' + want + '»'} — ${msgs.slice(0, 110) || 'без проблем'}`);
+  console.log(`${ok ? 'OK   ' : 'ОШИБКА'}  оборот/${(fail2 ? 'запасной/' : '') + mode.padEnd(9)} ${want === null ? (fail2 ? 'зелёная (2 файла запасным путём)' : 'зелёная (2 файла одним нажатием)') : 'красная «' + want + '»'} — ${msgs.slice(0, 110) || 'без проблем'}`);
   await page.close();
 }
 for (const [mode, want] of cases) {

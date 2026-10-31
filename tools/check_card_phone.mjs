@@ -96,13 +96,13 @@ try {
       await page.evaluate(() => { const b = document.getElementById('cardBack'); if (b && b.getAttribute('aria-pressed') === 'true') b.click(); });   // вернуть «без оборота»
     }
     await page.close();
-    // e1.36: телефон, где document.fonts.check «застрял» в false (iPhone) — два шага всё равно дают лицо, потом оборот (разные картинки)
+    // e1.36: телефон, где document.fonts.check «застрял» в false (iPhone) — всё равно лицо и оборот, разные картинки (e1.51: одним нажатием, один share с двумя файлами)
     {
       const { page: pg, click: ck } = await openPage({ fontsStuck: true });
       await pg.click('#panelBtn');
       const cf = await phoneCardStep(pg, { click: ck, sleep, back: true });
       problems.push(...cf.problems.map((q) => ({ type: q.type, msg: 'телефон, шрифты «не готовы»: ' + q.msg })));
-      if (cf.backPng) log('телефон, шрифты «не готовы»: 2 шага → лицо + оборот');
+      if (cf.backPng) log('телефон, шрифты «не готовы»: одно нажатие → лицо + оборот');
       await pg.close();
     }
     // e1.36: компьютер 1440×900 — один клик «Сохранить открытку» = card-front.jpg + card-back.jpg (без share и без второго шага)
@@ -118,4 +118,4 @@ try {
   problems.push(...errs);
 } finally { await browser.close(); srv.close(); }
 if (problems.length) { for (const p of problems) console.log('КРАСНОЕ:', p.type + ':', p.msg); process.exit(1); }
-console.log('ЗЕЛЁНАЯ: телефон — share image/jpeg 1080×1920, один вызов; с оборотом — лицо, потом оборот (по нажатию, разные, оба непустые; и при «застрявших» шрифтах); кадр после «Показать» не сбрасывается; переключателя языка нет; компьютер — один клик = card-front.jpg + card-back.jpg');
+console.log('ЗЕЛЁНАЯ: телефон — share image/jpeg 1080×1920, один вызов; с оборотом — лицо + оборот одним нажатием (один share, разные, оба непустые; и при «застрявших» шрифтах); кадр после «Показать» не сбрасывается; переключателя языка нет; компьютер — один клик = card-front.jpg + card-back.jpg');
