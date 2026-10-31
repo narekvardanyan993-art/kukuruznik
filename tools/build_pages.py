@@ -191,6 +191,8 @@ def make_config(b, frames_url, stamp=None):
         C['GUSTS'] = look['gusts']
     if any(f.get('figures') for f in fr):   # e1.22: фигуры рисунка (только если заданы у кадров — у остальных зданий CONFIG тот же)
         C['FIGURES'] = [f.get('figures') for f in fr]
+    if any(f.get('showVideo') for f in fr):   # e1.50: видео-шоу кадра (только если задано у кадров)
+        C['SHOWVID'] = [f.get('showVideo') for f in fr]
     if any(f.get('poses') for f in fr):   # e1.44: позы фигур рисунка (только если заданы у кадров — у остальных зданий CONFIG тот же)
         C['POSES'] = [f.get('poses') for f in fr]
     if any(f.get('tiltK') is not None for f in fr):   # e1.43: своя сила наклона кадра (только если задана — у остальных зданий CONFIG тот же)

@@ -2054,7 +2054,7 @@
     fxClock: function (now) {   // e1.43: время шоу fx для камеры просмотрщика (наезд A): кадр, секунда показа (с учётом «заморозки»), гашение при остановке
       if (!par || par.style !== 'fx') return null;
       var n = par.fix != null ? par.t0 + par.fix : now;
-      return { fr: par.fr, t: (n - par.t0) / 1000, len: par.dur / 1000, kill: par.abort ? clamp((now - par.abort) / 700, 0, 1) : 0 };
+      return { fr: par.fr, t: (n - par.t0) / 1000, len: par.dur / 1000, kill: par.abort ? clamp((now - par.abort) / 700, 0, 1) : 0, frozen: par.fix != null };   // e1.50: frozen — видео-шоу ставится на ту же секунду
     },
     fxShade: function () { return par && par.style === 'fx' && par.shade ? par.shade : null; },   // e1.40: шоу кадра для шейдера сцены (вид 1 sunset / 2 candles, с, длина, проявление)
     paradeProgress: function (now) { return par ? clamp((now - par.t0) / (par.total || par.dur), 0, 1) : -1; },   // для кольца на кнопке флага

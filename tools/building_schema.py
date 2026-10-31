@@ -385,7 +385,7 @@ def validate(bdir, b, site):
         nm = f.get('name') if isinstance(f, dict) else None
         w = 'кадр %d%s' % (i + 1, ' (%s)' % nm if isinstance(nm, str) else '')
         fr = c.obj(f, w, required=('name', 'crop', 'flag', 'cloudShadow', 'wind', 'sky', 'sun', 'life', 'hotspots', 'nightLamps', 'nightHalo', 'lamps'),
-                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'figures', 'snowMask', 'sway', 'fx', 'pix', 'spriteSnow', 'tiltK', 'noon', 'poses', 'snowFall', 'leafFly', 'wx'))
+                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'figures', 'snowMask', 'sway', 'fx', 'pix', 'spriteSnow', 'tiltK', 'noon', 'poses', 'snowFall', 'leafFly', 'wx', 'showVideo'))
         if not fr:
             continue
         if not (isinstance(nm, str) and re.fullmatch(r'[A-Za-z0-9_\-]+', nm)):
@@ -562,14 +562,34 @@ def validate(bdir, b, site):
                             if not (isinstance(ao.get('mask'), str) and ao['mask'].startswith('vid_') and ao['mask'].endswith('_mask.png')):
                                 c.err(wa + '.mask', 'у видео нужна маска vid_*_mask.png')
                             continue
-                        if 'wx' in ao:
-                            c.boolean(ao['wx'], wa + '.wx')
+                        if 'wx' in ao and ao['wx'] not in (True, False, 'rain', 'snow'):   # e1.50: своя версия для дождя / снега
+                            c.err(wa + '.wx', 'true, false, "rain" или "snow"')
                         if not (isinstance(ao.get('srcs'), list) and ao['srcs'] and all(s is None or (isinstance(s, str) and s.startswith('show_') and s.endswith('.png')) for s in ao.get('srcs') or [])):
                             c.err(wa + '.srcs', 'список картинок show_*.png (null — поза самого рисунка)')
                         if 'every' in ao:
                             c.numbers(ao['every'], wa + '.every', 2, 0.1, 60)
                         if 'fade' in ao:
                             c.number(ao['fade'], wa + '.fade', 0, 5)
+        if 'showVideo' in fr:     # e1.50: видео-шоу кадра {rect, video, mask, layer, t:[с0,с1], fade:[вход,выход]}
+            sv = c.obj(fr['showVideo'], '%s: showVideo' % w, required=('rect', 'video', 'mask'), optional=('layer', 't', 'fade', 'diff', 'note'))
+            if sv:
+                if c.numbers(sv['rect'], '%s: showVideo.rect' % w, 4, 0, 1) and not (sv['rect'][0] < sv['rect'][2] and sv['rect'][1] < sv['rect'][3]):
+                    c.err('%s: showVideo.rect' % w, '[u0, v0, u1, v1]: u0 < u1, v0 < v1')
+                for key, suf in (('video', '.mp4'), ('mask', '_mask.png')):
+                    if not (isinstance(sv[key], str) and sv[key].startswith('vid_') and sv[key].endswith(suf)):
+                        c.err('%s: showVideo.%s' % (w, key), 'файл vid_*' + suf)
+                    elif isinstance(b.get('framesDir'), str):
+                        c.file(posixpath.join(b['framesDir'], sv[key]), '%s: showVideo.%s' % (w, key), 'файл')
+                if sv.get('layer', 'bld') not in ('bld', 'bg'):
+                    c.err('%s: showVideo.layer' % w, 'bld или bg')
+                if 't' in sv:
+                    c.numbers(sv['t'], '%s: showVideo.t' % w, 2, 0, 600)
+                if 'fade' in sv:
+                    c.numbers(sv['fade'], '%s: showVideo.fade' % w, 2, 0, 10)
+                if 'diff' in sv:   # e1.50: [lo, hi] — разница с рисунком (0..255), с которой берётся пиксель видео
+                    c.numbers(sv['diff'], '%s: showVideo.diff' % w, 2, 0, 255)
+                if fr.get('parade') != 'fx':
+                    c.err('%s: showVideo' % w, 'видео-шоу только у кадра с "parade": "fx"')
         if 'leafFly' in fr:       # e1.47: листья на ветру (рисунки Gemini) {srcs, from:[[u0,v0,u1,v1]…], n:[тихо,буря], h, drift, fall}
             lf = c.obj(fr['leafFly'], '%s: leafFly' % w, required=('srcs', 'from'), optional=('n', 'h', 'drift', 'fall', 'note'))
             if lf:
