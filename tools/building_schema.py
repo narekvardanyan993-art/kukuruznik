@@ -385,7 +385,7 @@ def validate(bdir, b, site):
         nm = f.get('name') if isinstance(f, dict) else None
         w = 'кадр %d%s' % (i + 1, ' (%s)' % nm if isinstance(nm, str) else '')
         fr = c.obj(f, w, required=('name', 'crop', 'flag', 'cloudShadow', 'wind', 'sky', 'sun', 'life', 'hotspots', 'nightLamps', 'nightHalo', 'lamps'),
-                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'figures', 'snowMask', 'sway', 'fx', 'pix', 'spriteSnow', 'tiltK', 'noon', 'poses', 'snowFall', 'leafFly', 'wx', 'showVideo'))
+                   optional=('hidden', 'parade', 'night', 'sunset', 'lawn', 'closeUp', 'bldDepth', 'showBand', 'fountains', 'depthRaw', 'ambient', 'skyBirds', 'nightWins', 'motionVideo', 'figures', 'snowMask', 'sway', 'fx', 'pix', 'spriteSnow', 'tiltK', 'noon', 'poses', 'snowFall', 'leafFly', 'wx', 'showVideo', 'caption', 'showCaption'))   # шаг 5 Погос-Петроса: подпись кадра и подпись шоу (тексты hy/ru/en; движок пока не показывает)
         if not fr:
             continue
         if not (isinstance(nm, str) and re.fullmatch(r'[A-Za-z0-9_\-]+', nm)):
@@ -394,6 +394,15 @@ def validate(bdir, b, site):
         if nm in names:
             c.err(w, 'имя кадра %s уже есть в списке' % nm)
         names.add(nm)
+        for k in ('caption', 'showCaption'):   # подпись кадра «эпоха · что видим», подпись шоу — по одной строке на язык, ≤ 120 знаков
+            if k in fr:
+                c.i18n(fr[k], '%s: %s' % (w, k))
+                if isinstance(fr[k], dict):
+                    for l, v in fr[k].items():
+                        if isinstance(v, str) and len(v) > 120:
+                            c.err('%s: %s' % (w, k), 'подпись на «%s» длиннее 120 знаков' % l)
+                        if isinstance(v, str) and 'заглушк' in v:
+                            c.err('%s: %s' % (w, k), 'в подписи на «%s» осталась заглушка' % l)
         hidden = fr.get('hidden', False)
         for k in ('hidden', 'night', 'sunset'):
             if k in fr:

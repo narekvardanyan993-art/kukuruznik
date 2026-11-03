@@ -9,7 +9,9 @@
       "en": "Poghos-Petros Church, Yerevan | Չկա"
     },
     "description": {
-      "hy": "Պողոս-Պետրոս եկեղեցին Երևանում, գծանկար (թեստ)։"
+      "hy": "Սուրբ Պողոս-Պետրոս եկեղեցին (V–VI դդ. – 1930–1931) Երևանի հին Շահար թաղամասում՝ վերակենդանացած գծանկարով։ Թեքեք նկարը, փոխեք օրվա ժամը և թերթեք կադրերը։",
+      "ru": "Церковь Погос-Петрос (V–VI вв. — 1930–1931) в старом ереванском квартале Шаар — ожившим рисунком. Наклоняйте картинку, меняйте время суток, листайте кадры.",
+      "en": "Poghos-Petros Church (5th–6th c. – 1930–1931) in old Yerevan’s Shahar quarter, brought back as a living drawing. Tilt the picture, change the time of day, flip through the frames."
     },
     "ogImage": null,
     "ogAlt": {
@@ -43,9 +45,9 @@
       "en": "Poghos-Petros Church, Yerevan | Չկա"
     },
     "plaque": {
-      "hy": "[заглушка] Պողոս-Պետրոս եկեղեցի · Երևան · գեղարվեստական վերակառուցում արխիվային լուսանկարներից",
-      "ru": "[заглушка] Церковь Погос-Петрос · Ереван · художественная реконструкция по архивным фото",
-      "en": "[заглушка] Poghos-Petros Church · Yerevan · artistic reconstruction after archive photos"
+      "hy": "Սուրբ Պողոս-Պետրոս եկեղեցի (V–VI դդ. – 1930–1931) · Շահար թաղամաս, Երևան · գեղարվեստական վերակառուցում արխիվային լուսանկարներից",
+      "ru": "Церковь Погос-Петрос (V–VI вв. — 1930–1931) · квартал Шаар, Ереван · художественная реконструкция по архивным фото",
+      "en": "Poghos-Petros Church (5th–6th c. – 1930–1931) · Shahar quarter, Yerevan · artistic reconstruction after archive photos"
     },
     "panelTitle": {
       "hy": "Պողոս-Պետրոս եկեղեցի",
@@ -60,84 +62,90 @@
   },
   "facts": {
     "church": {
-      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
-      "ru": "Старейшая и крупнейшая церковь старого Еревана; основана в V–VI вв. (Википедия, Музей истории Еревана)",
-      "en": "[заглушка] The oldest and largest church of old Yerevan, founded in the 5th–6th c."
+      "hy": "Պողոս-Պետրոս եկեղեցի։ Հին Երևանի ամենահին և ամենամեծ եկեղեցին։ Հիմնադրվել է V–VI դարերում։",
+      "ru": "Церковь Погос-Петрос. Старейшая и крупнейшая церковь старого Еревана. Основана в V–VI вв.",
+      "en": "Poghos-Petros Church. The oldest and largest church of old Yerevan, founded in the 5th–6th centuries."
     },
     "belfry": {
-      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
-      "ru": "Трёхъярусную колокольню с ротондой на колоннах пристроили к западному входу позже — «не в стиле» самой базилики (Википедия, Музей истории Еревана)",
-      "en": "[заглушка] The three-tier belfry with a columned rotunda was added to the west entrance later, unlike the basilica itself."
+      "hy": "Զանգակատուն։ Սյունազարդ ռոտոնդայով եռայարուս զանգակատունը արևմտյան մուտքին կցվել է ավելի ուշ և ոճով չի համապատասխանում բազիլիկին։",
+      "ru": "Колокольня. Трёхъярусную колокольню с ротондой на колоннах пристроили к западному входу позже — она «не в стиле» самой базилики.",
+      "en": "Belfry. The three-tier belfry with a columned rotunda was added to the west entrance later, in a different style from the basilica."
     },
     "roof": {
-      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
-      "ru": "Бескупольная базилика с двускатной крышей; в XIX в. каменную кровлю перекрыли жестью (Википедия)",
-      "en": "[заглушка] A domeless basilica with a gable roof; in the 19th c. the stone roof was covered with tin."
+      "hy": "Տանիք։ Անգմբեթ բազիլիկ՝ երկթեք տանիքով։ XIX դարում քարե ծածկը պատել են թիթեղով։",
+      "ru": "Крыша. Бескупольная базилика с двускатной крышей. В XIX в. каменную кровлю перекрыли жестью.",
+      "en": "Roof. A domeless basilica with a gable roof. In the 19th century its stone roof was covered with tin."
     },
     "rebuilt": {
-      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
-      "ru": "Землетрясение 1679 г. разрушило церковь; её отстроили на уцелевшей восточной части — на хачкарах в стенах даты 1691 и 1692 (Википедия)",
-      "en": "[заглушка] The 1679 earthquake ruined the church; it was rebuilt on the surviving east part — khachkars in the walls are dated 1691 and 1692."
+      "hy": "Վերակառուցում։ 1679 թվականի երկրաշարժը ավերել է եկեղեցին, և այն վերակառուցել են պահպանված արևելյան մասի վրա։ Պատերում ագուցված խաչքարերին փորագրված են 1691 և 1692 թվականները։",
+      "ru": "Отстроена заново. Землетрясение 1679 г. разрушило церковь, её подняли на уцелевшей восточной части. На хачкарах в стенах — даты 1691 и 1692.",
+      "en": "Rebuilt. The 1679 earthquake ruined the church; it was rebuilt on the surviving east part. Khachkars in the walls bear the dates 1691 and 1692."
     },
     "repairs": {
-      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
-      "ru": "Надписи о ремонтах 1778 и 1820 гг.; в 1820-м — «на средства благословенного народа этой церкви», на деньги прихожан (Википедия)",
-      "en": "[заглушка] Inscriptions record repairs in 1778 and 1820 — the latter paid for by the parishioners."
+      "hy": "Նորոգումներ։ Արձանագրությունները պատմում են 1778 և 1820 թվականների նորոգումների մասին։ 1820-ին եկեղեցին նորոգել են ծխականների միջոցներով, ինչն այն ժամանակ հազվադեպ էր։",
+      "ru": "Ремонты. Надписи рассказывают о ремонтах 1778 и 1820 гг. В 1820-м церковь чинили «на средства благословенного народа этой церкви» — на деньги прихожан, что тогда было редкостью.",
+      "en": "Repairs. Inscriptions record repairs in 1778 and 1820. The 1820 work was paid for by the parishioners, which was rare at the time."
     },
     "doors": {
-      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
-      "ru": "Входы — с юга, запада и севера; у северного, со стороны нынешней Абовяна, позже пристроили арочный притвор (Википедия, Музей истории Еревана)",
-      "en": "[заглушка] Entrances faced south, west and north; an arched porch was later added to the north one."
+      "hy": "Երեք մուտք։ Եկեղեցին մուտքեր ուներ հարավից, արևմուտքից և հյուսիսից։ Հյուսիսային մուտքին՝ այժմյան Աբովյան փողոցի կողմից, հետագայում կցել են կամարակապ նախասրահ։",
+      "ru": "Три входа. Входы были с юга, запада и севера. К северному, со стороны нынешней улицы Абовяна, позже пристроили арочный притвор.",
+      "en": "Three entrances. The church had doors on the south, west and north. An arched porch was later added to the north one, facing today’s Abovyan Street."
     },
     "shahar": {
-      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
-      "ru": "Церковь стояла в старом квартале Шаар, на углу нынешних улиц Абовяна и Туманяна (Википедия, Музей истории Еревана)",
-      "en": "[заглушка] The church stood in the old Shahar quarter, at the corner of today’s Abovyan and Tumanyan streets."
+      "hy": "Շահար թաղամաս։ Եկեղեցին գտնվում էր հին Շահար թաղամասում՝ այժմյան Աբովյան և Թումանյան փողոցների անկյունում։",
+      "ru": "Квартал Шаар. Церковь стояла в старом квартале Шаар — на углу нынешних улиц Абовяна и Туманяна.",
+      "en": "Shahar quarter. The church stood in the old Shahar quarter, at the corner of today’s Abovyan and Tumanyan streets."
     },
     "mosque": {
-      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
-      "ru": "Рядом стояла мечеть Залхан (Шаарская): её минарет и колокольня церкви — на одном снимке 1923 г. (pastvu 1445782)",
-      "en": "[заглушка] The Zalkhan (Shahar) mosque stood nearby: its minaret and the belfry appear in one 1923 photo."
+      "hy": "Զալխանի մզկիթ։ Մոտակայքում էր Շահարի Զալխան մզկիթը։ Նրա մինարեթը և եկեղեցու զանգակատունը երևում են 1923 թվականի նույն լուսանկարում։",
+      "ru": "Мечеть Залхан. Рядом стояла Шаарская мечеть Залхан. Её минарет и колокольня церкви попали на один снимок 1923 г.",
+      "en": "Zalkhan Mosque. The Zalkhan (Shahar) mosque stood nearby. Its minaret and the church belfry appear in the same 1923 photo."
     },
     "door_bayazet": {
-      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
-      "ru": "Двустворчатая железная южная дверь — из крепости Старый Баязет: в 1835 г. её купил и подарил церкви тер Вардан. Сейчас она в Музее истории Еревана (Википедия, Музей истории Еревана)",
-      "en": "[заглушка] The double iron south door came from the Old Bayazet fortress, bought and donated by Ter Vardan in 1835; it is now in the History Museum of Yerevan."
+      "hy": "Բայազետի դուռը։ Երկփեղկ երկաթե հարավային դուռը բերվել է Հին Բայազետի բերդից։ 1835-ին այն գնել և եկեղեցուն է նվիրել տեր Վարդանը։ Այժմ դուռը Երևանի պատմության թանգարանում է։",
+      "ru": "Дверь из Баязета. Двустворчатая железная южная дверь — из крепости Старый Баязет: в 1835 г. её купил и подарил церкви тер Вардан. Сейчас она в Музее истории Еревана.",
+      "en": "Door from Bayazet. The double iron south door came from the Old Bayazet fortress: Ter Vardan bought it and gave it to the church in 1835. It is now in the History Museum of Yerevan."
     },
     "chapels": {
-      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
-      "ru": "У алтаря — два придела, Св. Степаноса и Иоанна Крестителя, оба построены в 1831 г. (Музей истории Еревана)",
-      "en": "[заглушка] Two side chapels by the altar — St. Stepanos and St. John the Baptist — both built in 1831."
+      "hy": "Երկու մատուռ։ Խորանի կողքին Սուրբ Ստեփանոս և Սուրբ Հովհաննես Մկրտիչ մատուռներն էին՝ երկուսն էլ կառուցված 1831-ին։",
+      "ru": "Два придела. У алтаря — приделы Св. Степаноса и Иоанна Крестителя. Оба построены в 1831 г.",
+      "en": "Two chapels. Beside the altar were the chapels of St Stepanos and St John the Baptist, both built in 1831."
     },
     "frescoes": {
-      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
-      "ru": "При разборке алтаря нашли шесть слоёв росписи разных веков; снос приостановили, реставратор Б. Юкин снял 14,25 м² фресок (Музей истории Еревана)",
-      "en": "[заглушка] Dismantling the altar revealed six layers of murals; demolition was paused and restorer B. Yukin removed 14.25 m² of frescoes."
+      "hy": "Որմնանկարների վեց շերտ։ Խորանը քանդելիս հայտնաբերվել են տարբեր դարերի որմնանկարների վեց շերտ։ Քանդումը դադարեցվել է, և կիևցի վերականգնող Բ. Յուկինը պատից հանել է 14,25 մ² որմնանկար։",
+      "ru": "Шесть слоёв росписи. При разборке алтаря нашли шесть слоёв росписи разных веков. Снос приостановили, и киевский реставратор Б. Юкин снял 14,25 м² фресок.",
+      "en": "Six layers of murals. Dismantling the altar revealed six layers of paintings from different centuries. Demolition was paused, and the Kyiv restorer B. Yukin removed 14.25 m² of frescoes."
     },
     "frescoes_now": {
-      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
-      "ru": "Нижний слой — растительный орнамент, выше — апостолы Пётр и Павел. Фрески — в Национальной галерее и Историческом музее Армении (Википедия, Музей истории Еревана)",
-      "en": "[заглушка] The lowest layer is a plant ornament, above it the apostles Peter and Paul. The frescoes are in the National Gallery and History Museum of Armenia."
+      "hy": "Որմնանկարներն այսօր։ Ստորին շերտը բուսական զարդանախշ է, մյուս շերտերում՝ Պետրոս և Պողոս առաքյալները։ Որմնանկարները պահվում են Հայաստանի ազգային պատկերասրահում և Հայաստանի պատմության թանգարանում, իսկ Երևանի պատմության թանգարանի տվյալներով՝ նաև այնտեղ։",
+      "ru": "Фрески сегодня. Нижний слой — растительный орнамент, в других слоях — апостолы Пётр и Павел. Фрески хранятся в Национальной галерее и Историческом музее Армении, а по данным Музея истории Еревана — и в нём.",
+      "en": "The frescoes today. The lowest layer is a plant ornament; other layers show the apostles Peter and Paul. The frescoes are kept in the National Gallery and the History Museum of Armenia — and, according to the History Museum of Yerevan, there too."
     },
     "cinema": {
-      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
-      "ru": "На месте церкви — кинотеатр «Москва» (арх. Т. Ерканян и Г. Кочар), открыт 12 декабря 1936 г. фильмом «Пэпо» (Википедия)",
-      "en": "[заглушка] The Moscow Cinema (architects T. Yerkanyan and G. Kochar) stands on the site; it opened on 12 December 1936 with the film “Pepo”."
+      "hy": "«Մոսկվա» կինոթատրոն։ Եկեղեցու տեղում «Մոսկվա» կինոթատրոնն է՝ ճարտարապետներ Տ. Երկանյանի և Գ. Քոչարի նախագծով։ Այն բացվել է 1936 թվականի դեկտեմբերի 12-ին «Պեպո» ֆիլմով։",
+      "ru": "Кинотеатр «Москва». На месте церкви — кинотеатр «Москва» архитекторов Т. Ерканяна и Г. Кочара. Его открыли 12 декабря 1936 г. фильмом «Пэпо».",
+      "en": "Moscow Cinema. The Moscow Cinema by the architects T. Yerkanyan and G. Kochar stands on the church’s site. It opened on 12 December 1936 with the film “Pepo”."
     },
     "tamanyan": {
-      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
-      "ru": "Против сноса выступал Александр Таманян (письмо 2 марта 1930 г.: «памятник очень значим, его надо сохранить»); перед сносом здание обмерили (Музей истории Еревана)",
-      "en": "[заглушка] Alexander Tamanyan opposed the demolition (letter of 2 March 1930); the building was measured and documented before it was torn down."
+      "hy": "Թամանյանը՝ քանդման դեմ։ 1930 թվականի մարտի 2-ին Ալեքսանդր Թամանյանը գրել է, որ հուշարձանը շատ կարևոր է և պետք է պահպանել։ Քանդմանը դեմ էր նաև Գ. Չիրիկովը։ Քանդելուց առաջ շենքը չափագրել և փաստագրել են։",
+      "ru": "Таманян против сноса. 2 марта 1930 г. Александр Таманян написал: «памятник очень значим, его надо сохранить». Против был и Г. Чириков. Перед сносом здание обмерили и задокументировали.",
+      "en": "Tamanyan against demolition. On 2 March 1930 Alexander Tamanyan wrote that the monument was very significant and had to be saved. G. Chirikov opposed it too. Before demolition the building was measured and documented."
     },
     "open_hall": {
-      "hy": "[заглушка] Տեքստը՝ 5-րդ քայլում։",
-      "ru": "В 2010 г. землю открытого зала «Москвы» решили отдать под новую церковь на месте старой; после протеста (~18 000 подписей) план отменили (Википедия)",
-      "en": "[заглушка] In 2010 the cinema’s open-air hall was to be given for a new church on the old site; after a protest (~18,000 signatures) the plan was dropped."
+      "hy": "Բացօթյա դահլիճ։ 2010-ին կառավարությունը որոշեց «Մոսկվա» կինոթատրոնի բացօթյա դահլիճի տարածքը տալ Էջմիածնին՝ հին եկեղեցու տեղում նորը կառուցելու համար։ Բողոքի ակցիան հավաքեց մոտ 18 000 ստորագրություն, և ծրագիրը չեղարկվեց։",
+      "ru": "Открытый зал. В 2010 г. землю открытого зала «Москвы» решили отдать Эчмиадзину под новую церковь на месте старой. Протест «Спасём открытый зал» собрал около 18 000 подписей, и план отменили.",
+      "en": "Open-air hall. In 2010 the government decided to give the cinema’s open-air hall to Etchmiadzin for a new church on the old site. The “Save the Open-Air Hall” protest gathered about 18,000 signatures, and the plan was dropped."
+    },
+    "demolished": {
+      "hy": "Քանդումը։ Եկեղեցին քանդվել է 1930–1931 թվականներին, իսկ 1936-ին նրա տեղում բացվել է «Մոսկվա» կինոթատրոնը։",
+      "ru": "Снос. Церковь снесли в 1930–1931 гг., а в 1936 г. на её месте открыли кинотеатр «Москва».",
+      "en": "Demolition. The church was torn down in 1930–1931; in 1936 the Moscow Cinema opened on its site."
     }
   },
   "aboutFacts": [
     "church",
-    "cinema"
+    "rebuilt",
+    "demolished"
   ],
   "postcardFile": "pogos-petros.png",
   "postcard": {
@@ -146,7 +154,11 @@
       "ru": "Погос-Петрос",
       "en": "Poghos-Petros"
     },
-    "years": "—",
+    "years": {
+      "hy": "V–VI դդ. – 1930–1931",
+      "ru": "V–VI вв. – 1930–1931",
+      "en": "5th–6th c. – 1930–1931"
+    },
     "url": "chka.am/pogos-petros",
     "no": 3,
     "show": {
@@ -175,9 +187,9 @@
       }
     },
     "fact": {
-      "hy": "[заглушка] Բացիկի տեքստը՝ 5-րդ քայլում։",
-      "ru": "[заглушка] Текст открытки будет на шаге 5.",
-      "en": "[заглушка] Postcard text comes in step 5."
+      "hy": "Հին Երևանի ամենահին և ամենամեծ եկեղեցին, հիմնադրված V–VI դարերում։ Այն քանդվեց 1930–1931-ին, և ներսում գտան որմնանկարների վեց շերտ։ Այժմ նրա տեղում «Մոսկվա» կինոթատրոնն է։",
+      "ru": "Старейшая и крупнейшая церковь старого Еревана, основана в V–VI вв. Её снесли в 1930–1931 гг., внутри нашли шесть слоёв фресок. Сейчас на этом месте — кинотеатр «Москва».",
+      "en": "The oldest and largest church of old Yerevan, founded in the 5th–6th centuries. It was torn down in 1930–1931; six layers of frescoes were found inside. The Moscow Cinema stands there now."
     }
   },
   "look": {
@@ -319,6 +331,11 @@
   "frames": [
     {
       "name": "pogos_a",
+      "caption": {
+        "hy": "1920-ականների վերջ · արևմտյան մուտքը և եռայարուս զանգակատունը",
+        "ru": "Конец 1920-х · западный вход и трёхъярусная колокольня",
+        "en": "Late 1920s · the west entrance and the three-tier belfry"
+      },
       "sunset": false,
       "crop": [
         0,
@@ -566,6 +583,11 @@
     },
     {
       "name": "pogos_b",
+      "caption": {
+        "hy": "Մոտ 1929 · եկեղեցու երկար ճակատը և բակը",
+        "ru": "Около 1929 · длинный фасад церкви и двор",
+        "en": "Around 1929 · the long side of the church and the yard"
+      },
       "sunset": true,
       "crop": [
         0,
@@ -828,6 +850,11 @@
     },
     {
       "name": "pogos_c",
+      "caption": {
+        "hy": "1923 · Շահար թաղամասի փողոցը, հեռվում՝ Զալխանի մզկիթի մինարեթը",
+        "ru": "1923 · улица квартала Шаар, вдали — минарет мечети Залхан",
+        "en": "1923 · a street in the Shahar quarter, the Zalkhan minaret in the distance"
+      },
       "sunset": false,
       "crop": [
         0,
@@ -1017,6 +1044,11 @@
     },
     {
       "name": "pogos_d",
+      "caption": {
+        "hy": "1915 · քանդակազարդ շքամուտքը և դուռը ձմռանը",
+        "ru": "1915 · резной портал и дверь зимой",
+        "en": "1915 · the carved portal and door in winter"
+      },
       "sunset": false,
       "crop": [
         0,
@@ -1211,6 +1243,16 @@
     },
     {
       "name": "pogos_e",
+      "caption": {
+        "hy": "1915–1927 · խորանը, սպիտակ քարե ամպհովանին և որմնանկարները",
+        "ru": "1915–1927 · алтарь, белокаменная сень и фрески",
+        "en": "1915–1927 · the altar, the white-stone canopy and the frescoes"
+      },
+      "showCaption": {
+        "hy": "Եկեղեցու որմնանկարները հանվել են քանդման ժամանակ, և այժմ դրանք Երևանի թանգարաններում են",
+        "ru": "Фрески церкви сняли во время сноса — теперь они в музеях Еревана",
+        "en": "The church’s frescoes were removed during the demolition and are now in Yerevan museums"
+      },
       "sunset": false,
       "crop": [
         0,
@@ -1480,6 +1522,11 @@
     },
     {
       "name": "pogos_f",
+      "caption": {
+        "hy": "Այսօր · եկեղեցու տեղում «Մոսկվա» կինոթատրոնն է",
+        "ru": "Сегодня · на месте церкви — кинотеатр «Москва»",
+        "en": "Today · the Moscow Cinema stands where the church was"
+      },
       "sunset": false,
       "crop": [
         0,
