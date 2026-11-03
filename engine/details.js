@@ -1771,7 +1771,54 @@
     bd.globalAlpha = clamp(a, 0, 1); bd.drawImage(S.o1.c, a0[0], a0[1], dw, dh);
     bs.globalAlpha = clamp(a * (it.lightK == null ? 1 : it.lightK), 0, 1); bs.drawImage(S.o2.c, a0[0], a0[1], dw, dh);
     bs.globalAlpha = clamp(a * (Wr.front == null ? 0.9 : Wr.front), 0, 1); bs.drawImage(S.o3.c, a0[0], a0[1], dw, dh);
+    if (it.blaze) fxBlaze(it, S, gr, tt, a, bs, a0, dw, dh);   // e1.53: огонь букв
     bd.restore(); bs.restore();
+  }
+  // e1.53 blaze (D, заход 18): после резьбы буквы разгораются огнём — по карте времени письма, как фитиль (rise с), горят (hold с), гаснут (out с).
+  //   Свечение изнутри желобка: маска желобка (тёмное в groove) → тёплый цвет, глубже — желтее; мерцание медленное (сумма синусов) +
+  //   «текущий» шум пламени (две мягкие шумовые картинки едут вверх с разной скоростью); мягкий ореол — уменьшенная копия свечения.
+  //   Рисуется в слой screen (высветляет пиксели камня), своей краски нет — читается и в темноте. {t0, rise, hold, out, k, halo} — секунды от начала надписи.
+  function bzS(x) { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); }
+  function fxBlaze(it, S, gr, tt, a, bs, a0, dw, dh) {
+    var Z = it.blaze, ri = Z.rise || 2, ho = Z.hold == null ? 5 : Z.hold, ou = Z.out || 2.5, e = tt - (Z.t0 || 0);
+    if (e <= 0) return;
+    var lv = e > ri + ho ? 1 - bzS((e - ri - ho) / ou) : 1; if (lv <= 0.002) return;
+    var w = S.w, h = S.h, q;
+    if (!S.bz) {
+      var gc = wrCanvas(w, h); gc.x.drawImage(gr, 0, 0, w, h); var gd; try { gd = gc.x.getImageData(0, 0, w, h); } catch (er) { return; }
+      var dd = gd.data;
+      for (q = 0; q < w * h; q++) {
+        var L = (dd[q * 4] * 0.3 + dd[q * 4 + 1] * 0.59 + dd[q * 4 + 2] * 0.11) / 255, m = clamp((0.94 - L) * 2.2, 0, 1), m2 = m * m;
+        dd[q * 4] = 255 * m; dd[q * 4 + 1] = (70 + 120 * m2 * m2) * m; dd[q * 4 + 2] = (12 + 45 * m2 * m2) * m; dd[q * 4 + 3] = 255;   // глубже — желтее, края — оранжевые
+      }
+      gc.x.putImageData(gd, 0, 0);
+      var nw = 48, nh = 36, nc = wrCanvas(nw, nh), nd = nc.x.createImageData(nw, nh);
+      var sd = 1234567;   // шум с постоянным зерном: две копии сайта дают один и тот же огонь (урок s27)
+      for (q = 0; q < nw * nh; q++) { sd = (sd * 1103515245 + 12345) % 2147483648; var nv = 115 + sd / 2147483648 * 140; nd.data[q * 4] = nd.data[q * 4 + 1] = nd.data[q * 4 + 2] = nv; nd.data[q * 4 + 3] = 255; }
+      nc.x.putImageData(nd, 0, 0);
+      var n2 = wrCanvas(nw, nh * 2); n2.x.drawImage(nc.c, 0, 0); n2.x.drawImage(nc.c, 0, nh);   // по вертикали без шва: едет вверх по кругу
+      var hs = wrCanvas(Math.max(2, Math.round(w / 48)), Math.max(2, Math.round(h / 48))); hs.x.imageSmoothingEnabled = true; hs.x.drawImage(gc.c, 0, 0, hs.c.width, hs.c.height);
+      var hcw = Math.max(2, Math.round(w / 8)), hch = Math.max(2, Math.round(h / 8)), hp = Math.round(hcw * 0.12) + 2, hc = wrCanvas(hcw + 2 * hp, hch + 2 * hp);
+      hc.x.imageSmoothingEnabled = true; hc.x.drawImage(hs.c, hp, hp, hcw, hch);
+      S.bz = { fc: gc, n2: n2, hc: hc, hp: hp, hcw: hcw, hch: hch, ig: wrCanvas(S.hw, S.hh), o4: wrCanvas(w, h), p: -9 };
+      S.bz.igd = S.bz.ig.x.createImageData(S.hw, S.hh);
+      for (q = 0; q < S.hw * S.hh; q++) { S.bz.igd.data[q * 4] = S.bz.igd.data[q * 4 + 1] = S.bz.igd.data[q * 4 + 2] = 255; }
+    }
+    var B = S.bz, fp = e / ri, fq = Math.round(fp * 240) / 240;
+    if (fq !== B.p && !(B.p > 1.2 && fq > 1.2)) {   // огонь бежит по надписи в том же порядке, в каком её резали
+      B.p = fq; var T = S.T, g2 = B.igd.data, wd = 0.12;
+      for (var k = 0, n = T.length; k < n; k++) { var tv = T[k], rr = 0; if (tv < 255) { var ee = (fq * (1 + wd) - tv / 254) / wd; rr = ee <= 0 ? 0 : (ee >= 1 ? 1 : ee * ee * (3 - 2 * ee)); } g2[k * 4 + 3] = rr * 255; }
+      B.ig.x.putImageData(B.igd, 0, 0);
+    }
+    var o = B.o4.x, fl = 0.84 + 0.09 * Math.sin(tt * 2.3) + 0.07 * Math.sin(tt * 3.9 + 1.3), f1 = (tt * 0.22) % 1, f2 = (tt * 0.13 + 0.5) % 1;
+    o.save(); o.globalCompositeOperation = 'source-over'; o.globalAlpha = 1; o.clearRect(0, 0, w, h); o.drawImage(B.fc.c, 0, 0);
+    o.imageSmoothingEnabled = true; o.globalCompositeOperation = 'multiply';
+    o.globalAlpha = 0.85; o.drawImage(B.n2.c, 0, -f1 * h, w, 2 * h);
+    o.globalAlpha = 0.6; o.drawImage(B.n2.c, -0.15 * w, -f2 * h * 1.3, 1.3 * w, 2.6 * h);
+    o.globalCompositeOperation = 'destination-in'; o.globalAlpha = 1; o.drawImage(B.ig.c, 0, 0, w, h); o.restore();
+    var sx = dw / B.hcw, sy = dh / B.hch, kk = a * lv * fl * (Z.k == null ? 1 : Z.k), kh = a * lv * fl * (Z.halo == null ? 0.5 : Z.halo) * clamp(fp, 0, 1);
+    for (; kk > 0.002; kk -= 1) { bs.globalAlpha = Math.min(1, kk); bs.drawImage(B.o4.c, a0[0], a0[1], dw, dh); }   // k > 1 — ярче: слой ещё раз (lighter складывает)
+    for (; kh > 0.002; kh -= 1) { bs.globalAlpha = Math.min(1, kh); bs.drawImage(B.hc.c, a0[0] - B.hp * sx, a0[1] - B.hp * sy, (B.hcw + 2 * B.hp) * sx, (B.hch + 2 * B.hp) * sy); }
   }
   function fxCarve(it, tt, len, a) {
     if (it.carve.time) return fxWrite(it, tt, len, a);   // e1.52: пишется штрихами по карте времени

@@ -539,8 +539,21 @@ def validate(bdir, b, site):
         if 'depthRaw' in fr:      # e1.5: карта глубины кадра без растяжки контраста (значения файла = глубина в шейдере)
             c.boolean(fr['depthRaw'], '%s: depthRaw' % w)
         if 'poses' in fr:         # e1.44: позы фигур рисунка {layer, actors:[{rect, srcs, every, fade, night, order}]}
-            po = c.obj(fr['poses'], '%s: poses' % w, required=('actors',), optional=('layer',))
+            po = c.obj(fr['poses'], '%s: poses' % w, required=('actors',), optional=('layer', 'tone', 'tap'))   # e1.53: tone, tap
             if po:
+                if 'tone' in po:   # e1.53: {night, sunset: vid_*_tone.png, scale}
+                    to = c.obj(po['tone'], '%s: poses.tone' % w, required=(), optional=('night', 'sunset', 'scale', 'note'))
+                    if to:
+                        for q in ('night', 'sunset'):
+                            if q in to:
+                                if not (isinstance(to[q], str) and to[q].startswith('vid_') and to[q].endswith('_tone.png')): c.err('%s: poses.tone.%s' % (w, q), 'карта vid_*_tone.png')
+                                elif isinstance(b.get('framesDir'), str): c.file(posixpath.join(b['framesDir'], to[q]), '%s: poses.tone.%s' % (w, q), 'карта')
+                        if 'scale' in to: c.number(to['scale'], '%s: poses.tone.scale' % w, 1, 255)
+                if 'tap' in po:   # e1.53: {set, hit:[u0,v0,u1,v1]}
+                    tp = c.obj(po['tap'], '%s: poses.tap' % w, required=('set', 'hit'), optional=('note',))
+                    if tp:
+                        if c.numbers(tp['hit'], '%s: poses.tap.hit' % w, 4, 0, 1) and not (tp['hit'][0] < tp['hit'][2] and tp['hit'][1] < tp['hit'][3]): c.err('%s: poses.tap.hit' % w, '[u0, v0, u1, v1]')
+                        if not any(isinstance(a, dict) and a.get('set') == tp['set'] and a.get('tap') for a in po.get('actors') or []): c.err('%s: poses.tap' % w, 'в наборе нет ролика с tap: true')
                 if po.get('layer', 'bld') not in ('bld', 'bg'):
                     c.err('%s: poses.layer' % w, 'bld или bg')
                 acts = po.get('actors')
@@ -549,7 +562,10 @@ def validate(bdir, b, site):
                 else:
                     for j, a in enumerate(acts):
                         wa = '%s: poses.actors[%d]' % (w, j + 1)
-                        ao = c.obj(a, wa, required=('rect',), optional=('srcs', 'every', 'fade', 'night', 'order', 'note', 'video', 'mask', 'wx', 'hours'))   # e1.49: video/mask — живое место Veo, wx — погодная версия; e1.52: hours
+                        ao = c.obj(a, wa, required=('rect',), optional=('srcs', 'every', 'fade', 'night', 'order', 'note', 'video', 'mask', 'wx', 'hours', 'set', 'tap'))   # e1.53: set — набор роликов, tap — ролик тапа   # e1.49: video/mask — живое место Veo, wx — погодная версия; e1.52: hours
+                        if ao and ('set' in ao or 'tap' in ao):   # e1.53
+                            if not (isinstance(ao.get('set'), str) and ao['set'] and 'video' in ao): c.err(wa + '.set', 'set — имя набора, только у видео-актёра')
+                            if 'tap' in ao: c.boolean(ao['tap'], wa + '.tap')
                         if ao and 'hours' in ao:   # e1.52: часы зрителя [ч0, ч1) (через полночь — ч0 > ч1)
                             c.numbers(ao['hours'], wa + '.hours', 2, 0, 24)
                         if not ao:
@@ -688,6 +704,11 @@ def validate(bdir, b, site):
                         elif isinstance(b.get('framesDir'), str):
                             for q in ('groove', 'light', 'time'): c.file(posixpath.join(b['framesDir'], cv[q]), '%s.carve.%s' % (wl, q), 'картинка')
                         wr = c.obj(it.get('write', {}), wl + '.write', required=(), optional=('t0', 'dur', 'soft', 'front'))
+                        if 'blaze' in it:   # e1.53: огонь букв
+                            bz = c.obj(it['blaze'], wl + '.blaze', required=(), optional=('t0', 'rise', 'hold', 'out', 'k', 'halo'))
+                            if bz:
+                                for q, lo, hi in (('t0', 0, 60), ('rise', 0.1, 30), ('hold', 0, 60), ('out', 0.1, 30), ('k', 0, 3), ('halo', 0, 3)):
+                                    if q in bz: c.number(bz[q], '%s.blaze.%s' % (wl, q), lo, hi)
                         if wr:
                             for q, lo, hi in (('t0', 0, 60), ('dur', 0.5, 60), ('soft', 0.001, 0.5), ('front', 0, 2)):
                                 if q in wr: c.number(wr[q], '%s.write.%s' % (wl, q), lo, hi)
