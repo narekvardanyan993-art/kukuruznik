@@ -1731,7 +1731,50 @@
   //   groove — multiply (белый фон): желобок темнее, нижняя кромка в тени; light — screen (чёрный фон): верхний край светлее (emboss по маске шрифта);
   //   ember1/ember2 — screen: тление в глубине желобка, два узора тёплого шума — их доли медленно переливаются, яркость мерцает плавно (низкие частоты).
   //   Слои рисуются операцией multiply / lighter — соседние клетки не затирают друг друга. Буквы проступают по одной (step), угли разгораются следом.
+  // e1.52 write (D, заход 17): надпись пишется штрихами слева направо, как резьба. Одна картинка на слой на всю надпись (pogos-petros/build/scripts/insc17.py:
+  //   гомография по 4 углам поля над дверью, ×3 к кадру — без «лесенки» при уменьшении): groove — multiply, light — screen,
+  //   time — когда пиксель «вырезан» (0..254 — доля времени письма: буква за буквой, внутри буквы — по штриху от её левой точки; 255 — пусто).
+  //   Без мерцания: открытое стоит; на острие резца камень чуть светлее (свежий скол) и гаснет. write: {t0 с, dur с, soft доля, front}.
+  var wrS = {};
+  function wrCanvas(w, h) { var c = document.createElement('canvas'); c.width = w; c.height = h; return { c: c, x: c.getContext('2d') }; }
+  function fxWrite(it, tt, len, a) {
+    var C = it.carve, Wr = it.write || {}, fe = V.entry(par.fr), gr = spImg(par.fr, C.groove), li = spImg(par.fr, C.light), tm = spImg(par.fr, C.time);
+    if (!fe || !gr || !li || !tm) return;
+    var key = par.fr + ':' + C.time, S = wrS[key];
+    if (!S) {
+      var w = tm.width, h = tm.height, hw = Math.max(1, Math.round(w / 2)), hh = Math.max(1, Math.round(h / 2));
+      var tc = wrCanvas(hw, hh); tc.x.imageSmoothingEnabled = false; tc.x.drawImage(tm, 0, 0, hw, hh);   // без сглаживания: время у края буквы не смешивается с «пусто»
+      var td; try { td = tc.x.getImageData(0, 0, hw, hh).data; } catch (e) { return; }
+      var T = new Uint8Array(hw * hh); for (var q = 0; q < T.length; q++) T[q] = td[q * 4];
+      S = wrS[key] = { T: T, w: w, h: h, hw: hw, hh: hh, mk: wrCanvas(hw, hh), fk: wrCanvas(hw, hh), o1: wrCanvas(w, h), o2: wrCanvas(w, h), o3: wrCanvas(w, h), p: -9 };
+      S.mi = S.mk.x.createImageData(hw, hh); S.fi = S.fk.x.createImageData(hw, hh);
+      for (q = 0; q < T.length; q++) { S.mi.data[q * 4] = S.mi.data[q * 4 + 1] = S.mi.data[q * 4 + 2] = 255; S.fi.data[q * 4] = S.fi.data[q * 4 + 1] = S.fi.data[q * 4 + 2] = 255; }
+    }
+    var dur = Wr.dur || 7, soft = Wr.soft || 0.025, p = (tt - (Wr.t0 || 0)) / dur, pq = Math.round(p * 600) / 600;
+    if (pq !== S.p && !(S.p > 1 + soft * 6 && p > 1 + soft * 6)) {   // карта открытия меняется только пока идёт письмо
+      S.p = pq; var T2 = S.T, md = S.mi.data, fd = S.fi.data, sf = 1 / soft, ff = 1 / (soft * 5);
+      for (var k = 0, n = T2.length; k < n; k++) {
+        var tv = T2[k], r = 0, f = 0;
+        if (tv < 255) { var e = pq - tv / 254; r = e <= 0 ? 0 : (e >= soft ? 1 : e * sf); f = e <= 0 ? 0 : Math.max(0, 1 - e * ff) * r; }
+        md[k * 4 + 3] = r * 255; fd[k * 4 + 3] = f * 255;
+      }
+      S.mk.x.putImageData(S.mi, 0, 0); S.fk.x.putImageData(S.fi, 0, 0);
+      [[S.o1, gr, S.mk], [S.o2, li, S.mk], [S.o3, li, S.fk]].forEach(function (L) {
+        var o = L[0].x; o.globalCompositeOperation = 'source-over'; o.clearRect(0, 0, S.w, S.h); o.drawImage(L[1], 0, 0, S.w, S.h);
+        o.globalCompositeOperation = 'destination-in'; o.imageSmoothingEnabled = true; o.drawImage(L[2].c, 0, 0, S.w, S.h); o.globalCompositeOperation = 'source-over';
+      });
+    }
+    if (p <= 0) return;
+    var R = it.rect, a0 = spP(fe, R[0], R[1], it.bld), a1 = spP(fe, R[2], R[3], it.bld), dw = a1[0] - a0[0], dh = a1[1] - a0[1];
+    var bd = blendLayer('multiply'), bs = blendLayer('screen'); bd.save(); bs.save();
+    bd.globalCompositeOperation = 'multiply'; bs.globalCompositeOperation = 'lighter';
+    bd.globalAlpha = clamp(a, 0, 1); bd.drawImage(S.o1.c, a0[0], a0[1], dw, dh);
+    bs.globalAlpha = clamp(a * (it.lightK == null ? 1 : it.lightK), 0, 1); bs.drawImage(S.o2.c, a0[0], a0[1], dw, dh);
+    bs.globalAlpha = clamp(a * (Wr.front == null ? 0.9 : Wr.front), 0, 1); bs.drawImage(S.o3.c, a0[0], a0[1], dw, dh);
+    bd.restore(); bs.restore();
+  }
   function fxCarve(it, tt, len, a) {
+    if (it.carve.time) return fxWrite(it, tt, len, a);   // e1.52: пишется штрихами по карте времени
     var C = it.carve, fe = V.entry(par.fr), gr = spImg(par.fr, C.groove), li = spImg(par.fr, C.light), e1 = spImg(par.fr, C.ember1), e2 = spImg(par.fr, C.ember2);
     if (!fe || !gr || !li || !e1 || !e2) return;
     var R = it.rect, a0 = spP(fe, R[0], R[1], it.bld), a1 = spP(fe, R[2], R[3], it.bld), sz = it.size || [1, 1];
@@ -1943,7 +1986,7 @@
     par.shade = null;
     (X.items || []).forEach(function (it, j) {
       if (it.kind === 'image' && !it.rect) fxImage(it.src);   // грузим заранее, с первого кадра показа
-      [it.src, it.mask, it.dark, it.fire, it.glow, it.hole].concat(it.carve ? [it.carve.groove, it.carve.light, it.carve.ember1, it.carve.ember2] : [], it.frames || [], it.srcs || [], it.poses || []).forEach(function (s) { if (s && (it.kind !== 'image' || it.rect)) spImg(par.fr, s); });   // e1.41: картинки шоу — заранее
+      [it.src, it.mask, it.dark, it.fire, it.glow, it.hole].concat(it.carve ? [it.carve.groove, it.carve.light, it.carve.ember1, it.carve.ember2, it.carve.time] : [], it.frames || [], it.srcs || [], it.poses || []).forEach(function (s) { if (s && (it.kind !== 'image' || it.rect)) spImg(par.fr, s); });   // e1.41: картинки шоу — заранее
       var tw = it.t || [0, D], tt = t - tw[0], len = tw[1] - tw[0], fd = it.fade || [0.6, 0.9];
       if (tt < 0 || tt > len) return;
       var a = clamp(Math.min(tt / fd[0], (len - tt) / fd[1]), 0, 1) * (1 - kill);

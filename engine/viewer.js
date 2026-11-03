@@ -1091,6 +1091,15 @@
   // Картинки поз нарисовал Gemini (правка того же кадра, вырезана по отличию; голуби — лист Gemini), null — поза самого рисунка.
   // Код ничего не рисует: смешивает пиксели картинок с пикселями рисунка в куске текстуры слоя (texSubImage2D), поэтому дневная/полуденная обработка,
   // параллакс и ночь — те же, что у всего кадра. night:false — ночью актёра нет (голуби). «Уменьшить движение» — позы стоят.
+  // e1.52 ЧАСЫ ЗРИТЕЛЯ для актёров поз: actors[].hours [ч0, ч1) по местному времени (ч0 > ч1 — через полночь). ?hour=8 — подмена (проверка, снимки).
+  var HOUR_Q = (function () { try { var m = /[?&]hour=(\d+(?:\.\d+)?)/.exec(location.search); return m ? +m[1] : null; } catch (e) { return null; } })();
+  var hourNow = { t: -1e9, h: 12 };
+  function clockHour(now) {
+    if (HOUR_Q != null) return HOUR_Q;
+    if (!(now - hourNow.t < 1000)) { var dt = new Date(); hourNow.h = dt.getHours() + dt.getMinutes() / 60; hourNow.t = now || 0; }
+    return hourNow.h;
+  }
+  function hourIn(hr, now) { if (!hr) return true; var x = clockHour(now); return hr[0] <= hr[1] ? (x >= hr[0] && x < hr[1]) : (x >= hr[0] || x < hr[1]); }
   var POSES = CONFIG.POSES || null;
   function posesInit(f, r, i) {
     var P = POSES[i], W = r.w, H = r.h, all = P.actors || [];
@@ -1125,6 +1134,7 @@
         var vd = document.createElement('video'); vd.muted = true; vd.defaultMuted = true; vd.loop = true; vd.playsInline = true; vd.preload = 'auto'; vd.crossOrigin = 'anonymous';
         vd.setAttribute('muted', ''); vd.setAttribute('playsinline', ''); vd.setAttribute('webkit-playsinline', '');
         vd.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none;z-index:-1';
+        if (a.hours && !hourIn(a.hours, performance.now())) vd.preload = 'none';   // e1.52: не его часы — не грузить заранее
         document.body.appendChild(vd); vd.src = dir + (vd.canPlayType('video/mp4; codecs="avc1.4d401f"') ? a.video : a.video.replace(/\.mp4$/, '.webm'));   // нет H.264 — запасной WebM
         A.vid = vd; A.vv = 0; A.vT = -1; A.vLast = 0; A.vdata = null;
         A.vcv = document.createElement('canvas'); A.vcv.width = bw2; A.vcv.height = bh2; A.vcx = A.vcv.getContext('2d', { willReadFrequently: true });
@@ -1143,7 +1153,8 @@
     f.poses = st;
   }
   // ---------- e1.50 ВИДЕО-ШОУ КАДРА (Погос-Петрос, заход 15) ----------
-  // Кадр: "showVideo": {rect:[u0,v0,u1,v1], video:"vid_<имя>.mp4", mask:"vid_<имя>_mask.png", layer:"bld"|"bg", t:[с0,с1], fade:[вход,выход]}.
+  // Кадр: "showVideo": {rect:[u0,v0,u1,v1], video:"vid_<имя>.mp4", mask:"vid_<имя>_mask.png", layer:"bld"|"bg", t:[с0,с1], fade:[вход,выход], diff:[lo,hi], keep}.
+  // e1.52 keep (с diff, слой здания): здание не стирается там, где видео = подложка — отличие видео ложится поверх здания (фаэтон C виден целиком).
   // Видео Veo из самого рисунка (первый кадр = рисунок) по маске смешивается с рисунком в куске текстуры слоя — те же параллакс и обработка.
   // Время видео = секунда шоу − с0; заморозка шоу (снимки) ставит видео на ту же секунду. Ленивая загрузка, без звука, не по кругу.
   var SHOWVID = CONFIG.SHOWVID || null;
@@ -1156,9 +1167,11 @@
     for (var y = 0; y < h; y++) base.set(src.subarray(((y0 + y) * W + x0) * ch, ((y0 + y) * W + x0 + w) * ch), y * w * ch);
     var ref = null, gref = null;   // e1.50 diff: рисунок в рамке (здание поверх земли) — с ним сравнивается кадр видео; gref — подложка (слой земли)
     if (S.diff) { var gs = r.ground4 || r.ground, gc = r.ground4 ? 4 : 3; ref = new Uint8Array(w * h * 3); for (var yy = 0; yy < h; yy++) for (var xx = 0; xx < w; xx++) { var oo = (y0 + yy) * W + x0 + xx, rq = (yy * w + xx) * 3, ab = bld ? r.bldPm[oo * 4 + 3] / 255 : 0; for (var cc = 0; cc < 3; cc++) ref[rq + cc] = (bld ? r.bldPm[oo * 4 + cc] : 0) + gs[oo * gc + cc] * (1 - ab); } }
-    if (S.diff && bld) { gref = new Uint8Array(w * h * 3); for (var y3 = 0; y3 < h; y3++) for (var x3 = 0; x3 < w; x3++) { var o3 = (y0 + y3) * W + x0 + x3, g3 = (y3 * w + x3) * 3; gref[g3] = gs[o3 * gc]; gref[g3 + 1] = gs[o3 * gc + 1]; gref[g3 + 2] = gs[o3 * gc + 2]; } }
+    if (S.diff && bld && !S.keep) { gref = new Uint8Array(w * h * 3);   // e1.52 keep: без стирания здания по подложке — видео только ПОВЕРХ слоя здания (фаэтон C)
+       for (var y3 = 0; y3 < h; y3++) for (var x3 = 0; x3 < w; x3++) { var o3 = (y0 + y3) * W + x0 + x3, g3 = (y3 * w + x3) * 3; gref[g3] = gs[o3 * gc]; gref[g3 + 1] = gs[o3 * gc + 1]; gref[g3 + 2] = gs[o3 * gc + 2]; } }
     var st = { cfg: S, x0: x0, y0: y0, w: w, h: h, bld: bld, ch: ch, base: base, ref: ref, gref: gref, dlo: S.diff ? S.diff[0] : 0, dk: S.diff ? 1 / Math.max(1, S.diff[1] - S.diff[0]) : 0, out: new Uint8Array(w * h * ch), vis: 0, vT: -1, vLast: 0, vdata: null, idx: null, al: null, dirty: false, active: false };
     var P = POSES && POSES[i];   // перекрывает ли кусок шоу кусок поз кадра
+    st.eraseRow = S.eraseV == null ? 1e9 : Math.round(S.eraseV * H) - y0;   // e1.52 eraseV: стирать здание по подложке только выше этой строки кадра
     st.overlap = !!(P && (P.actors || []).some(function (a) { return a.rect[0] < S.rect[2] && a.rect[2] > S.rect[0] && a.rect[1] < S.rect[3] && a.rect[3] > S.rect[1]; }));
     var dir = String(FRAMES[i].color).split('?')[0].replace(/[^\/]*$/, '');
     var vd = document.createElement('video'); vd.muted = true; vd.defaultMuted = true; vd.loop = false; vd.playsInline = true; vd.preload = 'none'; vd.crossOrigin = 'anonymous';
@@ -1215,7 +1228,7 @@
       var p = idx[k], a = al[k] * vis, s4 = p * 4, q = p * ch;
       if (rf) { var p3 = p * 3, dv = Math.max(Math.abs(vdd[s4] - rf[p3]), Math.abs(vdd[s4 + 1] - rf[p3 + 1]), Math.abs(vdd[s4 + 2] - rf[p3 + 2])), kd = (dv - st.dlo) * st.dk; if (kd <= 0 && !gr) continue; a *= kd <= 0 ? 0 : (kd < 1 ? kd * kd * (3 - 2 * kd) : 1); }   // e1.50 diff (e1.51: у слоя здания дальше — проверка подложки)
       var b1 = 1 - a, ke = 1;
-      if (gr) { var dg = Math.max(Math.abs(vdd[s4] - gr[p * 3]), Math.abs(vdd[s4 + 1] - gr[p * 3 + 1]), Math.abs(vdd[s4 + 2] - gr[p * 3 + 2])), kg = (dg - st.dlo) * st.dk; ke = kg <= 0 ? 0 : (kg >= 1 ? 1 : kg * kg * (3 - 2 * kg)); }   // e1.50: видео = подложка → здание прозрачно
+      if (gr && p < st.eraseRow * st.w) { var dg = Math.max(Math.abs(vdd[s4] - gr[p * 3]), Math.abs(vdd[s4 + 1] - gr[p * 3 + 1]), Math.abs(vdd[s4 + 2] - gr[p * 3 + 2])), kg = (dg - st.dlo) * st.dk; ke = kg <= 0 ? 0 : (kg >= 1 ? 1 : kg * kg * (3 - 2 * kg)); }   // e1.50: видео = подложка → здание прозрачно
       if (ke < 1) {   // e1.51: видео здесь = подложка → здание стирается на полную силу маски (а не на долю «отличия от рисунка»: светлый камень, похожий на небо, оставался бледным следом)
         var ae = Math.max(a, al[k] * vis * (1 - ke)), be = 1 - ae;
         o[q] = vdd[s4] * ae * ke + o[q] * be; o[q + 1] = vdd[s4 + 1] * ae * ke + o[q + 1] * be; o[q + 2] = vdd[s4 + 2] * ae * ke + o[q + 2] * be; o[q + 3] = 255 * ae * ke + o[q + 3] * be; continue;
@@ -1247,7 +1260,7 @@
     st.actors.forEach(function (A) {
       if (!A.vid) return;
       A.seen = now;
-      var tgt = A.vbad ? 0 : (1 - sstep(0.06, 0.4, tod.night)) * (1 - wxRaw) * (still ? 0 : 1), pv = A.vv;
+      var tgt = A.vbad ? 0 : (1 - sstep(0.06, 0.4, tod.night)) * (1 - wxRaw) * (still ? 0 : 1) * (hourIn(A.cfg.hours, now) ? 1 : 0) * (1 - tod.sun), pv = A.vv;   // e1.52: часы зрителя; на закате — закатный рисунок
       A.vv = dtS > 0 ? A.vv + (tgt - A.vv) * Math.min(1, dtS / 0.6) : tgt; if (Math.abs(A.vv - tgt) < 0.01) A.vv = tgt;
       if (Math.abs(A.vv - pv) > 0.004) st.dirty = true;
       var vd = A.vid;

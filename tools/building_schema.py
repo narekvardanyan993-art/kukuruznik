@@ -549,7 +549,9 @@ def validate(bdir, b, site):
                 else:
                     for j, a in enumerate(acts):
                         wa = '%s: poses.actors[%d]' % (w, j + 1)
-                        ao = c.obj(a, wa, required=('rect',), optional=('srcs', 'every', 'fade', 'night', 'order', 'note', 'video', 'mask', 'wx'))   # e1.49: video/mask — живое место Veo, wx — погодная версия
+                        ao = c.obj(a, wa, required=('rect',), optional=('srcs', 'every', 'fade', 'night', 'order', 'note', 'video', 'mask', 'wx', 'hours'))   # e1.49: video/mask — живое место Veo, wx — погодная версия; e1.52: hours
+                        if ao and 'hours' in ao:   # e1.52: часы зрителя [ч0, ч1) (через полночь — ч0 > ч1)
+                            c.numbers(ao['hours'], wa + '.hours', 2, 0, 24)
                         if not ao:
                             continue
                         if c.numbers(ao['rect'], wa + '.rect', 4, 0, 1) and not (ao['rect'][0] < ao['rect'][2] and ao['rect'][1] < ao['rect'][3]):
@@ -571,7 +573,7 @@ def validate(bdir, b, site):
                         if 'fade' in ao:
                             c.number(ao['fade'], wa + '.fade', 0, 5)
         if 'showVideo' in fr:     # e1.50: видео-шоу кадра {rect, video, mask, layer, t:[с0,с1], fade:[вход,выход]}
-            sv = c.obj(fr['showVideo'], '%s: showVideo' % w, required=('rect', 'video', 'mask'), optional=('layer', 't', 'fade', 'diff', 'note'))
+            sv = c.obj(fr['showVideo'], '%s: showVideo' % w, required=('rect', 'video', 'mask'), optional=('layer', 't', 'fade', 'diff', 'note', 'keep', 'eraseV'))
             if sv:
                 if c.numbers(sv['rect'], '%s: showVideo.rect' % w, 4, 0, 1) and not (sv['rect'][0] < sv['rect'][2] and sv['rect'][1] < sv['rect'][3]):
                     c.err('%s: showVideo.rect' % w, '[u0, v0, u1, v1]: u0 < u1, v0 < v1')
@@ -586,6 +588,11 @@ def validate(bdir, b, site):
                     c.numbers(sv['t'], '%s: showVideo.t' % w, 2, 0, 600)
                 if 'fade' in sv:
                     c.numbers(sv['fade'], '%s: showVideo.fade' % w, 2, 0, 10)
+                if 'eraseV' in sv:   # e1.52: стирание здания по подложке — только выше этой доли кадра (горизонт подложки)
+                    c.number(sv['eraseV'], '%s: showVideo.eraseV' % w, 0, 1)
+                if 'keep' in sv:   # e1.52: здание не стирается по подложке (только с diff у слоя здания)
+                    c.boolean(sv['keep'], '%s: showVideo.keep' % w)
+                    if sv['keep'] and (sv.get('layer', 'bld') != 'bld' or 'diff' not in sv): c.err('%s: showVideo.keep' % w, 'keep — только у слоя здания с diff')
                 if 'diff' in sv:   # e1.50: [lo, hi] — разница с рисунком (0..255), с которой берётся пиксель видео
                     c.numbers(sv['diff'], '%s: showVideo.diff' % w, 2, 0, 255)
                 if fr.get('parade') != 'fx':
@@ -671,9 +678,20 @@ def validate(bdir, b, site):
             for j, it in enumerate(fxo.get('items') or []):
                 if isinstance(it, dict) and it.get('kind') == 'letters':   # e1.46: надпись по буквам (атласы fix11.py insc)
                     wl = '%s: fx.items[%d]' % (w, j + 1)
-                    for kk in ('rect', 'size', 'cells') + (() if 'carve' in it else ('dark', 'fire', 'glow')):   # e1.51: carve — резьба (атласы fix16.py insc)
+                    wmode = isinstance(it.get('carve'), dict) and 'time' in it['carve']   # e1.52: пишется по карте времени (insc17.py) — без клеток
+                    for kk in ('rect', 'size') + (() if wmode else ('cells',)) + (() if 'carve' in it else ('dark', 'fire', 'glow')):   # e1.51: carve — резьба (атласы fix16.py insc)
                         if kk not in it: c.err(wl, 'letters: нет %s' % kk)
-                    if 'carve' in it:
+                    if wmode:
+                        cv = it['carve']
+                        if not all(isinstance(cv.get(q), str) and cv[q].startswith('show_') for q in ('groove', 'light', 'time')):
+                            c.err(wl + '.carve', '{groove, light, time} — картинки show_*')
+                        elif isinstance(b.get('framesDir'), str):
+                            for q in ('groove', 'light', 'time'): c.file(posixpath.join(b['framesDir'], cv[q]), '%s.carve.%s' % (wl, q), 'картинка')
+                        wr = c.obj(it.get('write', {}), wl + '.write', required=(), optional=('t0', 'dur', 'soft', 'front'))
+                        if wr:
+                            for q, lo, hi in (('t0', 0, 60), ('dur', 0.5, 60), ('soft', 0.001, 0.5), ('front', 0, 2)):
+                                if q in wr: c.number(wr[q], '%s.write.%s' % (wl, q), lo, hi)
+                    elif 'carve' in it:
                         cv = it['carve']
                         if not (isinstance(cv, dict) and all(isinstance(cv.get(q), str) and cv[q].startswith('show_') for q in ('groove', 'light', 'ember1', 'ember2'))):
                             c.err(wl + '.carve', '{groove, light, ember1, ember2} — картинки show_*')
