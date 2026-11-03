@@ -13,7 +13,7 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#f5ecda">
 <meta name="viewer-version" content="test">
-<meta name="engine-version" content="e1.49">
+<meta name="engine-version" content="e1.51">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Չկա">
 <meta property="og:url" content="https://chka.am/beta/tests/pogos-petros/">
@@ -29,20 +29,20 @@
 <title>Պողոս-Պետրոս եկեղեցի, Երևան | Չկա</title>
 <script>/* ?motion=1 — показать всё движение, даже если в системе включено «Уменьшить движение» (для проверки) */
 (function () { if (/[?&]motion=1/.test(location.search)) document.documentElement.setAttribute('data-motion', 'on'); })();</script>
-<link rel="preload" href="../../engine/welcome-loader.js?v=e1.49" as="script">
-<link rel="preload" href="../../engine/welcome-letters.js?v=e1.49" as="script">
-<link rel="preload" href="../../engine/fonts/NotoSerif-latin.woff2?v=e1.49" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.49" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.49" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../../engine/welcome-loader.js?v=e1.51" as="script">
+<link rel="preload" href="../../engine/welcome-letters.js?v=e1.51" as="script">
+<link rel="preload" href="../../engine/fonts/NotoSerif-latin.woff2?v=e1.51" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.51" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.51" as="font" type="font/woff2" crossorigin>
 <style>
   /* Один шрифт для hy/ru/en — Noto Serif: латиница и кириллица (Noto Serif) и армянский (Noto Serif Armenian)
      из одной системы дизайна, лицензия OFL (fonts/LICENSE.txt). Подключён локально, один вес 400–700. */
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../../engine/fonts/NotoSerif-latin.woff2?v=e1.49) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    src: url(../../engine/fonts/NotoSerif-latin.woff2?v=e1.51) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.49) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+    src: url(../../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.51) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.49) format("woff2"); unicode-range: U+0308, U+0530-058F, U+2010, U+2024, U+25CC, U+FB13-FB17; }
+    src: url(../../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.51) format("woff2"); unicode-range: U+0308, U+0530-058F, U+2010, U+2024, U+25CC, U+FB13-FB17; }
   :root {
     --font: "Chka Serif", "Noto Serif", serif;
     --paper: #f5ecda; --paper-2: #ede0c2; --ink: #2f2a25;
@@ -1024,8 +1024,8 @@
 <body>
 <script>try { if (localStorage.getItem('chka-panel') === 'collapsed') document.body.classList.add('panel-collapsed'); } catch (e) {}   /* панель, свёрнутая в прошлый раз, — сразу свёрнутой, без анимации закрытия */</script>
 
-<script src="../../engine/welcome-letters.js?v=e1.49"></script>
-<script src="../../engine/welcome-loader.js?v=e1.49"></script>
+<script src="../../engine/welcome-letters.js?v=e1.51"></script>
+<script src="../../engine/welcome-loader.js?v=e1.51"></script>
 <script>
 /* ===================== CONFIG =====================
    Все параметры эффекта «3D-фото» собраны здесь, ничего похожего
@@ -1833,6 +1833,83 @@ var CONFIG = {
   "delay": 0.6,
   "swayMaxPx": 9
  },
+ "SHOWVID": [
+  {
+   "rect": [
+    0.040375,
+    0.159717,
+    0.959625,
+    0.47032
+   ],
+   "video": "vid_a_show.mp4",
+   "mask": "vid_a_show_mask.png",
+   "layer": "bld",
+   "t": [
+    1.0,
+    11.0
+   ],
+   "fade": [
+    0.9,
+    1.3
+   ],
+   "diff": [
+    16,
+    40
+   ],
+   "note": "колокол в арке качается всё сильнее, голуби с карниза взлетают по одному-два и улетают за кадр — видео Veo из правки Gemini (колокол + голуби на карнизе); проявляется и тает"
+  },
+  {
+   "rect": [
+    1e-05,
+    0.20001,
+    0.99999,
+    0.879843
+   ],
+   "video": "vid_b_show.mp4",
+   "mask": "vid_b_show_mask.png",
+   "layer": "bld",
+   "t": [
+    1.0,
+    19.71
+   ],
+   "fade": [
+    0.5,
+    0.8
+   ],
+   "diff": [
+    16,
+    40
+   ],
+   "note": "снос: собака убегает, трещины, звонницы падают, стены оседают в пыли → руины (пауза 2 с) → тот же ролик назад в 1,5 раза быстрее — «время отматывается»"
+  },
+  {
+   "rect": [
+    1e-05,
+    0.683526,
+    0.99999,
+    0.99999
+   ],
+   "video": "vid_c_show.mp4",
+   "mask": "vid_c_show_mask.png",
+   "layer": "bg",
+   "t": [
+    1.0,
+    11.0
+   ],
+   "fade": [
+    0.6,
+    1.0
+   ],
+   "diff": [
+    14,
+    36
+   ],
+   "note": "фаэтон с лошадью проезжает по улице от дальнего плана к ближнему и уходит за правый нижний угол — видео Veo"
+  },
+  null,
+  null,
+  null
+ ],
  "POSES": [
   {
    "layer": "bld",
@@ -1856,11 +1933,25 @@ var CONFIG = {
       0.86
      ],
      "srcs": [
-      "show_wx_a_bench.png"
+      "show_wx_a_rain.png"
      ],
-     "wx": true,
+     "wx": "rain",
      "fade": 0.6,
-     "note": "в дождь/снег скамейка пустая — старик ушёл (правка Gemini Pro)"
+     "note": "в дождь старик накрылся газетой, голубей нет (правка Gemini Pro gu7g0v)"
+    },
+    {
+     "rect": [
+      0.26,
+      0.66,
+      0.6,
+      0.86
+     ],
+     "srcs": [
+      "show_wx_a_snow.png"
+     ],
+     "wx": "snow",
+     "fade": 0.6,
+     "note": "в снег старик поднял воротник, руки в карманах, голубей нет (правка Gemini Pro jex41d)"
     }
    ]
   },
@@ -2524,7 +2615,7 @@ var CONFIG = {
    "win2": "frames/pogos_b_win2.webp?v=527e153b",
    "sunset": "frames/pogos_b_sunset.webp?v=62a3a1be",
    "night": "frames/pogos_b_night.webp?v=7232481b",
-   "snow": "frames/pogos_b_snow.webp?v=fb92bbb3"
+   "snow": "frames/pogos_b_snow.webp?v=f2cdc059"
   },
   {
    "color": "frames/pogos_c.webp?v=24d472c9",
@@ -2844,94 +2935,37 @@ var CONFIG = {
    "skyBirds": false,
    "nightWins": false,
    "fx": {
-    "items": [
-     {
-      "kind": "flock",
-      "frames": [
-       "show_pigeon_1.png",
-       "show_pigeon_2.png",
-       "show_pigeon_3.png",
-       "show_pigeon_4.png"
-      ],
-      "from": [
-       0.525,
-       0.352
-      ],
-      "spread": [
-       0.1,
-       0.004
-      ],
-      "to": [
-       -0.5,
-       0.02
-      ],
-      "h": 0.02,
-      "delay0": 1.5,
-      "gap": 0.4,
-      "fly": 4.5,
-      "flap": 4.5,
-      "bld": true,
-      "fade": [
-       1.5,
-       1.0
-      ],
-      "froms": [
-       [
-        0.525,
-        0.352,
-        0.03,
-        3,
-        -0.5,
-        0.02
-       ],
-       [
-        0.7,
-        0.352,
-        0.025,
-        2,
-        1.5,
-        0.05
-       ],
-       [
-        0.51,
-        0.441,
-        0.04,
-        2,
-        -0.5,
-        0.15
-       ],
-       [
-        0.745,
-        0.451,
-        0.04,
-        2,
-        1.5,
-        0.2
-       ],
-       [
-        0.37,
-        0.476,
-        0.03,
-        2,
-        -0.45,
-        0.1
-       ],
-       [
-        0.33,
-        0.505,
-        0.03,
-        1,
-        -0.5,
-        0.25
-       ]
-      ],
-      "exit": true,
-      "t": [
-       0,
-       16
-      ]
-     }
-    ]
+    "dur": 12.0,
+    "tod": [
+     [
+      0,
+      0
+     ],
+     [
+      12.0,
+      0
+     ]
+    ],
+    "items": [],
+    "note": "шоу — видео Veo (showVideo); день на время шоу (ночью видео не видно)",
+    "cam": {
+     "at": [
+      0.605,
+      0.395
+     ],
+     "zoom": 2.6,
+     "to": [
+      0.5,
+      0.42
+     ],
+     "t": [
+      1.0,
+      3.2,
+      9.4,
+      11.6
+     ],
+     "note": "наезд на звонницу: колокол крупно (≈ 80 px на экране 390×844), плавно туда и обратно"
+    }
    },
    "leafFly": {
     "srcs": [
@@ -3003,29 +3037,19 @@ var CONFIG = {
    "skyBirds": false,
    "nightWins": false,
    "fx": {
+    "dur": 20.71,
     "tod": [
      [
       0,
       0
      ],
      [
-      1,
+      20.71,
       0
-     ],
-     [
-      6,
-      1
-     ],
-     [
-      8.5,
-      1
-     ],
-     [
-      13,
-      2.1667
      ]
     ],
-    "items": []
+    "items": [],
+    "note": "шоу — видео Veo (showVideo); день на время шоу (ночью видео не видно)"
    },
    "leafFly": {
     "srcs": [
@@ -3097,145 +3121,19 @@ var CONFIG = {
    "skyBirds": false,
    "nightWins": false,
    "fx": {
-    "dur": 22,
-    "items": [
-     {
-      "kind": "storm",
-      "t": [
-       0.5,
-       21
-      ],
-      "fade": [
-       3,
-       4
-      ],
-      "note": "сцена в тон грозы, ручей бежит быстрее (виден в окне картинки)"
-     },
-     {
-      "kind": "image",
-      "src": "show_storm_c.webp",
-      "alpha": 1.0,
-      "steady": true,
-      "ease": true,
-      "hole": "show_storm_c_hole.png",
-      "t": [
-       0.5,
-       21
-      ],
-      "fade": [
-       3,
-       4
-      ],
-      "note": "грозовой рисунок Gemini Pro (p0g34y), совмещён с кадром"
-     },
-     {
-      "kind": "image",
-      "src": "show_flash_c.webp",
-      "alpha": 1.0,
-      "steady": true,
-      "t": [
-       6.0,
-       6.55
-      ],
-      "fade": [
-       0.06,
-       0.4
-      ],
-      "note": "вспышка молнии (Gemini Pro 9znfht)"
-     },
-     {
-      "kind": "image",
-      "src": "show_flash_c.webp",
-      "alpha": 0.75,
-      "steady": true,
-      "t": [
-       6.75,
-       7.1
-      ],
-      "fade": [
-       0.05,
-       0.28
-      ]
-     },
-     {
-      "kind": "image",
-      "src": "show_flash_c.webp",
-      "alpha": 1.0,
-      "steady": true,
-      "t": [
-       11.2,
-       11.8
-      ],
-      "fade": [
-       0.06,
-       0.45
-      ]
-     },
-     {
-      "kind": "image",
-      "src": "show_flash_c.webp",
-      "alpha": 0.9,
-      "steady": true,
-      "t": [
-       15.6,
-       16.1
-      ],
-      "fade": [
-       0.05,
-       0.35
-      ]
-     },
-     {
-      "kind": "flakes",
-      "srcs": [
-       "show_rain_1.png",
-       "show_rain_2.png",
-       "show_rain_3.png",
-       "show_rain_4.png",
-       "show_rain_5.png",
-       "show_rain_6.png",
-       "show_rain_7.png",
-       "show_rain_8.png"
-      ],
-      "area": [
-       0,
-       0,
-       1,
-       1
-      ],
-      "n": 70,
-      "h": [
-       0.05,
-       0.09
-      ],
-      "speed": 0.9,
-      "angle": -0.27,
-      "wind": 0.5,
-      "t": [
-       3.5,
-       19.5
-      ],
-      "dens": [
-       [
-        0,
-        0
-       ],
-       [
-        0.15,
-        1
-       ],
-       [
-        0.85,
-        1
-       ],
-       [
-        1,
-        0
-       ]
-      ],
-      "note": "дождь — струи Gemini, косо, ветер сносит"
-     }
-    ]
+    "dur": 12.0,
+    "tod": [
+     [
+      0,
+      0
+     ],
+     [
+      12.0,
+      0
+     ]
+    ],
+    "items": [],
+    "note": "шоу — видео Veo (showVideo); день на время шоу (ночью видео не видно)"
    },
    "leafFly": {
     "srcs": [
@@ -3343,145 +3241,142 @@ var CONFIG = {
       ],
       "bld": true,
       "size": [
-       610,
-       290
+       2440,
+       1160
       ],
-      "dark": "show_insc_d_ldark.png",
-      "fire": "show_insc_d_lfire.png",
-      "glow": "show_insc_d_lglow.png",
       "cells": [
        [
         0,
         0,
-        91,
-        89,
-        160,
-        62
+        216,
+        218,
+        716,
+        314
        ],
        [
-        93,
+        220,
         0,
-        92,
-        90,
-        203,
-        61
+        218,
+        220,
+        888,
+        314
        ],
        [
-        187,
+        442,
         0,
-        85,
-        87,
-        248,
-        63
+        215,
+        219,
+        1066,
+        316
        ],
        [
-        274,
+        661,
         0,
-        92,
-        88,
-        289,
-        62
+        227,
+        222,
+        1229,
+        316
        ],
        [
-        368,
+        892,
         0,
-        93,
-        89,
-        334,
-        62
+        234,
+        224,
+        1407,
+        316
        ],
        [
-        463,
+        1130,
         0,
-        101,
-        95,
-        129,
-        108
-       ],
-       [
-        566,
-        0,
-        98,
-        95,
-        184,
-        111
-       ],
-       [
-        666,
-        0,
-        96,
-        97,
+        264,
         238,
-        112
+        580,
+        510
        ],
        [
-        764,
+        1398,
         0,
-        102,
-        98,
-        292,
-        113
+        239,
+        240,
+        810,
+        515
        ],
        [
-        868,
+        1641,
         0,
-        104,
-        98,
-        349,
-        115
+        268,
+        244,
+        1017,
+        519
        ],
        [
+        1913,
         0,
-        100,
-        100,
-        94,
-        108,
-        158
+        253,
+        246,
+        1242,
+        524
        ],
        [
-        102,
-        100,
-        92,
-        93,
-        162,
-        163
+        2170,
+        0,
+        262,
+        248,
+        1473,
+        530
        ],
        [
-        196,
-        100,
-        89,
-        94,
-        209,
-        164
+        2436,
+        0,
+        260,
+        235,
+        497,
+        708
        ],
        [
-        287,
-        100,
-        97,
-        93,
-        252,
-        165
+        2700,
+        0,
+        229,
+        236,
+        722,
+        716
        ],
        [
-        386,
-        100,
-        101,
-        96,
-        304,
-        167
+        2933,
+        0,
+        226,
+        236,
+        898,
+        724
        ],
        [
-        489,
-        100,
-        103,
-        97,
-        360,
-        170
+        3163,
+        0,
+        244,
+        235,
+        1084,
+        732
+       ],
+       [
+        3411,
+        0,
+        253,
+        243,
+        1287,
+        740
+       ],
+       [
+        3668,
+        0,
+        261,
+        245,
+        1516,
+        748
        ]
       ],
       "step": 0.32,
-      "rise": 0.5,
-      "burn": 2.0,
+      "rise": 0.8,
+      "burn": 3.0,
       "out": 3.2,
       "outStep": 0.12,
       "t": [
@@ -3492,7 +3387,16 @@ var CONFIG = {
        0.4,
        1.5
       ],
-      "note": "надпись ՍՈՒՐԲ ՊՈՂՈՍ ՊԵՏՐՈՍ: буквы в перспективе люнета (гомография, fix11.py insc) проступают по одной, горят огнём, гаснут по одной"
+      "note": "надпись ՍՈՒՐԲ ՊՈՂՈՍ ՊԵՏՐՈՍ резьбой в камне: буквы проступают по одной (желобок темнее, верхний край светлее), в желобке тлеют угли — атласы ×8 (fix16.py insc), код только модулирует пиксели камня",
+      "carve": {
+       "groove": "show_insc_d_cgroove.webp",
+       "light": "show_insc_d_clight.webp",
+       "ember1": "show_insc_d_cember1.webp",
+       "ember2": "show_insc_d_cember2.webp"
+      },
+      "ignite": 0.9,
+      "emberK": 1.6,
+      "lightK": 1.0
      }
     ]
    }
@@ -3738,12 +3642,12 @@ var CONFIG = {
   }
  }
 };
-CONFIG.ENGINE_V = 'e1.49';
+CONFIG.ENGINE_V = 'e1.51';
 /* e1.15 (s9): Safari на iPhone показывал старую страницу из кэша (восстановленная вкладка) — со старыми настройками при новом движке
    (у Ленина всплыли отменённые круги с цифрами). Страница сверяет свою версию с engine/VERSION (без кэша) при открытии, при возврате
    из кэша вкладок и после 10+ мин в фоне; новее — один раз перезагружается на свежий адрес. */
 (function () {
-  var V = 'e1.49', E = '../../engine/', hid = 0;
+  var V = 'e1.51', E = '../../engine/', hid = 0;
   function chk() {
     if (!window.fetch) return;
     fetch(E + 'VERSION?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
@@ -3939,10 +3843,10 @@ document.querySelectorAll('.chips').forEach(function (g) { g.querySelectorAll('.
 </main>
 </div>
 
-<script src="../../engine/wall-data.js?v=e1.49" defer></script>
-<script src="../../engine/wall.js?v=e1.49" defer></script>
-<script src="../../engine/postcard.js?v=e1.49" defer></script>
-<script src="../../engine/viewer.js?v=e1.49" defer>
+<script src="../../engine/wall-data.js?v=e1.51" defer></script>
+<script src="../../engine/wall.js?v=e1.51" defer></script>
+<script src="../../engine/postcard.js?v=e1.51" defer></script>
+<script src="../../engine/viewer.js?v=e1.51" defer>
 </script>
 <script>
 // e1.13: курсор ПК — чернильный кружок у острия плавно растёт над кликабельным, при загрузке рядом рисует себя чернильный круг

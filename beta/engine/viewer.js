@@ -1142,6 +1142,93 @@
     st.hasWx = all.some(function (a) { return a.wx; });
     f.poses = st;
   }
+  // ---------- e1.50 ВИДЕО-ШОУ КАДРА (Погос-Петрос, заход 15) ----------
+  // Кадр: "showVideo": {rect:[u0,v0,u1,v1], video:"vid_<имя>.mp4", mask:"vid_<имя>_mask.png", layer:"bld"|"bg", t:[с0,с1], fade:[вход,выход]}.
+  // Видео Veo из самого рисунка (первый кадр = рисунок) по маске смешивается с рисунком в куске текстуры слоя — те же параллакс и обработка.
+  // Время видео = секунда шоу − с0; заморозка шоу (снимки) ставит видео на ту же секунду. Ленивая загрузка, без звука, не по кругу.
+  var SHOWVID = CONFIG.SHOWVID || null;
+  function showvInit(f, r, i) {
+    var S = SHOWVID[i]; if (!S || !S.video) return;
+    var W = r.w, H = r.h, x0 = Math.max(0, Math.floor(S.rect[0] * W)), y0 = Math.max(0, Math.floor(S.rect[1] * H)), x1 = Math.min(W, Math.ceil(S.rect[2] * W)), y1 = Math.min(H, Math.ceil(S.rect[3] * H));
+    var w = x1 - x0, h = y1 - y0; if (w < 2 || h < 2) return;
+    var bld = S.layer !== 'bg', src = bld ? r.bldPm : (r.ground4 || r.ground), ch = bld || r.ground4 ? 4 : 3;
+    var base = new Uint8Array(w * h * ch);
+    for (var y = 0; y < h; y++) base.set(src.subarray(((y0 + y) * W + x0) * ch, ((y0 + y) * W + x0 + w) * ch), y * w * ch);
+    var ref = null, gref = null;   // e1.50 diff: рисунок в рамке (здание поверх земли) — с ним сравнивается кадр видео; gref — подложка (слой земли)
+    if (S.diff) { var gs = r.ground4 || r.ground, gc = r.ground4 ? 4 : 3; ref = new Uint8Array(w * h * 3); for (var yy = 0; yy < h; yy++) for (var xx = 0; xx < w; xx++) { var oo = (y0 + yy) * W + x0 + xx, rq = (yy * w + xx) * 3, ab = bld ? r.bldPm[oo * 4 + 3] / 255 : 0; for (var cc = 0; cc < 3; cc++) ref[rq + cc] = (bld ? r.bldPm[oo * 4 + cc] : 0) + gs[oo * gc + cc] * (1 - ab); } }
+    if (S.diff && bld) { gref = new Uint8Array(w * h * 3); for (var y3 = 0; y3 < h; y3++) for (var x3 = 0; x3 < w; x3++) { var o3 = (y0 + y3) * W + x0 + x3, g3 = (y3 * w + x3) * 3; gref[g3] = gs[o3 * gc]; gref[g3 + 1] = gs[o3 * gc + 1]; gref[g3 + 2] = gs[o3 * gc + 2]; } }
+    var st = { cfg: S, x0: x0, y0: y0, w: w, h: h, bld: bld, ch: ch, base: base, ref: ref, gref: gref, dlo: S.diff ? S.diff[0] : 0, dk: S.diff ? 1 / Math.max(1, S.diff[1] - S.diff[0]) : 0, out: new Uint8Array(w * h * ch), vis: 0, vT: -1, vLast: 0, vdata: null, idx: null, al: null, dirty: false, active: false };
+    var P = POSES && POSES[i];   // перекрывает ли кусок шоу кусок поз кадра
+    st.overlap = !!(P && (P.actors || []).some(function (a) { return a.rect[0] < S.rect[2] && a.rect[2] > S.rect[0] && a.rect[1] < S.rect[3] && a.rect[3] > S.rect[1]; }));
+    var dir = String(FRAMES[i].color).split('?')[0].replace(/[^\/]*$/, '');
+    var vd = document.createElement('video'); vd.muted = true; vd.defaultMuted = true; vd.loop = false; vd.playsInline = true; vd.preload = 'none'; vd.crossOrigin = 'anonymous';
+    vd.setAttribute('muted', ''); vd.setAttribute('playsinline', ''); vd.setAttribute('webkit-playsinline', '');
+    vd.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none;z-index:-1';
+    document.body.appendChild(vd); st.vsrc = dir + (vd.canPlayType('video/mp4; codecs="avc1.4d401f"') ? S.video : S.video.replace(/\.mp4$/, '.webm'));
+    vd.addEventListener('error', function () { if (vd.getAttribute('src')) { logErr('show video', S.video + ' не загрузилось'); st.vbad = true; } });
+    st.vid = vd; st.vcv = document.createElement('canvas'); st.vcv.width = w; st.vcv.height = h; st.vcx = st.vcv.getContext('2d', { willReadFrequently: true });
+    var mi = new Image(); mi.crossOrigin = 'anonymous';
+    mi.onload = function () {
+      try {
+        var c2 = document.createElement('canvas'); c2.width = w; c2.height = h; var x2 = c2.getContext('2d', { willReadFrequently: true }); x2.drawImage(mi, 0, 0, w, h);
+        var dd = x2.getImageData(0, 0, w, h).data, n = 0, q; for (q = 0; q < w * h; q++) if (dd[q * 4] > 2) n++;
+        var idx = new Int32Array(n), al = new Float32Array(n), k = 0; for (q = 0; q < w * h; q++) if (dd[q * 4] > 2) { idx[k] = q; al[k] = dd[q * 4] / 255; k++; }
+        st.idx = idx; st.al = al;
+      } catch (e) { logErr('show video mask', e); }
+    };
+    mi.onerror = function () { logErr('show video mask', S.mask + ' не загрузилась'); st.vbad = true; };
+    mi.src = dir + S.mask;
+    f.showv = st;
+  }
+  function showvStep(f, now) {
+    var st = f && f.showv; if (!st) return;
+    var ck = null; try { ck = window.Details && window.Details.fxClock ? window.Details.fxClock(now) : null; } catch (e) { ck = null; }
+    var C = st.cfg, T = C.t || [0, 600], fd = C.fade || [0.6, 0.8], vd = st.vid, on = !!(ck && ck.fr === f.idx), tgt = 0, want = 0;
+    if (on && !st.vsrcSet) { st.vsrcSet = true; vd.preload = 'auto'; vd.src = st.vsrc; try { vd.load(); } catch (e) {} }   // ленивая загрузка: первый показ
+    if (on) {
+      var t1 = Math.min(T[1], ck.len), kin = clamp((ck.t - T[0]) / Math.max(0.01, fd[0]), 0, 1), kout = clamp((t1 - ck.t) / Math.max(0.01, fd[1]), 0, 1);
+      tgt = sstep(0, 1, Math.min(kin, kout)) * (1 - ck.kill); want = ck.t - T[0];
+    }
+    if (st.vbad || reduced()) tgt = 0;
+    if (tgt > 0.001 && st.vsrcSet) {
+      var dur = vd.duration || 0, tw = clamp(want, 0, Math.max(0, dur - 0.05));
+      if (vd.readyState >= 1) {
+        if (ck.frozen) { if (!vd.paused) { try { vd.pause(); } catch (e) {} } if (!vd.seeking && Math.abs(vd.currentTime - tw) > 0.02) vd.currentTime = tw; }
+        else {
+          if (vd.paused && want < dur - 0.05) { var pr = vd.play(); if (pr && pr.catch) pr.catch(function () {}); }
+          if (!vd.seeking && Math.abs(vd.currentTime - tw) > 0.35) vd.currentTime = tw;
+        }
+      }
+      if (vd.readyState >= 2 && !vd.seeking && vd.currentTime !== st.vT && now - st.vLast >= 40) {
+        try { st.vcx.drawImage(vd, 0, 0, st.w, st.h); st.vdata = st.vcx.getImageData(0, 0, st.w, st.h).data; st.vT = vd.currentTime; st.vLast = now; st.dirty = true; }
+        catch (e) { logErr('show video frame', e); st.vbad = true; }
+      }
+    } else if (!vd.paused) { try { vd.pause(); } catch (e) {} }
+    if (tgt <= 0.001 && !on) { st.vdata = st.vdata && st.vis > 0 ? st.vdata : null; st.vT = -1; }
+    var vis = st.vdata && st.idx ? Math.round(tgt * 50) / 50 : 0;
+    if (vis !== st.vis) { st.vis = vis; st.dirty = true; }
+    if (!st.dirty) return;
+    st.dirty = false;
+    var o = st.out, ch = st.ch, vdd = st.vdata, idx = st.idx, al = st.al, rf = st.ref, gr = st.gref;
+    o.set(st.base);
+    if (vis > 0) for (var k = 0, n = idx.length; k < n; k++) {
+      var p = idx[k], a = al[k] * vis, s4 = p * 4, q = p * ch;
+      if (rf) { var p3 = p * 3, dv = Math.max(Math.abs(vdd[s4] - rf[p3]), Math.abs(vdd[s4 + 1] - rf[p3 + 1]), Math.abs(vdd[s4 + 2] - rf[p3 + 2])), kd = (dv - st.dlo) * st.dk; if (kd <= 0 && !gr) continue; a *= kd <= 0 ? 0 : (kd < 1 ? kd * kd * (3 - 2 * kd) : 1); }   // e1.50 diff (e1.51: у слоя здания дальше — проверка подложки)
+      var b1 = 1 - a, ke = 1;
+      if (gr) { var dg = Math.max(Math.abs(vdd[s4] - gr[p * 3]), Math.abs(vdd[s4 + 1] - gr[p * 3 + 1]), Math.abs(vdd[s4 + 2] - gr[p * 3 + 2])), kg = (dg - st.dlo) * st.dk; ke = kg <= 0 ? 0 : (kg >= 1 ? 1 : kg * kg * (3 - 2 * kg)); }   // e1.50: видео = подложка → здание прозрачно
+      if (ke < 1) {   // e1.51: видео здесь = подложка → здание стирается на полную силу маски (а не на долю «отличия от рисунка»: светлый камень, похожий на небо, оставался бледным следом)
+        var ae = Math.max(a, al[k] * vis * (1 - ke)), be = 1 - ae;
+        o[q] = vdd[s4] * ae * ke + o[q] * be; o[q + 1] = vdd[s4 + 1] * ae * ke + o[q + 1] * be; o[q + 2] = vdd[s4 + 2] * ae * ke + o[q + 2] * be; o[q + 3] = 255 * ae * ke + o[q + 3] * be; continue;
+      }
+      o[q] = vdd[s4] * a + o[q] * b1; o[q + 1] = vdd[s4 + 1] * a + o[q + 1] * b1; o[q + 2] = vdd[s4 + 2] * a + o[q + 2] * b1;
+      if (st.bld) o[q + 3] = 255 * a + o[q + 3] * b1;   // текстура здания — цвет умножен на альфу (видео непрозрачно)
+    }
+    gl.bindTexture(gl.TEXTURE_2D, st.bld ? f.bldTex : f.bgTex);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, st.x0, st.y0, st.w, st.h, ch === 4 ? gl.RGBA : gl.RGB, gl.UNSIGNED_BYTE, o);
+    var was = st.active; st.active = vis > 0;
+    if (was && !st.active && f.poses) f.poses.dirty = true;   // шоу кончилось: позы снова пишут свой кусок
+  }
   var VIDS = [];   // e1.49: актёры-видео всех кадров (пауза, когда кадр не на экране)
   function vidsGc(now) {
     VIDS.forEach(function (A) { if (A.vid && !A.vid.paused && now - (A.seen || 0) > 400) { try { A.vid.pause(); } catch (e) {} } });
@@ -1153,6 +1240,8 @@
     if (nk !== st.nightK) { st.nightK = nk; st.dirty = true; }
     var wxRaw = typeof wx !== 'undefined' ? sstep(0.04, 0.6, Math.max(wx.cur[2], wx.cur[3])) : 0, wk = Math.round(wxRaw * 20) / 20;   // e1.49: непогода (дождь/снег) 0..1
     if (wk !== st.wxK) { st.wxK = wk; st.dirty = true; }
+    var wS = typeof wx !== 'undefined' ? Math.round(sstep(0.04, 0.6, wx.cur[3]) * 20) / 20 : 0, wR = typeof wx !== 'undefined' ? Math.round(sstep(0.04, 0.6, wx.cur[2]) * (1 - wS) * 20) / 20 : 0;   // e1.50: снег важнее дождя
+    if (wS !== st.wxS || wR !== st.wxR) { st.wxS = wS; st.wxR = wR; st.dirty = true; }
     var dtS = st.lastT ? Math.min(0.25, t - st.lastT) : 0; st.lastT = t;
     if (!st.gcT || now - st.gcT > 500) { st.gcT = now; vidsGc(now); }
     st.actors.forEach(function (A) {
@@ -1190,7 +1279,7 @@
     var acc = new Float32Array(n * 4), ordA = st.actors.filter(function (A) { return !A.cfg.wx && !A.vid; }).concat(st.actors.filter(function (A) { return A.vid; }), st.actors.filter(function (A) { return A.cfg.wx; }));   // e1.49
     for (i = 0; i < n; i++) { acc[i * 4] = b[i * 4]; acc[i * 4 + 1] = b[i * 4 + 1]; acc[i * 4 + 2] = b[i * 4 + 2]; acc[i * 4 + 3] = b[i * 4 + 3]; }
     ordA.forEach(function (A) {
-      var c = A.cfg, vis = (1 - st.nightK) * (c.wx ? st.wxK : (st.hasWx ? 1 - st.wxK : 1)); if (vis <= 0) return;   // e1.49: погодная версия — в непогоду, остальные актёры — в ясную
+      var c = A.cfg, vis = (1 - st.nightK) * (c.wx ? (c.wx === 'rain' ? st.wxR : (c.wx === 'snow' ? st.wxS : st.wxK)) : (st.hasWx ? 1 - st.wxK : 1)); if (vis <= 0) return;   // e1.50: wx "rain" / "snow" — своя версия   // e1.49: погодная версия — в непогоду, остальные актёры — в ясную
       if (A.vid) {   // e1.49: кадр видео по маске
         var vdd = A.vdata, vm = A.vmask, k2 = A.vv * (st.hasWx ? 1 - st.wxK : 1); if (!vdd || !vm || k2 <= 0.003) return;
         var vb = A.box, vw = vb[2] - vb[0];
@@ -1913,7 +2002,7 @@
       var scI = (CONFIG.SCENE && CONFIG.SCENE[i]) || {};
       if (scI.bldDepth != null) { entry.dB = scI.bldDepth; entry.kB = scI.bldDepth * 2 - 1; entry.bldD = null; }   // e1.5: здание кадра — жёстко на этой глубине (крупный план: статуя не «плывёт» отдельно от постамента и фона)
       var up = useGL ? uploadDay(entry, r) : Promise.resolve(makeLayers(entry, r));
-      return up.then(function () { if (useGL && POSES && POSES[i]) safe('poses', function () { posesInit(entry, r, i); }); store[i] = entry; if (window.__fillThumb) window.__fillThumb(i); return entry; });
+      return up.then(function () { if (useGL && POSES && POSES[i]) safe('poses', function () { posesInit(entry, r, i); }); if (useGL && SHOWVID && SHOWVID[i]) safe('showv', function () { showvInit(entry, r, i); }); store[i] = entry; if (window.__fillThumb) window.__fillThumb(i); return entry; });
     });
     dayP[i].catch(function () { dayP[i] = null; });
     return dayP[i];
@@ -1965,6 +2054,7 @@
     testBolt: function () { nextFlash = performance.now(); },   // для проверки: следующая молния — сейчас
     tilt: function (x, y) { demoStop(); ret = null; targetX = curX = x; targetY = curY = y; },
     pose: function (fi, k, j) { var st = store[fi] && store[fi].poses; if (!st) return false; var A = st.actors[k]; A.prev = A.cur = j; A.mix = 1; A.next = 1e12; st.dirty = true; return true; },   // e1.44: для снимков — актёр k кадра fi в позе j, без смены   // e1.43: для снимков — наклон к краю сразу (−1..1)
+    showv: function (i) { var st = store[i] && store[i].showv; return st ? { vis: st.vis, active: st.active, rs: st.vid.readyState, ct: st.vid.currentTime, dur: st.vid.duration, src: st.vid.currentSrc, mask: st.idx ? st.idx.length : -1, vT: st.vT, bad: !!st.vbad } : null; },   // e1.50: для снимков — состояние видео-шоу кадра
     frame: function () { return frameIndex; }, fading: function () { return !!fade; }, entry: function (i) { return store[i]; },
     motionOn: function (i) { return !!mvConf(i) && !(MV[i] && MV[i].fail); },
     mvState: function (i) {   // e1.17: для проверки — какие клипы кадра сейчас в текстурах (день/ночь)
@@ -2691,7 +2781,8 @@
       lastDraw = { fa: fa, fb: fb, mix: mixState, shiftX: shiftX, shiftY: shiftY, zoom: zoom, t: t, tAmb: tAmb };
       safe('weather', function () { stepWeather(now); });
       if (NI) safe('video', function () { mvPlan(fade ? fade.from : frameIndex, fade ? fade.to : null, rm); });
-      if (POSES && !glLost) safe('poses', function () { posesStep(fa, now); if (fb) posesStep(fb, now); });   // e1.44: позы фигур рисунка
+      if (SHOWVID && !glLost) safe('showv', function () { showvStep(fa, now); if (fb) showvStep(fb, now); });   // e1.50: видео-шоу кадра
+      if (POSES && !glLost) safe('poses', function () { [fa, fb].forEach(function (f) { if (f && !(f.showv && f.showv.active && f.showv.overlap)) posesStep(f, now); }); });   // e1.44: позы фигур рисунка (e1.50: не под видео-шоу)
       if (!glLost && !(gl.isContextLost && gl.isContextLost())) safe('draw', function () { drawGL(fa, fb, mixState, shiftX, shiftY, zoom, t, tAmb); });
       safe('precip', function () { drawPrecip(now, dt, rm); });
       if (window.Details && window.Details.frame && !detailsBroken) {   // живые детали: тот же цикл, не свой rAF; 30 ошибок подряд — детали выключаются, кадр живёт
@@ -3667,8 +3758,9 @@
   if (cardSaveOv) cardSaveOv.addEventListener('click', function (e) { if (e.target === cardSaveOv) hideSaveOverlay(); });
   var toastT = 0, toastFile = null;
   function hideToast() { clearTimeout(toastT); toastFile = null; if (cardToast) cardToast.classList.remove('on'); }
-  function showToast(file) {   // file — файл или список (лицо + оборот); share не открылся без жеста — второе нажатие по плашке откроет его наверняка
-    toastFile = file; if (!cardToast) return;
+  var toastAfter = null;   // e1.51: что сделать после share по плашке (запасной путь: кнопка становится «Сохранить оборот»)
+  function showToast(file, after) {   // file — файл или список (лицо + оборот); share не открылся без жеста — второе нажатие по плашке откроет его наверняка
+    toastFile = file; toastAfter = after || null; if (!cardToast) return;
     cardToast.querySelector('span').textContent = CONFIG.UI_I18N.cardReady[currentLang];
     cardToast.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(hideToast, 9000);
   }
@@ -3682,11 +3774,29 @@
     });
   }
   var touchNoShare = TOUCH_DEV && !shareOK;   // телефон, но Web Share с файлами недоступен
+  // e1.51 (просьба Нарека): лицо + оборот — ОДНИМ нажатием, navigator.share({files: [лицо, оборот]}); файлы собраны заранее (cardFilesPrep).
+  // Запасной путь (двухшаговый, e1.35) — только если share с двумя файлами вернул ошибку или canShare их не берёт: дальше по файлу на нажатие
+  // (плашка «Открытка готова» → лицо, потом «Сохранить оборот»). cardTwo держится до перезагрузки страницы.
+  var cardTwo = false;
+  function share2(files) {
+    var p; try { p = navigator.share({ files: files }); } catch (e) { p = Promise.reject(e); }
+    return p.then(hideToast, function (e) {
+      if (e && e.name === 'AbortError') { hideToast(); return; }   // человек закрыл меню сам
+      cardTwo = true; goStep(false);   // два файла не прошли — запасной путь: лицо по плашке (новый жест), потом «Сохранить оборот»
+      showToast(files[0], function () { goStep(true); });
+    });
+  }
   // отдать: телефон с Web Share — «Поделиться» с одним файлом или двумя (лицо + оборот); телефон без Web Share (в т.ч. iOS Safari
   // без поддержки файлов) — оверлей «зажми и сохрани» (JPEG card-front.jpg/card-back.jpg готовы в самом оверлее, качать не нужно,
   // а на iOS программное скачивание часто просто открывает картинку); ПК — PNG (с оборотом — два PNG)
   function deliverCard(cv, back) {
-    if (shareOK) {   // e1.35: один файл на share; с оборотом — два нажатия (лицо, потом «Сохранить оборот»)
+    if (shareOK) {   // e1.51: с оборотом — оба файла одним share; запасной путь (e1.35) — по файлу на нажатие (лицо, потом «Сохранить оборот»)
+      if (back && !goBack && !cardTwo) {
+        var f1 = cardFileNow(false), f2 = cardFileNow(true), both = f1 && f2 ? [f1, f2] : null, can = false;
+        try { can = !!both && navigator.canShare({ files: both }); } catch (e) { can = false; }
+        if (can) { share2(both); return; }
+        if (both) cardTwo = true;   // два файла share не берёт — сразу двухшаговый путь
+      }
       var second = goBack && !!back, f = cardFileNow(second);
       if (f && navigator.canShare({ files: [f] })) {
         goStep(!second && !!back);   // после лица кнопка сразу «Сохранить оборот» (не ждём промис: на части iOS он не завершается)
@@ -3726,7 +3836,10 @@
   }
   function cardFlashNow() { if (cardFlash && cardFlash.animate) cardFlash.animate([{ opacity: reduced() ? 0.35 : 0.75 }, { opacity: 0 }], { duration: reduced() ? 380 : 620, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' }); }
   function goDone() { cardGo.classList.add('done'); clearTimeout(cardGo.__t); cardGo.__t = setTimeout(function () { cardGo.classList.remove('done'); }, 1600); }
-  if (cardToast) cardToast.addEventListener('click', function () { if (toastFile) shareFile(toastFile); });
+  if (cardToast) cardToast.addEventListener('click', function () {   // e1.51: список из двух файлов — share2 (с запасным путём); после share по плашке — toastAfter
+    var f = toastFile, af = toastAfter; toastAfter = null; if (!f) return;
+    if (Array.isArray(f) && f.length > 1 && !cardTwo) share2(f); else { shareFile(Array.isArray(f) ? f[0] : f); if (af) af(); }
+  });
 
   // окно: отметки, превью, «Показать»
   function cfgMarks() {
@@ -3933,7 +4046,7 @@
     }
     showNow().then(function () {   // время/погода другие (или шрифты не готовы) — сначала снять; жест уже потерян → на телефоне плашка «готово»
       if (!cfg.card) return;
-      if (shareOK) { var f = cardFileNow(false); if (f) { showToast(f); goStep(!!cfg.back); } }   // e1.35: лицо — по плашке, оборот — второй кнопкой (e1.36: второе нажатие кнопки — сразу оборот)
+      if (shareOK) { var f = cardFileNow(false), fb2 = cfg.back && !cardTwo ? cardFileNow(true) : null; if (f && fb2) showToast([f, fb2]); else if (f) { showToast(f); goStep(!!cfg.back); } }   // e1.51: с оборотом — оба файла одной плашкой   // e1.35: лицо — по плашке, оборот — второй кнопкой (e1.36: второе нажатие кнопки — сразу оборот)
       else deliverCard(cfg.card, cfg.back);
       goDone();
     });
@@ -3958,7 +4071,7 @@
     fontsReady: function (l) { return cardFontsReady(l || cardLang()); }, fontsLoad: cardFontsLoad, paperReady: cardPaperReady, paperLoad: cardPaperLoad,bldLoad: function () { FRAMES.forEach(function (F, i) { cardBldLoad(i); }); return new Promise(function (res) { var n = 0; (function w() { if (FRAMES.every(function (F, i) { return cardBld[i] !== 'loading'; }) || ++n > 100) res(); else setTimeout(w, 100); })(); }); }, mask: cardBuildingMask, safe: function () { return ChkaPostcard.SAFE; },
     open: openCfg, close: closeCfg, show: showNow,
     want: function (w) { if (w) { cfg.want = w; dirty(); } return cfg.want; },
-    state: function () { return { open: bodyEl.classList.contains('card-open'), srcFrame: cfg.srcFrame, step: goBack ? 'back' : 'front', device: TOUCH_DEV ? (shareOK ? 'share' : 'touch') : 'desktop', filesReady: { front: !!cardFiles.front, back: !!cardFiles.back }, rare: cfg.rare, seed: cfg.seed, code: cfg.code, time: cfg.want ? cardTime(cfg.want) : '', want: cfg.want, srcKey: cfg.srcKey, dirty: cfg.dirty, busy: cfg.busy, back: !!cfg.back, years: CARD_YEARS, set: JSON.parse(JSON.stringify(cardSet)), no: cardNo(), mom: MOM.map(function (m) { return m.k; }), wx: CWX, showOn: !!(cfg.want && cfg.want.show) }; },
+    state: function () { return { open: bodyEl.classList.contains('card-open'), srcFrame: cfg.srcFrame, step: goBack ? 'back' : 'front', two: cardTwo, device: TOUCH_DEV ? (shareOK ? 'share' : 'touch') : 'desktop', filesReady: { front: !!cardFiles.front, back: !!cardFiles.back }, rare: cfg.rare, seed: cfg.seed, code: cfg.code, time: cfg.want ? cardTime(cfg.want) : '', want: cfg.want, srcKey: cfg.srcKey, dirty: cfg.dirty, busy: cfg.busy, back: !!cfg.back, years: CARD_YEARS, set: JSON.parse(JSON.stringify(cardSet)), no: cardNo(), mom: MOM.map(function (m) { return m.k; }), wx: CWX, showOn: !!(cfg.want && cfg.want.show) }; },
     // замер «Момента» (s30): применить { p | s, wx }, снять кадр без табличек, вернуть сцену; ответ — маленькая копия 270×480 PNG
     probe: function (w) { return shoot(w).then(function (r) { if (!r.src) return null; var c = document.createElement('canvas'); c.width = 270; c.height = 480; c.getContext('2d').drawImage(r.src, 0, 0, 270, 480); return c.toDataURL('image/png'); }); },
     // замер праздника (s31): w как у probe + show: true; ts — секунды показа; ответ — список копий 270×480 PNG (или полного размера, если full)
