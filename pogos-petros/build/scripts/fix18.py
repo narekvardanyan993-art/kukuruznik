@@ -90,7 +90,7 @@ if __name__ == '__main__':
 
 def cmd_hit():
     """Область тапа — там, где собака двигается во ВСЕХ её роликах (σ яркости по времени > 10), рамкой + 8 px кадра. → report/s18/hit.json"""
-    acts = {'b_dog': [0.43, 0.72, 0.68, 0.82], 'b_dog_am': RECT, 'b_dog_day': RECT, 'b_dog_tap': RECT}; FW, FH = 768, 1365; bb = [1, 1, 0, 0]; per = {}
+    acts = {'b_dog': [0.43, 0.72, 0.68, 0.82], 'b_dog_am': RECT, 'b_dog_day': RECT, 'b_dog_tap': RECT, 'b_dog_night': RECT, 'b_dog_day2': RECT}; FW, FH = 768, 1365; bb = [1, 1, 0, 0]; per = {}
     for nm, (u0, v0, u1, v1) in acts.items():
         vf, fps = fix15.vframes(FR / ('vid_%s.mp4' % nm)); g = np.stack([cv2.cvtColor(x, cv2.COLOR_RGB2GRAY).astype(np.float32) for x in vf[::3]])
         st = cv2.GaussianBlur(g.std(0), (0, 0), 3); m = (st > 10).astype(np.uint8)
