@@ -64,6 +64,7 @@ def build(out, ref):
     tl = bp.test_live_slugs()
     for slug in tl:
         hub = bp.hub_with_card(hub, slug, bp.render_card(slug), bp.render_stack(slug))
+    hub = bp.hub_with_pending_cards(hub)   # шаг 8: наклейки ещё не живых зданий (скрыты на живом сайте до блока live) — здесь видны
     (out / 'index.html').write_text(hub, encoding='utf-8')
     # 3. здания из ветки: файлы тестовых живых зданий (lenin), страницы Кукурузника, движок ветки
     slugs = bp.live_buildings(site=out)   # до place_live_files: та очищает папку здания вместе с index.html
@@ -74,6 +75,9 @@ def build(out, ref):
             shutil.copyfile(ROOT / 'kukuruznik' / name, out / 'kukuruznik' / name)
     shutil.copyfile(ROOT / 'kukuruznik' / 'card.webp', out / 'kukuruznik' / 'card.webp')
     bp.build_live(out, slugs, engine_from=ROOT / 'engine')
+    bp.build_beta(out)   # шаг 8: бета ветки (beta/tests/<имя>/ — ещё не живые здания и страницы к наклейкам)
+    for slug, src in bp.pending_slugs().items():
+        shutil.copyfile(ROOT / src / 'card.webp', out / 'beta' / src / 'card.webp')   # картинка наклейки (в бету она не входит — только в предпросмотр)
     return slugs
 
 

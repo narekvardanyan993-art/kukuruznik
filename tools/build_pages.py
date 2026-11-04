@@ -187,6 +187,8 @@ def make_config(b, frames_url, stamp=None):
         C['BRONZE_KEEP'] = True
     if look.get('snow'):   # e1.25 (s22): снег по маскам кадров, копится/тает плавно (только если задано у здания)
         C['SNOW'] = look['snow']
+    if look.get('captions'):   # e1.54: подписи кадров/шоу на экране (только если задано у здания — у остальных CONFIG тот же)
+        C['CAPS'] = [{'c': f.get('caption'), 's': f.get('showCaption')} for f in fr]
     if look.get('gusts'):   # e1.25 (s22): ветер порывами (только если задано у здания)
         C['GUSTS'] = look['gusts']
     if any(f.get('figures') for f in fr):   # e1.22: фигуры рисунка (только если заданы у кадров — у остальных зданий CONFIG тот же)
@@ -856,11 +858,12 @@ def _about_label(src, root=None):
     return out if all(out.get(l) for l in LANGS) else dict(ABOUT_DEFAULT)
 
 
-def card_markup(slug, image, eyebrow, title, meta, about, no=None, hall='I'):
+def card_markup(slug, image, eyebrow, title, meta, about, no=None, hall='I', base=None):
     """Разметка живой карточки главной (<li class="card">…</li>); одна на все здания, чтобы карточки не расходились.
     s43: вся карточка — ОДНА наклейка с вырубкой (.card-in.sticker, стили — assets/hub-museum.css, блок «наклейка»): внутри
     всё про здание — «Зал · Экспонат №» и инв. номер, обложка, годы, название, место, обе кнопки; снаружи ничего."""
     e = lambda t: html.escape(t, quote=True)
+    pre = base or slug   # адрес папки здания от главной: у живого — slug, у ещё не живого на бете — beta/tests/<имя>
     lines = [
         '      <li class="card reveal">',
         '        <div class="card-in sticker">']
@@ -868,16 +871,16 @@ def card_markup(slug, image, eyebrow, title, meta, about, no=None, hall='I'):
         lbl = {l: '%s · %s' % (HALL_WORD[l] % hall, EXHIBIT_WORD[l] % no) for l in LANGS}
         lines.append('          <p class="st-top"><span class="lbl-no">%s</span><span class="inv" aria-hidden="true">ՉԿԱ · %03d</span></p>' % (_i18n_spans(lbl), no))
     lines += [
-        '          <a class="cover" href="%s/about.html" aria-labelledby="t-%s">' % (e(slug), e(slug)),
-        '            <div class="pic"><img src="%s/%s" width="480" height="480" alt="" loading="lazy" decoding="async"></div>' % (e(slug), e(image)),
+        '          <a class="cover" href="%s/about.html" aria-labelledby="t-%s">' % (e(pre), e(slug)),
+        '            <div class="pic"><img src="%s/%s" width="480" height="480" alt="" loading="lazy" decoding="async"></div>' % (e(pre), e(image)),
         '          </a>',
         '          <div class="txt">',
         '            <span class="eyebrow">%s</span>' % _i18n_spans(eyebrow),
         '            <h3 id="t-%s"><span class="ttl">%s</span></h3>' % (e(slug), _i18n_spans(title)),
         '            <p class="meta">%s</p>' % _i18n_spans(meta),
         '            <div class="card-actions">',
-        '              <a class="btn btn-3d" href="%s/" data-transition>%s<span>%s</span></a>' % (e(slug), CUBE_ICON, _i18n_spans(VIEW_3D_WORD)),
-        '              <a class="btn btn-ghost btn-about" href="%s/about.html">%s<span>%s</span></a>' % (e(slug), PAGE_ICON, _i18n_spans(about)),
+        '              <a class="btn btn-3d" href="%s/" data-transition>%s<span>%s</span></a>' % (e(pre), CUBE_ICON, _i18n_spans(VIEW_3D_WORD)),
+        '              <a class="btn btn-ghost btn-about" href="%s/about.html">%s<span>%s</span></a>' % (e(pre), PAGE_ICON, _i18n_spans(about)),
         '            </div>',
         '          </div>',
         '        </div>',
@@ -966,6 +969,43 @@ def hub_with_card(hub, slug, card_html, stack_html=None):
         raise SystemExit('СТОП: в index.html нет меток <!-- card:%s --> … <!-- /card:%s --> — некуда ставить карточку' % (slug, slug))
     hub = hub[:sp[0]] + card_html + hub[sp[1]:]
     return _stack_with(hub, slug, stack_html) if stack_html else hub
+
+
+def pending_slugs(root=None):
+    """{адрес: папка} тестовых зданий с блоком card, у которых в index.html есть метки card:<адрес> и которые ещё НЕ живые (нет блока live).
+    На живом сайте их метки хранят заглушку «скоро» (карточка скрыта); на бете и в предпросмотре (hub_with_pending_cards) — наклейка."""
+    root = Path(root or ROOT)
+    hub = (root / 'index.html').read_text(encoding='utf-8') if (root / 'index.html').is_file() else ''
+    out = {}
+    t = root / 'tests'
+    if t.is_dir():
+        for d in sorted(t.iterdir()):
+            f = d / 'building.json'
+            if d.name == 'local' or not f.exists():
+                continue
+            b = json.loads(f.read_text(encoding='utf-8'))
+            if isinstance(b.get('card'), dict) and not isinstance(b.get('live'), dict) and _card_span(hub, d.name):
+                out[d.name] = 'tests/' + d.name
+    return out
+
+
+def render_pending_card(slug, root=None):
+    """Наклейка ещё не живого здания (бета/предпросмотр): те же метки и та же разметка, что у живой, но адреса — в бете (beta/tests/<имя>/)."""
+    src = pending_slugs(root)[slug]
+    b = load_building(src, root)
+    cd = b['card']
+    no = (b.get('postcard') or {}).get('no')
+    lines = ['      <!-- card:%s — БЕТА: наклейка из %s/building.json, на живом сайте скрыта до блока live -->' % (slug, src)]
+    lines += card_markup(slug, cd['image'], cd['eyebrow'], cd.get('title') or b['text']['title'], cd['meta'], _about_label(src, root), no, base='beta/' + src)
+    lines.append('      <!-- /card:%s -->' % slug)
+    return '\n'.join(lines)
+
+
+def hub_with_pending_cards(hub, root=None):
+    """Главная с наклейками всех ещё не живых зданий (pending_slugs) на месте их меток. Для беты/предпросмотра; живая главная — index.html как есть."""
+    for slug in pending_slugs(root):
+        hub = hub_with_card(hub, slug, render_pending_card(slug, root))
+    return hub
 
 
 def hub_outside_diff(old, new, slug):

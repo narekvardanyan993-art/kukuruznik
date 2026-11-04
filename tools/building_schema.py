@@ -305,7 +305,7 @@ def validate(bdir, b, site):
                 c.err('aboutFacts', 'факта «%s» нет в facts' % k)
 
     # --- look ---
-    look = c.obj(b['look'], 'look', required=('day', 'night', 'frameSize', 'sunSide'), optional=('hotspots', 'showNight', 'nightEdge', 'bronzeKeep', 'snow', 'gusts', 'noon'))
+    look = c.obj(b['look'], 'look', required=('day', 'night', 'frameSize', 'sunSide'), optional=('hotspots', 'showNight', 'nightEdge', 'bronzeKeep', 'snow', 'gusts', 'noon', 'captions'))
     if look and 'snow' in look:   # e1.25 (s22): {accumS, meltS} — снег копится/тает, секунды
         so = c.obj(look['snow'], 'look.snow', required=('accumS', 'meltS'))
         for k in ('accumS', 'meltS'):
@@ -344,6 +344,11 @@ def validate(bdir, b, site):
                         c.err('look.gusts.leaves.size', 'длина листа [от, до] в css px, 1..12')
     if look and 'bronzeKeep' in look and look['bronzeKeep'] is not True:
         c.err('look.bronzeKeep', 'только true (бронза не тянется к зелени) или поле не задавать')
+    if look and 'captions' in look:   # e1.54: подписи кадров на экране
+        if look['captions'] is not True:
+            c.err('look.captions', 'только true (показывать подписи кадров frames[].caption и подписи шоу showCaption на экране) или поле не задавать')
+        elif not any(isinstance(f, dict) and f.get('caption') for f in b['frames']):
+            c.err('look.captions', 'включено, но ни у одного кадра нет подписи frames[].caption')
     if look and 'nightEdge' in look and look['nightEdge'] != 'solid':
         c.err('look.nightEdge', 'край вырезки ночью: "solid" или поле не задавать')
     if look and 'hotspots' in look:   # e1.15: «обводка» с номерами удалена (s9: Нарек отверг) — точки только как у Кукурузника

@@ -264,7 +264,8 @@
       "lift": 0.0,
       "bright": 1.04,
       "sky": 0.9
-    }
+    },
+    "captions": true
   },
   "tuning": {
     "BUILDING_DEPTH_PIXEL": true,
@@ -327,6 +328,20 @@
       ]
     },
     "RAIN_DROPS": 380
+  },
+  "card": {
+    "eyebrow": {
+      "hy": "3D · 1915–1929",
+      "ru": "3D · 1915–1929",
+      "en": "3D · 1915–1929"
+    },
+    "meta": {
+      "hy": "Շահար թաղամաս · Երևան",
+      "ru": "Квартал Шаар · Ереван",
+      "en": "Shahar quarter · Yerevan"
+    },
+    "image": "card.webp",
+    "history": "history.html"
   },
   "frames": [
     {

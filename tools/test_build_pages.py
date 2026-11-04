@@ -479,6 +479,27 @@ def check_hub_cards():
         good = bool(m) and card_ok(slug, m.group(0))
         lines.append('%s  главная: карточка %s — одна наклейка (зал/экспонат внутри), обложка → about.html, кнопки «3D» (%s/) и «о здании» (about.html), без вложенных ссылок, hy/ru/en' % ('OK   ' if good else 'ОШИБКА', slug, slug))
         ok_all &= good
+    # e1.54 / шаг 8: наклейка ещё не живого здания — на живой главной скрыта (метки хранят заглушку «скоро»), на бете/в предпросмотре видна
+    pend = bp.pending_slugs()
+    for slug, src in pend.items():
+        sp = bp._card_span(hub, slug)
+        inner = hub[sp[0]:sp[1]] if sp else ''
+        hidden = bool(sp) and 'class="card soon reveal"' in inner and 'card-in sticker' not in inner and ('href="%s/' % slug) not in inner
+        shown_h = bp.hub_with_pending_cards(hub)
+        m = re.search(r'<li class="card reveal">(?:(?!</li>).)*?href="beta/%s/about\.html".*?</li>' % re.escape(src), shown_h, re.S)
+        vis = bool(m) and 'card-in sticker' in m.group(0) and ('beta/%s/card.webp' % src) in m.group(0) and 'class="card soon' not in shown_h[bp._card_span(shown_h, slug)[0]:bp._card_span(shown_h, slug)[1]]
+        live_ok = slug not in bp.test_live_slugs() and 'href="%s/' % slug not in hub
+        good = hidden and vis and live_ok and (ROOT / src / 'card.webp').is_file() and (ROOT / src / 'card.webp').stat().st_size < 80 * 1024
+        lines.append('%s  наклейка %s: на живой главной скрыта (заглушка «скоро» в метках), на бете видна (ссылки в beta/%s/); card.webp ≤ 80 КБ' % ('OK   ' if good else 'ОШИБКА', slug, src))
+        ok_all &= bool(good)
+    red_p = bool(pend) and 'card-in sticker' in bp.hub_with_pending_cards(hub) and bp.hub_with_pending_cards(hub) != hub
+    h2 = hub.replace('<!-- card:pogos-petros -->', '', 1)
+    try:
+        bp.hub_with_card(h2, 'pogos-petros', 'x'); red_m = False
+    except SystemExit:
+        red_m = True
+    lines.append('%s  красные случаи наклейки: без меток карточка не ставится, пока не live — живая главная не меняется' % ('OK   ' if red_m and red_p else 'ОШИБКА'))
+    ok_all &= bool(red_m and red_p)
     old = '<li class="card reveal"><a class="card-in" href="kukuruznik/" data-transition><div class="pic"></div><span class="go">3D</span></a></li>'
     nest = '<li class="card"><a class="cover" href="x/about.html"><a class="btn btn-3d" href="x/"></a></a></li>'
     red = not card_ok('kukuruznik', old) and not card_ok('x', nest)
@@ -543,6 +564,9 @@ def main():
         ('18. сдвиг кроны вне 2..40 px (e1.26)', K, set_(lambda b: b['look'].__setitem__('gusts', {'level': [0.3, 0.8, 1], 'gap': [5, 11], 'attack': 1, 'hold': 1, 'decay': 3, 'calm': 0.5, 'boost': 1, 'flutter': 1, 'spring': 0.5, 'damp': 0.3, 'leanPx': 6, 'delay': 0.6, 'swayMaxPx': 90})), 'look.gusts.swayMaxPx', None),
         ('19. листья без размера (e1.26)', K, set_(lambda b: b['look'].__setitem__('gusts', {'level': [0.3, 0.8, 1], 'gap': [5, 11], 'attack': 1, 'hold': 1, 'decay': 3, 'calm': 0.5, 'boost': 1, 'flutter': 1, 'spring': 0.5, 'damp': 0.3, 'leanPx': 6, 'delay': 0.6, 'leaves': {'colors': [[60, 120, 30, 1]]}})), 'нет обязательного поля «size»', None),
         ('20. кадр с sway без файла полей (e1.26)', K, set_(lambda b: b['frames'][1].__setitem__('sway', True)), '_sway.png', None),
+        ('27. подписи кадров: look.captions строкой (e1.54)', 'tests/pogos-petros', set_(lambda b: b['look'].__setitem__('captions', 'yes')), 'look.captions', None),
+        ('28. подписи кадров включены, ни у одного кадра нет caption (e1.54)', 'tests/pogos-petros', set_(lambda b: [f.pop('caption', None) for f in b['frames']]), 'ни у одного кадра нет подписи', None),
+        ('29. подпись кадра без перевода на en (e1.54)', 'tests/pogos-petros', set_(lambda b: b['frames'][0]['caption'].pop('en')), 'caption', None),
         ('21. открытка: нет названия на en (e1.27)', K, set_(lambda b: b['postcard']['name'].pop('en')), 'postcard.name: нет текста на языке «en»', None),
         ('22. открытка: адрес с https:// (e1.27)', K, set_(lambda b: b['postcard'].__setitem__('url', 'https://chka.am/kukuruznik/')), 'postcard.url', None),
         ('23. открытка: нет годов (e1.27)', K, set_(lambda b: b['postcard'].pop('years')), 'postcard: нет обязательного поля «years»', None),

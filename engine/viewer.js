@@ -2813,6 +2813,49 @@
     if (!(full && window.Details.parade(done, PARADE_STYLES[frameIndex]))) simpleParade(done);   // слабое устройство, «уменьшить движение», нет WebGL или занято — упрощённый парад
   }
 
+  // ---------- e1.54: подписи кадров (только если у здания look.captions → CONFIG.CAPS) ----------
+  // Мелкая бумажная табличка Chka Serif внизу кадра. Создаётся здесь, не в page.html: у зданий без CAPS страница та же.
+  var CAPS = CONFIG.CAPS || null, CAP_SHOW = CONFIG.CAPS_SHOW || [0.3, 0.8], capEl = null, capTxt = null, capCur = null, capTimer = 0, capReady = null;
+  if (CAPS) {
+    var capCss = document.createElement('style');
+    capCss.textContent =
+      '#frameCap{position:absolute;z-index:5;left:50%;bottom:calc(var(--safe-b) + var(--bar-h) + var(--s1) + 21px);width:max-content;max-width:calc(100% - 168px);box-sizing:border-box;' +
+      'padding:5px 12px 6px;text-align:center;pointer-events:none;user-select:none;-webkit-user-select:none;background:rgba(248,241,224,.93);color:var(--ink);' +
+      'border:1px solid rgba(47,42,37,.5);border-radius:2px;box-shadow:inset 0 0 0 2px rgba(248,241,224,.93),inset 0 0 0 3px rgba(47,42,37,.22),0 3px 8px rgba(60,45,20,.22);' +
+      'font:600 11.5px/1.32 var(--font);letter-spacing:.02em;opacity:0;transform:translate(-50%,6px);transition:opacity 300ms var(--out),transform 520ms var(--spring)}' +
+      '#frameCap.on{opacity:1;transform:translate(-50%,0)}' +
+      '@media (min-width:1024px){#frameCap{bottom:14px;max-width:min(560px,calc(100% - 40px));font-size:13px;padding:6px 16px 7px}}' +
+      '@media (prefers-reduced-motion:reduce){html:not([data-motion="on"]) #frameCap{transition:opacity 200ms linear;transform:translate(-50%,0)}}' +
+      'body.immersive #frameCap{opacity:0 !important}';
+    document.head.appendChild(capCss);
+    capEl = document.createElement('div'); capEl.id = 'frameCap'; capEl.setAttribute('role', 'note');
+    capTxt = document.createElement('span'); capEl.appendChild(capTxt); stage.appendChild(capEl);
+  }
+  function capWant(now) {   // что показать сейчас: ['f'|'s', {hy, ru, en}] или null
+    var c = CAPS[frameIndex]; if (!c || fade) return null;
+    var D = window.Details, run = !!(D && D.paradeBusy && D.paradeBusy());
+    if (run && c.s) {   // идёт показ кадра с подписью шоу: подпись шоу — на пике, до и после — ничего
+      var p = D.paradeProgress ? D.paradeProgress(now) : -1;
+      return p >= CAP_SHOW[0] && p <= CAP_SHOW[1] ? ['s', c.s] : null;
+    }
+    return c.c ? ['f', c.c] : null;
+  }
+  function capSet(key, txt) {
+    if (key === capCur) return; capCur = key; clearTimeout(capTimer);
+    var vis = capEl.classList.contains('on');
+    if (vis) capEl.classList.remove('on');
+    if (!txt) return;
+    var put = function () { capTxt.textContent = txt; capEl.classList.add('on'); };
+    if (vis) capTimer = setTimeout(put, 280); else put();
+  }
+  function capStep(now) {   // из рендер-цикла; DOM трогаем только когда подпись сменилась
+    if (!CAPS) return;
+    var sheet = bodyEl.classList.contains('sheet-open') && !desktopMQ.matches;
+    var want = capReady !== null && now >= capReady && !stage.classList.contains('loading') && !stage.classList.contains('reading') && !sheet &&
+      !bodyEl.classList.contains('immersive') ? capWant(now) : null;
+    capSet(want ? want[0] + frameIndex + currentLang : '', want ? (want[1][currentLang] || want[1].en || want[1].ru) : null);
+  }
+
   // ---------- рендер-цикл ----------
   var t0 = performance.now();
   var lastNow = null;
@@ -2845,6 +2888,8 @@
         fx.zoomB = 1.04 - 0.04 * mixState; // следующий проявляется из лёгкого отдаления
       }
     }
+
+    if (CAPS) safe('caption', function () { capStep(now); });   // e1.54: подпись кадра (до раннего возврата при открытой карточке точки)
 
     // --- время суток: день→закат 2.5 с, закат→ночь 3 с (небо, потом земля, с середины по одному окна и фонари 2 с,
     // звёзды последними); обратно — в обратном порядке. Время бежит равномерно, по краям мягко.
@@ -4279,6 +4324,7 @@
     buildHotspots(0);
     frame(performance.now());            // первая отрисовка, потом убираем экран загрузки —
     stage.classList.remove('loading');   // пустого кадра не бывает, даже если вкладка в фоне
+    capReady = performance.now() + 3300;   // e1.54: подпись — после приветствия
     wl.loaded();                         // приветствие держится ещё, если прошло меньше 3 с; потом уходит само
     flagUpdate();
     if (useGL) startBackground();
