@@ -431,6 +431,18 @@ def check_buildings(bdirs, site, root=None):
         raise SystemExit('СБОРКА ОСТАНОВЛЕНА: ошибки в настройках зданий (%d):\n  • %s' % (len(errors), '\n  • '.join(errors)))
 
 
+FRAME_GLOBS = ('*.webp', '*_motion*.mp4', '*_motion*.webm', '*_motion_mask.png', '*_fig.png', '*_motion*cars.json', '*_sway.png',
+               'show_*.png', 'vid_*.mp4', 'vid_*.webm', 'vid_*_mask.png', 'vid_*_tone.png')
+# e1.13 синемаграф и маска; e1.15 треки машин; e1.22 маски фигур; e1.26 поля качания крон; e1.41 картинки шоу (Gemini, RGBA);
+# e1.49+ видео-актёры/шоу и маски; e1.53 карты тона видео-собаки. Новый тип файла кадра — СЮДА (бета и живое здание берут один список).
+
+
+def own_frame_files(fdir):
+    """Файлы кадров тестового здания, которые едут на сайт (бета beta/tests/<имя>/frames и живое <slug>/frames) — один список на оба пути."""
+    fdir = Path(fdir)
+    return sorted({f for g in FRAME_GLOBS for f in fdir.glob(g) if f.is_file()})
+
+
 def build_beta(site, bdirs=None, root=None, with_local=False):
     """Собирает бету в корне сайта site. Возвращает список записанных файлов (пути от корня сайта).
     bdirs — папки зданий (по умолчанию Кукурузник + тестовые); root — откуда читать building.json (по умолчанию репозиторий)."""
@@ -473,7 +485,7 @@ def build_beta(site, bdirs=None, root=None, with_local=False):
         written.append(str(out.relative_to(site)))
         if bd in own:   # кадры здания — рядом со страницей: beta/tests/<имя>/frames/*.webp
             fdir = Path(root or ROOT) / bd / 'frames'   # + синемаграф (e1.13): <кадр>_motion.mp4 и маска
-            for src in sorted(list(fdir.glob('*.webp')) + list(fdir.glob('*_motion*.mp4')) + list(fdir.glob('*_motion*.webm')) + list(fdir.glob('*_motion_mask.png')) + list(fdir.glob('*_fig.png')) + list(fdir.glob('*_motion*cars.json')) + list(fdir.glob('*_sway.png')) + list(fdir.glob('show_*.png')) + list(fdir.glob('vid_*.mp4')) + list(fdir.glob('vid_*.webm')) + list(fdir.glob('vid_*_mask.png')) + list(fdir.glob('vid_*_tone.png'))):   # e1.53: карты тона видео-собаки   # e1.15: + треки машин для ночных фар; e1.26: поля качания крон; e1.41: картинки шоу (Gemini, RGBA)
+            for src in own_frame_files(fdir):   # один список шаблонов с живым зданием (place_live_files) — pp-22
                 dst = out.parent / 'frames' / src.name
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(src, dst)
@@ -808,7 +820,7 @@ def place_live_files(site, slug, root=None):
     out.mkdir(parents=True)
     written = []
     fsrc = root / src / b['framesDir']
-    for f in sorted(list(fsrc.glob('*.webp')) + list(fsrc.glob('*_motion*.mp4')) + list(fsrc.glob('*_motion*.webm')) + list(fsrc.glob('*_motion_mask.png')) + list(fsrc.glob('*_fig.png')) + list(fsrc.glob('*_motion*cars.json')) + list(fsrc.glob('*_sway.png'))):   # + синемаграф (e1.13), треки машин (e1.15), маски фигур (e1.22), поля качания крон (e1.26)
+    for f in own_frame_files(fsrc):   # тот же список, что у беты (pp-22: живое здание теряло видео/карты тона/картинки шоу)
         dst = out / b['framesDir'] / f.name
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(f, dst)
@@ -1008,10 +1020,15 @@ def hub_with_pending_cards(hub, root=None):
     return hub
 
 
+_ARCHIVE_NUM = re.compile(r'<dd data-num="\d+">\d+</dd>')
+_ARCHIVE_PH = '<dd data-num="N">N</dd>'
+
+
 def hub_outside_diff(old, new, slug):
     """Главная на сайте (old) -> новая (new): все отличия обязаны лежать внутри карточки slug или её картинки в стопке
     (между метками в new). Иначе публикация здания унесла бы на сайт чужие, непроверенные правки главной. Возвращает список проблем."""
     import difflib
+    old, new = _ARCHIVE_NUM.sub(_ARCHIVE_PH, old), _ARCHIVE_NUM.sub(_ARCHIVE_PH, new)   # pp-22: счётчик «архивные фото» — производный (= фото в витринах about живых зданий, сверяет test_build_pages), меняется вместе со зданием
     sp = _card_span(new, slug)
     if not sp:
         return ['в новой главной нет меток карточки %s' % slug]

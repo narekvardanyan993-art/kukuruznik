@@ -65,7 +65,9 @@
     <svg class="corner tl" aria-hidden="true"><use href="#corner"/></svg><svg class="corner tr" aria-hidden="true"><use href="#corner"/></svg><svg class="corner bl" aria-hidden="true"><use href="#corner"/></svg><svg class="corner br" aria-hidden="true"><use href="#corner"/></svg>
     <div class="stack" aria-hidden="true">
       <div class="stack-card sc-a"><div class="sc-pic"><svg class="ghost" viewBox="0 0 200 200"><use href="#ghost-tower"/></svg></div></div>
-      <div class="stack-card sc-b"><div class="sc-pic"><svg class="ghost" viewBox="0 0 200 200"><use href="#ghost-slab"/></svg></div></div>
+      <!-- stack:pogos-petros — собирается из tests/pogos-petros/building.json (card.stack, card.image), руками не править -->
+      <div class="stack-card sc-b"><div class="sc-pic"><img src="pogos-petros/card.webp" width="480" height="480" alt="" decoding="async"></div></div>
+      <!-- /stack:pogos-petros -->
       <!-- stack:lenin — собирается из tests/lenin/building.json (card.stack, card.image), руками не править -->
       <div class="stack-card sc-c"><div class="sc-pic"><img src="lenin/card.webp" width="480" height="480" alt="" decoding="async"></div></div>
       <!-- /stack:lenin -->
@@ -132,14 +134,22 @@
       </li>
       <!-- /card:lenin -->
 
-      <!-- card:pogos-petros -->
-      <li class="card soon reveal">
-        <div class="card-in">
-          <div class="pic">
-            <svg class="ghost" viewBox="0 0 200 200" aria-hidden="true"><use href="#ghost-slab"/></svg>
-            <span class="chip"><span class="i18n-inline" lang="hy">շուտով</span><span class="i18n-inline" lang="ru">скоро</span><span class="i18n-inline" lang="en">soon</span></span>
+      <!-- card:pogos-petros — собирается из tests/pogos-petros/building.json (card, postcard.no), руками не править -->
+      <li class="card reveal">
+        <div class="card-in sticker">
+          <p class="st-top"><span class="lbl-no"><span class="i18n-inline" lang="hy">Սրահ I · Ցուցանմուշ № 003</span><span class="i18n-inline" lang="ru">Зал I · Экспонат № 003</span><span class="i18n-inline" lang="en">Room I · Exhibit No. 003</span></span><span class="inv" aria-hidden="true">ՉԿԱ · 003</span></p>
+          <a class="cover" href="pogos-petros/about.html" aria-labelledby="t-pogos-petros">
+            <div class="pic"><img src="pogos-petros/card.webp" width="480" height="480" alt="" loading="lazy" decoding="async"></div>
+          </a>
+          <div class="txt">
+            <span class="eyebrow"><span class="i18n-inline" lang="hy">3D · 1915–1929</span><span class="i18n-inline" lang="ru">3D · 1915–1929</span><span class="i18n-inline" lang="en">3D · 1915–1929</span></span>
+            <h3 id="t-pogos-petros"><span class="ttl"><span class="i18n-inline" lang="hy">Պողոս-Պետրոս</span><span class="i18n-inline" lang="ru">Погос-Петрос</span><span class="i18n-inline" lang="en">Poghos-Petros</span></span></h3>
+            <p class="meta"><span class="i18n-inline" lang="hy">Շահար թաղամաս · Երևան</span><span class="i18n-inline" lang="ru">Квартал Шаар · Ереван</span><span class="i18n-inline" lang="en">Shahar quarter · Yerevan</span></p>
+            <div class="card-actions">
+              <a class="btn btn-3d" href="pogos-petros/" data-transition><svg class="cube-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12v9M4 7.5l8 4.5 8-4.5"/></svg><span><span class="i18n-inline" lang="hy">Տեսնել 3D-ով</span><span class="i18n-inline" lang="ru">Смотреть в 3D</span><span class="i18n-inline" lang="en">View in 3D</span></span></a>
+              <a class="btn btn-ghost btn-about" href="pogos-petros/about.html"><svg class="page-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/></svg><span><span class="i18n-inline" lang="hy">Շենքի մասին</span><span class="i18n-inline" lang="ru">О здании</span><span class="i18n-inline" lang="en">About the building</span></span></a>
+            </div>
           </div>
-          <div class="txt"><p class="lbl-no"><span class="i18n-inline" lang="hy">Ցուցանմուշ № 003</span><span class="i18n-inline" lang="ru">Экспонат № 003</span><span class="i18n-inline" lang="en">Exhibit No. 003</span></p><p class="meta"><span class="i18n-inline" lang="hy">պատրաստվում է</span><span class="i18n-inline" lang="ru">в подготовке</span><span class="i18n-inline" lang="en">in preparation</span></p></div>
         </div>
       </li>
       <!-- /card:pogos-petros -->
@@ -175,7 +185,7 @@
       <p class="lead"><span class="i18n-inline" lang="hy">Երևանի կորած ճարտարապետության ալբոմ։ Գտնում եմ քանդված շենքերի արխիվային նկարները, նկարում եմ դրանք ու վերականգնում 3D-ով։</span><span class="i18n-inline" lang="ru">Альбом утраченной архитектуры Еревана. Нахожу архивные фото снесённых зданий, рисую их и собираю в 3D.</span><span class="i18n-inline" lang="en">An album of Yerevan’s lost architecture. I find archival photos of demolished buildings, draw them, and rebuild them in 3D.</span></p>
       <dl class="facts">
         <div><dt><span class="i18n-inline" lang="hy">ցուցանմուշներ</span><span class="i18n-inline" lang="ru">экспонаты</span><span class="i18n-inline" lang="en">exhibits</span></dt><dd data-num="exhibits">2</dd></div>
-        <div><dt><span class="i18n-inline" lang="hy">արխիվային լուսանկարներ</span><span class="i18n-inline" lang="ru">архивные фото</span><span class="i18n-inline" lang="en">archive photos</span></dt><dd data-num="11">11</dd></div>
+        <div><dt><span class="i18n-inline" lang="hy">արխիվային լուսանկարներ</span><span class="i18n-inline" lang="ru">архивные фото</span><span class="i18n-inline" lang="en">archive photos</span></dt><dd data-num="18">18</dd></div>
         <div><dt><span class="i18n-inline" lang="hy">պատմության տարիներ</span><span class="i18n-inline" lang="ru">годы истории</span><span class="i18n-inline" lang="en">years of history</span></dt><dd class="yrs">1920–2026</dd></div>
       </dl>
       <blockquote class="wall-quote"><p><span class="i18n-inline" lang="hy">Քաղաքը հավաքում ենք հատիկ առ հատիկ՝ շենք առ շենք։</span><span class="i18n-inline" lang="ru">Город собираем по зёрнышку — здание за зданием.</span><span class="i18n-inline" lang="en">We gather the city seed by seed — building by building.</span></p></blockquote>

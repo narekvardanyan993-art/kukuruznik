@@ -492,8 +492,8 @@ def check_hub_cards():
         good = hidden and vis and live_ok and (ROOT / src / 'card.webp').is_file() and (ROOT / src / 'card.webp').stat().st_size < 80 * 1024
         lines.append('%s  наклейка %s: на живой главной скрыта (заглушка «скоро» в метках), на бете видна (ссылки в beta/%s/); card.webp ≤ 80 КБ' % ('OK   ' if good else 'ОШИБКА', slug, src))
         ok_all &= bool(good)
-    red_p = bool(pend) and 'card-in sticker' in bp.hub_with_pending_cards(hub) and bp.hub_with_pending_cards(hub) != hub
-    h2 = hub.replace('<!-- card:pogos-petros -->', '', 1)
+    red_p = (bool(pend) and 'card-in sticker' in bp.hub_with_pending_cards(hub) and bp.hub_with_pending_cards(hub) != hub) or (not pend and bp.hub_with_pending_cards(hub) == hub)   # pp-22: все наклейки уже live — бета-главная = живая
+    h2 = re.sub(r'<!-- card:pogos-petros( [^>]*)? -->', '', hub, count=1)   # pp-22: у живой карточки метка с пояснением
     try:
         bp.hub_with_card(h2, 'pogos-petros', 'x'); red_m = False
     except SystemExit:
@@ -525,6 +525,12 @@ def check_hub_cards():
     ok_n = bool(shown) and int(shown.group(1)) == real
     lines.append('%s  стена: «архивные фото» = фото в витринах about живых зданий (%s / %d)' % ('OK   ' if ok_n else 'ОШИБКА', shown.group(1) if shown else '—', real))
     ok_all &= ok_n
+    # pp-22: счётчик — производный, публикация здания может его менять; любая другая правка главной вне карточки — по-прежнему стоп
+    any_slug = next(iter(bp.test_live_slugs()))
+    h_old = re.sub(r'<dd data-num="\d+">\d+</dd>', '<dd data-num="1">1</dd>', hub)
+    ok_c = not bp.hub_outside_diff(h_old, hub, any_slug) and bool(bp.hub_outside_diff(h_old.replace('<h1', '<h1 class="x"', 1), hub, any_slug))
+    lines.append('%s  публикация здания: счётчик «архивные фото» может меняться, другая правка главной вне карточки — стоп' % ('OK   ' if ok_c else 'ОШИБКА'))
+    ok_all &= ok_c
     c2 = [f for f in CURSOR_FILES if (ROOT / f).is_file() and re.search(r'c2pa', (ROOT / f).read_text(encoding='utf-8'), re.I)]
     lines.append('%s  в страницах и стилях главной нет C2PA-метаданных%s' % ('OK   ' if not c2 else 'ОШИБКА', '' if not c2 else ' — ' + ', '.join(c2)))
     ok_all &= not c2
@@ -680,6 +686,7 @@ def main():
                     and ('<link rel="canonical" href="%s">' % b2['meta']['url']) in pg
                     and (not b2['meta']['ogImage'] or ('og:image" content="%s%s"' % (b2['meta']['url'], b2['meta']['ogImage'])) in pg)
                     and '%s/index.html' % slug in lf2 and any(f.startswith(slug + '/frames/') for f in pf)
+                    and {Path(f).name for f in pf if f.startswith(slug + '/frames/')} == {f.name for f in bp.own_frame_files(ROOT / bp.test_live_slugs()[slug] / bp.load_live(slug)[1]['framesDir'])}   # pp-22: живое = тот же список файлов кадров, что у беты
                     and slug in bp.live_buildings(site=site) and slug not in bp.live_buildings(site=tmp / 'нет-сайта'))
             print('%s  живое здание %s из tests/: файлы, адрес, превью, без noindex и tests/%s' % ('OK   ' if good else 'ОШИБКА', slug, '' if card_ok else ' — НО карточка на главной не совпадает с building.json (card)'))
             ok_all &= bool(good and card_ok)
