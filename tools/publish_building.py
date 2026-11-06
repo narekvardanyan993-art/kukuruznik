@@ -45,6 +45,7 @@ def main():
     ap.add_argument('--skip-check', action='store_true', help='ОБХОД защитной проверки — только осознанно')
     ap.add_argument('-m', '--message', help='сообщение коммита')
     args = ap.parse_args()
+    pb.ensure_node()   # pp-23: без node самопроверка падает без объяснений
     slug, tag = args.slug, '[dry-run] ' if args.dry_run else ''
     tl = bp.test_live_slugs()
     if slug not in tl:
@@ -63,7 +64,7 @@ def main():
         pb.git(ROOT, 'worktree', 'add', '--detach', str(tmp), base)
         st = subprocess.run([sys.executable, str(ROOT / 'tools' / 'test_build_pages.py')], capture_output=True, text=True)
         if st.returncode != 0:
-            raise SystemExit('самопроверка сборщика (tools/test_build_pages.py) красная:\n' + st.stdout[-3000:])
+            raise SystemExit(pb.selftest_report(st))
         files = bp.place_live_files(tmp, slug)
         files += bp.build_live(tmp, [slug])   # живой движок не меняется; не совпадает с исходником — стоп внутри
         old_hub = (tmp / 'index.html').read_text(encoding='utf-8')

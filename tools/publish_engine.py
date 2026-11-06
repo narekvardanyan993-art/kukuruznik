@@ -73,6 +73,7 @@ def main():
     ap.add_argument('--skip-check', action='store_true', help='ОБХОД защитной проверки — только осознанно')
     ap.add_argument('-m', '--message', help='сообщение коммита')
     args = ap.parse_args()
+    pb.ensure_node()   # pp-23: без node самопроверка падает без объяснений
     tag = '[dry-run] ' if args.dry_run else ''
     wb = args.with_building
     if wb:
@@ -95,7 +96,7 @@ def main():
         message = args.message or 'engine: живые здания (%s) на движке %s%s — %s' % (', '.join(bdirs), bp.engine_version(), (' + здание %s' % wb) if wb else '', time.strftime('%Y-%m-%d %H:%M'))
         st = subprocess.run([sys.executable, str(ROOT / 'tools' / 'test_build_pages.py')], capture_output=True, text=True)
         if st.returncode != 0:
-            raise SystemExit('самопроверка сборщика (tools/test_build_pages.py) красная:\n' + st.stdout[-3000:])
+            raise SystemExit(pb.selftest_report(st))
         # 3. движок, который пойдёт на живые здания, уже стоит на бете
         on_beta, src = bp.engine_files(tmp / 'beta' / 'engine'), bp.engine_files(bp.ENGINE)
         if on_beta != src:

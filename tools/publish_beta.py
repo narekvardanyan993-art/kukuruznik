@@ -26,6 +26,7 @@
 Кухня (~/Documents/chka-kitchen) не затрагивается, кроме отчётов проверки (_проверки/).
 """
 import argparse
+import os
 import re
 import shutil
 import subprocess
@@ -41,6 +42,42 @@ import build_pages   # noqa: E402  сборка страниц из движка
 REMOTE = 'origin'
 BRANCH = 'main'
 
+
+
+
+NODE_HOMES = ('/opt/homebrew/bin', '/usr/local/bin', '~/.volta/bin')   # pp-23: где node обычно лежит на Mac (Homebrew arm/intel, Volta)
+
+
+def ensure_node():
+    """pp-23: самопроверка и check_site запускают node. Терминал без node в PATH (новое окно без nvm/Homebrew в профиле) ронял
+    test_build_pages на первом вызове node — снаружи это выглядело как «красная самопроверка» без причины. Если node нет в PATH,
+    ищем его в обычных местах (Homebrew, Volta, nvm) и добавляем папку в PATH этого процесса; не нашли — понятный СТОП. Возвращает путь к node."""
+    import glob
+    import shutil as _sh
+    found = _sh.which('node')
+    if found:
+        return found
+    cands = [os.path.join(os.path.expanduser(d), 'node') for d in NODE_HOMES]
+    cands += sorted(glob.glob(os.path.expanduser('~/.nvm/versions/node/*/bin/node')), reverse=True)
+    for c in cands:
+        if os.path.isfile(c) and os.access(c, os.X_OK):
+            os.environ['PATH'] = os.path.dirname(c) + os.pathsep + os.environ.get('PATH', '')
+            print('node не было в PATH этого Терминала — беру %s (папка добавлена в PATH только для этого запуска)' % c)
+            return c
+    raise SystemExit('СТОП: не найден node (нужен самопроверке и check_site). Проверь в Терминале: which node; node -v.\n'
+                     'Если пусто: открой новый Терминал или выполни nvm use --lts (если ставил через nvm) / brew install node — и повтори команду.')
+
+def selftest_report(st):
+    """pp-23: текст для красной самопроверки tools/test_build_pages.py — ВСЕ красные пункты, хвост вывода и stderr (traceback).
+    Раньше показывался только хвост stdout: упавший с исключением тест выглядел как «последняя строка OK», причина терялась."""
+    out = st.stdout or ''
+    red = [l for l in out.splitlines() if l.startswith(('ОШИБКА', 'УПАЛО'))]
+    parts = ['самопроверка сборщика (tools/test_build_pages.py) красная (код %s):' % st.returncode]
+    parts.append('красные пункты (%d):\n  %s' % (len(red), '\n  '.join(red) if red else '— нет: тест прервался, причина в stderr ниже'))
+    parts.append('--- хвост вывода ---\n' + out[-1500:])
+    if (st.stderr or '').strip():
+        parts.append('--- stderr ---\n' + st.stderr[-2500:])
+    return '\n'.join(parts)
 
 def git(cwd, *args, check=True):
     """git в указанной папке; возвращает stdout (строкой)."""
@@ -104,6 +141,7 @@ def main():
     ap.add_argument('--skip-check', action='store_true', help='ОБХОД защитной проверки (tools/check_site.mjs) — только осознанно')
     ap.add_argument('-m', '--message', help='сообщение коммита (по умолчанию «beta: <версия> — <дата>»)')
     args = ap.parse_args()
+    ensure_node()   # pp-23: без node самопроверка падает без объяснений
     dry = args.dry_run
     tag = '[dry-run] ' if dry else ''
 
@@ -120,7 +158,7 @@ def main():
         git(ROOT, 'worktree', 'add', '--detach', str(tmp), base)
         st = subprocess.run([sys.executable, str(ROOT / 'tools' / 'test_build_pages.py')], capture_output=True, text=True)   # самопроверка сборщика: испорченные настройки должны останавливать сборку
         if st.returncode != 0:
-            raise SystemExit('самопроверка сборщика (tools/test_build_pages.py) красная:\n' + st.stdout[-3000:])
+            raise SystemExit(selftest_report(st))
         files = build_beta(tmp)
         print('%sсобрано в beta/: %d файлов (движок %s)' % (tag, len(files), build_pages.engine_version()))
 

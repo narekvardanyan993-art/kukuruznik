@@ -155,6 +155,7 @@ def main():
     ap.add_argument('--skip-check', action='store_true', help='ОБХОД защитной проверки — только осознанно')
     ap.add_argument('-m', '--message', help='сообщение коммита')
     args = ap.parse_args()
+    pb.ensure_node()   # pp-23: без node самопроверка падает без объяснений
     tag = '[dry-run] ' if args.dry_run else ''
     message = args.message or 'hub: главная и подвал страниц — редизайн 10а/10б — %s' % time.strftime('%Y-%m-%d %H:%M')
 
@@ -171,7 +172,7 @@ def main():
         pb.git(ROOT, 'worktree', 'add', '--detach', str(tmp), base)
         st = subprocess.run([sys.executable, str(ROOT / 'tools' / 'test_build_pages.py')], capture_output=True, text=True)
         if st.returncode != 0:
-            raise SystemExit('самопроверка сборщика (tools/test_build_pages.py) красная:\n' + st.stdout[-3000:])
+            raise SystemExit(pb.selftest_report(st))
 
         # 1. карточки живых тестовых зданий в главной == building.json
         live = bp.test_live_slugs()

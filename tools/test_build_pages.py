@@ -545,7 +545,22 @@ def check_hub_cards():
 
 
 
+
+def guarded(fn):
+    """pp-23: группа проверок, упавшая с исключением (в том числе SystemExit сборщика), — красная строка с причиной, а не обрыв всего теста
+    (обрыв выглядел в publish_* как «последняя строка OK», причина уходила в stderr)."""
+    import traceback
+    try:
+        return fn()
+    except BaseException as e:   # noqa: B902 — SystemExit сборщика тоже ловим: это и есть красный случай
+        if isinstance(e, KeyboardInterrupt):
+            raise
+        tb = traceback.format_exc().strip().splitlines()
+        return False, ['УПАЛО  %s: %s: %s' % (fn.__name__, type(e).__name__, str(e).strip().replace('\n', ' | ')[:600])] + ['       ' + l for l in tb[-8:]]
+
 def main():
+    import publish_beta as pbn
+    pbn.ensure_node()   # pp-23: node вне PATH — найти в обычных местах или понятный СТОП
     K = 'kukuruznik'
     cases = [
         # --- пять обязательных дефектов ---
@@ -701,27 +716,27 @@ def main():
         ok_all &= not stale
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
-    ok_wb, lines_wb = check_with_building()
+    ok_wb, lines_wb = guarded(check_with_building)
     for l in lines_wb:
         print(l)
     ok_all &= ok_wb
-    ok_st, lines_st = check_stamps()
+    ok_st, lines_st = guarded(check_stamps)
     for l in lines_st:
         print(l)
     ok_all &= ok_st
-    ok_pc, lines_pc = check_postcard()
+    ok_pc, lines_pc = guarded(check_postcard)
     for l in lines_pc:
         print(l)
     ok_all &= ok_pc
-    ok_cc, lines_cc = check_card_check()
+    ok_cc, lines_cc = guarded(check_card_check)
     for l in lines_cc:
         print(l)
     ok_all &= ok_cc
-    ok_ph, lines_ph = check_publish_hub()
+    ok_ph, lines_ph = guarded(check_publish_hub)
     for l in lines_ph:
         print(l)
     ok_all &= ok_ph
-    ok_hc, lines_hc = check_hub_cards()
+    ok_hc, lines_hc = guarded(check_hub_cards)
     for l in lines_hc:
         print(l)
     ok_all &= ok_hc
@@ -750,9 +765,54 @@ def main():
             and c2['LOOK'] == e['LOOK'])
     print('%s  tuning: Тест-1 переопределил 2 числа (lampHalo.core 1.5, windowGlow.strength 1.8), остальные — как у движка; Тест-2 без переопределений' % ('OK   ' if ok_t else 'ОШИБКА'))
     ok_all &= ok_t
+    # pp-23: упавшая группа проверок видна причиной (а не обрывом), и publish_* показывают все красные пункты и stderr
+    import publish_beta as pbx
+    def _boom():
+        raise SystemExit('СБОРКА ОСТАНОВЛЕНА: проба')
+    okg, lg = guarded(_boom)
+    fake = type('R', (), {'returncode': 1, 'stdout': 'OK     a\nОШИБКА  b — причина\nOK     c\n', 'stderr': 'Traceback …\nSystemExit: x'})()
+    rep = pbx.selftest_report(fake)
+    ok_g = (okg is False and lg[0].startswith('УПАЛО  _boom: SystemExit: СБОРКА ОСТАНОВЛЕНА: проба')
+            and 'ОШИБКА  b — причина' in rep and 'SystemExit: x' in rep and 'красные пункты (1)' in rep)
+    print('%s  обрыв группы проверок — красная строка с причиной; publish_* показывают все красные пункты и stderr' % ('OK   ' if ok_g else 'ОШИБКА'))
+    ok_all &= ok_g
+    # pp-23: node не в PATH (новый Терминал без nvm/Homebrew) — найдётся в ~/.nvm; нет нигде — понятный СТОП, а не обрыв без причины
+    import subprocess as sp_, shutil as sh_
+    real_node = sh_.which('node')
+    ok_n2 = False
+    if real_node:
+        tmpn = Path(tempfile.mkdtemp(prefix='chka-test-node-'))
+        try:
+            (tmpn / 'bin').mkdir()
+            for tool in ('git',):
+                if sh_.which(tool):
+                    (tmpn / 'bin' / tool).symlink_to(sh_.which(tool))
+            nv = tmpn / 'home' / '.nvm' / 'versions' / 'node' / 'v99.0.0' / 'bin'
+            nv.mkdir(parents=True)
+            (nv / 'node').symlink_to(real_node)
+            code = 'import sys; sys.path.insert(0, %r); import publish_beta as p; print("NODE=" + p.ensure_node())' % str(ROOT / 'tools')
+            r1 = sp_.run([sys.executable, '-c', code], capture_output=True, text=True, env={'PATH': str(tmpn / 'bin'), 'HOME': str(tmpn / 'home')})
+            (nv / 'node').unlink()
+            r2 = sp_.run([sys.executable, '-c', code], capture_output=True, text=True, env={'PATH': str(tmpn / 'bin'), 'HOME': str(tmpn / 'home')})
+            ok_n2 = ('NODE=' + str(nv / 'node')) in r1.stdout and r2.returncode != 0 and 'не найден node' in r2.stderr
+        finally:
+            shutil.rmtree(tmpn, ignore_errors=True)
+    print('%s  node вне PATH: находится в ~/.nvm (PATH дополняется), нет нигде — понятный СТОП' % ('OK   ' if ok_n2 else 'ОШИБКА'))
+    ok_all &= ok_n2
     print('\nИТОГ: %s' % ('всё как ожидалось' if ok_all else 'ЕСТЬ ОШИБКИ'))
     return 0 if ok_all else 1
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    try:
+        rc = main()
+    except BaseException as e:   # pp-23: обрыв теста — в stdout с причиной (publish_* показывают stdout)
+        if isinstance(e, KeyboardInterrupt):
+            raise
+        import traceback
+        print('УПАЛО  test_build_pages: %s: %s' % (type(e).__name__, str(e).strip().replace('\n', ' | ')[:600]))
+        print(traceback.format_exc())
+        print('\nИТОГ: ЕСТЬ ОШИБКИ (тест прервался)')
+        rc = 1
+    sys.stdout.flush()
+    sys.exit(rc)
