@@ -9,6 +9,7 @@
 Код выхода 0 — всё как ожидалось. publish_beta.py запускает это перед каждой публикацией.
 """
 import copy
+import os
 import json
 import re
 import shutil
@@ -560,7 +561,7 @@ def guarded(fn):
 
 def main():
     import publish_beta as pbn
-    pbn.ensure_node()   # pp-23: node вне PATH — найти в обычных местах или понятный СТОП
+    pbn_node = pbn.ensure_node()   # pp-23: node вне PATH — найти в обычных местах или понятный СТОП
     K = 'kukuruznik'
     cases = [
         # --- пять обязательных дефектов ---
@@ -776,28 +777,37 @@ def main():
             and 'ОШИБКА  b — причина' in rep and 'SystemExit: x' in rep and 'красные пункты (1)' in rep)
     print('%s  обрыв группы проверок — красная строка с причиной; publish_* показывают все красные пункты и stderr' % ('OK   ' if ok_g else 'ОШИБКА'))
     ok_all &= ok_g
-    # pp-23: node не в PATH (новый Терминал без nvm/Homebrew) — найдётся в ~/.nvm; нет нигде — понятный СТОП, а не обрыв без причины
+    # pp-23/pp-24: node не в PATH. Только ПОДСТАВНЫЕ папки (CHKA_NODE_SEARCH + свой HOME + PATH без node): настоящие /opt/homebrew,
+    # /usr/local на машине теста не участвуют (на Маке с Homebrew кейс «нет нигде» находил настоящий node и краснел).
     import subprocess as sp_, shutil as sh_
-    real_node = sh_.which('node')
-    ok_n2 = False
+    real_node = sh_.which('node') or pbn_node
+    ok_n2, why_n2 = False, 'нет node для подстановки'
     if real_node:
         tmpn = Path(tempfile.mkdtemp(prefix='chka-test-node-'))
         try:
-            (tmpn / 'bin').mkdir()
-            for tool in ('git',):
-                if sh_.which(tool):
-                    (tmpn / 'bin' / tool).symlink_to(sh_.which(tool))
-            nv = tmpn / 'home' / '.nvm' / 'versions' / 'node' / 'v99.0.0' / 'bin'
-            nv.mkdir(parents=True)
-            (nv / 'node').symlink_to(real_node)
+            bin_ = tmpn / 'bin'; bin_.mkdir()   # PATH теста: без node
+            home = tmpn / 'home'; home.mkdir()
+            nvm = home / '.nvm' / 'versions' / 'node' / 'v99.0.0' / 'bin'
+            sysbrew = tmpn / 'sys' / 'opt' / 'homebrew' / 'bin'   # подставной «системный» Homebrew
+            sysbrew.mkdir(parents=True)
+            (sysbrew / 'node').symlink_to(real_node)
             code = 'import sys; sys.path.insert(0, %r); import publish_beta as p; print("NODE=" + p.ensure_node())' % str(ROOT / 'tools')
-            r1 = sp_.run([sys.executable, '-c', code], capture_output=True, text=True, env={'PATH': str(tmpn / 'bin'), 'HOME': str(tmpn / 'home')})
-            (nv / 'node').unlink()
-            r2 = sp_.run([sys.executable, '-c', code], capture_output=True, text=True, env={'PATH': str(tmpn / 'bin'), 'HOME': str(tmpn / 'home')})
-            ok_n2 = ('NODE=' + str(nv / 'node')) in r1.stdout and r2.returncode != 0 and 'не найден node' in r2.stderr
+            def run(search):
+                return sp_.run([sys.executable, '-c', code], capture_output=True, text=True,
+                               env={'PATH': str(bin_), 'HOME': str(home), 'CHKA_NODE_SEARCH': os.pathsep.join(search)})
+            nvm_pat = '~/.nvm/versions/node/*/bin/node'
+            r0 = run([nvm_pat])                                   # нет нигде (подставной Homebrew существует, но не в списке)
+            nvm.mkdir(parents=True); (nvm / 'node').symlink_to(real_node)
+            r1 = run([nvm_pat])                                   # только в ~/.nvm
+            r2 = run([str(sysbrew / 'node'), nvm_pat])            # «Мак с Homebrew»: Homebrew в списке первым
+            checks = {'нет нигде → СТОП': r0.returncode != 0 and 'не найден node' in r0.stderr,
+                      '~/.nvm → найден': ('NODE=' + str(nvm / 'node')) in r1.stdout,
+                      'Homebrew первым': ('NODE=' + str(sysbrew / 'node')) in r2.stdout}
+            ok_n2 = all(checks.values())
+            why_n2 = ', '.join(k for k, v in checks.items() if not v)
         finally:
             shutil.rmtree(tmpn, ignore_errors=True)
-    print('%s  node вне PATH: находится в ~/.nvm (PATH дополняется), нет нигде — понятный СТОП' % ('OK   ' if ok_n2 else 'ОШИБКА'))
+    print('%s  node вне PATH (только подставные папки): нет нигде — понятный СТОП, ~/.nvm — находится, Homebrew — первым%s' % ('OK   ' if ok_n2 else 'ОШИБКА', (' — не прошло: ' + why_n2) if not ok_n2 else ''))
     ok_all &= ok_n2
     print('\nИТОГ: %s' % ('всё как ожидалось' if ok_all else 'ЕСТЬ ОШИБКИ'))
     return 0 if ok_all else 1

@@ -45,20 +45,29 @@ BRANCH = 'main'
 
 
 
-NODE_HOMES = ('/opt/homebrew/bin', '/usr/local/bin', '~/.volta/bin')   # pp-23: где node обычно лежит на Mac (Homebrew arm/intel, Volta)
+NODE_SEARCH = ('/opt/homebrew/bin/node', '/usr/local/bin/node', '~/.volta/bin/node', '~/.nvm/versions/node/*/bin/node')   # pp-23: где node обычно лежит на Mac
+NODE_SEARCH_ENV = 'CHKA_NODE_SEARCH'   # pp-24: подстановка списка (шаблоны через os.pathsep) — только для тестов; на Маке не задаётся
 
 
-def ensure_node():
+def node_search():
+    """Шаблоны поиска node: из переменной CHKA_NODE_SEARCH (тесты подставляют свои временные папки), иначе NODE_SEARCH."""
+    env = os.environ.get(NODE_SEARCH_ENV)
+    return tuple(x for x in env.split(os.pathsep) if x) if env is not None else NODE_SEARCH
+
+
+def ensure_node(search=None):
     """pp-23: самопроверка и check_site запускают node. Терминал без node в PATH (новое окно без nvm/Homebrew в профиле) ронял
     test_build_pages на первом вызове node — снаружи это выглядело как «красная самопроверка» без причины. Если node нет в PATH,
-    ищем его в обычных местах (Homebrew, Volta, nvm) и добавляем папку в PATH этого процесса; не нашли — понятный СТОП. Возвращает путь к node."""
+    ищем его по шаблонам (search, иначе node_search(): Homebrew, Volta, nvm; новейший nvm первым) и добавляем папку в PATH этого
+    процесса; не нашли — понятный СТОП. Возвращает путь к node."""
     import glob
     import shutil as _sh
     found = _sh.which('node')
     if found:
         return found
-    cands = [os.path.join(os.path.expanduser(d), 'node') for d in NODE_HOMES]
-    cands += sorted(glob.glob(os.path.expanduser('~/.nvm/versions/node/*/bin/node')), reverse=True)
+    cands = []
+    for pat in (search if search is not None else node_search()):
+        cands += sorted(glob.glob(os.path.expanduser(pat)), reverse=True)
     for c in cands:
         if os.path.isfile(c) and os.access(c, os.X_OK):
             os.environ['PATH'] = os.path.dirname(c) + os.pathsep + os.environ.get('PATH', '')
@@ -66,6 +75,7 @@ def ensure_node():
             return c
     raise SystemExit('СТОП: не найден node (нужен самопроверке и check_site). Проверь в Терминале: which node; node -v.\n'
                      'Если пусто: открой новый Терминал или выполни nvm use --lts (если ставил через nvm) / brew install node — и повтори команду.')
+
 
 def selftest_report(st):
     """pp-23: текст для красной самопроверки tools/test_build_pages.py — ВСЕ красные пункты, хвост вывода и stderr (traceback).
