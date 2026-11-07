@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+<meta charset="utf-8">
+<script>
+(function () {
+  try {
+    var K = 'chka-lang', L = ['hy', 'ru', 'en'], l = localStorage.getItem(K);
+    if (!l) {
+      var n = ((navigator.languages && navigator.languages[0]) || navigator.language || '').toLowerCase();
+      for (var i = 0; i < L.length; i++) { if (n.indexOf(L[i]) === 0) { l = L[i]; break; } }
+    }
+    if (L.indexOf(l) === -1) l = 'hy';
+    document.documentElement.setAttribute('data-lang', l);
+    document.documentElement.setAttribute('lang', l);
+  } catch (e) { document.documentElement.setAttribute('data-lang', 'hy'); }
+})();
+</script>
+<script>
+/* крупный текст («А+») и появление главной — до отрисовки, без мигания */
+(function () {
+  var d = document.documentElement;
+  try { if (localStorage.getItem('chka-fs') === 'big') d.classList.add('fs-big'); } catch (e) {}
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f1e6cf">
+<title>История церкви Погос-Петрос | Չկա</title>
+<meta name="description" content="Церковь Погос-Петрос в старом Ереване: от основания в V–VI веках до сноса в 1930–1931 годах и кинотеатра «Москва». Пять глав.">
+<link rel="icon" href="../assets/favicon-32.png">
+<link rel="apple-touch-icon" href="../assets/icon-180.png">
+<link rel="stylesheet" href="../assets/hub.css?v=15">
+<link rel="stylesheet" href="../assets/story.css?v=15">
+<link rel="stylesheet" href="../assets/history.css?v=4">
+<link rel="stylesheet" href="../assets/hub-museum.css?v=8">
+<link rel="stylesheet" href="../assets/hub-pages.css?v=1">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="corner" viewBox="0 0 22 22"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2 20V8Q2 2 8 2h12M6 20V10Q6 6 10 6h10"/><circle cx="11" cy="11" r="1.6" fill="currentColor" stroke="none"/></g></symbol></svg>
+<svg class="letters" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><defs><pattern id="letters" width="520" height="460" patternUnits="userSpaceOnUse"><g fill="none" stroke="#2a2420" stroke-width="1.1" font-family="Chka Serif" font-weight="700" text-anchor="middle"><text x="49" y="63" font-size="104" transform="rotate(2 49 63)">Զ</text><text x="203" y="62" font-size="92" transform="rotate(4 203 62)">Ֆ</text><text x="319" y="78" font-size="64" transform="rotate(2 319 78)">Ս</text><text x="460" y="77" font-size="92" transform="rotate(-2 460 77)">Թ</text><text x="122" y="233" font-size="76" transform="rotate(-4 122 233)">Ւ</text><text x="249" y="218" font-size="84" transform="rotate(-13 249 218)">Հ</text><text x="381" y="230" font-size="104" transform="rotate(7 381 230)">Մ</text><text x="511" y="247" font-size="64" transform="rotate(0 511 247)">Լ</text><text x="50" y="378" font-size="76" transform="rotate(-3 50 378)">Ռ</text><text x="215" y="368" font-size="92" transform="rotate(2 215 368)">Տ</text><text x="342" y="377" font-size="104" transform="rotate(3 342 377)">Խ</text><text x="459" y="382" font-size="64" transform="rotate(14 459 382)">Ա</text></g></pattern></defs><rect width="100%" height="100%" fill="url(#letters)"/></svg>
+
+<div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
+
+<nav class="nav"><div class="nav-in">
+  <a class="logo" href="../" aria-label="Չկա — на главную"><span class="hy">Չկա</span><span class="dot" aria-hidden="true"></span></a>
+  <div class="lang-switch-mount" data-lang-switch></div>
+</div></nav>
+
+<main class="page history">
+
+  <header class="x-head reveal">
+    <p class="x-crumbs"><a href="../#shelf-h"><span class="i18n-inline" lang="hy">Ալբոմ</span><span class="i18n-inline" lang="ru">Альбом</span><span class="i18n-inline" lang="en">Album</span></a><span aria-hidden="true">›</span><span><span class="i18n-inline" lang="hy">Ցուցանմուշ № 003</span><span class="i18n-inline" lang="ru">Экспонат № 003</span><span class="i18n-inline" lang="en">Exhibit No. 003</span></span></p>
+    <div class="x-label">
+      <svg class="corner tl" aria-hidden="true"><use href="#corner"/></svg><svg class="corner tr" aria-hidden="true"><use href="#corner"/></svg><svg class="corner bl" aria-hidden="true"><use href="#corner"/></svg><svg class="corner br" aria-hidden="true"><use href="#corner"/></svg>
+      <p class="lbl-no"><span class="i18n-inline" lang="hy">Ցուցանմուշ № 003</span><span class="i18n-inline" lang="ru">Экспонат № 003</span><span class="i18n-inline" lang="en">Exhibit No. 003</span><span class="inv" aria-hidden="true">ՉԿԱ · 003</span></p>
+      <p class="h-eyebrow">
+      <span class="i18n-inline" lang="hy">հինգ գլուխ</span><span class="i18n-inline" lang="ru">пять глав</span><span class="i18n-inline" lang="en">five chapters</span>
+    </p>
+      <h1><span class="i18n-inline" lang="hy">Պողոս-Պետրոս եկեղեցու պատմությունը</span><span class="i18n-inline" lang="ru">История церкви Погос-Петрос</span><span class="i18n-inline" lang="en">The Story of Poghos-Petros Church</span></h1>
+      <p class="meta"><span class="i18n-inline" lang="hy">Շահար թաղամաս · Երևան · V–VI դդ. – 1930–1931</span><span class="i18n-inline" lang="ru">Квартал Шаар · Ереван · V–VI вв. — 1930–1931</span><span class="i18n-inline" lang="en">Shahar quarter · Yerevan · 5th–6th c. – 1930–1931</span></p>
+      <p class="h-sub">
+      <span class="i18n-block" lang="hy">Ինչպես առաջացավ հին Երևանի ամենահին եկեղեցին, ինչպես այն քանդվեց և ինչ կա նրա տեղում։</span><span class="i18n-block" lang="ru">Как возникла старейшая церковь старого Еревана, как её снесли и что стоит на её месте.</span><span class="i18n-block" lang="en">How the oldest church of old Yerevan came to be, how it was torn down, and what stands in its place.</span>
+    </p>
+      <div class="x-actions"><a class="btn btn-3d" href="./"><svg class="cube-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12v9M4 7.5l8 4.5 8-4.5"/></svg><span><span class="i18n-inline" lang="hy">Տեսնել 3D-ով</span><span class="i18n-inline" lang="ru">Смотреть в 3D</span><span class="i18n-inline" lang="en">View in 3D</span></span></a></div>
+    </div>
+    <nav class="x-tabs" aria-label="Разделы экспоната"><a href="about.html"><span class="i18n-inline" lang="hy">Շենքի մասին</span><span class="i18n-inline" lang="ru">О здании</span><span class="i18n-inline" lang="en">About the building</span></a><a href="history.html" aria-current="page"><span class="i18n-inline" lang="hy">Պատմություն</span><span class="i18n-inline" lang="ru">История</span><span class="i18n-inline" lang="en">History</span></a></nav>
+  </header>
+
+  <section class="chapter reveal" id="ch1">
+    <p class="ch-num"><span class="i18n-inline" lang="hy">Գլուխ</span><span class="i18n-inline" lang="ru">Глава</span><span class="i18n-inline" lang="en">Chapter</span> <span class="n">01</span></p>
+    <h2>
+      <span class="i18n-inline" lang="hy">Երևանի ամենահին եկեղեցին</span><span class="i18n-inline" lang="ru">Старейшая церковь Еревана</span><span class="i18n-inline" lang="en">The oldest church of Yerevan</span>
+    </h2>
+    <figure class="ch-fig">
+      <img src="gallery/west-1927.webp" alt="Западный фасад церкви Погос-Петрос с колокольней, 1927" style="object-position: 50% 20%" loading="lazy" decoding="async">
+      <figcaption>
+        <span class="i18n-inline" lang="hy">լուսանկարը՝</span><span class="i18n-inline" lang="ru">фото:</span><span class="i18n-inline" lang="en">photo:</span>
+        <a href="https://pastvu.com/p/1958878" target="_blank" rel="noopener"><span class="i18n-inline" lang="hy">հեղինակն անհայտ է / PastVu</span><span class="i18n-inline" lang="ru">автор неизвестен / PastVu</span><span class="i18n-inline" lang="en">unknown author / PastVu</span></a>, <span class="i18n-inline" lang="hy">հավանաբար հանրային սեփականություն</span><span class="i18n-inline" lang="ru">вероятно общественное достояние</span><span class="i18n-inline" lang="en">probably public domain</span> ·
+        <span class="i18n-inline" lang="hy">սեղմված</span><span class="i18n-inline" lang="ru">сжато</span><span class="i18n-inline" lang="en">compressed</span>
+      </figcaption>
+    </figure>
+    <div class="ch-text">
+      <p class="i18n-block hy" lang="hy">Պողոս-Պետրոս եկեղեցին գտնվում էր Շահար հին թաղամասում՝ այժմյան Աբովյան և Թումանյան փողոցների անկյունում։ Կ. Ղաֆադարյանը այն համարել է հին Երևանի ամենահին և ամենամեծ եկեղեցին. հիմնադրումը վերագրվում է V–VI դարերին, թեև տարբեր աղբյուրներում նշվում են նաև V դարը և VI–VII դարերը։ Դա անգմբեթ բազիլիկ էր երկթեք տանիքով. XIX դարում քարե ծածկը պատել են թիթեղով։ Մուտքերը հարավից, արևմուտքից և հյուսիսից էին. հետագայում հյուսիսայինին կցել են կամարակապ նախասրահ, իսկ արևմտյանին՝ սյունազարդ ռոտոնդայով եռայարուս զանգակատուն, որը ոճով չէր համապատասխանում բազիլիկին։</p>
+      <p class="i18n-block" lang="ru">Церковь Погос-Петрос стояла в старом квартале Шаар, на углу нынешних улиц Абовяна и Туманяна. По оценке К. Гафадаряна, это была старейшая и крупнейшая церковь старого Еревана; основание относят к V–VI векам, хотя в разных источниках называют и V век, и VI–VII века. Это была бескупольная базилика с двускатной крышей: в XIX веке каменную кровлю перекрыли жестью. Входы были с юга, запада и севера; позже к северному пристроили арочный притвор, а к западному — трёхъярусную колокольню с ротондой на колоннах, по стилю не совсем подходившую к самой базилике.</p>
+      <p class="i18n-block" lang="en">The church stood in the old Shahar quarter, at the corner of today’s Abovyan and Tumanyan streets. K. Ghafadaryan called it the oldest and largest church of old Yerevan; its founding is dated to the 5th–6th centuries, though some sources give the 5th century or the 6th–7th. It was a domeless basilica with a gable roof; in the 19th century its stone roof was covered with tin. There were entrances on the south, west and north; later an arched porch was added to the north one, and to the west one a three-tier belfry with a columned rotunda, in a style that did not quite match the basilica itself.</p>
+    </div>
+  </section>
+
+  <section class="chapter reveal" id="ch2">
+    <p class="ch-num"><span class="i18n-inline" lang="hy">Գլուխ</span><span class="i18n-inline" lang="ru">Глава</span><span class="i18n-inline" lang="en">Chapter</span> <span class="n">02</span></p>
+    <h2>
+      <span class="i18n-inline" lang="hy">Երկրաշարժը և նորոգումները</span><span class="i18n-inline" lang="ru">Землетрясение и ремонты</span><span class="i18n-inline" lang="en">The earthquake and the repairs</span>
+    </h2>
+    <figure class="ch-fig">
+      <img src="gallery/portal-1915.webp" alt="Резной портал и дверь церкви Погос-Петрос, 1915" style="object-position: 50% 15%" loading="lazy" decoding="async">
+      <figcaption>
+        <span class="i18n-inline" lang="hy">լուսանկարը՝</span><span class="i18n-inline" lang="ru">фото:</span><span class="i18n-inline" lang="en">photo:</span>
+        <a href="https://pastvu.com/p/1389608" target="_blank" rel="noopener"><span class="i18n-inline" lang="hy">հեղինակն անհայտ է / PastVu</span><span class="i18n-inline" lang="ru">автор неизвестен / PastVu</span><span class="i18n-inline" lang="en">unknown author / PastVu</span></a>, <span class="i18n-inline" lang="hy">հավանաբար հանրային սեփականություն</span><span class="i18n-inline" lang="ru">вероятно общественное достояние</span><span class="i18n-inline" lang="en">probably public domain</span> ·
+        <span class="i18n-inline" lang="hy">սեղմված</span><span class="i18n-inline" lang="ru">сжато</span><span class="i18n-inline" lang="en">compressed</span>
+      </figcaption>
+    </figure>
+    <div class="ch-text">
+      <p class="i18n-block hy" lang="hy">1679 թվականի երկրաշարժը ավերել է եկեղեցին, և XVII դարի վերջին այն վերակառուցել են պահպանված արևելյան մասի վրա. պատերում ագուցված խաչքարերին փորագրված են 1691 և 1692 թվականները։ Արձանագրությունները պատմում են 1778 և 1820 թվականների նորոգումների մասին. 1820-ին եկեղեցին նորոգել են ծխականների միջոցներով, ինչն այն ժամանակ հազվադեպ էր։ Երևանի պատմության թանգարանը հիշատակում է նաև 1811 և 1893 թվականների նորոգումները։ 1831-ին խորանի կողքին կառուցել են Սուրբ Ստեփանոս և Սուրբ Հովհաննես Մկրտիչ մատուռները, իսկ 1835-ին տեր Վարդանը Հին Բայազետի բերդից գնել է երկփեղկ երկաթե դուռ և նվիրել եկեղեցուն. այն հարավային բացվածքում կանգնել է առանց վերափոխման։</p>
+      <p class="i18n-block" lang="ru">Землетрясение 1679 года разрушило церковь, и в конце XVII века её отстроили заново на уцелевшей восточной части: на хачкарах в стенах высечены даты 1691 и 1692. Надписи рассказывают о ремонтах 1778 и 1820 годов; в 1820-м церковь чинили «на средства благословенного народа этой церкви» — то есть на деньги прихожан, что по тем временам было редкостью. Музей истории Еревана называет и другие ремонты — 1811 и 1893 годов. В 1831 году у алтаря построили два придела — Св. Степаноса и Иоанна Крестителя, а в 1835-м тер Вардан купил в крепости Старый Баязет двустворчатую железную дверь и подарил её церкви: она встала в южный проём без переделок.</p>
+      <p class="i18n-block" lang="en">The 1679 earthquake ruined the church, and in the late 17th century it was rebuilt on the surviving east part; khachkars in the walls bear the dates 1691 and 1692. Inscriptions record repairs in 1778 and 1820; the 1820 work was paid for by the parishioners — “from the means of the blessed people of this church” — which was rare at the time. The History Museum of Yerevan also mentions repairs in 1811 and 1893. In 1831 two chapels, of St Stepanos and St John the Baptist, were built beside the altar, and in 1835 Ter Vardan bought a double iron door from the Old Bayazet fortress and gave it to the church; it fit the south doorway without alteration.</p>
+    </div>
+  </section>
+
+  <section class="chapter reveal" id="ch3">
+    <p class="ch-num"><span class="i18n-inline" lang="hy">Գլուխ</span><span class="i18n-inline" lang="ru">Глава</span><span class="i18n-inline" lang="en">Chapter</span> <span class="n">03</span></p>
+    <h2>
+      <span class="i18n-inline" lang="hy">Քանդումից առաջ</span><span class="i18n-inline" lang="ru">Перед сносом</span><span class="i18n-inline" lang="en">Before the demolition</span>
+    </h2>
+    <figure class="ch-fig">
+      <img src="gallery/yard-1929.webp" alt="Двор церкви Погос-Петрос и стройка вокруг, 1929" style="object-position: 70% 50%" loading="lazy" decoding="async">
+      <figcaption>
+        <span class="i18n-inline" lang="hy">լուսանկարը՝</span><span class="i18n-inline" lang="ru">фото:</span><span class="i18n-inline" lang="en">photo:</span>
+        <a href="https://pastvu.com/p/1465889" target="_blank" rel="noopener"><span class="i18n-inline" lang="hy">հեղինակն անհայտ է / PastVu (Երևանի պատմության թանգարանի ֆոնդերից)</span><span class="i18n-inline" lang="ru">автор неизвестен / PastVu (из фондов Музея истории Еревана)</span><span class="i18n-inline" lang="en">unknown author / PastVu (from the History Museum of Yerevan collection)</span></a>, <span class="i18n-inline" lang="hy">հավանաբար հանրային սեփականություն</span><span class="i18n-inline" lang="ru">вероятно общественное достояние</span><span class="i18n-inline" lang="en">probably public domain</span> ·
+        <span class="i18n-inline" lang="hy">սեղմված</span><span class="i18n-inline" lang="ru">сжато</span><span class="i18n-inline" lang="en">compressed</span>
+      </figcaption>
+    </figure>
+    <div class="ch-text">
+      <p class="i18n-block hy" lang="hy">Եկեղեցու մոտ կար Զալխանի (Շահարի) մզկիթը. նրա մինարեթը և եկեղեցու զանգակատունը երևում են 1923 թվականի նույն լուսանկարում, որ արել է Իտալական աշխարհագրական ընկերության արշավախումբը։ 1920-ականների վերջին եկեղեցու շուրջը շինարարություն էր ընթանում՝ դա երևում է 1929 թվականի լուսանկարում։ 1930 թվականի մարտի 2-ին Ալեքսանդր Թամանյանը գրեց, որ հուշարձանը շատ կարևոր է և պետք է պահպանել. քանդմանը դեմ էր նաև Գ. Չիրիկովը։ Քանդելուց առաջ շենքը չափագրել և փաստագրել են։</p>
+      <p class="i18n-block" lang="ru">Рядом с церковью стояла мечеть Залхан (Шаарская): её минарет и колокольня церкви попали на один снимок 1923 года, сделанный экспедицией Итальянского географического общества. В конце 1920-х вокруг церкви шла стройка — она видна на снимке 1929 года. 2 марта 1930 года Александр Таманян написал, что памятник очень значим и его надо сохранить; против сноса выступал и Г. Чириков. Перед сносом здание обмерили и задокументировали.</p>
+      <p class="i18n-block" lang="en">Next to the church stood the Zalkhan (Shahar) mosque: its minaret and the church belfry appear in one 1923 photograph taken by an expedition of the Italian Geographical Society. In the late 1920s there was construction around the church — it shows in a 1929 photograph. On 2 March 1930 Alexander Tamanyan wrote that the monument was very significant and had to be saved; G. Chirikov opposed the demolition too. Before it was torn down, the building was measured and documented.</p>
+    </div>
+  </section>
+
+  <section class="chapter reveal" id="ch4">
+    <p class="ch-num"><span class="i18n-inline" lang="hy">Գլուխ</span><span class="i18n-inline" lang="ru">Глава</span><span class="i18n-inline" lang="en">Chapter</span> <span class="n">04</span></p>
+    <h2>
+      <span class="i18n-inline" lang="hy">Քանդումը և որմնանկարները</span><span class="i18n-inline" lang="ru">Снос и фрески</span><span class="i18n-inline" lang="en">Demolition and the frescoes</span>
+    </h2>
+    <figure class="ch-fig">
+      <img src="gallery/demolition-1930s.webp" alt="Разборка церкви Погос-Петрос, 1930-е" style="object-position: 50% 50%" loading="lazy" decoding="async">
+      <figcaption>
+        <span class="i18n-inline" lang="hy">լուսանկարը՝</span><span class="i18n-inline" lang="ru">фото:</span><span class="i18n-inline" lang="en">photo:</span>
+        <a href="https://commons.wikimedia.org/wiki/File:Saint_Paul_and_Peter_Church,_Yerevan.jpg" target="_blank" rel="noopener"><span class="i18n-inline" lang="hy">Ա. Կալանթար / Wikimedia Commons</span><span class="i18n-inline" lang="ru">А. Калантар / Wikimedia Commons</span><span class="i18n-inline" lang="en">A. Kalantar / Wikimedia Commons</span></a>, <span class="i18n-inline" lang="hy">հանրային սեփականություն</span><span class="i18n-inline" lang="ru">общественное достояние</span><span class="i18n-inline" lang="en">public domain</span> ·
+        <span class="i18n-inline" lang="hy">սեղմված</span><span class="i18n-inline" lang="ru">сжато</span><span class="i18n-inline" lang="en">compressed</span>
+      </figcaption>
+    </figure>
+    <div class="ch-text">
+      <p class="i18n-block hy" lang="hy">Եկեղեցին քանդվել է 1930–1931 թվականներին. այսպես է թվագրում Երևանի պատմության թանգարանը, իսկ այլ աղբյուրներում նշվում են 1930 թվականի նոյեմբերը կամ 1931-ը։ Խորանը քանդելիս հայտնաբերվել է տարբեր դարերի որմնանկարների վեց շերտ։ Քանդումը դադարեցրել են, կազմել են հանձնաժողով, իսկ կիևցի վերականգնող Բ. Յուկինը պատերից հանել է 14,25 մ² որմնանկար։ Ստորին շերտը բուսական զարդանախշ է, մյուս շերտերում՝ Պետրոս և Պողոս առաքյալները։ 1931-ին այդ որմնանկարների մասին զեկուցել են Բեռլինում։ Այսօր դրանք պահվում են Հայաստանի ազգային պատկերասրահում և Հայաստանի պատմության թանգարանում, իսկ Երևանի պատմության թանգարանի տվյալներով՝ նաև այնտեղ։</p>
+      <p class="i18n-block" lang="ru">Церковь снесли в 1930–1931 годах — так датирует снос Музей истории Еревана; в других источниках называют ноябрь 1930 года или 1931 год. При разборке алтаря нашли шесть слоёв росписи разных веков. Снос приостановили и собрали комиссию, а киевский реставратор Б. Юкин снял со стен 14,25 м² фресок. Нижний слой — растительный орнамент, в других слоях — апостолы Пётр и Павел. О находке в 1931 году делали доклад в Берлине. Сегодня фрески хранятся в Национальной галерее и Историческом музее Армении, а по данным Музея истории Еревана — и в нём.</p>
+      <p class="i18n-block" lang="en">The church was torn down in 1930–1931 — that is the History Museum of Yerevan’s dating; other sources give November 1930 or 1931. Dismantling the altar revealed six layers of paintings from different centuries. The demolition was paused and a commission was convened, and the Kyiv restorer B. Yukin removed 14.25 m² of frescoes from the walls. The lowest layer is a plant ornament; the other layers show the apostles Peter and Paul. In 1931 a report on the find was given in Berlin. Today the frescoes are kept in the National Gallery and the History Museum of Armenia — and, according to the History Museum of Yerevan, there too.</p>
+    </div>
+  </section>
+
+  <section class="chapter reveal" id="ch5">
+    <p class="ch-num"><span class="i18n-inline" lang="hy">Գլուխ</span><span class="i18n-inline" lang="ru">Глава</span><span class="i18n-inline" lang="en">Chapter</span> <span class="n">05</span></p>
+    <h2>
+      <span class="i18n-inline" lang="hy">Եկեղեցու տեղում</span><span class="i18n-inline" lang="ru">На месте церкви</span><span class="i18n-inline" lang="en">Where the church stood</span>
+    </h2>
+    <figure class="ch-fig">
+      <img src="gallery/cinema-1936.webp" alt="Строительство кинотеатра «Москва» на месте церкви, 1936" style="object-position: 50% 50%" loading="lazy" decoding="async">
+      <figcaption>
+        <span class="i18n-inline" lang="hy">լուսանկարը՝</span><span class="i18n-inline" lang="ru">фото:</span><span class="i18n-inline" lang="en">photo:</span>
+        <a href="https://pastvu.com/p/1367002" target="_blank" rel="noopener"><span class="i18n-inline" lang="hy">հեղինակն անհայտ է / PastVu</span><span class="i18n-inline" lang="ru">автор неизвестен / PastVu</span><span class="i18n-inline" lang="en">unknown author / PastVu</span></a>, <span class="i18n-inline" lang="hy">հավանաբար հանրային սեփականություն</span><span class="i18n-inline" lang="ru">вероятно общественное достояние</span><span class="i18n-inline" lang="en">probably public domain</span> ·
+        <span class="i18n-inline" lang="hy">սեղմված</span><span class="i18n-inline" lang="ru">сжато</span><span class="i18n-inline" lang="en">compressed</span>
+      </figcaption>
+    </figure>
+    <div class="ch-text">
+      <p class="i18n-block hy" lang="hy">Եկեղեցու տեղում կառուցվել է «Մոսկվա» կինոթատրոնը՝ ճարտարապետներ Տ. Երկանյանի և Գ. Քոչարի նախագծով. այն բացվել է 1936 թվականի դեկտեմբերի 12-ին «Պեպո» ֆիլմով։ 2010 թվականին կառավարությունը որոշեց «Մոսկվա» կինոթատրոնի բացօթյա դահլիճի տարածքը տալ Էջմիածնին՝ հին եկեղեցու տեղում նորը կառուցելու համար։ «Փրկենք բացօթյա դահլիճը» բողոքի ակցիան հավաքեց մոտ 18 000 ստորագրություն, մշակույթի 60-ից ավելի գործիչներ նամակ ստորագրեցին, և ծրագիրը չեղարկվեց։</p>
+      <p class="i18n-block" lang="ru">На месте церкви построили кинотеатр «Москва» архитекторов Т. Ерканяна и Г. Кочара; его открыли 12 декабря 1936 года фильмом «Пэпо». В 2010 году правительство решило отдать землю открытого зала «Москвы» Эчмиадзину под новую церковь на месте старой. Протест «Спасём открытый зал» собрал около 18 000 подписей, письмо подписали более 60 деятелей культуры; план отменили.</p>
+      <p class="i18n-block" lang="en">The Moscow Cinema, by the architects T. Yerkanyan and G. Kochar, was built on the church’s site; it opened on 12 December 1936 with the film “Pepo”. In 2010 the government decided to give the cinema’s open-air hall to Etchmiadzin for a new church on the site of the old one. The “Save the Open-Air Hall” protest gathered about 18,000 signatures and a letter from more than 60 cultural figures, and the plan was dropped.</p>
+    </div>
+  </section>
+
+  <section class="h-sources reveal">
+    <p class="hall"><span class="i18n-inline" lang="hy">Կատալոգ</span><span class="i18n-inline" lang="ru">Каталог</span><span class="i18n-inline" lang="en">Catalogue</span></p>
+    <h2>
+      <span class="i18n-inline" lang="hy">Աղբյուրներ</span><span class="i18n-inline" lang="ru">Источники</span><span class="i18n-inline" lang="en">Sources</span>
+    </h2>
+    <span class="i18n-block" lang="hy">Փաստերը վերապատմված են սեփական բառերով՝ առանց հոդվածների տեքստը կրկնօրինակելու։</span><span class="i18n-block" lang="ru">Факты пересказаны своими словами, без копирования текста статей.</span><span class="i18n-block" lang="en">Facts are retold in original wording, without copying the text of the articles.</span>
+    <ul class="h-src-list">
+      <li><a href="https://en.wikipedia.org/wiki/Saints_Peter_and_Paul_Church,_Yerevan" target="_blank" rel="noopener">en.wikipedia.org</a> — «Saints Peter and Paul Church, Yerevan»</li>
+      <li><a href="https://hy.wikipedia.org/wiki/%D5%8D%D5%B8%D6%82%D6%80%D5%A2_%D5%8A%D5%B8%D5%B2%D5%B8%D5%BD-%D5%8A%D5%A5%D5%BF%D6%80%D5%B8%D5%BD_%D5%A5%D5%AF%D5%A5%D5%B2%D5%A5%D6%81%D5%AB_(%D4%B5%D6%80%D6%87%D5%A1%D5%B6)" target="_blank" rel="noopener">hy.wikipedia.org</a> — «Սուրբ Պողոս-Պետրոս եկեղեցի (Երևան)»</li>
+      <li><a href="https://ru.wikipedia.org/wiki/%D0%A6%D0%B5%D1%80%D0%BA%D0%BE%D0%B2%D1%8C_%D0%A1%D0%B2%D1%8F%D1%82%D1%8B%D1%85_%D0%9F%D0%B0%D0%B2%D0%BB%D0%B0_%D0%B8_%D0%9F%D0%B5%D1%82%D1%80%D0%B0_(%D0%95%D1%80%D0%B5%D0%B2%D0%B0%D0%BD)" target="_blank" rel="noopener">ru.wikipedia.org</a> — «Церковь Святых Павла и Петра (Ереван)»</li>
+      <li><a href="https://yhm.am/archives/634?lang=en" target="_blank" rel="noopener">yhm.am</a> — Музей истории Еревана (Yerevan History Museum)</li>
+      <li><a href="https://en.wikipedia.org/wiki/Moscow_Cinema" target="_blank" rel="noopener">en.wikipedia.org</a> — «Moscow Cinema»</li>
+      <li><a href="https://pastvu.com/p/1958878" target="_blank" rel="noopener">pastvu.com</a> — архивные фото церкви (PastVu)</li>
+      <li><a href="https://commons.wikimedia.org/wiki/Category:Saints_Peter_and_Paul_Church,_Yerevan" target="_blank" rel="noopener">commons.wikimedia.org</a> — Saints Peter and Paul Church, Yerevan</li>
+      <li>К. Гафадарян, «Ереван. Средневековые памятники и надписи», 1975, с. 159–160 — надписи, по пересказу Википедии (сам текст не видели)</li>
+    </ul>
+  </section>
+
+  <nav class="next-sec x-next reveal" aria-label="Дальше">
+    <a class="btn btn-ghost" href="about.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg><span><span class="i18n-inline" lang="hy">Շենքի մասին</span><span class="i18n-inline" lang="ru">О здании</span><span class="i18n-inline" lang="en">About the building</span></span></a>
+    <a class="btn btn-3d" href="./"><svg class="cube-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12v9M4 7.5l8 4.5 8-4.5"/></svg><span><span class="i18n-inline" lang="hy">Տեսնել 3D-ով</span><span class="i18n-inline" lang="ru">Смотреть в 3D</span><span class="i18n-inline" lang="en">View in 3D</span></span></a>
+  </nav>
+
+  <footer class="foot reveal">
+    <div class="colo">
+      <span class="colo-mark" aria-hidden="true">Չկա</span>
+      <p class="colo-text"><span class="colo-l1"><span class="i18n-inline" lang="hy">Երևանի քանդված շենքերի թանգարան</span><span class="i18n-inline" lang="ru">Музей снесённых зданий Еревана</span><span class="i18n-inline" lang="en">A museum of Yerevan’s demolished buildings</span></span><span class="colo-l2"><span class="i18n-inline" lang="hy">նկարներ՝ արխիվային լուսանկարների հիման վրա · 2026</span><span class="i18n-inline" lang="ru">рисунки по архивным фотографиям · 2026</span><span class="i18n-inline" lang="en">drawings after archival photographs · 2026</span></span></p>
+    </div>
+  </footer>
+
+</main>
+
+<script src="../assets/i18n.js?v=2" defer></script>
+<script src="../assets/chka-common.js?v=4" defer></script>
+<script src="../assets/history.js?v=1" defer></script>
+</body>
+</html>
