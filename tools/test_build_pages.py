@@ -353,6 +353,59 @@ def check_card_check():
     return ok, out
 
 
+LENIN_E136_REF = '092b51b'   # pp-26: main до релиза e1.54 (07.11.2026) — живой Ленин на движке e1.36, эталон вида Ленина
+LENIN_LOOK_TIMEOUT = 900
+
+
+def check_lenin_look():
+    """pp-26 (07.11.2026): Ленин на текущем движке ≈ эталон e1.36. Эталон — копия сайта из git (LENIN_E136_REF: engine/ e1.36 + lenin/),
+    кандидат — та же копия, где Ленин собран сейчас так же, как его соберёт publish_engine (place_live_files + build_live c рабочим engine/).
+    tools/lenin_look.mjs снимает обе в одном Chrome с виртуальным временем: день кадры 1–5, ночь 1–5, снег; отличие сверх шума — КРАСНЫЙ.
+    Самопроверка: подменённая «матовая» ночь обязана краснеть. Нет Chrome — ПРОПУЩЕНО. Возвращает (ok, строки)."""
+    import subprocess
+    out, ok = [], True
+    def rec(name, good, extra=''):
+        nonlocal ok
+        ok &= bool(good)
+        out.append('%s  Ленин ≈ e1.36: %s%s' % ('OK   ' if good else 'ОШИБКА', name, (' — ' + extra) if extra else ''))
+    T = ROOT / 'tools'
+    r = subprocess.run(['node', '--check', str(T / 'lenin_look.mjs')], capture_output=True, text=True)
+    rec('node --check tools/lenin_look.mjs', r.returncode == 0, r.stderr.strip()[-150:])
+    g = subprocess.run(['git', '-C', str(ROOT), 'cat-file', '-t', LENIN_E136_REF], capture_output=True, text=True)
+    if g.stdout.strip() != 'commit':
+        out.append('ПРОПУЩЕНО  Ленин ≈ e1.36: в git нет эталона %s (неполная копия репозитория)' % LENIN_E136_REF)
+        return ok, out
+    tmp = Path(tempfile.mkdtemp(prefix='chka-lenin-look-'))
+    try:
+        ref, cand = tmp / 'ref', tmp / 'cand'
+        ref.mkdir()
+        ar = subprocess.run(['git', '-C', str(ROOT), 'archive', LENIN_E136_REF, '--', 'CNAME', '404.html', 'assets', 'engine', 'lenin'], capture_output=True)
+        if ar.returncode != 0:
+            rec('эталон из git', False, ar.stderr.decode('utf-8', 'replace')[-200:])
+            return ok, out
+        subprocess.run(['tar', '-x', '-C', str(ref)], input=ar.stdout, check=True)
+        rec('эталон: движок e1.36', (ref / 'engine' / 'VERSION').read_text(encoding='utf-8').strip() == 'e1.36')
+        shutil.copytree(ref, cand)
+        bp.place_live_files(cand, 'lenin', root=ROOT)
+        bp.build_live(cand, ['lenin'], engine_from=ROOT / 'engine', root=ROOT)
+        rec('кандидат: Ленин собран на рабочем движке ' + bp.engine_version(), 'content="%s"' % bp.engine_version() in (cand / 'lenin' / 'index.html').read_text(encoding='utf-8'))
+        try:
+            r = subprocess.run(['node', str(T / 'lenin_look.mjs'), '--a', str(ref), '--b', str(cand), '--out', str(tmp / 'shots'), '--selftest'],
+                               capture_output=True, text=True, timeout=LENIN_LOOK_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            rec('снимки уложились в %d с' % LENIN_LOOK_TIMEOUT, False)
+            return ok, out
+        if r.returncode == 2:
+            out.append('ПРОПУЩЕНО  Ленин ≈ e1.36: нет Chrome для puppeteer — снимки не сняты (%s)' % r.stdout.strip()[-100:])
+        else:
+            lines = [l for l in r.stdout.splitlines() if l.startswith(('OK', 'ОШИБКА', 'итого'))]
+            rec('день 1–5, ночь 1–5, снег — как эталон; подменённая ночь ловится (tools/lenin_look.mjs)', r.returncode == 0,
+                '' if r.returncode == 0 else ' | '.join(l for l in lines if not l.startswith('OK'))[-500:] or (r.stdout + r.stderr).strip()[-300:])
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    return ok, out
+
+
 def engine_js_check(clip_src):
     """Запускает настоящий mvSetClip из engine/viewer.js (node, заглушка видео): с H.264 адрес = base + mp4?v, без — base + webm?v;
     старый адрес без ?v ведёт себя как раньше. Возвращает None (всё верно) или текст ошибки."""
@@ -744,6 +797,10 @@ def main():
     for l in lines_cc:
         print(l)
     ok_all &= ok_cc
+    ok_ll, lines_ll = guarded(check_lenin_look)   # pp-26: вид Ленина = e1.36
+    for l in lines_ll:
+        print(l)
+    ok_all &= ok_ll
     ok_ph, lines_ph = guarded(check_publish_hub)
     for l in lines_ph:
         print(l)
