@@ -355,14 +355,26 @@ def check_card_check():
 
 LENIN_E136_REF = '092b51b'   # pp-26: main до релиза e1.54 (07.11.2026) — живой Ленин на движке e1.36, эталон вида Ленина
 LENIN_LOOK_TIMEOUT = 900
+# pp-27 (08.11.2026): светлая кайма снята в самих слоях здания кадров 1–4. Эталон вида = движок e1.36 и все файлы Ленина с 092b51b,
+# КРОМЕ этих четырёх слоёв — они подменяются утверждёнными чищеными (sha256 ниже). Любая другая правка слоя здания — красный
+# (sha), любая правка движка/ночи/снега/других кадров — красный (снимки), как и раньше.
+LENIN_BUILDING_FIXED = {
+    'lenin_1_building.webp': '6714fd7f3f1c3f669512a3e203b8d319ee14362e47834af8a756a2c721c5debb',
+    'lenin_2_building.webp': 'df00206dbf3bfddc256f48e79c9a15fd68d37c58cd64b39aa9b29a2f4aaa52af',
+    'lenin_3_building.webp': '60aaf4c5752197860412dde6c2ce048d1bde1877d444047b4a2786e5d12bc3d4',
+    'lenin_4_building.webp': '8d0d042166b300264a5d835118282b265fa4777759d1d1bc20dc37032760eb85',
+}
 
 
 def check_lenin_look():
     """pp-26 (07.11.2026): Ленин на текущем движке ≈ эталон e1.36. Эталон — копия сайта из git (LENIN_E136_REF: engine/ e1.36 + lenin/),
     кандидат — та же копия, где Ленин собран сейчас так же, как его соберёт publish_engine (place_live_files + build_live c рабочим engine/).
     tools/lenin_look.mjs снимает обе в одном Chrome с виртуальным временем: день кадры 1–5, ночь 1–5, снег; отличие сверх шума — КРАСНЫЙ.
-    Самопроверка: подменённая «матовая» ночь обязана краснеть. Нет Chrome — ПРОПУЩЕНО. Возвращает (ok, строки)."""
+    Самопроверка: подменённая «матовая» ночь обязана краснеть. Нет Chrome — ПРОПУЩЕНО. Возвращает (ok, строки).
+    pp-27: слои здания кадров 1–4 в эталоне = утверждённые чищеные (LENIN_BUILDING_FIXED); рабочие файлы обязаны совпасть с ними по sha256
+    (эта часть идёт и без Chrome)."""
     import subprocess
+    import hashlib
     out, ok = [], True
     def rec(name, good, extra=''):
         nonlocal ok
@@ -385,6 +397,15 @@ def check_lenin_look():
             return ok, out
         subprocess.run(['tar', '-x', '-C', str(ref)], input=ar.stdout, check=True)
         rec('эталон: движок e1.36', (ref / 'engine' / 'VERSION').read_text(encoding='utf-8').strip() == 'e1.36')
+        fdir = ROOT / 'tests' / 'lenin' / 'frames'
+        wrong = [n for n, h in sorted(LENIN_BUILDING_FIXED.items())
+                 if not (fdir / n).is_file() or hashlib.sha256((fdir / n).read_bytes()).hexdigest() != h]
+        rec('слои здания кадров 1–4 = утверждённая чистка каймы 08.11 (sha256, pp-27)', not wrong, ', '.join(wrong))
+        old = [n for n in LENIN_BUILDING_FIXED if (ref / 'lenin' / 'frames' / n).is_file()]
+        rec('эталон: в 092b51b есть все 4 старых слоя здания (подменяются чищеными)', len(old) == len(LENIN_BUILDING_FIXED))
+        for n, h in LENIN_BUILDING_FIXED.items():   # в эталон — именно утверждённые байты (по sha), а не то, что сейчас лежит в рабочей папке
+            if n not in wrong:
+                shutil.copyfile(fdir / n, ref / 'lenin' / 'frames' / n)
         shutil.copytree(ref, cand)
         bp.place_live_files(cand, 'lenin', root=ROOT)
         bp.build_live(cand, ['lenin'], engine_from=ROOT / 'engine', root=ROOT)
