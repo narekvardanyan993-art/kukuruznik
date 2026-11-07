@@ -93,12 +93,28 @@ const clickOf = (page) => async (sel) => {
 };
 const cases = [['ok', null], ['legacy', null], ['mute', 'не ушла в share'], ['small', '540×960'], ['png', 'тип image/png'], ['none', 'не ушла в share'], ['nofile', 'без файла'], ['twice', '2 раз'], ['fonts', 'шрифты открытки'], ['paper', 'бумага открытки'], ['blank', 'открытка в share пустая']];   // e1.35: пустой (однотонный) файл = красное   // e1.33: бумага грузится заранее — не успела = красное
 let bad = 0;
+// pp-25: прогресс по каждому случаю (номер/имя/время) — при зависании видно, на каком; сторож случая CASE_MS: завис = КРАСНЫЙ «завис», идём дальше
+const T0 = Date.now(), TOTAL = 10 + 11 + 5 + 2;   // backCases + cases + deskCases + две открытки (determinism)
+const CASE_MS = Number(process.env.CARD_TEST_CASE_MS || 120000);
+let caseNo = 0;
+const sec = (ms) => (ms / 1000).toFixed(1);
+const step = async (name, fn) => {
+  const n = ++caseNo, t = Date.now();
+  console.log(`▶ ${String(n).padStart(2, '0')}/${TOTAL} ${name} (с начала ${sec(t - T0)} с)`);
+  let timer;
+  const hang = new Promise((_, rej) => { timer = setTimeout(() => rej(new Error('HANG')), CASE_MS); });
+  try { return await Promise.race([fn(), hang]); }
+  catch (e) {
+    if (e && e.message === 'HANG') { bad++; console.log(`ОШИБКА  ${name}: завис дольше ${sec(CASE_MS)} с — случай прерван`); return undefined; }
+    throw e;
+  } finally { clearTimeout(timer); console.log(`  ↳ ${String(n).padStart(2, '0')}/${TOTAL} ${name}: ${sec(Date.now() - t)} с`); }
+};
 // e1.51: с оборотом — ОДНО нажатие, один share с двумя файлами 1080×1920 (лицо, оборот); двухшаговая страница e1.35 (two) — красная.
 // Запасной путь (fail2: перехватчик отклоняет share с двумя файлами): плашка → лицо → «Сохранить оборот» → оборот.
 const backCases = [['ok', null], ['two', 'одним share'], ['backsmall', 'оборот в share: 540×960'], ['backblank', 'оборот в share пустая'],
   ['same', 'одна и та же картинка'], ['swap', 'не лицо'],   // e1.36: баг iPhone — обе стороны = лицо (same); стороны перепутаны (swap)
   ['ok', null, true], ['fb_none', 'плашки «Открытка готова»', true], ['fb_noback', 'не стала «Сохранить оборот»', true], ['fb_noback2', 'не вызвало share', true]];
-for (const [mode, want, fail2] of backCases) {
+for (const [mode, want, fail2] of backCases) await step('оборот/' + (fail2 ? 'запасной/' : '') + mode, async () => {
   const page = await browser.newPage();
   await page.evaluateOnNewDocument(SHARE_HOOK);
   await page.goto(`http://127.0.0.1:${port}/?${mode}`);
@@ -108,8 +124,8 @@ for (const [mode, want, fail2] of backCases) {
   if (!ok) bad++;
   console.log(`${ok ? 'OK   ' : 'ОШИБКА'}  оборот/${(fail2 ? 'запасной/' : '') + mode.padEnd(9)} ${want === null ? (fail2 ? 'зелёная (2 файла запасным путём)' : 'зелёная (2 файла одним нажатием)') : 'красная «' + want + '»'} — ${msgs.slice(0, 110) || 'без проблем'}`);
   await page.close();
-}
-for (const [mode, want] of cases) {
+});
+for (const [mode, want] of cases) await step('телефон/' + mode, async () => {
   const page = await browser.newPage();
   await page.evaluateOnNewDocument(SHARE_HOOK);
   await page.goto(`http://127.0.0.1:${port}/?${mode}`);
@@ -120,10 +136,10 @@ for (const [mode, want] of cases) {
   if (!ok) bad++;
   console.log(`${ok ? 'OK   ' : 'ОШИБКА'}  ${mode.padEnd(6)} ${want === null ? 'зелёная' : 'красная «' + want + '»'} — ${msgs.slice(0, 110) || 'без проблем'} (${((Date.now() - t) / 1000).toFixed(1)} с)`);
   await page.close();
-}
+});
 // e1.36: компьютер — один клик «Сохранить открытку» = два скачивания card-front.jpg + card-back.jpg (без share, без второго шага)
 const deskCases = [['desk_ok', null], ['desk_one', 'скачал 1 файл'], ['desk_same', 'одна и та же картинка'], ['desk_png', 'тип image/png'], ['desk_share', 'вызван navigator.share']];
-for (const [mode, want] of deskCases) {
+for (const [mode, want] of deskCases) await step('компьютер/' + mode, async () => {
   const page = await browser.newPage();
   await page.setViewport({ width: 1440, height: 900 });
   await page.evaluateOnNewDocument(DOWNLOAD_HOOK);
@@ -135,7 +151,7 @@ for (const [mode, want] of deskCases) {
   if (!ok) bad++;
   console.log(`${ok ? 'OK   ' : 'ОШИБКА'}  компьютер/${mode.padEnd(10)} ${want === null ? 'зелёная (2 скачивания одним кликом)' : 'красная «' + want + '»'} — ${msgs.slice(0, 120) || 'без проблем'}`);
   await page.close();
-}
+});
 // Открытки двух копий сайта должны совпадать пиксель в пиксель: с CARD_DETERMINISM два compose (без seed) через паузу дают одно и то же; без него — разное
 const sameTwice = async (withStub) => {
   const page = await browser.newPage();
@@ -153,10 +169,12 @@ const sameTwice = async (withStub) => {
   return r;
 };
 for (const [stub, want] of [[true, true], [false, false]]) {
-  const got = await sameTwice(stub);
+  const got = await step('открытка/' + (stub ? 'с подменой' : 'без подмены'), () => sameTwice(stub));
+  if (got === undefined) continue;   // завис — уже красный
   const ok = got === want; if (!ok) bad++;
   console.log(`${ok ? 'OK   ' : 'ОШИБКА'}  открытка при одинаковых входных данных ${stub ? 'с подменой Date.now (check_site): две копии совпадают' : 'без подмены: «зерно» разное (подмена нужна)'} — ${got ? 'совпали' : 'разные'}`);
 }
 if (reclicks) console.log(`заметка: повторное нажатие «Сохранить» понадобилось ${reclicks} раз — подделка не увидела первый клик`);
 await browser.close(); srv.close();
+console.log(`итого: ${caseNo}/${TOTAL} случаев за ${sec(Date.now() - T0)} с, красных ${bad}`);
 process.exit(bad ? 1 : 0);

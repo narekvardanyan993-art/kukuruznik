@@ -285,6 +285,9 @@ def check_postcard():
     return ok, out
 
 
+CARD_CHECK_TIMEOUT = 900   # pp-25: было 180 с — на Mac mini M2 8 ГБ мало для 28 случаев в Chrome
+
+
 def check_card_check():
     """s27: проверка открытки на телефоне (check_site → «прогулка») и размещение по зданию. (1) Тексты кода: перехватчик share ставится на телефоне ДО
     загрузки, шаг проверяет JPEG 1080×1920 и один вызов; путь ПК (PNG-скачивание) на месте; Date.now для postcard.js подменяется (одинаковые открытки у
@@ -319,8 +322,16 @@ def check_card_check():
     for f in ('card_check.mjs', 'check_card_phone.mjs', 'test_card_check.mjs', 'check_site.mjs'):
         r = subprocess.run(['node', '--check', str(T / f)], capture_output=True, text=True)
         rec('node --check tools/%s' % f, r.returncode == 0, r.stderr.strip()[-150:])
-    r = subprocess.run(['node', str(T / 'test_card_check.mjs')], capture_output=True, text=True, timeout=180)
-    if r.returncode == 2:
+    try:   # pp-25: 28 случаев в настоящем Chrome на Mac mini 8 ГБ идут дольше 180 с; прогресс по случаям — в выводе test_card_check.mjs
+        r = subprocess.run(['node', str(T / 'test_card_check.mjs')], capture_output=True, text=True, timeout=CARD_CHECK_TIMEOUT)
+    except subprocess.TimeoutExpired as e:
+        part = e.stdout.decode('utf-8', 'replace') if isinstance(e.stdout, bytes) else (e.stdout or '')
+        last = [l for l in part.splitlines() if l.startswith(('▶', '  ↳'))][-2:]
+        rec('настоящий Chrome: test_card_check.mjs уложился в %d с' % CARD_CHECK_TIMEOUT, False, 'не уложился; последний случай: %s' % (' / '.join(last) or 'не начался (запуск Chrome?)'))
+        r = None   # остальные проверки группы идут дальше
+    if r is None:
+        pass
+    elif r.returncode == 2:
         out.append('ПРОПУЩЕНО  открытка/проверка: нет Chrome для puppeteer — зелёная/красные случаи не прогнаны (%s)' % r.stdout.strip()[-100:])
     else:
         rec('настоящий Chrome: зелёная и красные случаи (test_card_check.mjs)', r.returncode == 0, '' if r.returncode == 0 else (r.stdout + r.stderr).strip()[-300:])
