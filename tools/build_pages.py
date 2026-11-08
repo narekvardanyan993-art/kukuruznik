@@ -852,7 +852,7 @@ CUBE_ICON = ('<svg class="cube-i" viewBox="0 0 24 24" fill="none" stroke="curren
              'stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12v9M4 7.5l8 4.5 8-4.5"/></svg>')
 PAGE_ICON = ('<svg class="page-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" '
              'stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/></svg>')
-VIEW_3D_WORD = {'hy': 'Տեսնել 3D-ով', 'ru': 'Смотреть в 3D', 'en': 'View in 3D'}   # те же слова, что на кнопке в шапке about.html
+VIEW_3D_WORD = {'hy': 'Դիտել ինտերակտիվը', 'ru': 'Смотреть интерактив', 'en': 'View interactive'}   # те же слова, что на кнопке в шапке about.html
 ABOUT_DEFAULT = {'hy': 'Շենքի մասին', 'ru': 'О здании', 'en': 'About the building'}
 
 
