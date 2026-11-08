@@ -2856,6 +2856,111 @@
     capSet(want ? want[0] + frameIndex + currentLang : '', want ? (want[1][currentLang] || want[1].en || want[1].ru) : null);
   }
 
+  // ---------- e1.55: на телефоне название и подпись кадра — под маленькой иконкой-биркой ----------
+  // Нарек (09.11.2026, iPhone): плашка с названием в нижней полосе и подпись кадра закрывали сцену (старик, кормящий голубей).
+  // Теперь на телефоне по умолчанию видна только бумажная бирка (на месте названия); тап — табличка с названием и подписью кадра
+  // раскрывается над биркой; тап вне неё, ✕ или повторный тап по бирке закрывают. ПК не тронут (всё внутри max-width:1023.98px).
+  // Анимации по docs/ANIMATION.md: только transform и opacity; открытие — пружина, закрытие — зеркало и короче (≈ 60 %); это
+  // переходы, а не ключевые кадры — нажатие посреди хода ведёт от текущего положения; «уменьшить движение» — только проявление.
+  var INFO_WORD = {
+    open: { hy: 'Անվանում և ստորագրություն', ru: 'Название и подпись', en: 'Name and caption' },
+    close: { hy: 'Փակել', ru: 'Закрыть', en: 'Close' }
+  };
+  var infoBtn = null, infoPl = null, infoT = null, infoC = null, infoOpen = false, infoKey = '';
+  (function () {
+    var bar = document.getElementById('bottomBar'); if (!bar) return;
+    var css = document.createElement('style');
+    css.textContent =
+      '#infoTag,#infoPlaque{display:none}' +
+      '@media (max-width:1023.98px){' +
+      '#barTitle,#frameCap{display:none !important}' +
+      '#bottomBar #infoTag{display:block;grid-column:2;justify-self:center;align-self:center;position:relative;width:48px;height:56px;padding:0;margin:0;border:0;background:none;color:var(--fg);pointer-events:auto;cursor:var(--cp);-webkit-tap-highlight-color:transparent;transform-origin:50% 14%;transform:rotate(0);transition:transform 420ms var(--spring)}' +
+      '#bottomBar #infoTag:active{transform:scale(.94)}' +
+      '#bottomBar #infoTag.open{transform:rotate(-5deg)}' +
+      '#bottomBar #infoTag.open:active{transform:rotate(-5deg) scale(.94)}' +
+      '#infoTag svg{position:absolute;left:2px;top:3px;width:44px;height:50px;overflow:visible;filter:drop-shadow(0 2px 3px rgba(60,45,20,.22))}' +
+      '#infoTag .it-fill{fill:rgba(var(--bk),.95)}' +
+      '#infoTag .it-line{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linejoin:round;stroke-linecap:round}' +
+      '#infoTag .it-thin{fill:none;stroke:currentColor;stroke-width:.8;stroke-linecap:round;opacity:.45}' +
+      '#infoTag .it-txt{fill:none;stroke:currentColor;stroke-linecap:round}' +
+      '#infoPlaque{display:block;position:fixed;z-index:56;left:50%;bottom:calc(var(--safe-b) + var(--bar-h) + var(--s1) - 2px);width:max-content;max-width:calc(100% - 32px);box-sizing:border-box;' +
+      'padding:11px 42px 12px 16px;text-align:left;background:#f8f1e0;color:#2f2a25;border:1px solid rgba(47,42,37,.5);border-radius:2px;' +
+      'box-shadow:inset 0 0 0 2px #f8f1e0,inset 0 0 0 3px rgba(47,42,37,.22),0 6px 16px rgba(60,45,20,.28);' +
+      'opacity:0;visibility:hidden;pointer-events:none;transform:translate(-50%,12px) scale(.86);transform-origin:50% 100%;will-change:transform,opacity;' +
+      'transition:transform 340ms var(--ios),opacity 220ms var(--in),visibility 0s linear 340ms}' +
+      '#infoPlaque.on{opacity:1;visibility:visible;pointer-events:auto;transform:translate(-50%,0) scale(1);transition:transform 560ms var(--spring),opacity 260ms var(--out),visibility 0s}' +
+      '#infoPlaque .ip-t{font:700 16px/1.25 var(--font);letter-spacing:.01em}' +
+      '#infoPlaque .ip-c{margin-top:6px;padding-top:6px;border-top:1px solid rgba(47,42,37,.25);font:600 12.5px/1.35 var(--font);letter-spacing:.02em}' +
+      '#infoPlaque .ip-c:empty{display:none}' +
+      '#infoPlaque .ip-x{position:absolute;top:0;right:0;width:44px;height:44px;padding:0;border:0;background:none;color:#2f2a25;cursor:var(--cp);-webkit-tap-highlight-color:transparent;transition:transform 200ms var(--spring)}' +
+      '#infoPlaque .ip-x:active{transform:scale(.88)}' +
+      '#infoPlaque .ip-x svg{position:absolute;left:14px;top:12px;width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}' +
+      'body.immersive #infoPlaque{opacity:0 !important}' +
+      '@media (prefers-reduced-motion:reduce){' +
+      'html:not([data-motion="on"]) #infoPlaque{transform:translate(-50%,0);transition:opacity 200ms linear,visibility 0s linear 200ms}' +
+      'html:not([data-motion="on"]) #infoPlaque.on{transition:opacity 250ms linear,visibility 0s}' +
+      'html:not([data-motion="on"]) #bottomBar #infoTag{transition:none}}' +
+      '}';
+    document.head.appendChild(css);
+
+    infoBtn = document.createElement('button'); infoBtn.type = 'button'; infoBtn.id = 'infoTag';
+    infoBtn.setAttribute('aria-expanded', 'false'); infoBtn.setAttribute('aria-controls', 'infoPlaque');
+    // бумажная бирка карандашом (как кнопки «Меню» и «Чудо»): срезанные верхние углы, дырочка с петлёй, строки подписи; значок читается как «табличка у экспоната»
+    infoBtn.innerHTML = '<svg viewBox="0 0 44 50" aria-hidden="true">' +
+      '<path class="it-line" d="M22.3 11.2 C17.6 9 17.2 3.8 21.6 3.4 C26.2 3 27.6 7.8 24 10.6"/>' +
+      '<path class="it-fill" d="M13.2 11.8 L30.8 11.5 L37.4 18.3 C37.7 27 37.1 36 37.3 44.1 C27 45.2 16.8 45.1 7.6 44.6 C7.9 35.8 7.2 27 7.5 18.9 Z"/>' +
+      '<path class="it-line" d="M13.2 11.8 L30.8 11.5 L37.4 18.3 C37.7 27 37.1 36 37.3 44.1 C27 45.2 16.8 45.1 7.6 44.6 C7.9 35.8 7.2 27 7.5 18.9 Z"/>' +
+      '<path class="it-thin" d="M15 13.8 L29.4 13.5 M35.6 20 C35.9 28 35.5 35 35.6 41.8"/>' +
+      '<circle class="it-line" cx="22" cy="16.6" r="1.9" stroke-width="1.1" opacity=".75"/>' +
+      '<path class="it-txt" d="M12.4 25.2 Q22 24.4 31.6 25.1" stroke-width="2.6"/>' +
+      '<path class="it-txt" d="M12.4 30.8 Q22 30.2 31.6 30.7" stroke-width="1.4" opacity=".75"/>' +
+      '<path class="it-txt" d="M12.4 35.6 Q20 35.1 27.6 35.5" stroke-width="1.4" opacity=".75"/>' +
+      '<path class="it-txt" d="M12.6 40.2 Q17 39.9 21 40.1" stroke-width="1.2" opacity=".55"/></svg>';
+    bar.insertBefore(infoBtn, document.getElementById('homeBtn'));
+
+    infoPl = document.createElement('div'); infoPl.id = 'infoPlaque'; infoPl.setAttribute('role', 'note');
+    infoT = document.createElement('div'); infoT.className = 'ip-t';
+    infoC = document.createElement('div'); infoC.className = 'ip-c';
+    var x = document.createElement('button'); x.type = 'button'; x.className = 'ip-x';
+    x.innerHTML = '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 7.4 Q16 15 25.2 25 M25 7 Q16.4 15.4 7.2 25.4"/></svg>';
+    infoPl.appendChild(x); infoPl.appendChild(infoT); infoPl.appendChild(infoC);
+    document.body.appendChild(infoPl);
+
+    infoBtn.addEventListener('click', function () { setInfo(!infoOpen); });
+    x.addEventListener('click', function () { setInfo(false); });
+    document.addEventListener('pointerdown', function (e) {   // тап вне таблички и бирки — закрыть (сам жест не блокируем)
+      if (!infoOpen) return;
+      var t = e.target; if (infoPl.contains(t) || infoBtn.contains(t)) return;
+      setInfo(false);
+    }, { capture: true, passive: true });
+  })();
+  function setInfo(v) {
+    if (!infoPl || v === infoOpen) return;
+    if (v && desktopMQ.matches) return;   // на ПК бирки нет
+    infoOpen = v;
+    if (v) { closePopup(); closeSheet(); }
+    infoPl.classList.toggle('on', v); infoBtn.classList.toggle('open', v);
+    infoBtn.setAttribute('aria-expanded', v ? 'true' : 'false');
+    infoKey = '';   // подписи кнопки (открыть/закрыть) обновятся в infoStep
+  }
+  function infoStep(now) {   // из рендер-цикла; DOM трогаем только когда язык, кадр или подпись шоу сменились
+    if (!infoPl) return;
+    if (infoOpen && (desktopMQ.matches || bodyEl.classList.contains('sheet-open') || bodyEl.classList.contains('immersive') || stage.classList.contains('loading'))) setInfo(false);
+    var cc = CAPS && CAPS[frameIndex], c = cc && cc.c ? cc.c : null, k = 'f';
+    var D = window.Details;
+    if (cc && cc.s && D && D.paradeBusy && D.paradeBusy()) {   // идёт показ с подписью шоу: на пике — подпись шоу
+      var p = D.paradeProgress ? D.paradeProgress(now) : -1;
+      if (p >= CAP_SHOW[0] && p <= CAP_SHOW[1]) { c = cc.s; k = 's'; }
+    }
+    var key = currentLang + '|' + frameIndex + '|' + k + '|' + (infoOpen ? 1 : 0);
+    if (key === infoKey) return; infoKey = key;
+    var ti = CONFIG.UI_I18N.title;
+    infoT.textContent = ti ? (ti[currentLang] || ti.en || ti.ru || '') : '';
+    infoC.textContent = c ? (c[currentLang] || c.en || c.ru || '') : '';
+    var w = INFO_WORD[infoOpen ? 'close' : 'open'];
+    infoBtn.setAttribute('aria-label', w[currentLang] || w.en);
+  }
+
   // ---------- рендер-цикл ----------
   var t0 = performance.now();
   var lastNow = null;
@@ -2890,6 +2995,7 @@
     }
 
     if (CAPS) safe('caption', function () { capStep(now); });   // e1.54: подпись кадра (до раннего возврата при открытой карточке точки)
+    safe('info', function () { infoStep(now); });   // e1.55: бирка названия и подписи на телефоне
 
     // --- время суток: день→закат 2.5 с, закат→ночь 3 с (небо, потом земля, с середины по одному окна и фонари 2 с,
     // звёзды последними); обратно — в обратном порядке. Время бежит равномерно, по краям мягко.
