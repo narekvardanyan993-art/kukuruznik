@@ -3,6 +3,7 @@
 // одним и тем же браузером и виртуальным временем (как check_site): A — эталон (движок e1.36 и страница Ленина с main до релиза e1.54),
 // B — кандидат (страница Ленина, собранная сейчас build_live, + рабочий движок engine/). Снимки: день кадры 1–5, ночь кадры 1–5, снег днём на кадре 1.
 // Любой пиксель с разницей больше NOISE_DELTA — отличие; больше NOISE_PX таких пикселей на снимке — КРАСНЫЙ.
+// Интерфейс телефона (нижняя панель, заголовок, подпись, бирка/табличка e1.55) скрыт в обоих снимках — сравниваем только сцену (zv2: UI на телефоне поменяли намеренно).
 // --selftest: дополнительно кандидат с подменённой ночью (в шейдере ночная картинка × 0.8 — так выглядела бы регрессия «матовой ночи»)
 // обязан дать КРАСНЫЙ на ночном снимке; если не дал — проверка сломана (КРАСНЫЙ).
 // Использование: node tools/lenin_look.mjs --a DIR --b DIR [--out DIR] [--shots day-f0,night-f0] [--selftest] [--chrome PATH]
@@ -46,7 +47,7 @@ const INIT = () => {
   window.__seed = (n) => { s = n | 0; };
   Math.random = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
   const st = document.createElement('style');
-  st.textContent = '*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}.p-build,#build-version{visibility:hidden!important}';
+  st.textContent = '*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}.p-build,#build-version,#bottomBar,#barTitle,#frameCap,#infoTag,#infoPlaque{visibility:hidden!important}';
   document.addEventListener('DOMContentLoaded', () => document.head.appendChild(st));
 };
 
