@@ -743,8 +743,8 @@ async function launchBrowsers() {
   // --disable-partial-raster: без него Chrome перерисовывает только изменившуюся часть плитки поверх старой — итог зависит от того, какие
   // промежуточные состояния успели нарисоваться в реальном времени (кольцо флага, скруглённые углы миниатюр «гуляют» на 1–10 из 255).
   const common = ['--disable-features=CanvasNoise', '--disable-partial-raster', '--run-all-compositor-stages-before-draw', '--disable-new-content-rendering-timeout', '--disable-threaded-animation', '--disable-threaded-scrolling', '--disable-checker-imaging', '--disable-image-animation-resync', '--disable-gpu-rasterization', '--hide-scrollbars', '--disable-lcd-text', '--font-render-hinting=none', '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE 127.0.0.1'];   // DOM (панель, точки-подсказки, страницы) растрируется программно; WebGL-холст просмотрщика — на GPU
-  const gl = await puppeteer.launch({ headless: 'new', args: [...chromeArgs, ...common] });
-  const sw = await puppeteer.launch({ headless: 'new', args: ['--disable-gpu', ...common] });
+  const gl = await puppeteer.launch({ headless: 'new', protocolTimeout: 900000, args: [...chromeArgs, ...common] });
+  const sw = await puppeteer.launch({ headless: 'new', protocolTimeout: 900000, args: ['--disable-gpu', ...common] });
   return { gl, sw };
 }
 async function runSite(label, root, targets, outBase, guideRes, guideDir) {
