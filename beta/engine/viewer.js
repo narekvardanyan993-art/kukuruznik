@@ -2310,6 +2310,8 @@
   }
 
   // ---------- точки-подсказки ----------
+  var INSC_Q = (function () { try { var m = /[?&]n=([a-z0-9-]{2,40})/i.exec(location.search); return m ? m[1].toLowerCase() : null; } catch (e) { return null; } })();
+  var inscWant = INSC_Q && CONFIG.INSCR && CONFIG.INSCR[INSC_Q] != null ? CONFIG.INSCR[INSC_Q] : null;   // e1.60 личная ссылка ?n=<id>: кадр надписи + открытая подсказка
   var hotspotsEl = document.getElementById('hotspots');
   var hsPopup = document.getElementById('hsPopup');
   var activeHotspots = []; // [{el, hs, d, k}] для текущего кадра
@@ -2370,7 +2372,7 @@
     (HS[frameIdx] || []).forEach(function (hs) {
       var btn = document.createElement('button');   // e1.15: только точки как у живого Кукурузника; «обводка» с номерами (e1.13) удалена из движка
       btn.type = 'button';
-      btn.className = 'hs-dot';
+      btn.className = 'hs-dot' + (hs.insc ? ' hs-insc' : '');   // e1.60: точка купленной надписи
       btn.setAttribute('aria-label', (CONFIG.I18N[hs.key] && CONFIG.I18N[hs.key][currentLang]) || hs.key);
       btn.addEventListener('pointerdown', function (e) { lastPointerType = e.pointerType; });
       btn.addEventListener('click', function (e) {
@@ -2392,6 +2394,13 @@
     requestAnimationFrame(function () {
       activeHotspots.forEach(function (a) { a.el.classList.add('show'); });
     });
+    if (inscWant != null) {   // e1.60: личная ссылка — сначала на кадр надписи, там открыть её подсказку
+      if (frameIdx !== inscWant) { var tgtF = inscWant; setTimeout(function () { if (inscWant === tgtF && frameIndex !== tgtF) goTo(tgtF); }, 700); }
+      else {
+        var ia = activeHotspots.filter(function (x) { return x.hs.key === 'insc:' + INSC_Q; })[0];
+        if (ia) { inscWant = null; ia.el.classList.add('insc-me'); setTimeout(function () { openPopup(ia.hs, ia.el); }, 900); }
+      }
+    }
   }
 
   function hideHotspots() {
