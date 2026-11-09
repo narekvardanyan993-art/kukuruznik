@@ -185,7 +185,7 @@ def road_coverage(am, presets_lane=None):
 def validate(bdir, b, site):
     c = Checker(bdir, site)
     if not c.obj(b, 'файл', required=('format', 'id', 'meta', 'app', 'links', 'framesDir', 'text', 'facts', 'aboutFacts',
-                                      'postcardFile', 'look', 'frames'), optional=('tuning', 'live', 'card', 'postcard')):
+                                      'postcardFile', 'look', 'frames'), optional=('tuning', 'live', 'card', 'postcard', 'sale')):
         return c.errors
     if b['format'] != 1:
         c.err('format', 'неизвестный формат %r (нужен 1)' % (b['format'],))
@@ -223,6 +223,16 @@ def validate(bdir, b, site):
     if c.string(b['postcardFile'], 'postcardFile') and not b['postcardFile'].endswith('.png'):
         c.err('postcardFile', 'имя файла открытки должно оканчиваться на .png')
     # открытка «в сторис» (e1.27, s26): музейная табличка — название, годы, адрес chka.am/<здание>; без блока — название из панели
+    if 'sale' in b:   # e1.57: «Оставить надпись» — ссылка покупки места и счётчик
+        sl = c.obj(b['sale'], 'sale', required=('url', 'total', 'left'), optional=('note',))
+        if sl:
+            if c.string(sl['url'], 'sale.url') and not (sl['url'].startswith('/') or sl['url'].startswith('https://')):
+                c.err('sale.url', 'ссылка — путь сайта (/buy/) или https://, а не %r' % sl['url'])
+            for k in ('total', 'left'):
+                if not isinstance(sl[k], int) or isinstance(sl[k], bool) or sl[k] < 0:
+                    c.err('sale.' + k, 'целое число ≥ 0, а не %r' % (sl[k],))
+            if isinstance(sl['total'], int) and isinstance(sl['left'], int) and sl['left'] > sl['total']:
+                c.err('sale.left', 'мест осталось больше, чем всего (%d > %d)' % (sl['left'], sl['total']))
     if 'postcard' in b:
         pc = c.obj(b['postcard'], 'postcard', required=('name', 'years', 'url'), optional=('no', 'show', 'fact'))
         if pc:
