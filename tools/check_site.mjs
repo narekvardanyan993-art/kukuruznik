@@ -198,6 +198,12 @@ function checkPreviewImages(root, head) {
 const INIT_SCRIPT = () => {
   let vt = 10000, q = [];
   window.__mvFreeze = true;   // e1.14: видео синемаграфа стоит на первом кадре — снимки повторяемы
+  // 09.11.2026: живые места из Veo (actors[].video, e1.49+) играли по РЕАЛЬНОМУ времени — две копии одного здания снимались
+  // в разных фазах ролика (собака лежит / сидит) → ложное «отличается» у Погос-Петроса. На страницах с подменённым временем
+  // любое <video> стоит на первом кадре: play() = пауза + перемотка в 0. Замер fps (страницы без подмены) это не трогает.
+  const vplay = HTMLMediaElement.prototype.play;
+  HTMLMediaElement.prototype.play = function () { try { this.pause(); if (this.currentTime) this.currentTime = 0; } catch (e) {} return Promise.resolve(); };
+  window.__realVideoPlay = vplay;
   performance.now = () => vt;
   window.requestAnimationFrame = (cb) => { q.push(cb); return q.length; };
   window.cancelAnimationFrame = () => {};
