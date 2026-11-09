@@ -1,0 +1,49 @@
+# Проверка сайта на серверах GitHub вместо Mac. Подробности: tools/ci_publish.mjs, tools/publish_beta.py (push_main).
+# Пуш в ветку publish/** (его делает tools/publish_*.py с CHKA_CI=1) → проверка → зелёная: коммит уходит в main
+# (обычный пуш, без --force) и сайт пересобирается; красная: main не трогается, отчёт — в артефакте запуска.
+name: publish-check
+on:
+  push:
+    branches: ['publish/**']
+  workflow_dispatch: {}
+permissions:
+  contents: write
+  pages: write
+concurrency:
+  group: publish
+  cancel-in-progress: false
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      SITE: ${{ github.workspace }}/site
+      CAND: ${{ github.workspace }}/cand
+    steps:
+      - name: Проверка (ветка test/depth-photo)
+        uses: actions/checkout@v4
+        with: { ref: test/depth-photo, fetch-depth: 0, path: site, persist-credentials: false }
+      - name: Кандидат
+        if: github.event_name == 'push'
+        uses: actions/checkout@v4
+        with: { ref: '${{ github.sha }}', fetch-depth: 2, path: cand }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: site/package-lock.json }
+      - name: Зависимости и Chrome
+        working-directory: site
+        run: npm ci
+      - name: Проверка сайта
+        run: node site/tools/ci_publish.mjs ${{ github.event_name == 'push' && ' ' || '--self' }}
+      - name: Зелёная → main
+        if: github.event_name == 'push'
+        working-directory: cand
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          git push origin HEAD:main
+          gh api -X POST "repos/${{ github.repository }}/pages/builds" || echo "сборку Pages запросить не удалось — пересоберётся сама"
+          git push origin --delete "${GITHUB_REF#refs/heads/}" || true
+          echo "### 🚀 опубликовано: https://chka.am/" >> "$GITHUB_STEP_SUMMARY"
+      - name: Отчёт
+        if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: check-report, path: /tmp/chka-check, if-no-files-found: ignore, retention-days: 14 }
