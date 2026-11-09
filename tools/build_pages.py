@@ -897,7 +897,7 @@ def _about_label(src, root=None):
     return out if all(out.get(l) for l in LANGS) else dict(ABOUT_DEFAULT)
 
 
-def card_markup(slug, image, eyebrow, title, meta, about, no=None, hall='I', base=None):
+def card_markup(slug, image, eyebrow, title, meta, about, no=None, hall='I', base=None, sale=None):
     """Разметка живой карточки главной (<li class="card">…</li>); одна на все здания, чтобы карточки не расходились.
     s43: вся карточка — ОДНА наклейка с вырубкой (.card-in.sticker, стили — assets/hub-museum.css, блок «наклейка»): внутри
     всё про здание — «Зал · Экспонат №» и инв. номер, обложка, годы, название, место, обе кнопки; снаружи ничего."""
@@ -921,12 +921,17 @@ def card_markup(slug, image, eyebrow, title, meta, about, no=None, hall='I', bas
         '              <a class="btn btn-3d" href="%s/" data-transition>%s<span>%s</span></a>' % (e(pre), CUBE_ICON, _i18n_spans(VIEW_3D_WORD)),
         '              <a class="btn btn-ghost btn-about" href="%s/about.html">%s<span>%s</span></a>' % (e(pre), PAGE_ICON, _i18n_spans(about)),
         '            </div>',
+    ] + ([   # e1.58: «Оставить надпись» — у здания с продажей мест (building.json sale)
+        '            <a class="card-sale" href="%s">%s<span>%s</span></a>' % (e(sale['url']), CARVE_ICON, _i18n_spans({l: SALE_WORD[l] % (sale['left'], sale['total']) for l in LANGS}))
+    ] if sale and sale.get('left', 0) > 0 else []) + [
         '          </div>',
         '        </div>',
         '      </li>']
     return lines
 
 
+SALE_WORD = {'hy': 'Թողնել քո անունը · մնաց %d/%d', 'ru': 'Оставить надпись · осталось %d из %d', 'en': 'Leave your name · %d of %d left'}
+CARVE_ICON = '<svg class="carve-i" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.4 25.6 Q9.6 21.2 13.8 16.9"/><path d="M12.2 15.3 L19.6 7.8 Q21.4 6.2 23.4 7.4 Q25.2 9.1 23.8 11 L16.4 18.6 Z"/><path d="M6.2 28.2 Q15.8 27.6 26.6 28.3"/></svg>'
 HALL_WORD = {'hy': 'Սրահ %s', 'ru': 'Зал %s', 'en': 'Room %s'}   # s43: зал экспоната — на самой наклейке
 EXHIBIT_WORD = {'hy': 'Ցուցանմուշ № %03d', 'ru': 'Экспонат № %03d', 'en': 'Exhibit No. %03d'}   # этикетка марки (s39): номер = postcard.no
 
@@ -943,7 +948,7 @@ def render_card(slug, root=None):
         raise SystemExit('СТОП: в %s/building.json нет блока card (карточка главной)' % src)
     no = (b.get('postcard') or {}).get('no')
     lines = ['      <!-- card:%s — собирается из %s/building.json (card, postcard.no), руками не править -->' % (slug, src)]
-    lines += card_markup(slug, cd['image'], cd['eyebrow'], cd.get('title') or b['text']['title'], cd['meta'], _about_label(src, root), no)
+    lines += card_markup(slug, cd['image'], cd['eyebrow'], cd.get('title') or b['text']['title'], cd['meta'], _about_label(src, root), no, sale=b.get('sale'))
     lines.append('      <!-- /card:%s -->' % slug)
     return '\n'.join(lines)
 
