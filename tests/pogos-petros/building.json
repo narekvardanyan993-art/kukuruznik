@@ -545,6 +545,30 @@
             "wx": "snow",
             "fade": 0.6,
             "note": "в снег старик поднял воротник, руки в карманах, голубей нет (правка Gemini Pro jex41d)"
+          },
+          {
+            "rect": [
+              0.26042,
+              0.66007,
+              0.60026,
+              0.86007
+            ],
+            "video": "vid_a_old_rain.mp4",
+            "mask": "vid_a_old_rain_mask.png",
+            "wx": "rain",
+            "note": "e1.56 дождь: старик живой под газетой — Veo 02f061d2 (in_oldman_rain), петля 9 с; поверх картинки show_wx_a_rain.png (wx20.py)"
+          },
+          {
+            "rect": [
+              0.26042,
+              0.66007,
+              0.60026,
+              0.86007
+            ],
+            "video": "vid_a_old_snow.mp4",
+            "mask": "vid_a_old_snow_mask.png",
+            "wx": "snow",
+            "note": "e1.56 снег: старик в воротнике, пар изо рта, кормит голубей крошками — Veo 7f5c8b13 (in_oldman_snow), петля 9 с (wx20.py)"
           }
         ]
       },
@@ -817,6 +841,22 @@
               0.7,
               0.84
             ],
+            "video": "vid_b_dog_butterfly.mp4",
+            "mask": "vid_b_dog_butterfly_mask.png",
+            "hours": [
+              11,
+              19
+            ],
+            "set": "dog",
+            "note": "e1.56 день (11–19): бабочка, собака вскакивает, играет, ложится в исходную позу — Veo 2dce1c49 (fix18.py clip … butterfly); чередуется с day/day2"
+          },
+          {
+            "rect": [
+              0.4,
+              0.68,
+              0.7,
+              0.84
+            ],
             "video": "vid_b_dog_night.mp4",
             "mask": "vid_b_dog_night_mask.png",
             "hours": [
@@ -864,6 +904,18 @@
             "wx": true,
             "fade": 0.6,
             "note": "в дождь/снег собака в будке у стены (правка Gemini Pro)"
+          },
+          {
+            "rect": [
+              0.39974,
+              0.67619,
+              0.72005,
+              0.84029
+            ],
+            "video": "vid_b_dog_kennel.mp4",
+            "mask": "vid_b_dog_kennel_mask.png",
+            "wx": true,
+            "note": "e1.56 дождь/снег: собака в будке дышит, выглядывает, тонкий пар — Veo 52b18094 (in_dog_kennel), петля 9 с (wx20.py)"
           }
         ],
         "tone": {
@@ -1832,6 +1884,18 @@
             "wx": true,
             "fade": 0.6,
             "note": "в дождь/снег пара под зонтом (правка Gemini Pro)"
+          },
+          {
+            "rect": [
+              0.04036,
+              0.66886,
+              0.4401,
+              0.87692
+            ],
+            "video": "vid_f_pair_umbrella.mp4",
+            "mask": "vid_f_pair_umbrella_mask.png",
+            "wx": true,
+            "note": "e1.56 дождь/снег: пара под зонтом разговаривает — Veo 187e8dea (in_pair_umbrella), петля 9 с (wx20.py)"
           }
         ]
       },
