@@ -168,6 +168,19 @@ def deep_merge(base, over):
 DAY_KEYS = {'skyTop': 'SKY_TOP', 'skyHor': 'SKY_HOR', 'mix': 'MIX', 'greenHue': 'GREEN_HUE', 'greenPull': 'GREEN_PULL', 'greenSat': 'GREEN_SAT'}
 
 
+def analytics_snippet():
+    """Статистика посещений Cloudflare Web Analytics (без cookie): tools/analytics.json {"cloudflare_token": "…"}. Нет файла/токена — пустая строка,
+    страницы побайтно те же. Тот же сниппет на статических страницах (главная, about/history, 404) ставит tools/site_analytics.py."""
+    p = ROOT / 'tools' / 'analytics.json'
+    try:
+        tok = json.loads(p.read_text(encoding='utf-8')).get('cloudflare_token', '').strip()
+    except (OSError, ValueError):
+        return ''
+    if not re.fullmatch(r'[0-9a-f]{32}', tok):
+        return ''
+    return "<script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{\"token\": \"%s\"}'></script>" % tok
+
+
 def make_config(b, frames_url, stamp=None):
     """CONFIG для просмотрщика: движок (engine/config.json) + здание (building.json). Всё про здание — отсюда, в коде движка его нет.
     stamp — функция адрес -> адрес со ?v=<хэш файла> (s24): ею проходят адреса кадров, масок снега/качания/фигур и маски синемаграфа;
@@ -383,6 +396,7 @@ def render(b, bdir, page_dir, engine_dir, beta, version=None, own_frames=False, 
     esc = lambda s: html.escape(s, quote=True)
     rep = {
         '{{HEAD}}': make_head(b, bdir, page_dir, beta, version),
+        '{{ANALYTICS}}': analytics_snippet(),   # статистика посещений (tools/analytics.json; пусто — ничего)
         '{{TITLE}}': esc(b['meta']['title']['hy']),
         '{{CONFIG}}': js,
         '{{E}}': rel(page_dir, engine_dir),
