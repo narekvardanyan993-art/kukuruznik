@@ -32,6 +32,8 @@ jobs:
       - name: Зависимости и Chrome
         working-directory: site
         run: npm ci
+      - name: Песочница Chrome (Ubuntu 24.04 запрещает user namespaces)
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - name: Проверка сайта
         run: node site/tools/ci_publish.mjs ${{ github.event_name == 'push' && ' ' || '--self' }}
       - name: Зелёная → main
