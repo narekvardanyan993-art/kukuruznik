@@ -106,6 +106,10 @@ def build_beta(main_dir):
     return build_pages.build_beta(main_dir)
 
 
+CI_MODE = os.environ.get('CHKA_CI') == '1'   # проверка в GitHub Actions вместо этого Mac
+CI_ARGS = None
+
+
 def run_check(candidate, expect_change=False, strict=False, allow_extra=(), only=(), allow_only=None, twins=True):
     """Запускает tools/check_site.mjs: origin/main против собранного кандидата. True — зелёная проверка.
     strict — ни одна цель не может отличаться (publish_engine, publish_kukuruznik): даже бета обязана совпасть с сайтом;
@@ -129,12 +133,37 @@ def run_check(candidate, expect_change=False, strict=False, allow_extra=(), only
         cmd += ['--only', ','.join(only)]
     if os.environ.get('CHKA_CHECK_RENDERER'):
         cmd += ['--renderer', os.environ['CHKA_CHECK_RENDERER']]
+    if CI_MODE:   # проверка не здесь, а в GitHub Actions (.github/workflows/publish-check.yml) — те же параметры, тот же строгий порог
+        global CI_ARGS
+        CI_ARGS = cmd[4:]   # без node, пути к скрипту и --candidate DIR
+        print('проверка уйдёт в GitHub Actions: ' + ' '.join(CI_ARGS))
+        return True
     print('проверка: ' + ' '.join(cmd[1:]))
     r = subprocess.run(cmd, cwd=str(ROOT))
     if r.returncode == 0:
         return True
     print('\nПРОВЕРКА %s (код %d).' % ('КРАСНАЯ' if r.returncode == 1 else 'НЕ СМОГЛА ОТРАБОТАТЬ', r.returncode))
     return False
+
+
+def push_main(tmp, message):
+    """Коммит в временном worktree и отправка. Обычный режим — пуш в main.
+    CHKA_CI=1 и проверка была нужна — пуш не в main, а в ветку publish/<время>: GitHub Actions прогоняет
+    tools/check_site.mjs с теми же параметрами (строка Check-Args в сообщении коммита) и сам переносит коммит в main,
+    только если проверка зелёная. Mac можно выключить сразу после пуша."""
+    import json, time
+    if CI_ARGS is None:
+        git(tmp, 'commit', '-m', message)
+        head = git(tmp, 'rev-parse', 'HEAD')
+        git(tmp, 'push', REMOTE, 'HEAD:%s' % BRANCH)
+        return head
+    git(tmp, 'commit', '-m', message + '\n\nCheck-Args: ' + json.dumps(CI_ARGS, ensure_ascii=False))
+    head = git(tmp, 'rev-parse', 'HEAD')
+    ref = 'publish/%s-%s' % (time.strftime('%Y%m%d-%H%M%S'), head[:7])
+    git(tmp, 'push', REMOTE, 'HEAD:refs/heads/%s' % ref)
+    print('ОТПРАВЛЕНО НА ПРОВЕРКУ в GitHub: ветка %s (коммит %s).' % (ref, head[:7]))
+    print('main пока НЕ изменён: GitHub сам обновит сайт, если проверка зелёная (статус: вкладка Actions репозитория).')
+    return head
 
 
 def remove_worktree(tmp):
@@ -206,10 +235,9 @@ def main():
             print('[dry-run] ничего не закоммичено и не отправлено')
             return
 
-        git(tmp, 'commit', '-m', message)
-        head = git(tmp, 'rev-parse', 'HEAD')
-        git(tmp, 'push', REMOTE, 'HEAD:%s' % BRANCH)
-        print('запушено в %s/%s: %s' % (REMOTE, BRANCH, head[:7]))
+        head = push_main(tmp, message)
+        if CI_ARGS is None:
+            print('запушено в %s/%s: %s' % (REMOTE, BRANCH, head[:7]))
     finally:
         remove_worktree(tmp)
         print('%sвременный worktree удалён' % tag)

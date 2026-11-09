@@ -178,9 +178,9 @@ def main():
         if args.dry_run:
             print('[dry-run] СДЕЛАЛ БЫ: git commit -m "%s" + git push %s HEAD:%s (без --force); ничего не отправлено' % (message, pb.REMOTE, pb.BRANCH))
             return
-        pb.git(tmp, 'commit', '-m', message)
-        head = pb.git(tmp, 'rev-parse', 'HEAD')
-        pb.git(tmp, 'push', pb.REMOTE, 'HEAD:%s' % pb.BRANCH)
+        head = pb.push_main(tmp, message)
+        if pb.CI_ARGS is not None:
+            return
         print('запушено в %s/%s: %s' % (pb.REMOTE, pb.BRANCH, head[:7]))
         print('откат одним коммитом: git revert %s (из временного worktree main, затем пуш)' % head[:7])
     finally:
