@@ -604,7 +604,7 @@ def validate(bdir, b, site):
                             if not (isinstance(ao.get('mask'), str) and ao['mask'].startswith('vid_') and ao['mask'].endswith('_mask.png')):
                                 c.err(wa + '.mask', 'у видео нужна маска vid_*_mask.png')
                             continue
-                        if 'wx' in ao and ao['wx'] not in (True, False, 'rain', 'snow'):   # e1.50: своя версия для дождя / снега
+                        if 'wx' in ao and ao['wx'] not in (True, False, 'rain', 'snow', 'after'):   # e1.50: своя версия для дождя / снега
                             c.err(wa + '.wx', 'true, false, "rain" или "snow"')
                         if not (isinstance(ao.get('srcs'), list) and ao['srcs'] and all(s is None or (isinstance(s, str) and s.startswith('show_') and s.endswith('.png')) for s in ao.get('srcs') or [])):
                             c.err(wa + '.srcs', 'список картинок show_*.png (null — поза самого рисунка)')

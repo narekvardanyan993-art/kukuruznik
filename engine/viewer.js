@@ -1366,6 +1366,10 @@
     if (wk !== st.wxK) { st.wxK = wk; st.dirty = true; }
     var wS = typeof wx !== 'undefined' ? Math.round(sstep(0.04, 0.6, wx.cur[3]) * 20) / 20 : 0, wR = typeof wx !== 'undefined' ? Math.round(sstep(0.04, 0.6, wx.cur[2]) * (1 - wS) * 20) / 20 : 0;   // e1.50: снег важнее дождя
     if (wS !== st.wxS || wR !== st.wxR) { st.wxS = wS; st.wxR = wR; st.dirty = true; }
+    var rawR = typeof wx !== 'undefined' ? sstep(0.04, 0.6, wx.cur[2]) * (1 - sstep(0.04, 0.6, wx.cur[3])) : 0;   // e1.59 РАДУГА: после дождя (wx "after")
+    st.rainMem = Math.max(rawR, (st.rainMem || 0) - (st.lastT ? Math.min(0.25, now / 1000 - st.lastT) : 0) / 50);   // память дождя гаснет за ~50 с
+    var wA = Math.round(clamp((st.rainMem - rawR) * 2.2, 0, 1) * clamp(st.rainMem * 1.6, 0, 1) * 20) / 20;
+    if (wA !== st.wxA) { st.wxA = wA; st.dirty = true; }
     var dtS = st.lastT ? Math.min(0.25, t - st.lastT) : 0; st.lastT = t;
     if (!st.gcT || now - st.gcT > 500) { st.gcT = now; vidsGc(now); }
     if (st.sets) { st.actors.forEach(function (A) { if (A.cfg.set) A.seen = now; }); setsStep(st, now, dtS, wxRaw, still, !!(f.showv && f.showv.on && f.showv.overlap)); }   // e1.53 наборы
@@ -1373,7 +1377,7 @@
       if (!A.vid) return;
       A.seen = now;
       if (A.cfg.set && st.sets) return;   // e1.53: набор — в setsStep
-      var wxv = A.cfg.wx ? (A.cfg.wx === 'rain' ? st.wxR : (A.cfg.wx === 'snow' ? st.wxS : st.wxK)) : 1 - wxRaw;   // e1.56: видео-версия непогоды (actors[].video + wx) — живёт в дождь/снег, в ясную гаснет
+      var wxv = A.cfg.wx ? (A.cfg.wx === 'after' ? st.wxA : (A.cfg.wx === 'rain' ? st.wxR : (A.cfg.wx === 'snow' ? st.wxS : st.wxK))) : 1 - wxRaw;   // e1.56: видео-версия непогоды (actors[].video + wx) — живёт в дождь/снег, в ясную гаснет
       var tgt = A.vbad ? 0 : (1 - sstep(0.06, 0.4, tod.night)) * wxv * (still ? 0 : 1) * (hourIn(A.cfg.hours, now) ? 1 : 0) * (1 - tod.sun), pv = A.vv;   // e1.52: часы зрителя; на закате — закатный рисунок
       A.vv = dtS > 0 ? A.vv + (tgt - A.vv) * Math.min(1, dtS / 0.6) : tgt; if (Math.abs(A.vv - tgt) < 0.01) A.vv = tgt;
       if (Math.abs(A.vv - pv) > 0.004) st.dirty = true;
@@ -1406,7 +1410,7 @@
     var acc = new Float32Array(n * 4), ordA = st.actors.filter(function (A) { return !A.cfg.wx && !A.vid; }).concat(st.actors.filter(function (A) { return A.vid && !A.cfg.wx; }).sort(function (a, b) { return (a.zi || 0) - (b.zi || 0); }), st.actors.filter(function (A) { return A.cfg.wx && !A.vid; }), st.actors.filter(function (A) { return A.cfg.wx && A.vid; }));   // e1.56: видео непогоды — поверх своей картинки   // e1.49; e1.53: прежний ролик набора — под текущим
     for (i = 0; i < n; i++) { acc[i * 4] = b[i * 4]; acc[i * 4 + 1] = b[i * 4 + 1]; acc[i * 4 + 2] = b[i * 4 + 2]; acc[i * 4 + 3] = b[i * 4 + 3]; }
     ordA.forEach(function (A) {
-      var c = A.cfg, vis = (c.set && st.tone ? 1 : 1 - st.nightK) * (c.wx ?   /* e1.53: с тоном набор и ночью (альфа слоя здания) */ (c.wx === 'rain' ? st.wxR : (c.wx === 'snow' ? st.wxS : st.wxK)) : (st.hasWx ? 1 - st.wxK : 1)); if (vis <= 0) return;   // e1.50: wx "rain" / "snow" — своя версия   // e1.49: погодная версия — в непогоду, остальные актёры — в ясную
+      var c = A.cfg, vis = (c.set && st.tone ? 1 : 1 - st.nightK) * (c.wx ?   /* e1.53: с тоном набор и ночью (альфа слоя здания) */ (c.wx === 'after' ? st.wxA : (c.wx === 'rain' ? st.wxR : (c.wx === 'snow' ? st.wxS : st.wxK))) : (st.hasWx ? 1 - st.wxK : 1)); if (vis <= 0) return;   // e1.50: wx "rain" / "snow" — своя версия   // e1.49: погодная версия — в непогоду, остальные актёры — в ясную
       if (A.vid) {   // e1.49: кадр видео по маске
         var vdd = A.vdata, vm = A.vmask, k2 = A.vv * (c.wx ? 1 : (st.hasWx ? 1 - st.wxK : 1)); if (!vdd || !vm || k2 <= 0.003) return;   // e1.56: у видео непогоды своя видимость (vv)
         var vb = A.box, vw = vb[2] - vb[0];
