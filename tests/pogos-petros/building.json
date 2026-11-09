@@ -1947,17 +1947,5 @@
     "total": 8,
     "left": 8,
     "note": "e1.57: продажа мест под надписи (Polar, org Chka). После каждой продажи — left минус 1 и publish_building"
-  },
-  "inscriptions": [
-    {
-      "id": "test-b1",
-      "frame": "pogos_b",
-      "u": 0.2604,
-      "v": 0.8385,
-      "layer": "building",
-      "text": "TEST",
-      "year": 2026,
-      "note": "временная проверка ?n= — убрать до живого"
-    }
-  ]
+  }
 }

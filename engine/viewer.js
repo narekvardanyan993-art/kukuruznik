@@ -2346,7 +2346,7 @@
     var a = activeHotspots.filter(function (x) { return x.el === dotEl; })[0];
     if (a) placePopup(a);
     hsPopup.classList.add('show');
-    stage.classList.add('reading');
+    if (!hs.insc) stage.classList.add('reading');   // e1.60: у надписи фон не размывается — её же и смотрят
   }
 
   hsBack.addEventListener('click', closePopup);
