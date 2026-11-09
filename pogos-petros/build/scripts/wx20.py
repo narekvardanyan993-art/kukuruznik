@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Заход 20 (e1.56): живые версии непогоды — видео Veo вместо картинок show_wx_*.png.
-wx20.py <кадр a|b|f> <in.png> <clip.mp4> <u0,v0,u1,v1> <wx-картинка> <имя>  → tests/pogos-petros/frames/vid_<имя>.mp4/.webm/_mask.png
+wx20.py <кадр a|b|f> <in.png> <clip.mp4> <u0,v0,u1,v1> <wx-картинка> <имя> [--win x0,y0,кадр_px_на_px_in]  → tests/pogos-petros/frames/vid_<имя>.mp4/.webm/_mask.png
 in.png — ТОЧНО та картинка, что ушла в Veo (окно кадра с вклеенной погодной правкой). Окно ищется в кадре (кадр + wx-картинка в rect),
 видео совмещается с in.png (масштаб + ECC), кусок rect ×2, петля (кроссфейд конца с началом), маска «движется или отличается от погодной картинки».
 Повторный запуск даёт тот же результат."""
@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent)); import fix15, fix17, fix18
 R = Path('.'); FR = R / 'tests/pogos-petros/frames'
 REP = R / 'pogos-petros/build/report/s20'; REP.mkdir(parents=True, exist_ok=True); fix17.REP = REP; fix15.REP = REP; fix18.REP = REP
 
-def main(fr, inp, mp4, rect, wxpng, nm, scale=2.0, xfade=1.0):
+def main(fr, inp, mp4, rect, wxpng, nm, scale=2.0, xfade=1.0, win=None):
     B = Image.open(FR / ('pogos_%s.webp' % fr)).convert('RGB'); FW, FH = B.size
     u0, v0, u1, v1 = rect; px0, py0, px1, py1 = int(round(u0 * FW)), int(round(v0 * FH)), int(round(u1 * FW)), int(round(v1 * FH))
     w = Image.open(FR / wxpng).convert('RGBA').resize((px1 - px0, py1 - py0), Image.LANCZOS); C = B.copy(); C.paste(w, (px0, py0), w); comp = np.array(C)
@@ -25,6 +25,7 @@ def main(fr, inp, mp4, rect, wxpng, nm, scale=2.0, xfade=1.0):
         r = cv2.matchTemplate(g, t, cv2.TM_CCOEFF_NORMED); _, mv, _, ml = cv2.minMaxLoc(r)
         if mv > best[0]: best = (mv, (sc, ml[0], ml[1]))
     tmw, (sc, wx0, wy0) = best
+    if win: wx0, wy0, sc = int(win[0]), int(win[1]), float(win[2]); tmw = -1.0   # окно задано явно (in.png со снегом вокруг — шаблон не находится)
     # rect ∩ окно
     ix0, iy0, ix1, iy1 = max(px0, wx0 + 2), max(py0, wy0 + 2), min(px1, wx0 + int(iw * sc) - 2), min(py1, wy0 + int(ih * sc) - 2)
     vf, fps = fix15.vframes(mp4); tm, cc, W = fix15.locate(vf[0], I)
@@ -44,4 +45,5 @@ def main(fr, inp, mp4, rect, wxpng, nm, scale=2.0, xfade=1.0):
     fix18.finish(loop, fps, rr, rep, nm, maxkb=600)
 
 if __name__ == '__main__':
-    a = sys.argv[1:]; main(a[0], a[1], a[2], list(map(float, a[3].split(','))), a[4], a[5])
+    a = sys.argv[1:]; w = list(map(float, a[a.index('--win') + 1].split(','))) if '--win' in a else None
+    main(a[0], a[1], a[2], list(map(float, a[3].split(','))), a[4], a[5], win=w)
