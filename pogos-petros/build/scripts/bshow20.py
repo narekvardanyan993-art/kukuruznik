@@ -4,7 +4,7 @@
 проявляется спящей (= первый кадр ролика = рисунок). Остальной ролик не меняется. Оригинал: chka-kitchen/zhivost-v2/orig/vid_b_show.orig.mp4/.webm."""
 import subprocess, shutil, numpy as np, cv2
 from pathlib import Path
-FR = Path('tests/pogos-petros/frames'); SRC = Path.home() / 'Documents/chka-kitchen/zhivost-v2/orig/vid_b_show.orig.mp4'   # оригинал (до захода 20) — на кухне, вне git
+FR = Path('tests/pogos-petros/frames'); SRC = next(p for p in (Path.home() / 'Documents/chka-kitchen', Path.home() / 'mnt/chka-kitchen') if p.exists()) / 'zhivost-v2/orig/vid_b_show.orig.mp4'   # оригинал (до захода 20) — на кухне, вне git
 cap = cv2.VideoCapture(str(SRC)); fps = cap.get(5); n = int(cap.get(7)); W = int(cap.get(3)); H = int(cap.get(4))
 head = []
 for i in range(int(2.0 * fps) + 1):
