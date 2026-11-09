@@ -233,6 +233,8 @@ def make_config(b, frames_url, stamp=None):
     ui = dict(C['UI_I18N'])
     ui.update(b['text'])
     C['UI_I18N'] = ui
+    if b.get('sale'):   # e1.57: «Оставить надпись» — ссылка покупки места и счётчик мест (только если задано у здания)
+        C['SALE'] = b['sale']
     if b.get('tuning'):
         deep_merge(C, b['tuning'])   # здание переопределяет любые числа движка (в том числе LOOK — внешний вид)
     return C

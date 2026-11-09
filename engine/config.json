@@ -104,6 +104,21 @@
  "PERF_MIN_FPS": 45,
  "FALLBACK_LAYER_K": 0.6,
  "UI_I18N": {
+  "sale": {
+   "hy": "Թողնել քո անունը",
+   "ru": "Оставить надпись",
+   "en": "Leave your name"
+  },
+  "saleLeft": {
+   "hy": "մնաց {n} տեղ {t}-ից",
+   "ru": "осталось {n} из {t}",
+   "en": "{n} of {t} left"
+  },
+  "saleNone": {
+   "hy": "տեղեր չկան",
+   "ru": "мест нет",
+   "en": "sold out"
+  },
   "home": {
    "ru": "На главную",
    "en": "Home",

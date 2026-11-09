@@ -1927,5 +1927,11 @@
       },
       "nightWins": false
     }
-  ]
+  ],
+  "sale": {
+    "url": "/buy/",
+    "total": 8,
+    "left": 8,
+    "note": "e1.57: продажа мест под надписи (Polar, org Chka). После каждой продажи — left минус 1 и publish_building"
+  }
 }

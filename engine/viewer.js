@@ -94,6 +94,14 @@
 
   function setI18n(el, key) { el.textContent = CONFIG.UI_I18N[key][currentLang]; }
 
+  function saleUpd() {   // e1.57 «Оставить надпись»: CONFIG.SALE {url, total, left} — кнопка в меню, ведёт на страницу покупки (chka.am/buy), счётчик мест
+    var S = CONFIG.SALE, sec = document.getElementById('pSale'), a = document.getElementById('saleBtn'), sm = document.getElementById('saleLeft');
+    if (!S || !sec || !a || !sm) return;
+    var t = CONFIG.UI_I18N, n = Math.max(0, S.left | 0), tot = S.total | 0;
+    sec.hidden = false; a.href = S.url || '/buy/';
+    sm.textContent = n > 0 ? t.saleLeft[currentLang].replace('{n}', n).replace('{t}', tot) : t.saleNone[currentLang];
+    a.classList.toggle('off', n <= 0);
+  }
   var wl = null;   // приветствие + загрузка (компонент test-assets/welcome-loader.js) — создаётся ниже, сразу
   function applyLang() {
     var t = CONFIG.UI_I18N;
@@ -109,6 +117,7 @@
       if (t[key]) { el.setAttribute('aria-label', t[key][currentLang]); el.title = t[key][currentLang]; }
     });
     if (wl) wl.setLang(currentLang);
+    saleUpd();   // e1.57: счётчик мест «Оставить надпись» — на языке страницы
     panelBtn.setAttribute('aria-label', t.menu[currentLang]);
     // e1.9: короткие общепонятные слова на бирках-кнопках телефона (меню, праздник/стоп); aria-label остаётся полным из I18N
     var BTN_WORD = { menu: { hy: 'Մենյու', ru: 'Меню', en: 'Menu' }, show: { hy: 'Հրաշք', ru: 'Чудо', en: 'Magic' }, stop: { hy: 'Կանգ', ru: 'Стоп', en: 'Stop' } };
