@@ -185,7 +185,7 @@ def road_coverage(am, presets_lane=None):
 def validate(bdir, b, site):
     c = Checker(bdir, site)
     if not c.obj(b, 'файл', required=('format', 'id', 'meta', 'app', 'links', 'framesDir', 'text', 'facts', 'aboutFacts',
-                                      'postcardFile', 'look', 'frames'), optional=('tuning', 'live', 'card', 'postcard', 'sale')):
+                                      'postcardFile', 'look', 'frames'), optional=('tuning', 'live', 'card', 'postcard', 'sale', 'inscriptions')):
         return c.errors
     if b['format'] != 1:
         c.err('format', 'неизвестный формат %r (нужен 1)' % (b['format'],))
@@ -223,6 +223,21 @@ def validate(bdir, b, site):
     if c.string(b['postcardFile'], 'postcardFile') and not b['postcardFile'].endswith('.png'):
         c.err('postcardFile', 'имя файла открытки должно оканчиваться на .png')
     # открытка «в сторис» (e1.27, s26): музейная табличка — название, годы, адрес chka.am/<здание>; без блока — название из панели
+    if 'inscriptions' in b:   # e1.60: купленные надписи (личная ссылка ?n=<id>)
+        if not isinstance(b['inscriptions'], list):
+            c.err('inscriptions', 'список')
+        else:
+            seen = set()
+            for k, ins in enumerate(b['inscriptions']):
+                w = 'inscriptions[%d]' % k
+                o = c.obj(ins, w, required=('id', 'frame', 'u', 'v', 'text'), optional=('year', 'layer', 'note', 'buyer'))
+                if not o: continue
+                if not (isinstance(ins['id'], str) and re.fullmatch(r'[a-z0-9-]{2,40}', ins['id'])): c.err(w + '.id', 'латиница/цифры/дефис, 2–40 знаков')
+                elif ins['id'] in seen: c.err(w + '.id', 'повтор %r' % ins['id'])
+                seen.add(ins.get('id'))
+                for q in ('u', 'v'):
+                    if not (isinstance(ins[q], (int, float)) and 0 <= ins[q] <= 1): c.err(w + '.' + q, 'число 0…1')
+                if not (isinstance(ins['text'], str) and 1 <= len(ins['text']) <= 24): c.err(w + '.text', 'текст надписи 1–24 знака')
     if 'sale' in b:   # e1.57: «Оставить надпись» — ссылка покупки места и счётчик
         sl = c.obj(b['sale'], 'sale', required=('url', 'total', 'left'), optional=('note',))
         if sl:

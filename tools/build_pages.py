@@ -246,6 +246,17 @@ def make_config(b, frames_url, stamp=None):
     ui = dict(C['UI_I18N'])
     ui.update(b['text'])
     C['UI_I18N'] = ui
+    if b.get('inscriptions'):   # e1.60: купленные надписи — точки-подсказки «надпись» + личная ссылка ?n=<id> (кадр + открытая подсказка)
+        hs = [list(h) for h in C['HOTSPOTS']]; i18n = dict(C['I18N']); idx = {}
+        vis_names = [f['name'] for f in visible_frames(b)]
+        for ins in b['inscriptions']:
+            fi = vis_names.index(ins['frame']) if isinstance(ins['frame'], str) else ins['frame']
+            key = 'insc:' + ins['id']
+            hs[fi].append({'key': key, 'layer': ins.get('layer', 'building'), 'u': ins['u'], 'v': ins['v'], 'insc': True})
+            t, y = ins['text'], ins.get('year', '')
+            i18n[key] = {'hy': 'Փորագրություն՝ %s · %s' % (t, y), 'ru': 'Надпись: %s · %s' % (t, y), 'en': 'Carved: %s · %s' % (t, y)}
+            idx[ins['id']] = fi
+        C['HOTSPOTS'] = hs; C['I18N'] = i18n; C['INSCR'] = idx
     if b.get('sale'):   # e1.57: «Оставить надпись» — ссылка покупки места и счётчик мест (только если задано у здания)
         C['SALE'] = b['sale']
     if b.get('tuning'):
