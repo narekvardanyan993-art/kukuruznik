@@ -7,9 +7,9 @@
   function pick(obj) { return (obj && (obj[lang()] || obj.ru || obj.en || obj.hy)) || ''; }
 
   var UI = {
-    hy: { close: 'Փակել', prev: 'Նախորդ լուսանկարը', next: 'Հաջորդ լուսանկարը', share: 'կիսվել', again: 'կրկին փորձել', copied: 'Պատճենվեց — տեղադրիր TikTok-ում', closeScene: 'Փակել 3D-ն' },
-    ru: { close: 'Закрыть', prev: 'Предыдущее фото', next: 'Следующее фото', share: 'поделиться', again: 'пройти ещё раз', copied: 'Скопировано — вставь в TikTok', closeScene: 'Закрыть 3D' },
-    en: { close: 'Close', prev: 'Previous photo', next: 'Next photo', share: 'share', again: 'play again', copied: 'Copied — paste it into TikTok', closeScene: 'Close 3D' }
+    hy: { close: 'Փակել', prev: 'Նախորդ լուսանկարը', next: 'Հաջորդ լուսանկարը', share: 'կիսվել', again: 'կրկին փորձել', copied: 'Պատճենվեց — տեղադրիր TikTok-ում', closeScene: 'Փակել ինտերակտիվը' },
+    ru: { close: 'Закрыть', prev: 'Предыдущее фото', next: 'Следующее фото', share: 'поделиться', again: 'пройти ещё раз', copied: 'Скопировано — вставь в TikTok', closeScene: 'Закрыть интерактив' },
+    en: { close: 'Close', prev: 'Previous photo', next: 'Next photo', share: 'share', again: 'play again', copied: 'Copied — paste it into TikTok', closeScene: 'Close interactive' }
   };
   function ui(key) { return (UI[lang()] || UI.ru)[key]; }
 
@@ -21,7 +21,7 @@
 
   /* ---------- окно 3D поверх страницы ----------
 
-     Кнопок «Смотреть в 3D» на странице две (наверху и после хроники) —
+     Кнопок «Смотреть интерактив» на странице две (наверху и после хроники) —
      у обеих настоящий href="scene.html". Без JS (или если он не успел
      подключиться) клик просто открывает 3D как обычную страницу, со
      своей кнопкой возврата — это и есть надёжный запасной вариант.
