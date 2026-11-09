@@ -379,6 +379,16 @@
     return b;
   }) : null;
   var PIX_EMPTY = PN > 0 ? new Float32Array(12 * PN) : null;
+  // e1.62 pix[].snowOff (Погос-Петрос F, отзыв «фонтан зимой мультяшный»): фонтан на зиму выключен — в снег у этих деталей
+  // дрожь, бег и мерцание (p[0], p[2], p[3]) плавно уходят в ноль; длина волны (p[1]) не трогается. Картинка замёрзшей чаши — актёр wx "snow".
+  var PIX_SNOW = PN > 0 ? PIXS.map(function (items) { return items.some(function (it) { return it.snowOff; }); }) : null, PIX_WXBUF = [];
+  function pixWx(i) {
+    var b = PIX_BUF[i]; if (!PIX_SNOW || !PIX_SNOW[i] || typeof wx === 'undefined') return b;
+    var sn = sstep(0.04, 0.6, wx.cur[3]); if (!(sn > 0.001)) return b;
+    var o = PIX_WXBUF[i] || (PIX_WXBUF[i] = new Float32Array(b.length)), k = 1 - sn; o.set(b);
+    PIXS[i].forEach(function (it, j) { if (it.snowOff) { var q = 12 * j; o[q + 8] *= k; o[q + 10] *= k; o[q + 11] *= k; } });
+    return o;
+  }
   // e1.19 (s15): тени облаков полем (CLOUD_FIELD) — в вершинном шейдере сцены на сетке CF_GRID, а не на каждый пиксель
   var CF_GRID = [64, 128];   // ячеек сетки по ширине и высоте экрана
   var CF_SRC = CF > 0 ? [
@@ -1906,7 +1916,7 @@
   var pixT = 0, pixLast = 0;
   function pixUpload(fa, fb, t) {
     var na = (PIXS[fa.idx] || []).length, nb = fb ? (PIXS[fb.idx] || []).length : 0;
-    gl.uniform4fv(US.uPixA, na ? PIX_BUF[fa.idx] : PIX_EMPTY); gl.uniform4fv(US.uPixB, nb ? PIX_BUF[fb.idx] : PIX_EMPTY);
+    gl.uniform4fv(US.uPixA, na ? pixWx(fa.idx) : PIX_EMPTY); gl.uniform4fv(US.uPixB, nb ? pixWx(fb.idx) : PIX_EMPTY);   // e1.62: pix[].snowOff — в снег струи/рябь замирают
     gl.uniform2f(US.uPixN, Math.min(na, PN), Math.min(nb, PN));
     if (fx.pixOn) pixT += Math.min(0.1, Math.max(0, t - pixLast)); pixLast = t;
     gl.uniform1f(US.uPixT, pixT);
