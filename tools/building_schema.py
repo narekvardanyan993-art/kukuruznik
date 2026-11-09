@@ -706,7 +706,7 @@ def validate(bdir, b, site):
                     wj = '%s[%d]' % (wp, j + 1)
                     kind = it.get('kind') if isinstance(it, dict) else None
                     geo = 'seg' if kind == 'flow' else 'box'
-                    o2 = c.obj(it, wj, required=('kind', geo, 'p'), optional=('key', 'lo', 'hi', 'note'))
+                    o2 = c.obj(it, wj, required=('kind', geo, 'p'), optional=('key', 'lo', 'hi', 'note', 'snowOff'))   # e1.62 snowOff — в снег деталь замирает
                     if not o2:
                         continue
                     if kind not in PIX_KINDS:
@@ -718,6 +718,8 @@ def validate(bdir, b, site):
                         c.err(wj + '.box', 'рамка [u0, v0, u1, v1]: u1 > u0, v1 > v0')
                     if it.get('key', 'all') not in PIX_KEYS:
                         c.err(wj + '.key', 'маска %r (можно: %s)' % (it.get('key'), ', '.join(PIX_KEYS)))
+                    if 'snowOff' in it and not isinstance(it['snowOff'], bool):
+                        c.err(wj + '.snowOff', 'true/false')
                     for kk in ('lo', 'hi'):
                         if kk in it and not is_num(it[kk]):
                             c.err('%s.%s' % (wj, kk), 'должно быть число')
