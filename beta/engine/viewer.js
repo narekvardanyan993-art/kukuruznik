@@ -1232,6 +1232,8 @@
       var t1 = Math.min(T[1], ck.len), kin = clamp((ck.t - T[0]) / Math.max(0.01, fd[0]), 0, 1), kout = clamp((t1 - ck.t) / Math.max(0.01, fd[1]), 0, 1);
       tgt = sstep(0, 1, Math.min(kin, kout)) * (1 - ck.kill); want = ck.t - T[0];
     }
+    st.on = on;   // e1.57: шоу кадра идёт (живые позы под ним плавно гаснут — без «телепорта»)
+    if ((on || st.active) && st.overlap && f.poses && f.poses.last !== st.pLast) { st.pLast = f.poses.last; st.dirty = true; }   // только пока шоу идёт: иначе кусок шоу не перерисовываем
     if (st.vbad || reduced()) tgt = 0;
     if (tgt > 0.001 && st.vsrcSet) {
       var dur = vd.duration || 0, tw = clamp(want, 0, Math.max(0, dur - 0.05));
@@ -1254,6 +1256,14 @@
     st.dirty = false;
     var o = st.out, ch = st.ch, vdd = st.vdata, idx = st.idx, al = st.al, rf = st.ref, gr = st.gref;
     o.set(st.base);
+    var PS = st.overlap && f.poses;   // e1.57: под шоу — то, что сейчас показывают позы (собака плавно ложится), а не голый рисунок
+    if (PS && PS.out && PS.bld === st.bld) {
+      var pc = PS.ch === 4 ? 4 : 3, ox0 = Math.max(st.x0, PS.x0), ox1 = Math.min(st.x0 + st.w, PS.x0 + PS.w), oy0 = Math.max(st.y0, PS.y0), oy1 = Math.min(st.y0 + st.h, PS.y0 + PS.h);
+      for (var yy2 = oy0; yy2 < oy1; yy2++) for (var xx2 = ox0; xx2 < ox1; xx2++) {
+        var so = ((yy2 - PS.y0) * PS.w + (xx2 - PS.x0)) * pc, dso = ((yy2 - st.y0) * st.w + (xx2 - st.x0)) * ch;
+        o[dso] = PS.out[so]; o[dso + 1] = PS.out[so + 1]; o[dso + 2] = PS.out[so + 2]; if (ch === 4 && pc === 4) o[dso + 3] = PS.out[so + 3];
+      }
+    }
     if (vis > 0) for (var k = 0, n = idx.length; k < n; k++) {
       var p = idx[k], a = al[k] * vis, s4 = p * 4, q = p * ch;
       if (rf) { var p3 = p * 3, dv = Math.max(Math.abs(vdd[s4] - rf[p3]), Math.abs(vdd[s4 + 1] - rf[p3 + 1]), Math.abs(vdd[s4 + 2] - rf[p3 + 2])), kd = (dv - st.dlo) * st.dk; if (kd <= 0 && !gr) continue; a *= kd <= 0 ? 0 : (kd < 1 ? kd * kd * (3 - 2 * kd) : 1); }   // e1.50 diff (e1.51: у слоя здания дальше — проверка подложки)
@@ -1286,10 +1296,10 @@
     S.cur = A; A.ended = false; A.vFresh = false; A.vT = -1; A.mx = 0; A.xf = tap ? 0.35 : (S.prev ? 0.3 : 0.6);
     vd.preload = 'auto'; try { vd.currentTime = 0; } catch (e) {} var pr = vd.play(); if (pr && pr.catch) pr.catch(function () {});
   }
-  function setsStep(st, now, dtS, wxRaw, still) {
+  function setsStep(st, now, dtS, wxRaw, still, showOn) {
     for (var nm in st.sets) {
       var S = st.sets[nm], bad = S.all.every(function (A) { return A.vbad; });
-      var kT = bad || still ? 0 : (st.tone ? 1 : (1 - sstep(0.06, 0.4, tod.night)) * (1 - tod.sun)) * (1 - wxRaw);   // с тоном — и ночью, и на закате
+      var kT = bad || still || showOn ? 0 : (st.tone ? 1 : (1 - sstep(0.06, 0.4, tod.night)) * (1 - tod.sun)) * (1 - wxRaw);   // с тоном — и ночью, и на закате; e1.57: шоу кадра — набор плавно гаснет
       S.k = dtS > 0 ? S.k + (kT - S.k) * Math.min(1, dtS / 0.6) : kT; if (Math.abs(S.k - kT) < 0.01) S.k = kT;
       if (S.want) { var wA = S.want; S.want = null; if (!wA.vbad) setSwitch(S, wA, true); }
       var cur = S.cur;
@@ -1326,7 +1336,7 @@
       var acc = T.acc || (T.acc = new Float32Array(n)), out = T.out || (T.out = new Uint8Array(n));
       for (i = 0; i < n; i++) acc[i] = base[i];
       st.actors.filter(function (A) { return A.cfg.set && A.vid; }).sort(function (a, b) { return (a.zi || 0) - (b.zi || 0); }).forEach(function (A) {
-        var vdd = A.vdata, vm = A.vmask, k2 = A.vv * (c.wx ? 1 : (st.hasWx ? 1 - st.wxK : 1));   // e1.56: у видео непогоды своя видимость (vv) if (!vdd || !vm || k2 <= 0.003) return;
+        var vdd = A.vdata, vm = A.vmask, k2 = A.vv * (st.hasWx ? 1 - st.wxK : 1); if (!vdd || !vm || k2 <= 0.003) return;
         var vb = A.box, vw = vb[2] - vb[0];
         for (var y = Math.max(0, vb[1]); y < Math.min(h, vb[3]); y++) for (var x = Math.max(0, vb[0]); x < Math.min(w, vb[2]); x++) {
           var p2 = (y - vb[1]) * vw + (x - vb[0]), a2 = vm[p2] / 255 * k2; if (a2 <= 0.002) continue;
@@ -1349,7 +1359,7 @@
     if (wS !== st.wxS || wR !== st.wxR) { st.wxS = wS; st.wxR = wR; st.dirty = true; }
     var dtS = st.lastT ? Math.min(0.25, t - st.lastT) : 0; st.lastT = t;
     if (!st.gcT || now - st.gcT > 500) { st.gcT = now; vidsGc(now); }
-    if (st.sets) { st.actors.forEach(function (A) { if (A.cfg.set) A.seen = now; }); setsStep(st, now, dtS, wxRaw, still); }   // e1.53 наборы
+    if (st.sets) { st.actors.forEach(function (A) { if (A.cfg.set) A.seen = now; }); setsStep(st, now, dtS, wxRaw, still, !!(f.showv && f.showv.on && f.showv.overlap)); }   // e1.53 наборы
     st.actors.forEach(function (A) {
       if (!A.vid) return;
       A.seen = now;
@@ -1389,7 +1399,7 @@
     ordA.forEach(function (A) {
       var c = A.cfg, vis = (c.set && st.tone ? 1 : 1 - st.nightK) * (c.wx ?   /* e1.53: с тоном набор и ночью (альфа слоя здания) */ (c.wx === 'rain' ? st.wxR : (c.wx === 'snow' ? st.wxS : st.wxK)) : (st.hasWx ? 1 - st.wxK : 1)); if (vis <= 0) return;   // e1.50: wx "rain" / "snow" — своя версия   // e1.49: погодная версия — в непогоду, остальные актёры — в ясную
       if (A.vid) {   // e1.49: кадр видео по маске
-        var vdd = A.vdata, vm = A.vmask, k2 = A.vv * (st.hasWx ? 1 - st.wxK : 1); if (!vdd || !vm || k2 <= 0.003) return;
+        var vdd = A.vdata, vm = A.vmask, k2 = A.vv * (c.wx ? 1 : (st.hasWx ? 1 - st.wxK : 1)); if (!vdd || !vm || k2 <= 0.003) return;   // e1.56: у видео непогоды своя видимость (vv)
         var vb = A.box, vw = vb[2] - vb[0];
         for (var y2 = Math.max(0, vb[1]); y2 < Math.min(h, vb[3]); y2++) for (var x2 = Math.max(0, vb[0]); x2 < Math.min(w, vb[2]); x2++) {
           var p2 = (y2 - vb[1]) * vw + (x2 - vb[0]), a2 = vm[p2] / 255 * k2; if (a2 <= 0.002) continue;
@@ -1414,9 +1424,11 @@
       });
     });
     for (i = 0; i < n; i++) { o[i * oc] = acc[i * 4]; o[i * oc + 1] = acc[i * 4 + 1]; o[i * oc + 2] = acc[i * 4 + 2]; if (oc === 4) o[i * oc + 3] = acc[i * 4 + 3]; }
-    gl.bindTexture(gl.TEXTURE_2D, st.bld ? f.bldTex : f.bgTex);
-    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-    gl.texSubImage2D(gl.TEXTURE_2D, 0, st.x0, st.y0, w, h, oc === 4 ? gl.RGBA : gl.RGB, gl.UNSIGNED_BYTE, o);
+    if (!(f.showv && f.showv.active && f.showv.overlap)) {   // e1.57: под идущим шоу кусок пишет шоу (поверх этих поз)
+      gl.bindTexture(gl.TEXTURE_2D, st.bld ? f.bldTex : f.bgTex);
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, st.x0, st.y0, w, h, oc === 4 ? gl.RGBA : gl.RGB, gl.UNSIGNED_BYTE, o);
+    }
     if (st.tone) poseToneWrite(f, st);   // e1.53 ТОН
   }
   function uploadDay(f, r) {
@@ -3097,7 +3109,7 @@
       safe('weather', function () { stepWeather(now); });
       if (NI) safe('video', function () { mvPlan(fade ? fade.from : frameIndex, fade ? fade.to : null, rm); });
       if (SHOWVID && !glLost) safe('showv', function () { showvStep(fa, now); if (fb) showvStep(fb, now); });   // e1.50: видео-шоу кадра
-      if (POSES && !glLost) safe('poses', function () { [fa, fb].forEach(function (f) { if (f && !(f.showv && f.showv.active && f.showv.overlap)) posesStep(f, now); }); });   // e1.44: позы фигур рисунка (e1.50: не под видео-шоу)
+      if (POSES && !glLost) safe('poses', function () { [fa, fb].forEach(function (f) { if (f) posesStep(f, now); }); });   // e1.44: позы фигур рисунка (e1.50: не под видео-шоу)
       if (!glLost && !(gl.isContextLost && gl.isContextLost())) safe('draw', function () { drawGL(fa, fb, mixState, shiftX, shiftY, zoom, t, tAmb); });
       safe('precip', function () { drawPrecip(now, dt, rm); });
       if (window.Details && window.Details.frame && !detailsBroken) {   // живые детали: тот же цикл, не свой rAF; 30 ошибок подряд — детали выключаются, кадр живёт
