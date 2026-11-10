@@ -12,7 +12,7 @@ description: Сделать новое здание chka.am по станку (�
 ## Перед началом
 1. Прочитать `STATE.md`, в `chka-log.md` — только PLAN и STATUS. `lessons.md` — поиском по слову.
 2. `python3 tools/stanok.py check --selftest` — гейты сами себя проверяют. Красная самопроверка = сначала чинить гейт.
-3. Перед заходом с Gemini/Veo: `stanok channel` (файл туда-обратно, sha). Gemini — только аккаунт pro.gemini.one1.
+3. Перед заходом с Gemini/Veo: `stanok channel` (файл туда-обратно, sha). Gemini/Veo: оба Pro-аккаунта Нарека на максимум, переключаться при лимите; какие именно — в chka-log.md (раздел АККАУНТЫ), в репозиторий адреса не писать.
 
 ## Где что лежит (§1.1)
 - `work/<slug>/` — источники, `story.md`, мастера `masters/<кадр>/{day,bg,night,sunset,snow}.png`, вставки, ролики Veo, `journal.json`. В git не идёт.
