@@ -744,8 +744,8 @@ def main():
         all_files = {str(f.relative_to(site)) for f in site.rglob('*') if f.is_file()}
         lenin = {f for f in all_files if f.startswith('beta/tests/lenin/')}
         ids1, new1, pr1 = bp.changed_targets(site, lenin, all_files - lenin)                       # новое здание: только оно
-        ids2, new2, pr2 = bp.changed_targets(site, {'beta/engine/viewer.js'}, all_files)           # новый бета-движок: все бета-здания, кроме замороженного Кукурузника; живые нет
-        ids5, new5, pr5 = bp.changed_targets(site, {'beta/engine-k/viewer.js'}, all_files)         # замороженный движок тронут (так быть не должно): Кукурузник виден
+        ids2, new2, pr2 = bp.changed_targets(site, {'beta/engine/viewer.js'}, all_files)           # новый бета-движок: все бета-здания, кроме замороженных Кукурузника и Ленина; живые нет
+        ids5, new5, pr5 = bp.changed_targets(site, {'beta/engine-k/viewer.js'}, all_files)         # замороженный движок тронут (так быть не должно): Кукурузник и Ленин видны
         ids3, new3, pr3 = bp.changed_targets(site, lenin | {'kukuruznik/index.html'}, all_files - lenin)   # лишнее: живая страница
         ids4, new4, pr4 = bp.changed_targets(site, lenin | {'engine-k/viewer.js'}, all_files - lenin)       # лишнее: замороженный живой движок (от него зависит живой Кукурузник)
         ids6, new6, pr6 = bp.changed_targets(site, lenin | {'engine/viewer.js'}, all_files - lenin)         # живой engine/ Кукурузника не касается (он заморожен на engine-k/)
@@ -761,8 +761,8 @@ def main():
         exp1 = ['beta/tests/lenin'] + ['beta/tests/lenin/' + n[:-5] for n in bp.OWN_PAGES if (ROOT / 'tests' / 'lenin' / n).is_file()]   # Ленин + его архив/история (если есть)
         good = (ids1 == exp1 and new1 == exp1 and not pr1
                 and 'beta/kukuruznik' not in ids1 and 'beta/tests/test-1' not in ids1
-                and 'beta/kukuruznik' not in ids2 and 'beta/tests/test-1' in ids2 and 'beta/tests/lenin' in ids2 and not new2 and not pr2
-                and ids5 == ['beta/kukuruznik'] and not new5 and not pr5
+                and 'beta/kukuruznik' not in ids2 and 'beta/tests/test-1' in ids2 and 'beta/tests/lenin' not in ids2 and 'beta/tests/pogos-petros' in ids2 and not new2 and not pr2
+                and ids5 == ['beta/kukuruznik', 'beta/tests/lenin'] and not new5 and not pr5   # П1: Ленин заморожен вместе с Кукурузником — от beta/engine/ не зависит, от beta/engine-k/ зависит
                 and any(x.startswith('kukuruznik/index.html') for x in pr3) and any(x.startswith('kukuruznik/index.html') for x in pr4)
                 and not any(x.startswith('kukuruznik/index.html') for x in pr6)
                 and cmd[cmd.index('--only') + 1] == ','.join(exp1) and cmd[cmd.index('--allow-change') + 1] == ','.join(exp1))

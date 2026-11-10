@@ -11,7 +11,7 @@
   python3 tools/build_pages.py --site DIR --live-only   # только живые здания на живом engine/ (движок на сайте не меняется)
 
 Живые здания (этап 5): <здание>/index.html = шаблон + building.json на ЖИВОМ движке engine/ (адреса ../engine/…?v=<версия>),
-исключение — Кукурузник: он заморожен на engine-k/ (копия e1.62, docs/STANOK.md §2.2; FROZEN), адреса ../engine-k/…,
+исключения — Кукурузник и Ленин: они заморожены на engine-k/ (копия e1.62, docs/STANOK.md §2.2; FROZEN), адреса ../engine-k/…,
 плюс <здание>/manifest.json. Живой engine/ ставится только из проверенной беты (beta/engine/ → engine/; это делает
 tools/publish_engine.py). Сборка живых зданий без смены движка требует, чтобы engine/ на сайте совпадал с исходником.
 
@@ -40,7 +40,8 @@ import building_schema   # noqa: E402  проверка настроек зда�
 ROOT = Path(__file__).resolve().parent.parent
 ENGINE = ROOT / 'engine'
 ENGINE_K = ROOT / 'engine-k'   # заморозка Кукурузника (docs/STANOK.md §2.2): копия engine/ e1.62, не правится
-FROZEN = {'kukuruznik': 'engine-k'}   # здание -> папка движка на сайте; у остальных — 'engine'
+FROZEN = {'kukuruznik': 'engine-k', 'lenin': 'engine-k', 'tests/lenin': 'engine-k'}   # здание (папка исходника или адрес) -> папка движка на сайте; у остальных — 'engine'.
+# П1 (10.11.2026): Ленин тоже заморожен на e1.62 — и живой (lenin/), и его бета (tests/lenin); на e2 переезжает только Погос-Петрос
 
 
 def engine_name(bd):
@@ -49,7 +50,7 @@ def engine_name(bd):
 
 
 def engine_src(bd):
-    """Исходник движка здания в репозитории: engine-k/ у Кукурузника, engine/ у остальных."""
+    """Исходник движка здания в репозитории: engine-k/ у замороженных (Кукурузник, Ленин), engine/ у остальных."""
     return ROOT / engine_name(bd)
 LANGS = ('hy', 'ru', 'en')
 LOCAL_DIR = 'tests/local'   # здания только для Mac (в git не идут): tests/local/<имя>/building.json + frames/

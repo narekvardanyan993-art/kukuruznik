@@ -18,7 +18,7 @@ description: Сделать новое здание chka.am по станку (�
 - `work/<slug>/` — источники, `story.md`, мастера `masters/<кадр>/{day,bg,night,sunset,snow}.png`, вставки, ролики Veo, `journal.json`. В git не идёт.
 - `tests/<slug>/building.json` (format 2) и `tests/<slug>/frames/` + `manifest.json` — пишет только станок.
 - `tests/<slug>/report/` — листы снимков и отчёт гейтов.
-- `engine/src/` — движок e2; `engine-k/` — замороженный движок Кукурузника, не трогать.
+- `engine-k/` — замороженный движок e1.62 Кукурузника и Ленина, не трогать. Полигон e2 — только Погос-Петрос.
 
 ## Порядок (§1.2)
 | Шаг | Команда | Готово, когда |
