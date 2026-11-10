@@ -1,0 +1,243 @@
+{
+ "format": 2,
+ "id": "pogos-petros",
+ "source": "tests/pogos-petros/building.json (v1, движок e1.62)",
+ "notYet": [
+  "frames[].cloudShadow",
+  "frames[].fx",
+  "frames[].hotspots",
+  "frames[].leafFly",
+  "frames[].life",
+  "frames[].nightHalo",
+  "frames[].parade",
+  "frames[].pix",
+  "frames[].poses",
+  "frames[].showCaption",
+  "frames[].showVideo",
+  "frames[].snowMask",
+  "frames[].wind",
+  "frames[].wx",
+  "tuning.CLOUD_FIELD",
+  "tuning.CLOUD_FIELD_NIGHT",
+  "tuning.CLOUD_FIELD_SPEED",
+  "tuning.DRAWN_ONLY",
+  "tuning.LAMP_BREATH",
+  "tuning.LOOK",
+  "tuning.NIGHT_MAIN_WINS",
+  "tuning.NO_SWAY",
+  "tuning.RAIN_DROPS",
+  "tuning.SWAY_SOFT",
+  "tuning.WEATHER",
+  "tuning.WIND_AMP_PX",
+  "tuning.WX_PARTICLES"
+ ],
+ "text": {
+  "title": {
+   "hy": "Պողոս-Պետրոս",
+   "ru": "Погос-Петрос",
+   "en": "Poghos-Petros"
+  },
+  "pageTitle": {
+   "hy": "Պողոս-Պետրոս եկեղեցի, Երևան | Չկա",
+   "ru": "Церковь Погос-Петрос, Ереван | Չկա",
+   "en": "Poghos-Petros Church, Yerevan | Չկա"
+  },
+  "plaque": {
+   "hy": "Սուրբ Պողոս-Պետրոս եկեղեցի (V–VI դդ. – 1930–1931) · Շահար թաղամաս, Երևան · գեղարվեստական վերակառուցում արխիվային լուսանկարներից",
+   "ru": "Церковь Погос-Петрос (V–VI вв. — 1930–1931) · квартал Шаар, Ереван · художественная реконструкция по архивным фото",
+   "en": "Poghos-Petros Church (5th–6th c. – 1930–1931) · Shahar quarter, Yerevan · artistic reconstruction after archive photos"
+  },
+  "panelTitle": {
+   "hy": "Պողոս-Պետրոս եկեղեցի",
+   "ru": "Церковь Погос-Петрос",
+   "en": "Poghos-Petros Church"
+  },
+  "welcome": {
+   "hy": "Բարի գալուստ Պողոս-Պետրոս եկեղեցի",
+   "ru": "Добро пожаловать к церкви Погос-Петрос",
+   "en": "Welcome to Poghos-Petros Church"
+  }
+ },
+ "look": {
+  "frameSize": [
+   768,
+   1365
+  ],
+  "sunSide": "left"
+ },
+ "effects": {
+  "parallax": {
+   "shiftX": 0.0156,
+   "shiftY": 0.0094,
+   "zoomNear": 0.0156,
+   "breath": {
+    "amp": 0.0031
+   }
+  },
+  "tod": {}
+ },
+ "frames": [
+  {
+   "name": "pogos_a",
+   "kind": "wide",
+   "caption": {
+    "hy": "1920-ականների վերջ · արևմտյան մուտքը և եռայարուս զանգակատունը",
+    "ru": "Конец 1920-х · западный вход и трёхъярусная колокольня",
+    "en": "Late 1920s · the west entrance and the three-tier belfry"
+   },
+   "effects": {
+    "parallax": {},
+    "tod": {
+     "sky": {
+      "end": 0.76
+     },
+     "sun": {
+      "day": [
+       0.14,
+       0.07
+      ],
+      "sunset": [
+       0.1,
+       0.3
+      ],
+      "moon": [
+       0.82,
+       0.08
+      ]
+     }
+    }
+   }
+  },
+  {
+   "name": "pogos_b",
+   "kind": "wide",
+   "caption": {
+    "hy": "Մոտ 1929 · եկեղեցու երկար ճակատը և բակը",
+    "ru": "Около 1929 · длинный фасад церкви и двор",
+    "en": "Around 1929 · the long side of the church and the yard"
+   },
+   "effects": {
+    "parallax": {},
+    "tod": {
+     "sky": {
+      "end": 0.74
+     },
+     "sunsetPicture": true,
+     "sun": {
+      "day": [
+       0.14,
+       0.07
+      ],
+      "sunset": [
+       0.1,
+       0.3
+      ],
+      "moon": [
+       0.82,
+       0.08
+      ]
+     }
+    }
+   }
+  },
+  {
+   "name": "pogos_c",
+   "kind": "wide",
+   "caption": {
+    "hy": "1923 · Շահար թաղամասի փողոցը, հեռվում՝ Զալխանի մզկիթի մինարեթը",
+    "ru": "1923 · улица квартала Шаар, вдали — минарет мечети Залхан",
+    "en": "1923 · a street in the Shahar quarter, the Zalkhan minaret in the distance"
+   },
+   "effects": {
+    "parallax": {},
+    "tod": {
+     "sky": {
+      "end": 0.61
+     },
+     "sun": {
+      "day": [
+       0.14,
+       0.07
+      ],
+      "sunset": [
+       0.1,
+       0.3
+      ],
+      "moon": [
+       0.82,
+       0.08
+      ]
+     }
+    }
+   }
+  },
+  {
+   "name": "pogos_d",
+   "kind": "wide",
+   "caption": {
+    "hy": "1915 · քանդակազարդ շքամուտքը և դուռը ձմռանը",
+    "ru": "1915 · резной портал и дверь зимой",
+    "en": "1915 · the carved portal and door in winter"
+   },
+   "effects": {
+    "parallax": {},
+    "tod": {
+     "sky": {
+      "end": 0.1
+     },
+     "sun": null
+    }
+   }
+  },
+  {
+   "name": "pogos_e",
+   "kind": "interior",
+   "caption": {
+    "hy": "1915–1927 · խորանը, սպիտակ քարե ամպհովանին և որմնանկարները",
+    "ru": "1915–1927 · алтарь, белокаменная сень и фрески",
+    "en": "1915–1927 · the altar, the white-stone canopy and the frescoes"
+   },
+   "effects": {
+    "parallax": {},
+    "tod": {
+     "sky": {
+      "end": 0.01
+     },
+     "noonK": 0.45,
+     "sun": null
+    }
+   }
+  },
+  {
+   "name": "pogos_f",
+   "kind": "close",
+   "caption": {
+    "hy": "Այսօր · եկեղեցու տեղում «Մոսկվա» կինոթատրոնն է",
+    "ru": "Сегодня · на месте церкви — кинотеатр «Москва»",
+    "en": "Today · the Moscow Cinema stands where the church was"
+   },
+   "effects": {
+    "parallax": {},
+    "tod": {
+     "sky": {
+      "end": 0.6
+     },
+     "sun": {
+      "day": [
+       0.14,
+       0.07
+      ],
+      "sunset": [
+       0.1,
+       0.3
+      ],
+      "moon": [
+       0.82,
+       0.08
+      ]
+     }
+    }
+   }
+  }
+ ]
+}

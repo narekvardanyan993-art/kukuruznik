@@ -11,7 +11,7 @@
 #   lenin/manifest.json e2752b3654af1f9cd7db820a26568eb18ddbc3892abb904d9fad5f379790fe51
 #   pogos-petros/index.html 7df74e68f2e60de5845b19e9f2c01b6a6cfe1677775890d4908e46f0bdcaca95 (после заморозки — те же байты)
 #   pogos-petros/manifest.json aad891d90532935e1e989cc5ba381f32fbf5e0eabc45633c5f368e57a356e0ea
-# Покрытие: kukuruznik 90/90, lenin 75/75, pogos-petros 21/90 (ПОГОС НЕПОЛНЫЙ: сняты «День» все 6 кадров × 3 наклона и «Снег» кадр 1; остальное не уложилось в 20 мин на облачном swiftshader)
+# Покрытие: kukuruznik 90/90, lenin 75/75, pogos-petros 21/90 в прогоне П0 + 18 «Закат» отдельным прогоном П1 (см. конец файла) (ПОГОС НЕПОЛНЫЙ: сняты «День» все 6 кадров × 3 наклона и «Снег» кадр 1; остальное не уложилось в 20 мин на облачном swiftshader)
 # НЕСТАБИЛЬНЫЕ: kukuruznik f0-rain-t{L,C,R} и f1-rain-t{L,C,R} — четыре прогона одного и того же e1.62 дали разные картинки (положение капель);
 #   в строгую проверку не входят (строки закомментированы). Остальные 84 снимка Кукурузника побайтно совпали в прогонах «до» и «после заморозки» (из нестабильных 6 совпали 3, 3 нет — шум, не заморозка).
 34bcff158e4816344587eb16edddc1c3f6df55934221577a8a3f2545f4e52a3c  kukuruznik/f0-day-tC.png
@@ -200,3 +200,24 @@ cffaa5205e701336578e11c6be6003b4bada6ce8084e99332c5c1830f29bd1b1  pogos-petros/f
 a02a1ce53b3f7b96f9f7295539e01dcf62866090f6097bdcbde9294b5d888a97  pogos-petros/f5-day-tC.png
 1adb05b2a53c5409bb02aaac41bc6ca07a054238811594809ac71366f548045f  pogos-petros/f5-day-tL.png
 243c42397bf6ddc0be44cd1e3d1bac4e9e923f85e4d38116c5a1919b6b88d4c8  pogos-petros/f5-day-tR.png
+# --- Погос-Петрос «Закат» (прогон П1, 11.11.2026): e1.62 (страница pogos-petros на engine/, коммит 23dc144 — те же байты), тот же Chrome 153 swiftshader.
+#     ОТДЕЛЬНЫЙ прогон с чистого старта: node tools/stanok_look.mjs --states sunset (НЕ после day,snow,rain: состояния помнят прошлое — тени облаков зависят от прошедшего времени).
+#     Сравнивать только с таким же прогоном --states sunset. 6 кадров × 3 наклона, 0 проблем.
+217753c0b949ca691dfa3756fe9d3e7e82ddcc5528ed23f5edee114c2ec8b7a2  pogos-petros/f0-sunset-tC.png
+60bda0a907fc46079d3582ba34303fa9ba9213823acb6868130822445dcc8b3a  pogos-petros/f0-sunset-tL.png
+3d3e04f218178667cba6650542f45130544b1346935887293f7e185edb4d6c80  pogos-petros/f0-sunset-tR.png
+dd1214a2779c6c53a32d76b9d8831ef3459f5f8c0c251160214b3656f31abb3a  pogos-petros/f1-sunset-tC.png
+fc882b30ddca5061d2bdc46c754e1562cbe37e997fecb3051607342de5150ebf  pogos-petros/f1-sunset-tL.png
+b6560f918c5459fb551ecc9dc7ab83c9d9731d0fc60f280b3c9045d18f1181fc  pogos-petros/f1-sunset-tR.png
+9150fdad250b838ee7d2dcf49e577623303a5870086ce0bfb136f9c88492adaa  pogos-petros/f2-sunset-tC.png
+18bb30ca15a7d67030ab03b654e3558c42bb4c7778ad5a0c08d297dac080a2db  pogos-petros/f2-sunset-tL.png
+9fa5d01c4a767979d3c61990f709e95798643ba29e661ef821bb77d7f3c69d90  pogos-petros/f2-sunset-tR.png
+0f72d2d3f3b67d4ae41039839ddee68449b7c1b1d9b4c7d6c1e29300bb850fba  pogos-petros/f3-sunset-tC.png
+b1f3bca7573584529a32a567da06d9d08563db925cdfcad68a933b2a5609fddc  pogos-petros/f3-sunset-tL.png
+c978f459863162ec859aba91b8a201b7b8d55738739e8c8f48e1571d8b7895b5  pogos-petros/f3-sunset-tR.png
+cba9dc3a861c159f66261c97c8a8d5efe5708d33b9f4338de966b2ced4652406  pogos-petros/f4-sunset-tC.png
+428ddcc94654147c0b1e01b1468de6be5b4bc03a8e6581185446c93c76382b74  pogos-petros/f4-sunset-tL.png
+7da5a4528f691172a3419ee28ac8176f026636c98a2967089d304772b9ae7a54  pogos-petros/f4-sunset-tR.png
+045afbe08098e2ed305af35dfc63bc5948ad385e5a7488b16d77952a0a488e3d  pogos-petros/f5-sunset-tC.png
+9773fc9ac5f1d30cee507c25c0c373c29c6e864983a3ffe8eced70a885cd76b0  pogos-petros/f5-sunset-tL.png
+9f80533386c33f663f756bd8209998cdcecc53ea62537eb4eed542fd262127a9  pogos-petros/f5-sunset-tR.png

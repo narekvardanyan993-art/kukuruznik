@@ -1,0 +1,486 @@
+{
+  "schema": 1,
+  "about": "Единственный источник ключей building.json format 2 (docs/STANOK.md §2.3). Читают: tools/stanok_schema.py (проверка и умолчания) и через него движок e2 (в страницу вшиваются уже проверенные значения). Ключа нет здесь — сборка падает.",
+  "top": {
+    "format": {
+      "type": "const",
+      "value": 2
+    },
+    "id": {
+      "type": "slug"
+    },
+    "source": {
+      "type": "string",
+      "optional": true,
+      "about": "откуда собрано (для миграции v1 → v2)"
+    },
+    "notYet": {
+      "type": "strings",
+      "optional": true,
+      "about": "что из старых настроек ещё не перенесено в e2 — справка, движок не читает"
+    },
+    "framesDir": {
+      "type": "string",
+      "default": "frames/"
+    },
+    "meta": {
+      "type": "any",
+      "optional": true
+    },
+    "app": {
+      "type": "any",
+      "optional": true
+    },
+    "links": {
+      "type": "any",
+      "optional": true
+    },
+    "text": {
+      "type": "any",
+      "optional": true
+    },
+    "facts": {
+      "type": "any",
+      "optional": true
+    },
+    "aboutFacts": {
+      "type": "any",
+      "optional": true
+    },
+    "postcardFile": {
+      "type": "any",
+      "optional": true
+    },
+    "postcard": {
+      "type": "any",
+      "optional": true
+    },
+    "live": {
+      "type": "any",
+      "optional": true
+    },
+    "card": {
+      "type": "any",
+      "optional": true
+    },
+    "sale": {
+      "type": "any",
+      "optional": true
+    },
+    "inscriptions": {
+      "type": "any",
+      "optional": true
+    },
+    "look": {
+      "type": "object",
+      "keys": {
+        "frameSize": {
+          "type": "frameSize"
+        },
+        "sunSide": {
+          "type": "enum",
+          "values": [
+            "left",
+            "right"
+          ],
+          "default": "left"
+        }
+      }
+    },
+    "effects": {
+      "type": "effects",
+      "optional": true
+    },
+    "frames": {
+      "type": "frames"
+    }
+  },
+  "frame": {
+    "name": {
+      "type": "name"
+    },
+    "kind": {
+      "type": "enum",
+      "values": [
+        "wide",
+        "close",
+        "interior"
+      ],
+      "about": "close и interior — почти плоские; interior — без погоды и ветра"
+    },
+    "caption": {
+      "type": "i18n",
+      "optional": true
+    },
+    "hotspots": {
+      "type": "any",
+      "optional": true
+    },
+    "effects": {
+      "type": "effects",
+      "optional": true
+    }
+  },
+  "effects": {
+    "parallax": {
+      "about": "наклон по глубине",
+      "files": {
+        "color": "{name}.webp",
+        "depth": "{name}_depth.webp",
+        "bg": "{name}_bg.webp",
+        "building": "{name}_building.webp",
+        "env": "{name}_env.webp",
+        "win": "{name}_win2.webp"
+      },
+      "building": {
+        "shiftX": {
+          "type": "number",
+          "min": 0,
+          "max": 0.05,
+          "default": 0.02,
+          "about": "сдвиг по горизонтали на полном наклоне, доля кадра"
+        },
+        "shiftY": {
+          "type": "number",
+          "min": 0,
+          "max": 0.05,
+          "default": 0.012
+        },
+        "zoomNear": {
+          "type": "number",
+          "min": 0,
+          "max": 0.05,
+          "default": 0.02,
+          "about": "наклон к себе: ближнее крупнее"
+        },
+        "baseScale": {
+          "type": "number",
+          "min": 1,
+          "max": 1.2,
+          "default": 1.05,
+          "about": "запас кадра под сдвиг"
+        },
+        "depthBlurPx": {
+          "type": "number",
+          "min": 0,
+          "max": 20,
+          "default": 6
+        },
+        "smooth": {
+          "type": "number",
+          "min": 0.01,
+          "max": 1,
+          "default": 0.12
+        },
+        "returnMs": {
+          "type": "number",
+          "min": 100,
+          "max": 3000,
+          "default": 800
+        },
+        "crossfadeMs": {
+          "type": "number",
+          "min": 200,
+          "max": 4000,
+          "default": 1200
+        },
+        "maxTiltDeg": {
+          "type": "number",
+          "min": 5,
+          "max": 45,
+          "default": 20
+        },
+        "breath": {
+          "type": "object",
+          "keys": {
+            "amp": {
+              "type": "number",
+              "min": 0,
+              "max": 0.02,
+              "default": 0.004
+            },
+            "periodS": {
+              "type": "number",
+              "min": 2,
+              "max": 20,
+              "default": 6
+            }
+          }
+        }
+      },
+      "frame": {
+        "tilt": {
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 1,
+          "byKind": {
+            "close": 0.2,
+            "interior": 0.2
+          },
+          "about": "сила наклона кадра; крупные планы и интерьеры почти плоские"
+        },
+        "crop": {
+          "type": "rect",
+          "default": [
+            0,
+            0,
+            1,
+            1
+          ]
+        }
+      }
+    },
+    "tod": {
+      "about": "время суток: день, полдень, закат (ночь и огни — lights, П2)",
+      "files": {},
+      "filesIf": [
+        {
+          "key": "sunsetPicture",
+          "file": "sunset",
+          "pattern": "{name}_sunset.webp"
+        }
+      ],
+      "building": {
+        "day": {
+          "type": "object",
+          "keys": {
+            "skyTop": {
+              "type": "vec",
+              "n": 3,
+              "min": 0,
+              "max": 1,
+              "default": [
+                0.58,
+                0.78,
+                0.97
+              ]
+            },
+            "skyHor": {
+              "type": "vec",
+              "n": 3,
+              "min": 0,
+              "max": 1,
+              "default": [
+                0.83,
+                0.92,
+                0.99
+              ]
+            },
+            "mix": {
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "default": 0.8
+            },
+            "greenHue": {
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "default": 0.3
+            },
+            "greenPull": {
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "default": 0.78
+            },
+            "greenSat": {
+              "type": "number",
+              "min": 0,
+              "max": 3,
+              "default": 1.9
+            }
+          }
+        },
+        "noon": {
+          "type": "object",
+          "orFalse": true,
+          "about": "нейтральный полдень вместо «золотого часа» рисунка Gemini; false — выключить",
+          "keys": {
+            "wb": {
+              "type": "vec",
+              "n": 3,
+              "min": 0.5,
+              "max": 1.5,
+              "default": [
+                0.97,
+                1.0,
+                1.03
+              ]
+            },
+            "sat": {
+              "type": "number",
+              "min": 0,
+              "max": 1.5,
+              "default": 1.0
+            },
+            "lift": {
+              "type": "number",
+              "min": 0,
+              "max": 0.5,
+              "default": 0.0
+            },
+            "bright": {
+              "type": "number",
+              "min": 0.5,
+              "max": 1.5,
+              "default": 1.04
+            },
+            "sky": {
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "default": 0.9
+            }
+          }
+        },
+        "daySunsetS": {
+          "type": "number",
+          "min": 0.2,
+          "max": 10,
+          "default": 2.5
+        },
+        "sunsetNightS": {
+          "type": "number",
+          "min": 0.2,
+          "max": 10,
+          "default": 3
+        },
+        "sunsetProc": {
+          "type": "object",
+          "about": "закат без закатного рисунка: тон считает шейдер",
+          "keys": {
+            "tint": {
+              "type": "vec",
+              "n": 3,
+              "min": 0,
+              "max": 2,
+              "default": [
+                1.05,
+                0.87,
+                0.68
+              ]
+            },
+            "skyLow": {
+              "type": "vec",
+              "n": 3,
+              "min": 0,
+              "max": 2,
+              "default": [
+                1.0,
+                0.6,
+                0.64
+              ]
+            },
+            "skyHigh": {
+              "type": "vec",
+              "n": 3,
+              "min": 0,
+              "max": 2,
+              "default": [
+                1.0,
+                0.68,
+                0.4
+              ]
+            },
+            "glowColor": {
+              "type": "vec",
+              "n": 3,
+              "min": 0,
+              "max": 2,
+              "default": [
+                1.0,
+                0.52,
+                0.22
+              ]
+            },
+            "glowStrength": {
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "default": 0.24
+            },
+            "windowColor": {
+              "type": "vec",
+              "n": 3,
+              "min": 0,
+              "max": 2,
+              "default": [
+                1.0,
+                0.74,
+                0.44
+              ]
+            },
+            "windowStrength": {
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "default": 0.22
+            }
+          }
+        },
+        "sunsetShade": {
+          "type": "object",
+          "about": "тени на закате (второй проход)",
+          "keys": {
+            "length": {
+              "type": "number",
+              "min": 0,
+              "max": 0.05,
+              "default": 0.012
+            },
+            "strength": {
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "default": 0.0,
+              "about": "0 — без «стекающих» теней (как у Погос-Петроса)"
+            },
+            "dark": {
+              "type": "number",
+              "min": 0.3,
+              "max": 1,
+              "default": 0.68
+            }
+          }
+        }
+      },
+      "frame": {
+        "sky": {
+          "type": "object",
+          "keys": {
+            "ref": {
+              "type": "number",
+              "min": 0.3,
+              "max": 1,
+              "default": 0.87,
+              "about": "яркость неба на рисунке"
+            },
+            "end": {
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "about": "где небо кончается, доля высоты"
+            }
+          }
+        },
+        "noonK": {
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 1
+        },
+        "sunsetPicture": {
+          "type": "bool",
+          "default": false,
+          "about": "есть закатный рисунок <кадр>_sunset.webp"
+        },
+        "sun": {
+          "type": "sun",
+          "about": "солнце и луна кадра [u, v]; только у кадров с небом (≥ 20 % кадра) и обязаны попадать в небо; у кадров без неба — null"
+        }
+      }
+    }
+  }
+}
