@@ -60,7 +60,7 @@ ROOT = bp.ROOT
 
 def allowed_paths(bdirs, building=None):
     """Что этот скрипт имеет право менять в main. С --with-building — ещё папка здания, главная и 404.html."""
-    return lambda p: (p.startswith('beta/') or p.startswith('engine/') or any(p in ('%s/index.html' % b, '%s/manifest.json' % b) for b in bdirs)
+    return lambda p: (p.startswith('beta/') or p.startswith('engine/') or p.startswith('engine-k/') or any(p in ('%s/index.html' % b, '%s/manifest.json' % b) for b in bdirs)
                       or bool(building and (p.startswith(building + '/') or p in ('index.html', '404.html'))))
 
 
@@ -110,7 +110,7 @@ def main():
             files += bp.place_hub_and_404(tmp, wb)
         files += bp.build_live(tmp, bdirs, engine_from=tmp / 'beta' / 'engine')
         print('%sсобрано: %d файлов (движок %s, живые здания: %s)' % (tag, len(files), bp.engine_version(), ', '.join(bdirs)))
-        pb.git(tmp, 'add', '-A', 'beta', 'engine', *['%s/index.html' % b for b in bdirs], *['%s/manifest.json' % b for b in bdirs], *(([wb, 'index.html', '404.html']) if wb else []))
+        pb.git(tmp, 'add', '-A', 'beta', 'engine', 'engine-k', *['%s/index.html' % b for b in bdirs], *['%s/manifest.json' % b for b in bdirs], *(([wb, 'index.html', '404.html']) if wb else []))
         staged = pb.git(tmp, 'diff', '--cached', '--name-only').splitlines()
         ok = allowed_paths(bdirs, wb)
         outside = [p for p in staged if not ok(p)]

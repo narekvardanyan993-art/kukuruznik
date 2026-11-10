@@ -11,6 +11,7 @@
   python3 tools/build_pages.py --site DIR --live-only   # только живые здания на живом engine/ (движок на сайте не меняется)
 
 Живые здания (этап 5): <здание>/index.html = шаблон + building.json на ЖИВОМ движке engine/ (адреса ../engine/…?v=<версия>),
+исключение — Кукурузник: он заморожен на engine-k/ (копия e1.62, docs/STANOK.md §2.2; FROZEN), адреса ../engine-k/…,
 плюс <здание>/manifest.json. Живой engine/ ставится только из проверенной беты (beta/engine/ → engine/; это делает
 tools/publish_engine.py). Сборка живых зданий без смены движка требует, чтобы engine/ на сайте совпадал с исходником.
 
@@ -38,6 +39,18 @@ import building_schema   # noqa: E402  проверка настроек зда�
 
 ROOT = Path(__file__).resolve().parent.parent
 ENGINE = ROOT / 'engine'
+ENGINE_K = ROOT / 'engine-k'   # заморозка Кукурузника (docs/STANOK.md §2.2): копия engine/ e1.62, не правится
+FROZEN = {'kukuruznik': 'engine-k'}   # здание -> папка движка на сайте; у остальных — 'engine'
+
+
+def engine_name(bd):
+    """Папка движка здания на сайте: у замороженных (FROZEN) своя, у остальных — engine."""
+    return FROZEN.get(bd, 'engine')
+
+
+def engine_src(bd):
+    """Исходник движка здания в репозитории: engine-k/ у Кукурузника, engine/ у остальных."""
+    return ROOT / engine_name(bd)
 LANGS = ('hy', 'ru', 'en')
 LOCAL_DIR = 'tests/local'   # здания только для Mac (в git не идут): tests/local/<имя>/building.json + frames/
 
@@ -181,11 +194,11 @@ def analytics_snippet():
     return "<script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{\"token\": \"%s\"}'></script>" % tok
 
 
-def make_config(b, frames_url, stamp=None):
+def make_config(b, frames_url, stamp=None, engine=None):
     """CONFIG для просмотрщика: движок (engine/config.json) + здание (building.json). Всё про здание — отсюда, в коде движка его нет.
     stamp — функция адрес -> адрес со ?v=<хэш файла> (s24): ею проходят адреса кадров, масок снега/качания/фигур и маски синемаграфа;
     без неё (verify, publish_kukuruznik) адреса прежние. Ролики (motionVideo.clips[].src, s25) — тоже со ?v=<хэш mp4+webm>: движок (viewer.js, mvSetClip) срезает запрос перед заменой .mp4 → .webm."""
-    C = json.loads((ENGINE / 'config.json').read_text(encoding='utf-8'))
+    C = json.loads(((engine or ENGINE) / 'config.json').read_text(encoding='utf-8'))   # engine — исходник движка здания (engine_src)
     fr = visible_frames(b)
     look = b['look']
     day = {DAY_KEYS[k]: v for k, v in look['day'].items()}
@@ -339,8 +352,8 @@ def make_head(b, bdir, page_dir, beta, version=None):
     return '\n'.join(lines)
 
 
-def engine_version():
-    return (ENGINE / 'VERSION').read_text(encoding='utf-8').strip()
+def engine_version(src=None):
+    return ((src or ENGINE) / 'VERSION').read_text(encoding='utf-8').strip()
 
 
 def history_section(b, bdir, page_dir, own=False):
@@ -397,12 +410,13 @@ def make_manifest(b, bdir, page_dir):
 def render(b, bdir, page_dir, engine_dir, beta, version=None, own_frames=False, site=None, root=None):
     """HTML страницы здания. page_dir/engine_dir — пути от корня сайта ('beta/kukuruznik/', 'beta/engine/').
     version — версия движка для ?v= в адресах (по умолчанию engine/VERSION исходника)."""
-    version = version or engine_version()
+    esrc = engine_src(bdir)   # Кукурузник — на замороженном engine-k/, остальные — на engine/
+    version = version or engine_version(esrc)
     bid = bdir
-    t = (ENGINE / 'page.html').read_text(encoding='utf-8')
+    t = (esrc / 'page.html').read_text(encoding='utf-8')
     frames_to = posixpath.normpath(posixpath.join(page_dir, b['framesDir'])) + '/' if own_frames else site_path(bid, b['framesDir'])   # свои кадры лежат рядом со страницей беты
     mounts = [(posixpath.normpath(frames_to) + '/', Path(root or ROOT) / bdir / b['framesDir'])] if own_frames else []   # свои кадры беты ещё не скопированы — берём из репозитория
-    cfg = make_config(b, rel(page_dir, frames_to), make_stamper(page_dir, site, mounts))   # s24: адреса кадров и масок со ?v=<хэш файла> (кэш Safari)
+    cfg = make_config(b, rel(page_dir, frames_to), make_stamper(page_dir, site, mounts), esrc)   # s24: адреса кадров и масок со ?v=<хэш файла> (кэш Safari)
     js = json.dumps(cfg, ensure_ascii=False, indent=1).replace('</', '<\\/')
     esc = lambda s: html.escape(s, quote=True)
     rep = {
@@ -502,13 +516,19 @@ def build_beta(site, bdirs=None, root=None, with_local=False):
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(src, dst)
         written.append(str(dst.relative_to(site)))
+    for fd in sorted({engine_name(bd) for bd in bdirs if bd in FROZEN}):   # замороженный движок (Кукурузник): та же копия, что на живом сайте
+        for rp, data in engine_files(ROOT / fd).items():
+            dst = beta / fd / rp
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            dst.write_bytes(data)
+            written.append(str(dst.relative_to(site)))
     # здания
     for bd in bdirs:
         b = load_building(bd, root)
         page_dir = 'beta/%s/' % bd
         out = site / page_dir / 'index.html'
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(render(b, bd, page_dir, 'beta/engine/', beta=True, own_frames=bd in own, site=site, root=root), encoding='utf-8')
+        out.write_text(render(b, bd, page_dir, 'beta/%s/' % engine_name(bd), beta=True, own_frames=bd in own, site=site, root=root), encoding='utf-8')
         written.append(str(out.relative_to(site)))
         if bd in own:   # кадры здания — рядом со страницей: beta/tests/<имя>/frames/*.webp
             fdir = Path(root or ROOT) / bd / 'frames'   # + синемаграф (e1.13): <кадр>_motion.mp4 и маска
@@ -556,6 +576,9 @@ def live_vs_beta(site, bdirs):
     bad = []
     if engine_files(site / 'engine') != engine_files(site / 'beta' / 'engine'):
         bad.append('engine/ не равен beta/engine/')
+    for fd in sorted(set(FROZEN.values())):   # замороженный движок на бете и на сайте — один и тот же
+        if (site / fd).exists() and engine_files(site / fd) != engine_files(site / 'beta' / fd):
+            bad.append('%s/ не равен beta/%s/' % (fd, fd))
     tl = test_live_slugs()
     for bd in bdirs:
         if bd in tl:   # живое здание из tests/<имя>: бета лежит в beta/tests/<имя>/ с другими адресами и превью — побайтно не сравнить,
@@ -807,19 +830,36 @@ def build_live(site, bdirs=None, engine_from=None, root=None):
             dst.parent.mkdir(parents=True, exist_ok=True)
             dst.write_bytes(data)
             written.append(str(dst.relative_to(site)))
-    if not (live / 'VERSION').exists():
-        raise SystemExit('СБОРКА ОСТАНОВЛЕНА: на сайте нет движка engine/ (сначала tools/publish_engine.py)')
-    if engine_files(live) != engine_files(ENGINE):
-        raise SystemExit('СБОРКА ОСТАНОВЛЕНА: движок на сайте (engine/, %s) не совпадает с исходником engine/ (%s). Новый движок идёт на живые '
-                         'здания только через бету: tools/publish_beta.py → проверка на телефоне → tools/publish_engine.py.'
-                         % ((live / 'VERSION').read_text(encoding='utf-8').strip(), engine_version()))
-    version = (live / 'VERSION').read_text(encoding='utf-8').strip()
+    if engine_from or any(bd not in FROZEN for bd in bdirs):   # engine/ нужен только зданиям не на заморозке (Кукурузник живёт на engine-k/)
+        if not (live / 'VERSION').exists():
+            raise SystemExit('СБОРКА ОСТАНОВЛЕНА: на сайте нет движка engine/ (сначала tools/publish_engine.py)')
+        if engine_files(live) != engine_files(ENGINE):
+            raise SystemExit('СБОРКА ОСТАНОВЛЕНА: движок на сайте (engine/, %s) не совпадает с исходником engine/ (%s). Новый движок идёт на живые '
+                             'здания только через бету: tools/publish_beta.py → проверка на телефоне → tools/publish_engine.py.'
+                             % ((live / 'VERSION').read_text(encoding='utf-8').strip(), engine_version()))
+    for fd in sorted({engine_name(bd) for bd in bdirs if bd in FROZEN}):   # замороженный движок не меняется: нет на сайте — ставится из исходника, есть — обязан совпасть
+        fsrc = engine_files(ROOT / fd)
+        if not fsrc:
+            raise SystemExit('СБОРКА ОСТАНОВЛЕНА: замороженный движок %s/ пуст или его нет в репозитории' % fd)
+        fdir = site / fd
+        if fdir.exists():
+            if engine_files(fdir) != fsrc:
+                raise SystemExit('СБОРКА ОСТАНОВЛЕНА: замороженный движок на сайте (%s/) не совпадает с исходником %s/. Он не правится: '
+                                 'нужна правка — это новая версия движка и новая заморозка, а не изменение этой папки.' % (fd, fd))
+        else:
+            for rp, data in fsrc.items():
+                dst = fdir / rp
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                dst.write_bytes(data)
+                written.append(str(dst.relative_to(site)))
     for bd in bdirs:
         b = load_live(bd, root)[1]
         page_dir = '%s/' % bd
+        edir = engine_name(bd)   # 'engine' или замороженная папка
+        version = (site / edir / 'VERSION').read_text(encoding='utf-8').strip()
         out = site / page_dir / 'index.html'
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(render(b, bd, page_dir, 'engine/', beta=False, version=version, site=site, root=root), encoding='utf-8')
+        out.write_text(render(b, bd, page_dir, edir + '/', beta=False, version=version, site=site, root=root), encoding='utf-8')
         written.append(str(out.relative_to(site)))
         (out.parent / 'manifest.json').write_text(make_manifest(b, bd, page_dir), encoding='utf-8')
         written.append(str((out.parent / 'manifest.json').relative_to(site)))

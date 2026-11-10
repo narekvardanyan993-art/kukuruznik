@@ -705,11 +705,14 @@ def main():
         lf = bp.build_live(site, live, engine_from=site / 'beta' / 'engine')
         page = (site / 'kukuruznik' / 'index.html').read_text(encoding='utf-8')
         ver = bp.engine_version()
-        refs = re.findall(r'(?:href|src)="(\.\./engine/[^"]*)"|url\((\.\./engine/[^)]*)\)', page)
+        refs = re.findall(r'(?:href|src)="(\.\./engine-k/[^"]*)"|url\((\.\./engine-k/[^)]*)\)', page)
         refs = [a or b for a, b in refs]
-        good = (live == ['kukuruznik'] and 'engine/VERSION' in lf and 'kukuruznik/index.html' in lf and refs
-                and all(r.endswith('?v=' + ver) for r in refs) and 'noindex' not in page and 'tests' not in page)
-        print('%s  живые здания (%s) собираются на engine/: %d адресов движка, все с ?v=%s, без noindex' % ('OK   ' if good else 'ОШИБКА', ', '.join(live), len(refs), ver))
+        stray = re.findall(r'(?:href|src)="(\.\./engine/[^"]*)"|url\((\.\./engine/[^)]*)\)', page)   # П0: ни одного адреса на живой engine/
+        kver = bp.engine_version(bp.ENGINE_K)
+        good = (live == ['kukuruznik'] and 'engine/VERSION' in lf and 'engine-k/VERSION' in lf and 'kukuruznik/index.html' in lf and refs and not stray
+                and all(r.endswith('?v=' + kver) for r in refs) and 'noindex' not in page and 'tests' not in page
+                and bp.engine_files(site / 'engine-k') == bp.engine_files(bp.ENGINE_K))
+        print('%s  живые здания (%s) собираются: Кукурузник на замороженном engine-k/ (%d адресов, все с ?v=%s, ни одного на engine/), без noindex' % ('OK   ' if good else 'ОШИБКА', ', '.join(live), len(refs), kver))
         ok_all &= bool(good)
         # живое здание == проверенная бета (publish_engine --expect-change): равны; порча живой страницы и шапки — ловится
         vb = bp.live_vs_beta(site, live)
@@ -741,9 +744,11 @@ def main():
         all_files = {str(f.relative_to(site)) for f in site.rglob('*') if f.is_file()}
         lenin = {f for f in all_files if f.startswith('beta/tests/lenin/')}
         ids1, new1, pr1 = bp.changed_targets(site, lenin, all_files - lenin)                       # новое здание: только оно
-        ids2, new2, pr2 = bp.changed_targets(site, {'beta/engine/viewer.js'}, all_files)           # новый бета-движок: все бета-здания, живые нет
+        ids2, new2, pr2 = bp.changed_targets(site, {'beta/engine/viewer.js'}, all_files)           # новый бета-движок: все бета-здания, кроме замороженного Кукурузника; живые нет
+        ids5, new5, pr5 = bp.changed_targets(site, {'beta/engine-k/viewer.js'}, all_files)         # замороженный движок тронут (так быть не должно): Кукурузник виден
         ids3, new3, pr3 = bp.changed_targets(site, lenin | {'kukuruznik/index.html'}, all_files - lenin)   # лишнее: живая страница
-        ids4, new4, pr4 = bp.changed_targets(site, lenin | {'engine/viewer.js'}, all_files - lenin)         # лишнее: живой движок (от него зависят живые страницы)
+        ids4, new4, pr4 = bp.changed_targets(site, lenin | {'engine-k/viewer.js'}, all_files - lenin)       # лишнее: замороженный живой движок (от него зависит живой Кукурузник)
+        ids6, new6, pr6 = bp.changed_targets(site, lenin | {'engine/viewer.js'}, all_files - lenin)         # живой engine/ Кукурузника не касается (он заморожен на engine-k/)
         import publish_beta as pb
         seen = []
         real_run = pb.subprocess.run
@@ -756,8 +761,10 @@ def main():
         exp1 = ['beta/tests/lenin'] + ['beta/tests/lenin/' + n[:-5] for n in bp.OWN_PAGES if (ROOT / 'tests' / 'lenin' / n).is_file()]   # Ленин + его архив/история (если есть)
         good = (ids1 == exp1 and new1 == exp1 and not pr1
                 and 'beta/kukuruznik' not in ids1 and 'beta/tests/test-1' not in ids1
-                and 'beta/kukuruznik' in ids2 and 'beta/tests/test-1' in ids2 and 'beta/tests/lenin' in ids2 and not new2 and not pr2
+                and 'beta/kukuruznik' not in ids2 and 'beta/tests/test-1' in ids2 and 'beta/tests/lenin' in ids2 and not new2 and not pr2
+                and ids5 == ['beta/kukuruznik'] and not new5 and not pr5
                 and any(x.startswith('kukuruznik/index.html') for x in pr3) and any(x.startswith('kukuruznik/index.html') for x in pr4)
+                and not any(x.startswith('kukuruznik/index.html') for x in pr6)
                 and cmd[cmd.index('--only') + 1] == ','.join(exp1) and cmd[cmd.index('--allow-change') + 1] == ','.join(exp1))
         print('%s  publish_beta --expect-change: пиксели только у изменяемых и новых целей (Ленин и его страницы), нетронутые не снимаются, живая страница/движок в изменениях = красная, в check_site уходят точные --only/--allow-change' % ('OK   ' if good else 'ОШИБКА'))
         ok_all &= bool(good)
@@ -793,13 +800,31 @@ def main():
             ok_all &= bool(good and card_ok)
             shutil.rmtree(site / slug)
         (site / 'engine' / 'viewer.js').write_text('// старый движок\n', encoding='utf-8')
+        frozen_saved = dict(bp.FROZEN)
+        bp.FROZEN.clear()   # здание не на заморозке: живой engine/ обязан совпасть с исходником (так остановится любое здание на engine/)
         try:
             bp.build_live(site, live)
             stale = 'сборка НЕ остановилась'
         except SystemExit as e:
             stale = None if 'не совпадает с исходником' in str(e) else 'не тот текст: ' + str(e)[:200]
+        finally:
+            bp.FROZEN.update(frozen_saved)
         print('%s  живой движок не совпадает с исходником — сборка живых зданий останавливается%s' % ('OK   ' if not stale else 'ОШИБКА', (': ' + stale) if stale else ''))
         ok_all &= not stale
+        # П0 (docs/STANOK.md §2.2): Кукурузник от живого engine/ не зависит — собирается и при «чужом» engine/; замороженный движок на сайте не правится
+        try:
+            lk = bp.build_live(site, ['kukuruznik'])
+            kuk_ok = 'kukuruznik/index.html' in lk
+        except SystemExit as e:
+            kuk_ok = False
+        (site / 'engine-k' / 'viewer.js').write_text('// чужой замороженный движок\n', encoding='utf-8')
+        try:
+            bp.build_live(site, ['kukuruznik'])
+            frozen = 'сборка НЕ остановилась'
+        except SystemExit as e:
+            frozen = None if 'Он не правится' in str(e) else 'не тот текст: ' + str(e)[:200]
+        print('%s  Кукурузник на engine-k/: от живого engine/ не зависит; изменённый engine-k/ на сайте останавливает сборку%s' % ('OK   ' if kuk_ok and not frozen else 'ОШИБКА', (': ' + frozen) if frozen else '' if kuk_ok else ': не собрался при чужом engine/'))
+        ok_all &= bool(kuk_ok and not frozen)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     ok_wb, lines_wb = guarded(check_with_building)

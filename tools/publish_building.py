@@ -50,7 +50,7 @@ def main():
     tl = bp.test_live_slugs()
     if slug not in tl:
         raise SystemExit('СТОП: нет тестового здания с live.slug = %s. Есть: %s' % (slug, ', '.join(tl) or '—'))
-    if slug in ('beta', 'engine', 'assets', 'tests', 'docs', 'tools', 'kukuruznik'):
+    if slug in ('beta', 'engine', 'engine-k', 'assets', 'tests', 'docs', 'tools', 'kukuruznik'):
         raise SystemExit('СТОП: адрес %s занят' % slug)
     src_hub = (ROOT / 'index.html').read_text(encoding='utf-8')
     new_hub = bp.hub_with_card(src_hub, slug, bp.render_card(slug), bp.render_stack(slug))   # метки обязаны быть — до любых действий с git

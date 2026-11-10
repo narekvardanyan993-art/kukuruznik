@@ -1,0 +1,688 @@
+{
+ "LANGS": [
+  "hy",
+  "ru",
+  "en"
+ ],
+ "MAX_SHIFT_X": 0.02,
+ "MAX_SHIFT_Y": 0.012,
+ "BASE_SCALE": 1.05,
+ "ZOOM_NEAR": 0.02,
+ "DEPTH_BLUR_PX": 6,
+ "BUILDING_DEPTH_PIXEL": false,
+ "MAX_TEX_SIZE": 1600,
+ "MAX_TILT_X_DEG": 20,
+ "MAX_TILT_Y_DEG": 20,
+ "SMOOTH": 0.12,
+ "RETURN_MS": 800,
+ "SWIPE_MIN_PX": 50,
+ "SWIPE_MAX_MS": 350,
+ "BREATH_AMPLITUDE": 0.004,
+ "BREATH_PERIOD_S": 6,
+ "SPRING_RESPONSE": 0.65,
+ "SPRING_DAMPING": 0.86,
+ "FRAME_CROSSFADE_MS": 1200,
+ "DAY_SUNSET_S": 2.5,
+ "SUNSET_NIGHT_S": 3,
+ "WINDOW_BRIGHT": [
+  0.6,
+  1
+ ],
+ "WINDOW_TOGGLE_S": [
+  8,
+  12
+ ],
+ "WINDOW_FADE_MS": 1500,
+ "NIGHT_MAIN_WINS": true,
+ "DRAWN_ONLY": false,
+ "SWAY_SOFT": false,
+ "NO_SWAY": false,
+ "WX_PARTICLES": false,
+ "WIN_SPILL": 0,
+ "WIN_SPILL_PX": 7,
+ "CLOUD_FIELD": 0,
+ "CLOUD_FIELD_NIGHT": 0,
+ "CLOUD_FIELD_SCALE": 2.4,
+ "CLOUD_FIELD_SPEED": 0.011,
+ "MV_DELTA": false,
+ "MV_CAL": false,
+ "LAMP_FLICKER": {"lamps": [0, 0], "every": [8, 20], "depth": [0.1, 0.3], "dur": [0.25, 0.6]},
+ "MV_CAL_PATCHES": [[48, 48, 48], [80, 80, 80], [112, 112, 112], [128, 128, 128], [144, 144, 144], [176, 176, 176], [208, 208, 208], [168, 112, 112], [112, 168, 112], [112, 112, 168], [168, 168, 112], [112, 168, 168]],
+ "LAMP_BREATH": 0.08,
+ "LAMP_PERIOD_S": [
+  4,
+  6
+ ],
+ "STARS": 120,
+ "SHOOT_EVERY_S": [
+  40,
+  60
+ ],
+ "SHOOT_MS": 900,
+ "WIND": true,
+ "WIND_AMP_PX": 2.5,
+ "WEATHER": {
+  "clear": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "cloudy": [
+   1,
+   0,
+   0,
+   0
+  ],
+  "rain": [
+   0.85,
+   0.3,
+   1,
+   0
+  ],
+  "snow": [
+   0.6,
+   0.25,
+   0,
+   1
+  ],
+  "fog": [
+   0,
+   0.85,
+   0,
+   0
+  ]
+ },
+ "WEATHER_FADE_MS": 4000,
+ "WIND_LEVELS": [
+  1,
+  2.4,
+  4.5
+ ],
+ "RAIN_DROPS": 240,
+ "SNOW_FLAKES": 190,
+ "PERF_MIN_FPS": 45,
+ "FALLBACK_LAYER_K": 0.6,
+ "UI_I18N": {
+  "sale": {
+   "hy": "Թողնել քո անունը",
+   "ru": "Оставить надпись",
+   "en": "Leave your name"
+  },
+  "saleLeft": {
+   "hy": "մնաց {n} տեղ {t}-ից",
+   "ru": "осталось {n} из {t}",
+   "en": "{n} of {t} left"
+  },
+  "saleNone": {
+   "hy": "տեղեր չկան",
+   "ru": "мест нет",
+   "en": "sold out"
+  },
+  "home": {
+   "ru": "На главную",
+   "en": "Home",
+   "hy": "Գլխավոր էջ"
+  },
+  "prevFrame": {
+   "ru": "Предыдущий кадр",
+   "en": "Previous frame",
+   "hy": "Նախորդ կադր"
+  },
+  "nextFrame": {
+   "ru": "Следующий кадр",
+   "en": "Next frame",
+   "hy": "Հաջորդ կադր"
+  },
+  "hsBack": {
+   "ru": "‹ назад",
+   "en": "‹ back",
+   "hy": "‹ հետ"
+  },
+  "hsClose": {
+   "ru": "× закрыть",
+   "en": "× close",
+   "hy": "× փակել"
+  },
+  "menu": {
+   "ru": "Меню",
+   "en": "Menu",
+   "hy": "Ընտրացանկ"
+  },
+  "history": {
+   "ru": "История здания ›",
+   "en": "Building history ›",
+   "hy": "Շենքի պատմությունը ›"
+  },
+  "tod": {
+   "ru": "Время суток",
+   "en": "Time of day",
+   "hy": "Օրվա ժամը"
+  },
+  "day": {
+   "ru": "День",
+   "en": "Day",
+   "hy": "Ցերեկ"
+  },
+  "sunset": {
+   "ru": "Закат",
+   "en": "Sunset",
+   "hy": "Մայրամուտ"
+  },
+  "night": {
+   "ru": "Ночь",
+   "en": "Night",
+   "hy": "Գիշեր"
+  },
+  "frames": {
+   "ru": "Кадры",
+   "en": "Views",
+   "hy": "Կադրեր"
+  },
+  "fullscreen": {
+   "ru": "Во весь экран",
+   "en": "Full screen",
+   "hy": "Ամբողջ էկրան"
+  },
+  "postcard": {
+   "ru": "Открытка",
+   "en": "Postcard",
+   "hy": "Բացիկ"
+  },
+  "cardTitle": {
+   "ru": "Открытка",
+   "en": "Postcard",
+   "hy": "Բացիկ"
+  },
+  "cardLine": {
+   "ru": "Своя строка",
+   "en": "Your line",
+   "hy": "Ձեր տողը"
+  },
+  "cardSave": {
+   "ru": "Сохранить открытку",
+   "en": "Save postcard",
+   "hy": "Պահպանել բացիկը"
+  },
+  "cardDlNote": {
+   "ru": "Скачали лицо и оборот. Какого-то нет в загрузках — нажмите на него:",
+   "en": "Front and back downloaded. One missing from Downloads? Click it:",
+   "hy": "Դիմերեսն ու հետնակողմը ներբեռնվեցին։ Որևէ մեկը չկա՞ ներբեռնումներում․ սեղմեք դրա վրա՝"
+  },
+  "cardDlFront": {
+   "ru": "Лицо",
+   "en": "Front",
+   "hy": "Դիմերես"
+  },
+  "cardDlBack": {
+   "ru": "Оборот",
+   "en": "Back",
+   "hy": "Հետնակողմ"
+  },
+  "cardSaveBack": {
+   "ru": "Сохранить оборот",
+   "en": "Save the back side",
+   "hy": "Պահպանել հետնակողմը"
+  },
+  "cardReady": {
+   "ru": "Открытка готова — нажмите, чтобы сохранить",
+   "en": "Postcard ready — tap to save",
+   "hy": "Բացիկը պատրաստ է․ սեղմեք՝ պահպանելու համար"
+  },
+  "cardSaveHold": {
+   "ru": "Нажмите и удержите картинку, затем «Сохранить изображение»",
+   "en": "Press and hold the image, then \u201cSave Image\u201d",
+   "hy": "Սեղմեք և պահեք նկարը, ապա՝ «Պահպանել նկարը»"
+  },
+  "cardSaveClose": {
+   "ru": "Закрыть",
+   "en": "Close",
+   "hy": "Փակել"
+  },
+  "cardGrpDate": {
+   "ru": "Дата",
+   "en": "Date",
+   "hy": "Ամսաթիվ"
+  },
+  "cardToday": {
+   "ru": "Сегодня",
+   "en": "Today",
+   "hy": "Այսօր"
+  },
+  "cardMyYear": {
+   "ru": "Мой год",
+   "en": "My year",
+   "hy": "Իմ տարին"
+  },
+  "cardExhibit": {
+   "ru": "Экспонат",
+   "en": "Exhibit",
+   "hy": "Ցուցանմուշ"
+  },
+  "cardRare": {
+   "ru": "Редкая",
+   "en": "Rare",
+   "hy": "Հազվագյուտ"
+  },
+  "cardRareB": {
+   "ru": "Редкая открытка",
+   "en": "Rare postcard",
+   "hy": "Հազվագյուտ բացիկ"
+  },
+  "cardShow": {
+   "ru": "Показать",
+   "en": "Preview",
+   "hy": "Ցույց տալ"
+  },
+  "cardTo": {
+   "ru": "Кому (необязательно)",
+   "en": "To whom (optional)",
+   "hy": "Ում (ըստ ցանկության)"
+  },
+  "cardShowOn": {
+   "ru": "Во время праздника",
+   "en": "During the celebration",
+   "hy": "Տոնի ժամանակ"
+  },
+  "cardGrpMoment": {
+   "ru": "Момент",
+   "en": "Moment",
+   "hy": "Պահը"
+  },
+  "cardGrpBack": {
+   "ru": "Оборот",
+   "en": "Back side",
+   "hy": "Հետնակողմ"
+  },
+  "cardDawn": {
+   "ru": "Рассвет",
+   "en": "Dawn",
+   "hy": "Արշալույս"
+  },
+  "cardBlue": {
+   "ru": "Синий час",
+   "en": "Blue hour",
+   "hy": "Կապույտ ժամ"
+  },
+  "cardBack": {
+   "ru": "Добавить оборот",
+   "en": "Add the back side",
+   "hy": "Ավելացնել հետնակողմը"
+  },
+  "cardBackHint": {
+   "ru": "Вторая картинка: письмо, «Кому», марка и штемпель — на старой бумаге",
+   "en": "A second picture: your note, “To”, stamp and postmark — on old paper",
+   "hy": "Երկրորդ նկար՝ գրություն, «Ում», նամականիշ և դրոշմ՝ հին թղթի վրա"
+  },
+  "cardCode": {
+   "ru": "Личный номер открытки",
+   "en": "Your postcard's own number",
+   "hy": "Բացիկի անհատական համարը"
+  },
+  "textSize": {
+   "ru": "Размер текста",
+   "en": "Text size",
+   "hy": "Տառերի չափը"
+  },
+  "sizeLarge": {
+   "ru": "Крупный",
+   "en": "Large",
+   "hy": "Մեծ"
+  },
+  "sizeNormal": {
+   "ru": "Обычный",
+   "en": "Normal",
+   "hy": "Սովորական"
+  },
+  "language": {
+   "ru": "Язык",
+   "en": "Language",
+   "hy": "Լեզու"
+  },
+  "about": {
+   "ru": "О здании",
+   "en": "About the building",
+   "hy": "Շենքի մասին"
+  },
+  "flag": {
+   "ru": "Парад в небе: флаг Армении",
+   "en": "Sky parade: flag of Armenia",
+   "hy": "Երկնային շքերթ՝ Հայաստանի դրոշը"
+  },
+  "wxCloudy": {
+   "ru": "Тучи",
+   "en": "Clouds",
+   "hy": "Ամպեր"
+  },
+  "wxRain": {
+   "ru": "Дождь",
+   "en": "Rain",
+   "hy": "Անձրև"
+  },
+  "wxSnow": {
+   "ru": "Снег",
+   "en": "Snow",
+   "hy": "Ձյուն"
+  },
+  "wxFog": {
+   "ru": "Туман",
+   "en": "Fog",
+   "hy": "Մառախուղ"
+  },
+  "wind": {
+   "ru": "Ветер",
+   "en": "Wind",
+   "hy": "Քամի"
+  },
+  "wxN_clear": {
+   "ru": "Ясно",
+   "en": "Clear",
+   "hy": "Պարզ"
+  },
+  "wxN_breezy": {
+   "ru": "Ветрено",
+   "en": "Breezy",
+   "hy": "Քամոտ"
+  },
+  "wxN_gale": {
+   "ru": "Буря",
+   "en": "Gale",
+   "hy": "Փոթորիկ"
+  },
+  "wxN_overcast": {
+   "ru": "Пасмурно",
+   "en": "Overcast",
+   "hy": "Ամպամած"
+  },
+  "wxN_rain": {
+   "ru": "Дождь",
+   "en": "Rain",
+   "hy": "Անձրև"
+  },
+  "wxN_slant": {
+   "ru": "Косой дождь",
+   "en": "Slanting rain",
+   "hy": "Թեք անձրև"
+  },
+  "wxN_thunder": {
+   "ru": "Гроза",
+   "en": "Thunderstorm",
+   "hy": "Ամպրոպ"
+  },
+  "wxN_snow": {
+   "ru": "Снегопад",
+   "en": "Snowfall",
+   "hy": "Ձյուն է գալիս"
+  },
+  "wxN_blizzard": {
+   "ru": "Метель",
+   "en": "Blizzard",
+   "hy": "Բուք"
+  },
+  "wxN_sleet": {
+   "ru": "Мокрый снег",
+   "en": "Sleet",
+   "hy": "Թաց ձյուն"
+  },
+  "wxN_fog": {
+   "ru": "Туман",
+   "en": "Fog",
+   "hy": "Մառախուղ"
+  },
+  "wxN_drizzle": {
+   "ru": "Морось",
+   "en": "Drizzle",
+   "hy": "Մաղող անձրև"
+  },
+  "wxN_haze": {
+   "ru": "Морозная дымка",
+   "en": "Frosty haze",
+   "hy": "Ցրտաշունչ մշուշ"
+  },
+  "wxN_gloom": {
+   "ru": "Хмурый туман",
+   "en": "Gloomy fog",
+   "hy": "Մռայլ մառախուղ"
+  },
+  "wxN_rainbow": {
+   "ru": "Радуга",
+   "en": "Rainbow",
+   "hy": "Ծիածան"
+  },
+  "oneOf": {
+   "ru": "одно из",
+   "en": "pick one",
+   "hy": "մեկը"
+  },
+  "together": {
+   "ru": "можно вместе",
+   "en": "combine",
+   "hy": "կարելի է միասին"
+  },
+  "precip": {
+   "ru": "Осадки",
+   "en": "Precipitation",
+   "hy": "Տեղումներ"
+  },
+  "skyAir": {
+   "ru": "Небо и воздух",
+   "en": "Sky and air",
+   "hy": "Երկինք և օդ"
+  },
+  "precipNone": {
+   "ru": "Сухо",
+   "en": "Dry",
+   "hy": "Չոր"
+  },
+  "close": {
+   "ru": "Закрыть",
+   "en": "Close",
+   "hy": "Փակել"
+  },
+  "nightNA": {
+   "ru": "Ночью туч не видно",
+   "en": "Clouds are not visible at night",
+   "hy": "Գիշերը ամպերը չեն երևում"
+  }
+ },
+ "LOOK": {
+  "sunsetProc": {
+   "tint": [
+    1.05,
+    0.87,
+    0.68
+   ],
+   "skyLow": [
+    1.0,
+    0.6,
+    0.64
+   ],
+   "skyHigh": [
+    1.0,
+    0.68,
+    0.4
+   ],
+   "glowColor": [
+    1.0,
+    0.52,
+    0.22
+   ],
+   "glowStrength": 0.24,
+   "windowColor": [
+    1.0,
+    0.74,
+    0.44
+   ],
+   "windowStrength": 0.22
+  },
+  "sunsetSmear": {
+   "length": 0.012,
+   "strength": 0.5,
+   "dark": 0.68
+  },
+  "nightProc": {
+   "ground": [
+    0.27,
+    0.34,
+    0.56
+   ],
+   "sky": [
+    0.14,
+    0.2,
+    0.4
+   ]
+  },
+  "stars": {
+   "color": [
+    0.86,
+    0.92,
+    1.0
+   ],
+   "cell": 24
+  },
+  "windowGlow": {
+   "color": [
+    1.0,
+    0.8,
+    0.42
+   ],
+   "strength": 1.05,
+   "color2": [
+    1.0,
+    0.7,
+    0.3
+   ],
+   "strength2": 0.25
+  },
+  "lampHalo": {
+   "color": [
+    1.0,
+    0.74,
+    0.36
+   ],
+   "core": 0.85,
+   "coreSize": 0.00016,
+   "wide": 0.2,
+   "wideSize": 0.002,
+   "groundColor": [
+    1.0,
+    0.82,
+    0.5
+   ],
+   "ground": 0.24,
+   "groundSizeX": 0.001,
+   "groundSizeY": 0.00012
+  },
+  "ink": {
+   "day": [
+    58,
+    51,
+    42
+   ],
+   "sunset": [
+    90,
+    58,
+    44
+   ],
+   "night": [
+    190,
+    200,
+    225
+   ]
+  },
+  "skyBodies": {
+   "sunGlow": [
+    255,
+    236,
+    170
+   ],
+   "sunDisc": [
+    255,
+    238,
+    168
+   ],
+   "sunOutline": [
+    96,
+    74,
+    44
+   ],
+   "sunsetGlow": [
+    255,
+    150,
+    80
+   ],
+   "sunsetDisc": [
+    255,
+    128,
+    64
+   ],
+   "sunsetOutline": [
+    120,
+    52,
+    32
+   ],
+   "moonGlow": [
+    200,
+    214,
+    255
+   ],
+   "moonOutline": [
+    190,
+    200,
+    230
+   ]
+  },
+  "weather": {
+   "overcastSky": [
+    0.8,
+    0.82,
+    0.84
+   ],
+   "overcastDim": 0.16,
+   "overcastGray": 0.35,
+   "fogDay": [
+    0.88,
+    0.88,
+    0.86
+   ],
+   "fogNight": [
+    0.34,
+    0.38,
+    0.46
+   ],
+   "fogNear": 0.75,
+   "fogSky": 0.5,
+   "snowTint": [
+    0.95,
+    0.96,
+    0.99
+   ],
+   "snowK": 0.95,
+   "wetDim": 0.12,
+   "rainDay": [
+    55,
+    65,
+    88,
+    0.55
+   ],
+   "rainNight": [
+    185,
+    195,
+    215,
+    0.45
+   ],
+   "snowColor": [
+    255,
+    255,
+    255,
+    0.9
+   ],
+   "flash": [
+    0.92,
+    0.94,
+    1.0
+   ],
+   "overcastShadow": 0.3
+  }
+ }
+}

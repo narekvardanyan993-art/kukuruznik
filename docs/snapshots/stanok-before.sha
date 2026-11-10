@@ -1,0 +1,202 @@
+# stanok-before.sha — эталон «до» (прогон П0 станка, docs/STANOK.md §2.4 п.1, §7 П0)
+# engine: e1.62 (engine/ и копия engine-k/ — побайтно одинаковы)
+# base commit: c3751fb75522f2dff87e067923deba7b96816db4 (ветка test/depth-photo; П0 — следующий коммит)
+# снято: tools/stanok_look.mjs, Chrome for Testing 153.0.8010.12, swiftshader (облачная VM), телефон 390×844 dsf 1, адрес ?still=1&perf=0,
+#   виртуальное время (шаг 32 мс) и seed как в check_site; состояния day,snow,rain,sunset,night (в этом порядке — порядок важен, состояния помнят предыдущее; снег и дождь — днём; в «Дожде» и «Закате» кадры идут с последнего к первому),
+#   наклоны tL=(-1,-1) tC=(0,0) tR=(1,1); имя: f<кадр с 0>-<состояние>-t<наклон>.png; sha256 — байты PNG; проверка: sha256sum -c из папки снимков здания
+# Страницы зданий (build_live до заморозки), sha256:
+#   kukuruznik/index.html 64a01f194b325c1b5ab7724c83c8dfcff1544f5de6d9e8216d2cd7ee52fbea4a (адреса ../engine/; после заморозки — ../engine-k/, остальное то же)
+#   kukuruznik/manifest.json 8b994506c3ec760d5bef7dc07bc2401b2a5039392e3c95f7d2312e6b98dbd924
+#   lenin/index.html bcc7a35589a73b821d8dd4d88b7ff432b7ee0604b6abfe4891b18db67e54ea82 (после заморозки — те же байты)
+#   lenin/manifest.json e2752b3654af1f9cd7db820a26568eb18ddbc3892abb904d9fad5f379790fe51
+#   pogos-petros/index.html 7df74e68f2e60de5845b19e9f2c01b6a6cfe1677775890d4908e46f0bdcaca95 (после заморозки — те же байты)
+#   pogos-petros/manifest.json aad891d90532935e1e989cc5ba381f32fbf5e0eabc45633c5f368e57a356e0ea
+# Покрытие: kukuruznik 90/90, lenin 75/75, pogos-petros 21/90 (ПОГОС НЕПОЛНЫЙ: сняты «День» все 6 кадров × 3 наклона и «Снег» кадр 1; остальное не уложилось в 20 мин на облачном swiftshader)
+# НЕСТАБИЛЬНЫЕ: kukuruznik f0-rain-t{L,C,R} и f1-rain-t{L,C,R} — четыре прогона одного и того же e1.62 дали разные картинки (положение капель);
+#   в строгую проверку не входят (строки закомментированы). Остальные 84 снимка Кукурузника побайтно совпали в прогонах «до» и «после заморозки» (из нестабильных 6 совпали 3, 3 нет — шум, не заморозка).
+34bcff158e4816344587eb16edddc1c3f6df55934221577a8a3f2545f4e52a3c  kukuruznik/f0-day-tC.png
+3129e630c007735f0878b853ea1295d980e51beeb667a0f005605a75426cc413  kukuruznik/f0-day-tL.png
+aa0b130f16ae435a30505da672ee0240bd7026d2e396b10a0a95d670acbb0d14  kukuruznik/f0-day-tR.png
+a76690dd2bc0bae1132e75fd417c340906ab125fb58971063a5c70d84d1fe81d  kukuruznik/f0-night-tC.png
+8463df80017a682f09d57fa830b00ab966819dab9e1b264ac0a3fc3def13c813  kukuruznik/f0-night-tL.png
+40b250f8937c26241038e0b684838f9dc5f20d6312502e8e0ee907fed21c1c55  kukuruznik/f0-night-tR.png
+# UNSTABLE 688237b6682c9e1230b36051b006339a7d6c1abe5fe94926718e884c0b4681e0  kukuruznik/f0-rain-tC.png
+# UNSTABLE 51a135dcb2d42bbb693c8825d4fb936efea34819ad516d3e73ca7d4b0c8c6ee9  kukuruznik/f0-rain-tL.png
+# UNSTABLE 8b1ca1ce06526c987dc225a00b5b2440198f9e11c8e68314cfbbad3d54ed4a65  kukuruznik/f0-rain-tR.png
+3639339799ada4613e0bbab2f6ea41ccdac2449f6fbf21724bd99dc3e8a7f10b  kukuruznik/f0-snow-tC.png
+7451eb24749926bb490c3ad2bc31b1de88dec04430a3ca1f8e1ee2f717c6f846  kukuruznik/f0-snow-tL.png
+02e2d344674cc2bffee11c0047e4001dd52d5cabd8a9c7a2a6416733ace39f79  kukuruznik/f0-snow-tR.png
+ee412af5cec239c18e9250280b3a29834be3737862d77fa5b43eccebcaf742a9  kukuruznik/f0-sunset-tC.png
+44ff16f150bc09d644bd5929daae978c60fcea25a650a539b5ffcb70069534c1  kukuruznik/f0-sunset-tL.png
+01981c37d2d3140bde01556e220a195f13f644bbad30a45ac7da387c85ba1ace  kukuruznik/f0-sunset-tR.png
+1f069acca05ce6c96bab15c751fbdd3fbd04831dd40613d3d0bbcfeddb44143e  kukuruznik/f1-day-tC.png
+5d3a3b3b39a98b0eb48d726f1700042f6921d114ad8a7f57dc07f72b7c1b4ded  kukuruznik/f1-day-tL.png
+724260666665b2de70337f9ae4de9e5670f65f3df0f20aec7749098e6b5d2992  kukuruznik/f1-day-tR.png
+8f8c94f0e4238740cb00dbd726499407e4d58993197fe5758e56f7161153b86e  kukuruznik/f1-night-tC.png
+ed18a1c380dcb4e1c78ed711c7d24245a68a8e0a7ff3f3c5e408b2f26fda33ec  kukuruznik/f1-night-tL.png
+d29a6ecfc0b0830375b3ef98b2a0019dc86fb058fc8e09e23dcf8fe2d9db404a  kukuruznik/f1-night-tR.png
+# UNSTABLE 339d7c83d7665afc163317e5c97f9b1033f76df739eb160d6796f03da8313aa3  kukuruznik/f1-rain-tC.png
+# UNSTABLE 9539eec392803965f5e4e6bc8b173336f338d400bad46fdeccaa9965e64db56c  kukuruznik/f1-rain-tL.png
+# UNSTABLE 460163cbc305d3ff51b4b9c863e843feb0aac6a45934d25f95085b4229d9e6d5  kukuruznik/f1-rain-tR.png
+801ac86664d4dfe95245dd7f53c9200509a3214d6b30278f1c2abe74db019dbd  kukuruznik/f1-snow-tC.png
+1357bca1b8432ce2619d02d3e9921be410bfa59461b3e9e4501418d22ad3e7d2  kukuruznik/f1-snow-tL.png
+f09b5be656cd4b306104da4b0f4426cee940be64536401c0651cbd0cb5a80ab1  kukuruznik/f1-snow-tR.png
+906b2403767abdf48b2d82aa93a2964d36df90d48fc75ab6d66934d396f0ed8b  kukuruznik/f1-sunset-tC.png
+23b65b1f7c0b734d7450a1209cbdb150d9841097a0569eaee47ea620f025ca37  kukuruznik/f1-sunset-tL.png
+cd46c1f39208f1a4c14c35aeedf145506e5a5a64f41fde77393f630171cd713d  kukuruznik/f1-sunset-tR.png
+40cd5f660d2927a2b741f828ad21d7c0a5cdcf2563e11e79d510e3481ffc9068  kukuruznik/f2-day-tC.png
+4ae37248bdc9508f9fa1d81cfc20af9611a1329fad2fbc2541eefd0514fc18ce  kukuruznik/f2-day-tL.png
+7d47b7d51fac747285fb5eeb579d128c23b55f19a6ebfc0d6c1ee959c6cfd113  kukuruznik/f2-day-tR.png
+5e02a60310428a3d4a4518c7c060efcd4a54161d634bcebae9ad61fdcb288774  kukuruznik/f2-night-tC.png
+6f5f87741b956a5e3f37f8b595e09f96f087959fc3557b5d887c471e453281ca  kukuruznik/f2-night-tL.png
+eb75eb4bd8939f015eacd0267273e8e87680267479e1ca5bda08cc5e3291cedf  kukuruznik/f2-night-tR.png
+65b1df5bb4df0814037f6a85d2530a5a8faf38f397f7a07bc0efce96c7a91654  kukuruznik/f2-rain-tC.png
+529023f87707b5fb5649e238585f3dab2399bbf0890b0b8e66206a964e5c9b56  kukuruznik/f2-rain-tL.png
+7f5e05b6e9ac7bff1887d5bc738467664c499242b1aa11cde75695d01a93ef03  kukuruznik/f2-rain-tR.png
+4528c9ba77bf59e0eaf115d82951e5a1b4cdaa8d30d86eab5a0da390a64524ff  kukuruznik/f2-snow-tC.png
+9e0a6f143ac16f32729e8e633b264f84032cb3a0141b2c0482ba83a7540ebab7  kukuruznik/f2-snow-tL.png
+efdd63f26319878e9ac3abca2cc179ff3c6dea0432017b74d404daa4025779be  kukuruznik/f2-snow-tR.png
+d6d43458be5f7e5f07d8e5b3ea3ceefd2dab5e25e6acb7fdf4557a3d01b850d9  kukuruznik/f2-sunset-tC.png
+f1bad37221fb15fa7b0cf32cdf54caf563d795b594eb3665b80f13f634a72fc4  kukuruznik/f2-sunset-tL.png
+2a07050e09af32242ff5c12a44534cecbc0f51aa23b20bd396a9c19a59e9bcfc  kukuruznik/f2-sunset-tR.png
+4a679000bab887c2de7246501964ba4f30b84c88e5c02cfdb1e688b1df3bdb63  kukuruznik/f3-day-tC.png
+f175a7df9213a14d23f0a2a8063ec20ce676c946856dd47ab0ec58123dc4e321  kukuruznik/f3-day-tL.png
+54c5fb0479177aed5674d9b971a8083f14848559996a3824431e5ad55acfbff5  kukuruznik/f3-day-tR.png
+7aaf1de3d730d497ed26ede975fbc29020f79894a7dc4693ab32243a6fa5d87f  kukuruznik/f3-night-tC.png
+b7a0643f76691581568570832c647c6b9410bc931ad1925c87a44221e146be8d  kukuruznik/f3-night-tL.png
+e8e4c7df0b50423337ec561f3701c4f405d88b68d928ac00608d622ee4bc0633  kukuruznik/f3-night-tR.png
+e016353d4b4269ce6026914212f3239a12ee7ba861450e94873c968ff1c914f9  kukuruznik/f3-rain-tC.png
+76893214f68fcf6db7b2a4e945d243811e583ffa00e8fc5aae31e53fe776b2dc  kukuruznik/f3-rain-tL.png
+652ef72f0c4da9204a0b2c1775f75189b410aab2203c8fa26e7f2a21b5b8e056  kukuruznik/f3-rain-tR.png
+f0945174454f8b7e31be1c8cbb055b0e0a7a4f4fd0aa83701097e690355a6c58  kukuruznik/f3-snow-tC.png
+50f447ffd407a6689b5dc10550856a7ec116d014d9ba1a0763934652af021ae6  kukuruznik/f3-snow-tL.png
+13fd4f5e2773aa7c8c19ed61284d79f96b8fff20aa0f192e4c486bafbc964489  kukuruznik/f3-snow-tR.png
+d4de3e62f7b8c08d51c309552a45dcbd4250b8c66d3f8c9b18c5e67238f4c9a3  kukuruznik/f3-sunset-tC.png
+abec87d16a41ecbd556aa3350289089d2613b53be2be838d8afc1cf941743afc  kukuruznik/f3-sunset-tL.png
+148527940bb7c8710a8f72efe17f19cf6ed755cc093e61727da443134e89fe6c  kukuruznik/f3-sunset-tR.png
+0fb52576d951801ab71379bdaafafb7526c041d5e5a3781566625b911fa1ec7f  kukuruznik/f4-day-tC.png
+637108a5985c38424311ada5e0d264ecea3e4be64c4027b99f24404525b9894e  kukuruznik/f4-day-tL.png
+458f564b5b748c9a5ac3ce3f3b412e24fe3e52c818cc7c00cf8b4eda93eb7391  kukuruznik/f4-day-tR.png
+c61223cfd47ab82bcf608bb4467e4c7066832f905b3698e9cfada0c7b893496e  kukuruznik/f4-night-tC.png
+ea213744060ad638ffe2528a504308fc12bbde6e29fd881c1ee77bc0186cb18c  kukuruznik/f4-night-tL.png
+d1e26cf046e26f4027dc9a4a1d9d23235e9cbb20ee561e6221854f641f6d8974  kukuruznik/f4-night-tR.png
+a8645ec35dacca153be6b903fca1d78fb09d7dd6c917466ef3439aaab9ebca27  kukuruznik/f4-rain-tC.png
+1265ed306f2048131e304fdedd36a36e5bdf184bcd3cd74dd3db47d4b8752989  kukuruznik/f4-rain-tL.png
+89bb500d3c8ec066e00cc01cf17589d869409b0d795dab7c2821084b4d4fc2d7  kukuruznik/f4-rain-tR.png
+aaec2ea9cd1ec7338fd915d518cd4f56c9d564f7cef9514e7a98a900746feffe  kukuruznik/f4-snow-tC.png
+d1168b5cf5cbe856855afecd3316507e737d3435cc3cdf1d612090bb1b6f2212  kukuruznik/f4-snow-tL.png
+229a269cb8651fb2f5c3c6ed58a79ae0f5f224859f652fbc626859db6eaca834  kukuruznik/f4-snow-tR.png
+fb6f26e3127d460c8c523bd0eb28f281feaed1db7282b1604080102d2e1bab83  kukuruznik/f4-sunset-tC.png
+82e0e45788d74dd0b6a9712e75d5153629156f9daa0dd4dd2f42494076e6932f  kukuruznik/f4-sunset-tL.png
+25233a45ce542cc3222f895919fa5040cba9a75ba125da4da8507a5b33d24615  kukuruznik/f4-sunset-tR.png
+63c35acf9a269e5774c1e2ab69c8b5d5aa8511d51be3a7b770d3055903944cbc  kukuruznik/f5-day-tC.png
+d47b627af4571ccef57889bc2bae9e3fa2c3b23912a2fc31f291daada46a41a1  kukuruznik/f5-day-tL.png
+3270541d2fed33c98519dc91a53340322ef84231c13563549f3f40a344937dba  kukuruznik/f5-day-tR.png
+2b920a855ff8d6b4b28111bf4a676338cb40172caaaf55bc10f658877ecd4cec  kukuruznik/f5-night-tC.png
+40c368e8c21cc96c2f6a02e1c91f04038bad319c26c1b8626c5e23313374be9a  kukuruznik/f5-night-tL.png
+63c34bc7e85614212aa7058ca7ed6568d12f78c1e5c4de8be05a3a8bce92e565  kukuruznik/f5-night-tR.png
+c79425438f0cd093349846b99d4ffb15c5fbc17ce49c86107fa698990f729320  kukuruznik/f5-rain-tC.png
+28f98d6d5e274dd32a347e58a39fba487b7a90f7cd14f2bf78bb047195a3b40e  kukuruznik/f5-rain-tL.png
+4d21404595fb07a508a52e18686639180c54874b150ba74c1799d4f2eab21ff2  kukuruznik/f5-rain-tR.png
+99f9f5a2d08bf5dcbd4198d8455d8a9e67fb52e365c6ce58efd72b62786cd029  kukuruznik/f5-snow-tC.png
+e895f9881753f655c05baead4a2dd8f9725e403e389530bc7277a23f1be381d1  kukuruznik/f5-snow-tL.png
+3b4f592b9056de37605ad91eced186ab69e6cf69627828e93972f7463e608c7b  kukuruznik/f5-snow-tR.png
+28cea0ebe2b10d1f7dec0f49c4260a96b9fc454436f8e5568314090b6b386536  kukuruznik/f5-sunset-tC.png
+8b4ce327e7f77f30e91dc8d44b435ace9d34e075f53587db082952d8ad50d009  kukuruznik/f5-sunset-tL.png
+ab576a5815456bee76827898a2952b975b8353f51ba3ef9a9c2a85cbff00f63e  kukuruznik/f5-sunset-tR.png
+d10257835d2a2c9f9d6b44eea8dceb1ad444c91d93572545525ad85e54684666  lenin/f0-day-tC.png
+78345350d4a92be49773598092436beb9be004a475147a70521562e6efecbafe  lenin/f0-day-tL.png
+b84f98b9b86ae8cd7448dce7df1eae0785461218d10462471875adca8359d01d  lenin/f0-day-tR.png
+c3a3186ee81be8347a5f5aab0ea75748debfaa58935affbe9eacc99df4d41fa4  lenin/f0-night-tC.png
+758c23b16bc5bde787d015c71f154176c52f81ba84ee8ad9e7fb554e71330024  lenin/f0-night-tL.png
+26d7f712bddffa3a9bdc5918882c2b393150c34c6da3ff25d684333ddc341212  lenin/f0-night-tR.png
+623829b59eb949eb08bc747aafbe5268ba13262ea0cdf56852941cc134b529a0  lenin/f0-rain-tC.png
+09df1e37b2a2b4cc54a96ddf934d22c0fbacf041ef6adb33efda97da6260c791  lenin/f0-rain-tL.png
+df824665d18091c0b3d4132df45dfc2a19e41686c693dc35e9d0cfd30765897a  lenin/f0-rain-tR.png
+8727dc3630557663cf24da940e9d3fe478e053213b4f51666d73697a7c6b6c4d  lenin/f0-snow-tC.png
+a762193c1ddb1f91682126af935fa04e7af45f369dc771f622e8e2926ec9ff92  lenin/f0-snow-tL.png
+079af6245cc4e9fc0a9df7d17034f2bb01795c58dec1f8b76804fdaaea1cf615  lenin/f0-snow-tR.png
+bf16d72504523374c861cced7d0f8977b47af24044998b1a252464bd1f2424ef  lenin/f0-sunset-tC.png
+3d20eeaf3413c43d61655cb01d5bcc20d480da28a5e2475f252c119544ca267f  lenin/f0-sunset-tL.png
+4f5f4dee066d87e271d1dfdc9a2d1c94fe08defab5c136081efd6248775fe682  lenin/f0-sunset-tR.png
+dcbaa728884b2ef81a69afe717045b586ef7fe815f69955b479bea91b94c4af5  lenin/f1-day-tC.png
+7bbf994f26f62e118b4cf961942a438f8b2c86db761fcd6f97404362f39d3f23  lenin/f1-day-tL.png
+36caefcd51503bc9f75f1561651a2132330afd6abd4fc246c3f2b012f069a782  lenin/f1-day-tR.png
+d3fd6c598d6c0fab14d180fe399c1f230a87c2f8ca504bce1f0b4acf0bc32960  lenin/f1-night-tC.png
+015c16a9013e4bfe37c1f60431b60dd8b249219a2b0e97a7157283bedd303fdf  lenin/f1-night-tL.png
+0dc596eac1555c70145a2f73e105628a4e509012e8614b069b1c4a17c8527681  lenin/f1-night-tR.png
+bfbe442a3fa89deb1b9371b0fccea41cc9306971a2914b340c0a181eb0cd19f9  lenin/f1-rain-tC.png
+1764320a4cf0b8a3215ab0bb7dc31d2af7a46a509cde3b1d80ddad40ebd35c7e  lenin/f1-rain-tL.png
+d572d262a6de8e605aca58621dce920901f034f0ecbadf5a8ad7fbc2235d9145  lenin/f1-rain-tR.png
+5f9f0d01456303ea1932cf25d0494f05ab7ecbc8de34c2ea21a9da92f6c4db67  lenin/f1-snow-tC.png
+1ddd51a030ee91d2fae59b843695178bcf9cfcf5d71cc9a2c4add8d6e418124b  lenin/f1-snow-tL.png
+9d77805b808cd3756f28520c9c0e8eeb665c8ea572d630a9b27dcb8cf0711ace  lenin/f1-snow-tR.png
+aca6afb3867b80dbcae5b531abd6648fea1fb72313cd654246207bb11394d433  lenin/f1-sunset-tC.png
+f4a991fe3c26a7ac688a288c38485a5be2a7ad33ffee2c6c57d4295de5b80759  lenin/f1-sunset-tL.png
+127bbf2366a010308dfda954a52ee395af02b408242fbe3aec75f5717b832d5e  lenin/f1-sunset-tR.png
+3a99ab8ad908a51ecfd99bff16581ad2c673d354d36d1e4f4306bf1f2e35e47a  lenin/f2-day-tC.png
+edc6a1962c9d2d1a91e75144d4033d7322c18fd9be64e35aa5b4ecef66de06c1  lenin/f2-day-tL.png
+d70df9dc98d165979e693dabb3057ad115d8fc592645d899f5f3b722ccb014ba  lenin/f2-day-tR.png
+7a8e0043c6064596d2b0fd960fb9efcf046f83b14fead3ce706440160f63455c  lenin/f2-night-tC.png
+eb4c36c318ee16ed067be3ada9e12644b4cf7f9466c4df22d104b87176c29322  lenin/f2-night-tL.png
+868b9808420a84daeb95c4ad753b5d7c5e8b3785272eb0aa9aec51f2d96bdf47  lenin/f2-night-tR.png
+cf964c3796873f28b4493ffd239802e41a7e4d4e4d3a9a9c2634ae75e8ea55b8  lenin/f2-rain-tC.png
+06a339e3ba93b6445ef5c310d374849ef4aa3c455533be395f02250f0fa59653  lenin/f2-rain-tL.png
+0f760bf094bb4179575fcc63d2d56a0b38e98df836945f4f956aae82f4405741  lenin/f2-rain-tR.png
+932514c6b5ccff6c927b5fa435d5c93050507051acadce86e36ea7da08a09a22  lenin/f2-snow-tC.png
+1541c61fc03c0fcc3c26a309ee1c64abb1931b009897b62fe31fdab5d020e205  lenin/f2-snow-tL.png
+f44a3e358f1a0f28c095213808045087cf4a8f475178c9230ad22a4ec595f7b5  lenin/f2-snow-tR.png
+1665153a866a4982c6c13a2e10ca0171e0029c8305382b22ca86864efc6b0726  lenin/f2-sunset-tC.png
+a3e6f18952951147331fdd3080fd4901e0c0cabde04f63cab6e21cdeba8f65bf  lenin/f2-sunset-tL.png
+54874d4697ae02a7aa2f02f04f85bbed1eaaee84f59bd58a4e9d4f393f0d7c17  lenin/f2-sunset-tR.png
+0b622071e52abaf904127970bdbd2b571c4422ef0a5cece0cde5d05da06db48d  lenin/f3-day-tC.png
+46cc62d685b7eac64e5c4445677326c166c894eee2fcfe0dbfea9ed32c7f2e2c  lenin/f3-day-tL.png
+020b1ceedbd96c2101a4d17cc5d5e022c203e262c8b3df88465fdc30b0eb578e  lenin/f3-day-tR.png
+9fde6706340a52e3a20a41e7dc9277809187a31f10f08f6b0d09af1591ba25a2  lenin/f3-night-tC.png
+dc6f6345f2880e854a7c37b9219520c46c35dde56a798b10d53bae28b6d69ad0  lenin/f3-night-tL.png
+f6997976d4f527b53094075ff11b72e1d2c6852e8e6cc2d5fafb0bcd155c13b1  lenin/f3-night-tR.png
+1dd48cf1d88a7d1cd08065b8729dfac7488057e8020f64971376efbccbe26105  lenin/f3-rain-tC.png
+82124547d0853159674a6cc71bd506626262877e30b488f004e2295eb616e428  lenin/f3-rain-tL.png
+17b7cbbe3a7f90ab2c370e03ba3dd1da5c02a446baf1a7173d9ee15dcafd061e  lenin/f3-rain-tR.png
+01e4657e95fe137dacbdfdb640d33626f0e78acc3be44d623e2e78032f7195ec  lenin/f3-snow-tC.png
+b904a7fd04187f36dff3c1c93d6482f31697a307dd95813e9f10692caec81d9a  lenin/f3-snow-tL.png
+d9360b98c4e7932bf5a519fe5193664c791d5fcf57214299963c5c7f464b536d  lenin/f3-snow-tR.png
+2583e59a302bfe8af59d01f1072c65f11e3be2307b530040b7239c1eb6c4ca21  lenin/f3-sunset-tC.png
+57b5426f9372b109e4feede063b250e86993020b6d7840ac8e388a8c15015ea5  lenin/f3-sunset-tL.png
+43997705bd68837b937d9eeeed3c5147ac61e78561b951db7932738260dba60a  lenin/f3-sunset-tR.png
+5844884229daf77d338b4ae8f7242540b9014aed732cdaa52610cad5c4caddbb  lenin/f4-day-tC.png
+f61fb35626a27c7041628af61b3e6d5662c0f08c8e313b76c55bc23812ac0970  lenin/f4-day-tL.png
+c05a9cb8bd77349302f82d3385a24196b22b8f7378448f0225e7270849188822  lenin/f4-day-tR.png
+336834ed553f073050490bc0675b59457f2f744a6d1dba8797f0decc16a7e042  lenin/f4-night-tC.png
+31f0bc1baa23a94cbdd5c01213b31ea990bac0310346ed972817ce165bfb10a5  lenin/f4-night-tL.png
+c6e881b864b1ff186bd252e001fdb03cb2b6e622ce5c1ad5e716f7e9012483eb  lenin/f4-night-tR.png
+200f16111b61d175023b2b03e2d453e999266c9482f1dd86e1be2106944643ba  lenin/f4-rain-tC.png
+9c22154651a9925cd5685048780e58166743f44184643dea2f36e5092decabbf  lenin/f4-rain-tL.png
+95b9eac920a60de5b4205f66f2bf3d4828bfea9d0267c7fcc6d7e382db273c7c  lenin/f4-rain-tR.png
+f56ecbdc3ac5fe08b84029c54a9fc4a9f3ecb86d2066d57d83010ac4d7e595bf  lenin/f4-snow-tC.png
+48e72cacb40f345510ec96def071ad1dc4f0d73e176fca8f3a72e8fcca438e15  lenin/f4-snow-tL.png
+5ca5768f41dce8719a6ccdc92f68ef6cb06e4c6e3398f849a46f2480a078db8c  lenin/f4-snow-tR.png
+8f322742400c85845225860e688f567c9f27565209416411f7e88f26bd23a683  lenin/f4-sunset-tC.png
+c30f8f18c0af1ba111717cd7b367da39aac9314734b9afeea06ec45d34fed065  lenin/f4-sunset-tL.png
+3bf4c59237ccfaddab7d35ad5784b5cff1e798b8e0003335ba7e6d2a3044c187  lenin/f4-sunset-tR.png
+4148f8534f8534cc533a5634a590f99537636e75b22138e957112d207211f793  pogos-petros/f0-day-tC.png
+201b1d81007e8aaa6fb1ba754119665475762791a44b4d5c10ee070d7f9b16f5  pogos-petros/f0-day-tL.png
+947981db909c005bd7ad5cda7b6b73f6e73092b49ea92fef43421fd1f3c31b22  pogos-petros/f0-day-tR.png
+fd174d6d15876e92c61015fa9ca314cd89625184f957ea64522a82f210d4caa1  pogos-petros/f0-snow-tC.png
+eadd99417a8a6dcebe6c5647bfd974df04d07d3cbf354e9f62cb04da9f4b34a2  pogos-petros/f0-snow-tL.png
+475c996e7b4589cacb74dfe4b70943a66bd5758ba3905d2f7e9af07b76d1f85e  pogos-petros/f0-snow-tR.png
+8230826782af0bf62249f5dbff50e1504d98f693877bd6338858d086ec956467  pogos-petros/f1-day-tC.png
+789ed4378e065d2c3eaae486abc6a0d3d0180989350f3bc9a24b473e13e72dfe  pogos-petros/f1-day-tL.png
+295b8b63715a257d8ef236e195bab99ac43b790f1d71a5920aed681c15b9a168  pogos-petros/f1-day-tR.png
+e57fe1e93d2a3ea44c65ae5c62f2b73a77ea634171802adf8c5ab454c5f19430  pogos-petros/f2-day-tC.png
+76030e6a125930e674431817c0d62af60fc8f87511707142b0d92578aba662d8  pogos-petros/f2-day-tL.png
+35c57c67f27dda5013310bd566c92d80b2051b7b036f9d8519b52db78b8ecaa6  pogos-petros/f2-day-tR.png
+b675a7e6fe8e9dd79f40ac6a95f0d5b1e3f3097e40cfc0263a7b3a2c481c569b  pogos-petros/f3-day-tC.png
+cffaa5205e701336578e11c6be6003b4bada6ce8084e99332c5c1830f29bd1b1  pogos-petros/f3-day-tL.png
+73689ef6bad5772d162e46803c51cd854eb4d06edd0bdb5c687639cc37bff5e1  pogos-petros/f3-day-tR.png
+0d2f667581f8a4591f0ca97806fda167b9966360e0e6f181cf4441956afc1f8c  pogos-petros/f4-day-tC.png
+3fc9ed704f9f86dfebefca115c5d8fd8223701078152dacd6e562734abecddbd  pogos-petros/f4-day-tL.png
+85e09eb54faed3286154c57c0538d51427d02120a86b8cfad56226f0e61062af  pogos-petros/f4-day-tR.png
+a02a1ce53b3f7b96f9f7295539e01dcf62866090f6097bdcbde9294b5d888a97  pogos-petros/f5-day-tC.png
+1adb05b2a53c5409bb02aaac41bc6ca07a054238811594809ac71366f548045f  pogos-petros/f5-day-tL.png
+243c42397bf6ddc0be44cd1e3d1bac4e9e923f85e4d38116c5a1919b6b88d4c8  pogos-petros/f5-day-tR.png

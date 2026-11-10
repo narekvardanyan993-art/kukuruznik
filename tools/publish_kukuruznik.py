@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Публикует страницу Кукурузника (chka.am/kukuruznik/) из kukuruznik/building.json на ЖИВОМ движке engine/ (этап 5 и дальше).
+"""Публикует страницу Кукурузника (chka.am/kukuruznik/) из kukuruznik/building.json на ЗАМОРОЖЕННОМ движке engine-k/ (копия e1.62; docs/STANOK.md §2.2; до заморозки — engine/).
 
   python3 tools/publish_kukuruznik.py --dry-run          # собрать во временной копии main, проверить, показать изменения (без коммита и пуша)
   python3 tools/publish_kukuruznik.py                    # опубликовать: коммит в main + пуш (обычный, без --force)
@@ -9,8 +9,8 @@
 Для правок САМОГО здания (тексты, факты, точки-подсказки, фонари, кадры) — движок не меняется:
   • kukuruznik/index.html и kukuruznik/manifest.json собираются tools/build_pages.build_live (шаблон engine/page.html +
     engine/config.json + kukuruznik/building.json; адреса движка ../engine/…?v=<версия>). Руками страницу не править.
-  • Движок на сайте (engine/) НЕ меняется и обязан совпадать с исходником engine/ — иначе стоп: новый движок идёт только через
-    бету и tools/publish_engine.py.
+  • Кукурузник смотрит на engine-k/ (заморожен, не правится): на сайте нет — ставится из исходника, есть и отличается — стоп.
+    Живой engine/ этой публикацией не трогается; новый движок идёт только через бету и tools/publish_engine.py.
   • Защитная проверка tools/check_site.mjs перед пушем: всё строго против origin/main. Здание, которое меняется намеренно,
     указывается --expect-change (тогда его различия — в отчёт, не провал; ошибки, 404, fps и шапка/превью проверяются всегда).
     Красная — не пушит; обход только --skip-check.
@@ -74,15 +74,15 @@ def main():
     print('%sвременный worktree: %s (от %s/%s = %s)' % (tag, tmp, pb.REMOTE, pb.BRANCH, base[:7]))
     try:
         pb.git(ROOT, 'worktree', 'add', '--detach', str(tmp), base)
-        paths = ['%s/index.html' % BID, '%s/manifest.json' % BID]
+        paths = ['%s/index.html' % BID, '%s/manifest.json' % BID, bp.engine_name(BID)]   # + замороженный движок engine-k/ (ставится build_live, если его ещё нет на сайте)
         if args.frames:
             n, size = encode_frames(tmp)
             print('%sкадры: %d файлов, %.1f МБ' % (tag, n, size / 1e6))
             paths.append('%s/frames' % BID)
-        bp.build_live(tmp, [BID])   # движок на сайте не меняется; не совпадает с исходником — стоп внутри
+        bp.build_live(tmp, [BID])   # Кукурузник на замороженном engine-k/: нет на сайте — ставится, есть и не совпал — стоп внутри
         pb.git(tmp, 'add', '-A', *paths)
         staged = pb.git(tmp, 'diff', '--cached', '--name-only').splitlines()
-        outside = [p for p in staged if not (p in paths or (args.frames and p.startswith('%s/frames/' % BID)))]
+        outside = [p for p in staged if not (p in paths or p.startswith(bp.engine_name(BID) + '/') or (args.frames and p.startswith('%s/frames/' % BID)))]
         if outside:
             raise SystemExit('в коммит попало лишнее: %s — стоп' % outside)
         if not staged:
