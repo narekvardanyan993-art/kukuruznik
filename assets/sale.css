@@ -47,9 +47,11 @@ h2 { margin: 24px 0 10px; font: 700 14px/1.3 var(--sans); color: var(--faint); l
 .ex figcaption { margin-top: 6px; font-size: 14px; color: var(--muted); }
 
 .sum { margin: 0 0 10px; font-weight: 700; }
-.chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 0; padding: 0; list-style: none; }
-.chip { display: flex; align-items: center; justify-content: center; height: 44px; border: 1.5px solid var(--accent); border-radius: 12px; background: var(--accent-soft); color: var(--accent-strong); font-weight: 700; }
-.chip.taken { border-color: var(--line); background: #efede8; color: #6a6f76; text-decoration: line-through; }
+.chips { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.chip { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); font-size: 0; color: transparent; pointer-events: none; }
+.chip.taken { background: transparent; border: 1.5px solid var(--line); text-decoration: none; }
+.legend > *::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 50%; background: var(--accent); vertical-align: -1px; }
+.legend > *:last-child::before { background: transparent; border: 1.5px solid var(--line); width: 8px; height: 8px; }
 .legend { display: flex; gap: 16px; margin: 8px 0 0; font-size: 13px; color: var(--faint); }
 
 .price { display: flex; align-items: baseline; gap: 12px; margin-top: 24px; }

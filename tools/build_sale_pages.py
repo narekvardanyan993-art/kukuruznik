@@ -55,7 +55,7 @@ STR = {
                  'Музей делает Нарек из Еревана. Каждое здание восстановлено по старым фотографиям.',
                  'The museum is made by Narek, in Yerevan. Every building is restored from old photographs.'),
     'who2':     ('Չհավանեցիք՝ անվճար նորից կանենք։', 'Не понравится — переделаем бесплатно.', "Don't like it — we'll redo it for free."),
-    'cta':      ('Թողնել արձանագրություն', 'Оставить надпись', 'Leave an inscription'),
+    'cta':      ('Թողնել քո գրությունը', 'Оставить свою надпись', 'Leave your inscription'),
     'foot':     ('Երևանի քանդված շենքերի թանգարան', 'Музей снесённых зданий Еревана', "Museum of Yerevan's demolished buildings"),
     'pay_open': ('Բացվում է վճարման էջը…', 'Открываем оплату…', 'Opening checkout…'),
     'pay_hand': ('Չբացվեց՞ սեղմեք այստեղ։', 'Не открылось — нажмите сюда.', "Didn't open? Tap here."),
