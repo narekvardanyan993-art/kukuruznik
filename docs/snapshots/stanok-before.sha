@@ -182,9 +182,9 @@ c30f8f18c0af1ba111717cd7b367da39aac9314734b9afeea06ec45d34fed065  lenin/f4-sunse
 4148f8534f8534cc533a5634a590f99537636e75b22138e957112d207211f793  pogos-petros/f0-day-tC.png
 201b1d81007e8aaa6fb1ba754119665475762791a44b4d5c10ee070d7f9b16f5  pogos-petros/f0-day-tL.png
 947981db909c005bd7ad5cda7b6b73f6e73092b49ea92fef43421fd1f3c31b22  pogos-petros/f0-day-tR.png
-fd174d6d15876e92c61015fa9ca314cd89625184f957ea64522a82f210d4caa1  pogos-petros/f0-snow-tC.png
-eadd99417a8a6dcebe6c5647bfd974df04d07d3cbf354e9f62cb04da9f4b34a2  pogos-petros/f0-snow-tL.png
-475c996e7b4589cacb74dfe4b70943a66bd5758ba3905d2f7e9af07b76d1f85e  pogos-petros/f0-snow-tR.png
+fd174d6d15876e92c61015fa9ca314cd89625184f957ea64522a82f210d4caa1  pogos-petros/f0-snow-afterday-tC.png
+eadd99417a8a6dcebe6c5647bfd974df04d07d3cbf354e9f62cb04da9f4b34a2  pogos-petros/f0-snow-afterday-tL.png
+475c996e7b4589cacb74dfe4b70943a66bd5758ba3905d2f7e9af07b76d1f85e  pogos-petros/f0-snow-afterday-tR.png
 8230826782af0bf62249f5dbff50e1504d98f693877bd6338858d086ec956467  pogos-petros/f1-day-tC.png
 789ed4378e065d2c3eaae486abc6a0d3d0180989350f3bc9a24b473e13e72dfe  pogos-petros/f1-day-tL.png
 295b8b63715a257d8ef236e195bab99ac43b790f1d71a5920aed681c15b9a168  pogos-petros/f1-day-tR.png
@@ -221,3 +221,64 @@ cba9dc3a861c159f66261c97c8a8d5efe5708d33b9f4338de966b2ced4652406  pogos-petros/f
 045afbe08098e2ed305af35dfc63bc5948ad385e5a7488b16d77952a0a488e3d  pogos-petros/f5-sunset-tC.png
 9773fc9ac5f1d30cee507c25c0c373c29c6e864983a3ffe8eced70a885cd76b0  pogos-petros/f5-sunset-tL.png
 9f80533386c33f663f756bd8209998cdcecc53ea62537eb4eed542fd262127a9  pogos-petros/f5-sunset-tR.png
+# --- Погос-Петрос «Ночь», «Снег», «Дождь» (эталон перед П2, 11.11.2026): e1.62 (страница pogos-petros из report/stanok-p0/site-before, sha index.html/manifest.json как выше), тот же Chrome 153 swiftshader (облако), 390×844, ?still=1&perf=0.
+#     КАЖДОЕ состояние — отдельный свежий прогон с чистого старта: node tools/stanok_look.mjs --states night | --states snow | --states rain (по ~10 мин). Состояния помнят прошлое — сравнивать только с таким же прогоном --states <одно>.
+#     Ночь 18/18, Снег 18/18, Дождь 18/18 (6 кадров × 3 наклона), 0 проблем. Дождь снят дважды (два свежих прогона): 18/18 побайтно равны — UNSTABLE нет (на этих двух прогонах; у Кукурузника в П0 дождь был нестабилен — не гарантия).
+#     Снег кадр 0 (f0-snow-t*) перезаснят свежим прогоном и отличается от П0; снимки П0 (снег после дня) переименованы в f0-snow-afterday-t* (строки выше обновлены, sha те же).
+# night (свежий прогон --states night)
+f2ad44c9052a91f011ee48105ddf180da0fbdc3524ca62c41b447eae15703703  pogos-petros/f0-night-tC.png
+056841320023bafa4ff155919a54d21b2f4f18d5638a23ad124bda10620443c1  pogos-petros/f0-night-tL.png
+1369c0e71943ab51a56fe52adcddeb826ef225ab8313cf8967119645ebfcf645  pogos-petros/f0-night-tR.png
+be3292af94656c177ba3e956c6931f7da628585995c5f2d091f65994ccf9eb28  pogos-petros/f1-night-tC.png
+4f709ac5e052ca5d521173afa34c0b136a5928ea1a57dfac0487ed754881fe2d  pogos-petros/f1-night-tL.png
+c848eafa07ce972f069506c4e3e64b5d489b99d933312e0d53339bd196757dfc  pogos-petros/f1-night-tR.png
+312d037e7867580ecda6c710914e7cf10cbe55caffe5a5ed2eb8a10e06fdae36  pogos-petros/f2-night-tC.png
+b8ff10fa92ee9b919267a2bbb2dfa5ed08dd24e5c8c503ab5a10b2faf01f231f  pogos-petros/f2-night-tL.png
+868a493ccd9ca05348c724d66ac06e21762412d4172bb704dc90e38364ddd621  pogos-petros/f2-night-tR.png
+aa2db90333d8301a5f31ce2520baa8d797340c753dd68f52f8a35fbc5c3631e2  pogos-petros/f3-night-tC.png
+3a83092cee9136982b83362921ea11bb7930c4cd298f0b7b6226f06ff0d82407  pogos-petros/f3-night-tL.png
+b9d0f40b4c361f0d11b7cd77418924a241968f6001a0469b51587e587b19b219  pogos-petros/f3-night-tR.png
+91a84580bf46ef3f3e723f83ea681500903add8042ca33edfa9bc7df16e300f0  pogos-petros/f4-night-tC.png
+e1d49bd91c7dbd0a0ec5c6f52a2de1de48d0b045505cdbee5bf060c54ac4c416  pogos-petros/f4-night-tL.png
+18ea96529b4c0b121e14e8f3398a6518ac0d6b645b70262efbb4683bb99db00e  pogos-petros/f4-night-tR.png
+232cc6955fa4352d018bc8ebea06fcdb6d54143364084a1631ac2a217cd7daa3  pogos-petros/f5-night-tC.png
+32f8bc374310c81705c74bde4b56ae06f65177a80bae192d855c156937d5f6a4  pogos-petros/f5-night-tL.png
+90f2c15e852baa9c6de366eec866099076e3d4b16190ffedbd80f9c64984481b  pogos-petros/f5-night-tR.png
+# snow (свежий прогон --states snow)
+4acb1f24137c6f969efe9b294d2f51bb0a9e14ad08bd73e17df41d90edbc573a  pogos-petros/f0-snow-tC.png
+35539986d80bbedb2170353fab61c3b36f80da839dc4d8f4d33f357301308abd  pogos-petros/f0-snow-tL.png
+96c7efdf528400110f18c56efff4eeff4cb75196ace8e2ea0bebd0075c4206fe  pogos-petros/f0-snow-tR.png
+9d4494db7517c7dd7735f1a3cdaa3d6d7b86c803fb8629dc18a3721357c4b416  pogos-petros/f1-snow-tC.png
+8f197431e6464d9b5946b2bb3a8d99c2909340d6a86dfd8c3fe65f5abdc094c0  pogos-petros/f1-snow-tL.png
+49760ef55af3f0a06ab48e03136e7460ebf1713291bc90daad819777594e0e9a  pogos-petros/f1-snow-tR.png
+11e008e20d22ed2b44fae0500ed232be7ef6382feb502872bcc648083735cce0  pogos-petros/f2-snow-tC.png
+8305f807e55309189403a3135135803a799e511ea7e65b6e5a0d53db1979ff4e  pogos-petros/f2-snow-tL.png
+752a226e6bfd15801a1a9ff519b440e4436fb93b53aab09218d3250a1975e67d  pogos-petros/f2-snow-tR.png
+b4eb14c562c65742ef7f84a60f9b74c358afd960b216bdfeabcd33e6324a9445  pogos-petros/f3-snow-tC.png
+d48df9ade73e3f421687074062b8f2b98711ef2be860248a323dfa07af393b44  pogos-petros/f3-snow-tL.png
+643473f7642aaa6615574e9448179b0dedb6d947320d70ed346663a56e140102  pogos-petros/f3-snow-tR.png
+26144f280fd29773a56ed90f18db51ead2d60c272ae667bf6b4c4deb331fbb2e  pogos-petros/f4-snow-tC.png
+7e7e88acf505b766166e9446471e64ccce2527d287a585e98b1cb4b6f2ce6b16  pogos-petros/f4-snow-tL.png
+fe670dcfad5f428cbe7fcf605a76226b7b51b0ebdc6a07556bd69cd1dca268b6  pogos-petros/f4-snow-tR.png
+8661d88838f3f6cdb785f537a02d4ca38fff38fd3567460dadec4d36f0e449ce  pogos-petros/f5-snow-tC.png
+24ba400b83642606a5981639a0456183ad5462a25bcc607bc9f18282d1091398  pogos-petros/f5-snow-tL.png
+0f4791dab7072b6441f0747894afa1736b7c7232bf011b5eb1f177f166d5fd9c  pogos-petros/f5-snow-tR.png
+# rain (свежий прогон --states rain)
+d2e820c7d8d2a24b15506dfeb5d7821b6dca0c938e07306f79541a558c48b4ca  pogos-petros/f0-rain-tC.png
+43d2ecb57996425f9d78ff543c258dfb8a8c68130839df72dbc48ff185fff05b  pogos-petros/f0-rain-tL.png
+67496193e78991970c25e89fdff8d6d2cdb18f432f386a2681c4a0cd45f1aa18  pogos-petros/f0-rain-tR.png
+e0bdeaa2f984d8b7bf74225ce68d2e56b2eca56eeb776101214657401510fbac  pogos-petros/f1-rain-tC.png
+a6aa36556c6f0ecf419bd9e1e9478e1806a7899095705009d5f8409dd3ec9fb1  pogos-petros/f1-rain-tL.png
+6cc2aff02723f395dce72bed7a4325fc75e82843a1f00a6e86fc70cccd8ea98f  pogos-petros/f1-rain-tR.png
+58eff17fc0ecf37cff662adf84a6519373f1b3f5fca196621c1b0fe453e09650  pogos-petros/f2-rain-tC.png
+a2dc80d77cae1c4d56097d31a3d9d7574f25ed57b0bf987b4ef158e3190758c0  pogos-petros/f2-rain-tL.png
+8a028863dd46aff286857cdf8aecf5fbbd21adfbd4c8fe80631375de94554338  pogos-petros/f2-rain-tR.png
+4f5baa899526e52d7598e0708fedf5cecc84a0f9e903e9484065bca299eeacf1  pogos-petros/f3-rain-tC.png
+aedec14f1318aa751c4ce6f6db29b55ad08eec7c1c686a349d6e69f9bb6b1ece  pogos-petros/f3-rain-tL.png
+1bf02a87e3f34104f91d531d0ed9c72d29e50b9367a889fea8827667c54bc652  pogos-petros/f3-rain-tR.png
+f01c707bfeb6a22a375239f2820ee32b064483267554482fce57cd19e3e0517c  pogos-petros/f4-rain-tC.png
+b9ddbc4dc3771f1494d7532953a07eb5699825b15403aef8fbb76e3c5242035a  pogos-petros/f4-rain-tL.png
+18828e03c8510f5f3af7c8d13e5aa9c5bc73d77c3210db823f9231b96f800a8e  pogos-petros/f4-rain-tR.png
+1ec5f96e2255f82ce4e74fb7b7ca04e0f6b481447824afe50f4b39f244d81960  pogos-petros/f5-rain-tC.png
+5c93733616ce88f49c194d64bb93d95ddb7a5f1da24fe888eee5f45459a41343  pogos-petros/f5-rain-tL.png
+ac6b88058e29076bd70bd890bef574d8417c125f9ba8914dddc6fb11daaf9605  pogos-petros/f5-rain-tR.png
