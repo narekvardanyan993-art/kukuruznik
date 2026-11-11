@@ -3,7 +3,9 @@
 // Эффект (E2.effect({...})) отдаёт куски GLSL в фиксированные крючки. Порядок крючков жёсткий:
 //   uv      — куда смотреть в кадре (наклон, потом ветер)
 //   base    — рисунок + подложка + здание (+ актёры)
-//   tod     — время суток: день, полдень, закат, ночь, огни
+//   tod     — время суток: день, полдень, закат; ночной рисунок готовится (vec3 cn, float nk), но ещё не кладётся
+//   lights  — огни ночного рисунка: гасят и зажигают окна, мерцание (меняют cn)
+//   night   — ночной рисунок кладётся поверх: c = mix(c, cn * lk, nk)
 //   weather — пасмурно, мокро, снег лёг
 //   mix     — после смешения двух кадров (тени облаков)
 //   post    — второй проход по готовой сцене (только когда эффект просит: длинные тени заката)
@@ -16,6 +18,11 @@
 //   vec4 env  — карта окружения в p (r глубина, g небо, b дерево, a фаза)
 //   vec4 b    — слой здания (цвет умножен на альфу); float inv = 1 - b.a
 //   vec3 c    — цвет; float sky — доля неба в точке
+//   vec4 eg, eb — карта окон в p и в pb: r — маска огня, g — номер огня (lights); b, a — окна для заката без рисунка (tod)
+//   vec3 cn   — цвет ночного рисунка в точке; float nk — доля ночи 0..1; float bn — доля слоя здания в ночном рисунке
+//   float lk  — множитель яркости ночного рисунка в точке (мерцание огней): lights меняет, night кладёт после затемнения
+//   Ночные текстуры ng (земля) и nb (здание) объявляет tod; их альфа — место для карт погоды: ng.a — маска снега, nb.a — порядок
+//   появления снега (weather). Отдельных текстур под маски нет: у телефона 16 юнитов, 8 на кадр — и все заняты.
 // Кадров в шейдере два (A уходит, B приходит): у каждого эффекта свои текстуры и числа кадра (frameSamplers, frameUniforms).
 E2.GL = (function () {
   var gl = null, canvas = null;
@@ -66,7 +73,7 @@ E2.GL = (function () {
 
   // Собирает оба шейдера сцены из кусков включённых эффектов. Возвращает исходники и раскладку текстур по юнитам.
   function compose(effects, cfg) {
-    var samplers = [], fUni = [], uni = [], funcs = [], hooks = { uv: [], base: [], tod: [], weather: [], mix: [], post: [] }, postUni = [];
+    var samplers = [], fUni = [], uni = [], funcs = [], hooks = { uv: [], base: [], tod: [], lights: [], night: [], weather: [], mix: [], post: [] }, postUni = [];
     effects.forEach(function (e) {
       var g = e.glsl ? e.glsl(cfg) : null;
       if (!g) return;
@@ -91,7 +98,7 @@ E2.GL = (function () {
       uni.join('\n'),
       funcs.join('\n'),
       'vec4 shadeFrame(' + sig.concat(['vec2 uv', 'vec2 sc']).join(', ') + ') {',
-      hooks.uv.join('\n'), hooks.base.join('\n'), hooks.tod.join('\n'), hooks.weather.join('\n'),
+      hooks.uv.join('\n'), hooks.base.join('\n'), hooks.tod.join('\n'), hooks.lights.join('\n'), hooks.night.join('\n'), hooks.weather.join('\n'),
       '  return vec4(c, sky);',
       '}',
       'void main() {',

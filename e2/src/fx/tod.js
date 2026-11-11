@@ -1,5 +1,7 @@
-// fx/tod.js — время суток: день (небо и зелень), полдень (снять «золотой час» рисунка), закат (docs/STANOK.md §2.2, §4.1).
-// П1: день и закат. Ночь, огни и звёзды — эффект lights (П2).
+// fx/tod.js — время суток: день (небо и зелень), полдень (снять «золотой час» рисунка), закат, ночь (docs/STANOK.md §2.2, §4.1).
+// Ночь (П2) — только рисунком Gemini (<кадр>_night.webp, обязателен): день или закат растворяется в ночной рисунок за sunsetNightS с;
+// тёмное рисунка ещё темнее (night.dim), свет — как нарисован. Ночи «фильтром», звёзд и фонарей кодом в e2 нет. Окна гаснут, зажигаются
+// и мерцают в эффекте lights: tod готовит ночной цвет (cn) и долю ночи (nk), крючок lights меняет cn, крючок night кладёт его.
 // Закат: если у кадра есть закатный рисунок (<кадр>_sunset.webp) — он проявляется поверх дня; нет — тёплый тон считает шейдер
 // и второй проход кладёт тени. Оба пути перенесены из e1.62 для паритета; цель станка — закатный рисунок пишет шаг S3 (ответ Нарека 1Б).
 // Математика шейдера — из e1.62 без изменений (проверка: python3 tools/stanok.py parity).
@@ -7,10 +9,10 @@ E2.effect({
   name: 'tod',
   low: 'on',
   cost: 4,
-  frameSamplers: ['em', 'sg', 'sb'],                 // окна (маски), закат: земля и вся картинка
-  frameUniforms: [['vec2', 'skyRef'], ['float', 'hasS'], ['float', 'noonK']],
+  frameSamplers: ['em', 'sg', 'sb', 'ng', 'nb'],     // окна (маски), закат: земля и вся картинка, ночь: земля и вся картинка
+  frameUniforms: [['vec2', 'skyRef'], ['float', 'hasS'], ['float', 'noonK'], ['float', 'hasN']],
   P: { day: 0, sunset: 1, night: 2.1667 },
-  state: { p: 0, s: 0, sun: 0, name: 'day', anim: null },
+  state: { p: 0, s: 0, sun: 0, night: 0, sky: 0, gnd: 0, name: 'day', anim: null },
   glsl: function (cfg) {
     var T = cfg.effects.tod, D = T.day, N = T.noon, SP = T.sunsetProc, SH = T.sunsetShade, glf = E2.glf, v3 = E2.v3;
     var FW = cfg.look.frameSize[0], FH = cfg.look.frameSize[1], EW = (FW + 1) >> 1, EH = (FH + 1) >> 1;
@@ -76,8 +78,23 @@ E2.effect({
       '    warm += ' + v3(SP.windowColor) + ' * winBase * ' + glf(SP.windowStrength) + ';',
       '    c = mix(c, warm, uSunset);',
       '  }',
-      '  if (hasS > 0.5 && uSunMix > 0.001) c = mix(c, texture2D(sb, pb).rgb * b.a + texture2D(sg, pc).rgb * inv, uSunMix);'
+      '  if (hasS > 0.5 && uSunMix > 0.001) c = mix(c, texture2D(sb, pb).rgb * b.a + texture2D(sg, pc).rgb * inv, uSunMix);',
+      // ночной рисунок: земля — в координатах фона, главное здание — в своих; у мягкого края вырезки — сам ночной рисунок (как nightEdge solid e1.62)
+      '  vec3 cn = c;',
+      '  float nk = uNightMix * hasN;',
+      '  float bn = 0.0;',
+      '  float lk = 1.0;',     // множитель яркости ночного рисунка в точке (мерцание огней — эффект lights); кладётся ПОСЛЕ затемнения ночи
+      '  if (nk > 0.001) {',
+      '    bn = smoothstep(0.0, 0.3, b.a);',
+      '    cn = texture2D(nb, pb).rgb * bn + texture2D(ng, pc).rgb * (1.0 - bn);',
+      '  }'
     ].filter(function (l) { return l !== ''; }).join('\n');
+    var night = [
+      '  if (nk > 0.001) {',
+      '    cn *= mix(' + glf(T.night.dim) + ', 1.0, smoothstep(0.30, 0.60, dot(cn, vec3(0.299, 0.587, 0.114))));',   // тёмное темнее, свет — как нарисован
+      '    c = mix(c, cn * lk, nk);',
+      '  }'
+    ].join('\n');
     var post = [
       '  if (uSunsetPost > 0.001) {',
       SH.strength > 0 ? [
@@ -95,7 +112,7 @@ E2.effect({
       '  }'
     ].join('\n');
     return {
-      uniforms: ['uniform float uSunset; uniform float uSunMix;'],
+      uniforms: ['uniform float uSunset; uniform float uSunMix; uniform float uNightMix; uniform vec2 uNightGS;'],     // uNightGS: ночь земли и неба 0..1 (для погоды и теней облаков)
       funcs: [
         'const vec3 DAY_SKY_TOP = ' + v3(D.skyTop) + ';',
         'const vec3 DAY_SKY_HOR = ' + v3(D.skyHor) + ';',
@@ -117,6 +134,7 @@ E2.effect({
         '}'
       ].join('\n'),
       tod: tod,
+      night: night,
       post: post,
       postUniforms: ['uniform float uSunsetPost;']
     };
@@ -131,29 +149,44 @@ E2.effect({
     var sk = entry.cfg.effects.tod.sky;
     entry.skyRef = [sk.ref, sk.end];
     entry.noonK = entry.cfg.effects.tod.noonK;
-    entry.sg = null; entry.sb = null;
+    entry.sg = null; entry.sb = null; entry.ng = null; entry.nb = null; entry.nT = null;
   },
-  states: function (f) { return f.files.sunset ? [['sunset', f.files.sunset]] : []; },
+  // ночная картинка несёт в альфе карты погоды кадра (маска снега <кадр>_snow.webp и порядок <кадр>_wx.webp): см. договор в core/gl.js
+  states: function (f) { return (f.files.sunset ? [['sunset', f.files.sunset]] : []).concat([['night', f.files.night, f.files.snow ? { alpha: f.files.snow, alpha2: f.files.wx } : null]]); },
   uploadState: function (G, entry, kind, r) {
-    if (kind !== 'sunset') return;
-    entry.sg = G.texRGB(r.w, r.h, r.ground);
-    entry.sb = G.texRGB(r.w, r.h, r.full);
+    if (kind === 'sunset') { entry.sg = G.texRGB(r.w, r.h, r.ground); entry.sb = G.texRGB(r.w, r.h, r.full); }
+    if (kind === 'night') {   // альфа ночных текстур — карты погоды кадра (их кладёт подготовка, если у кадра есть <кадр>_wx.webp): см. core/gl.js
+      entry.ng = r.ground4 ? G.texRGBA(r.w, r.h, r.ground4) : G.texRGB(r.w, r.h, r.ground);
+      entry.nb = r.full4 ? G.texRGBA(r.w, r.h, r.full4) : G.texRGB(r.w, r.h, r.full);
+      entry.nT = E2.Clock.now();
+    }
   },
-  textures: function (f) { return [f.em, f.sg || f.bg, f.sb || f.bg]; },   // картинки заката ещё нет — заглушка (шейдер её не читает: hasS = 0)
+  textures: function (f) { return [f.em, f.sg || f.bg, f.sb || f.bg, f.ng || f.bg, f.nb || f.bg]; },   // картинки ещё нет — заглушка (шейдер её не читает: hasS = 0, hasN = 0)
   bind: function (gl, U, f, s) {
     gl.uniform2f(U['uSkyRef' + s], f.skyRef[0], f.skyRef[1]);
     gl.uniform1f(U['uHasS' + s], f.sg ? 1 : 0);
     gl.uniform1f(U['uNoonK' + s], f.noonK);
+    gl.uniform1f(U['uHasN' + s], this.hasN(f));
   },
-  set: function (name, S) {          // «День» / «Закат»: переход по часам движка
+  // ночной рисунок кадра догрузился позже нажатия «Ночь» — проявляется за 0,6 с, без скачка
+  hasN: function (f) { return f.ng ? E2.sstep(0, 600, E2.Clock.now() - f.nT) : 0; },
+  set: function (name, S) {          // «День» / «Закат» / «Ночь»: переход по часам движка
     var st = this.state, T = S.cfg.effects.tod, p1 = this.P[name];
-    if (p1 === undefined || name === 'night') return false;   // ночь — П2
+    if (p1 === undefined) return false;
     var toT = function (p) { return p <= 1 ? T.daySunsetS * p : T.daySunsetS + T.sunsetNightS * (p - 1); };
     st.anim = { t0: null, T0: toT(st.p), T1: toT(p1), p1: p1 };
     st.name = name;
     return true;
   },
-  apply: function (p) { var st = this.state; st.p = p; st.s = p <= 1 ? p : 1; st.sun = E2.clamp(p, 0, 1); },
+  apply: function (p) {
+    var st = this.state, q = p - 1;
+    st.p = p;
+    st.s = p <= 1 ? p : 1 - E2.sstep(0.3, 0.9, q);            // тёплый тон заката держится, пока темнеет
+    st.sun = E2.clamp(p, 0, 1);                               // закатный рисунок проявляется весь переход день → закат
+    st.night = q > 0 ? E2.sstep(0.0, 1.1667, q) : 0;          // ночной рисунок проявляется весь переход закат → ночь
+    st.sky = q > 0 ? E2.sstep(0.0, 0.55, q) : 0;              // небо темнеет первым, земля — потом: по ним погода гасит свой свет ночью
+    st.gnd = q > 0 ? E2.sstep(0.3, 0.9, q) : 0;
+  },
   step: function (S) {
     var st = this.state, a = st.anim, T = S.cfg.effects.tod;
     if (!a) return;
@@ -164,7 +197,7 @@ E2.effect({
     if (tf >= 1) { this.apply(a.p1); st.anim = null; }
   },
   busy: function () { return !!this.state.anim; },
-  uniforms: function (gl, U) { gl.uniform1f(U.uSunset, this.state.s); gl.uniform1f(U.uSunMix, this.state.sun); },
+  uniforms: function (gl, U) { gl.uniform1f(U.uSunset, this.state.s); gl.uniform1f(U.uSunMix, this.state.sun); gl.uniform1f(U.uNightMix, this.state.night); gl.uniform2f(U.uNightGS, this.state.gnd, this.state.sky); },
   // второй проход нужен только на закате у кадров без закатного рисунка
   postAmount: function (S) { return (S.fa && S.fa.sg && (!S.fb || S.fb.sg)) ? 0 : this.state.s; },
   needsPost: function (S) { return this.postAmount(S) > 0.001; },

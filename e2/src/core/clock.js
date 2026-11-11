@@ -30,6 +30,7 @@ E2.Clock = (function () {
       for (var n = Math.ceil(ms / step), i = 0; i < n; i++) fire(now + step);
       return true;
     },
+    redraw: function () { if (virtual) fire(now); return virtual; },   // только ?vt=1: перерисовать тот же момент (проверки сравнивают один момент с частью движка и без)
     after: function (ms, fn) { timers.push({ at: now + ms, fn: fn }); },   // «через ms» по часам движка (не setTimeout)
     rng: function (seed) {                                  // mulberry32: одна и та же последовательность для одного seed
       return function () {

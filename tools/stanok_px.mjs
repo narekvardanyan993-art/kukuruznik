@@ -16,6 +16,10 @@ const argv = process.argv.slice(2), cmd = argv[0], opt = {}, pos = [];
 for (let i = 1; i < argv.length; i++) { if (argv[i].startsWith('--')) { opt[argv[i].slice(2)] = argv[i + 1]; i++; } else pos.push(argv[i]); }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const TILT = { L: [-1, -1], C: [0, 0], R: [1, 1] };
+// Сколько виртуального времени ждать после переключения состояния, чтобы оно установилось (сравниваются установившиеся картинки):
+// ночь — переход 5,5 с + окна зажигаются по одному 5 с; снег — копится 12 с; дождь — погода проявляется ~2 с.
+const SETTLE = { day: 3200, sunset: 3200, night: 12000, snow: 16000, rain: 5000 };
+const WX = { snow: 'snow', rain: 'rain' };
 
 if (cmd === 'compare') {
   const [A, B] = pos, delta = +(opt.delta ?? 3), share = +(opt.share ?? 0.0005);
@@ -97,8 +101,11 @@ try {
     const frames = (opt.frames ? opt.frames.split(',').map(Number) : [...Array(n).keys()]).filter((f) => f < n);
     await adv(3000);
     for (const st of states) {
-      await page.evaluate((s) => document.querySelector('#todSeg [data-tod=' + s + ']').click(), st);
-      await adv(3200);
+      await page.evaluate((s, wx) => {   // как tools/stanok_look.mjs: снег и дождь — днём; закат и ночь — без осадков
+        const cl = (q) => { const b = document.querySelector(q); if (b) b.click(); };
+        if (wx) { cl('#todSeg [data-tod=day]'); cl('#precipSeg [data-precip=' + wx + ']'); } else { cl('#precipSeg [data-precip=none]'); cl('#todSeg [data-tod=' + s + ']'); }
+      }, st, WX[st] || null);
+      await adv(+(opt.settle || SETTLE[st] || 3200));
       for (const f of frames) {
         for (let g = 0; g < 12 && (await page.evaluate(() => window.__viewer.frame())) !== f; g++) {
           await page.keyboard.press('ArrowRight');
@@ -115,15 +122,15 @@ try {
     }
     info.engine = await page.evaluate(() => (document.querySelector('meta[name=engine-version]') || {}).content || null);
   } else {
-    await page.goto(`${origin}/${page_}/?vt=1&ui=0${opt.move === '1' ? '' : '&still=1'}`, { waitUntil: 'load', timeout: 60000 });
+    await page.goto(`${origin}/${page_}/?vt=1&ui=0${opt.move === '1' ? '' : '&still=1'}${opt.query ? '&' + opt.query : ''}`, { waitUntil: 'load', timeout: 60000 });
     for (let i = 0; i < 960; i++) { const s = await page.evaluate(() => document.documentElement.getAttribute('data-e2')).catch(() => null); if (s === 'all') break; if (s === 'error' || i === 959) throw new Error('e2: страница не загрузилась: ' + JSON.stringify(await page.evaluate(() => window.E2 ? window.E2.errors : []).catch(() => []))); await sleep(250); }
     const adv = (ms) => page.evaluate((m) => window.__e2.advance(m), ms);
     const n = await page.evaluate(() => window.E2_BUILDING.frames.length);
     const frames = (opt.frames ? opt.frames.split(',').map(Number) : [...Array(n).keys()]).filter((f) => f < n);
     await adv(3000);
     for (const st of states) {
-      await page.evaluate((s) => window.__e2.setTod(s), st);
-      await adv(3200);
+      await page.evaluate((s, wx) => { if (wx) { window.__e2.setTod('day'); window.__e2.setWx(wx); } else { if (window.__e2.setWx) window.__e2.setWx('none'); window.__e2.setTod(s); } }, st, WX[st] || null);
+      await adv(+(opt.settle || SETTLE[st] || 3200));
       for (const f of frames) {
         if ((await page.evaluate(() => window.__e2.state().frame)) !== f) {
           await page.evaluate((i) => window.__e2.go(i), f);

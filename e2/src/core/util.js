@@ -19,3 +19,14 @@ E2.errors = [];
 E2.err = function (where, e) { var m = where + ': ' + (e && e.message || e); if (E2.errors.length < 50) E2.errors.push(m); if (window.console) console.warn('[e2] ' + m); };
 E2.safe = function (where, fn) { try { return fn(); } catch (e) { E2.err(where, e); } };
 E2.query = function (name) { var m = new RegExp('[?&]' + name + '=([^&]*)').exec(location.search); return m ? decodeURIComponent(m[1]) : null; };
+// ?off=precip,lights,sky — выключить часть движка (замеры и паритет: docs/STANOK.md §5.3); ?break=имя — намеренная поломка для
+// самопроверки гейтов (docs/STANOK.md §6: у каждого гейта есть красный случай).
+E2.offNow = {};   // то же по ходу работы страницы: window.__e2.off(имя, true|false) — только для проверок
+E2.off = function (name) { if (E2.offNow[name] !== undefined) return E2.offNow[name]; var q = E2.query('off'); return !!q && q.split(',').indexOf(name) >= 0; };
+E2.brk = function (name) { var q = E2.query('break'); return !!q && q.split(',').indexOf(name) >= 0; };
+E2.fxGet = function (name) { for (var i = 0; i < E2.fx.length; i++) if (E2.fx[i].name === name) return E2.fx[i]; return null; };
+E2.hash = function (a, b) {   // одно и то же «случайное» число 0..1 для пары целых (без часов и Math.random)
+  var h = Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263) | 0;
+  h = Math.imul(h ^ h >>> 13, 1274126177); h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+};

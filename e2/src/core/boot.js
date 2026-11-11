@@ -4,6 +4,7 @@ E2.boot = function () {
   if (!cfg || !el) { E2.err('boot', 'нет настроек здания или #stage'); return; }
   var on = cfg.effectsOn, fx = E2.fx.filter(function (e) { return on.indexOf(e.name) >= 0; });
   try {
+    fx.forEach(function (e) { if (e.init) e.init(cfg); });
     E2.Stage.init(cfg, fx, el);
     E2.Frames.init(cfg, fx);
     E2.UI.init(cfg, fx);

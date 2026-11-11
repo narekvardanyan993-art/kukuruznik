@@ -1,7 +1,7 @@
-/* chka.am — движок e2 e2.0.1. СОБРАННЫЙ ФАЙЛ: не править. Исходники — e2/src/, сборка — tools/build_engine.py. */
+/* chka.am — движок e2 e2.0.2. СОБРАННЫЙ ФАЙЛ: не править. Исходники — e2/src/, сборка — tools/build_engine.py. */
 (function () {
 'use strict';
-var E2 = { version: 'e2.0.1', fx: [], effect: function (e) { E2.fx.push(e); return e; } };
+var E2 = { version: 'e2.0.2', fx: [], effect: function (e) { E2.fx.push(e); return e; } };
 window.E2 = E2;
 
 // ===== core/util.js =====
@@ -26,6 +26,17 @@ E2.errors = [];
 E2.err = function (where, e) { var m = where + ': ' + (e && e.message || e); if (E2.errors.length < 50) E2.errors.push(m); if (window.console) console.warn('[e2] ' + m); };
 E2.safe = function (where, fn) { try { return fn(); } catch (e) { E2.err(where, e); } };
 E2.query = function (name) { var m = new RegExp('[?&]' + name + '=([^&]*)').exec(location.search); return m ? decodeURIComponent(m[1]) : null; };
+// ?off=precip,lights,sky — выключить часть движка (замеры и паритет: docs/STANOK.md §5.3); ?break=имя — намеренная поломка для
+// самопроверки гейтов (docs/STANOK.md §6: у каждого гейта есть красный случай).
+E2.offNow = {};   // то же по ходу работы страницы: window.__e2.off(имя, true|false) — только для проверок
+E2.off = function (name) { if (E2.offNow[name] !== undefined) return E2.offNow[name]; var q = E2.query('off'); return !!q && q.split(',').indexOf(name) >= 0; };
+E2.brk = function (name) { var q = E2.query('break'); return !!q && q.split(',').indexOf(name) >= 0; };
+E2.fxGet = function (name) { for (var i = 0; i < E2.fx.length; i++) if (E2.fx[i].name === name) return E2.fx[i]; return null; };
+E2.hash = function (a, b) {   // одно и то же «случайное» число 0..1 для пары целых (без часов и Math.random)
+  var h = Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263) | 0;
+  h = Math.imul(h ^ h >>> 13, 1274126177); h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+};
 
 // ===== core/clock.js =====
 // core/clock.js — ЕДИНСТВЕННЫЙ источник времени и случайности движка (docs/STANOK.md §2.2, гейт G6).
@@ -60,6 +71,7 @@ E2.Clock = (function () {
       for (var n = Math.ceil(ms / step), i = 0; i < n; i++) fire(now + step);
       return true;
     },
+    redraw: function () { if (virtual) fire(now); return virtual; },   // только ?vt=1: перерисовать тот же момент (проверки сравнивают один момент с частью движка и без)
     after: function (ms, fn) { timers.push({ at: now + ms, fn: fn }); },   // «через ms» по часам движка (не setTimeout)
     rng: function (seed) {                                  // mulberry32: одна и та же последовательность для одного seed
       return function () {
@@ -80,7 +92,9 @@ E2.Clock = (function () {
 // Эффект (E2.effect({...})) отдаёт куски GLSL в фиксированные крючки. Порядок крючков жёсткий:
 //   uv      — куда смотреть в кадре (наклон, потом ветер)
 //   base    — рисунок + подложка + здание (+ актёры)
-//   tod     — время суток: день, полдень, закат, ночь, огни
+//   tod     — время суток: день, полдень, закат; ночной рисунок готовится (vec3 cn, float nk), но ещё не кладётся
+//   lights  — огни ночного рисунка: гасят и зажигают окна, мерцание (меняют cn)
+//   night   — ночной рисунок кладётся поверх: c = mix(c, cn * lk, nk)
 //   weather — пасмурно, мокро, снег лёг
 //   mix     — после смешения двух кадров (тени облаков)
 //   post    — второй проход по готовой сцене (только когда эффект просит: длинные тени заката)
@@ -93,6 +107,11 @@ E2.Clock = (function () {
 //   vec4 env  — карта окружения в p (r глубина, g небо, b дерево, a фаза)
 //   vec4 b    — слой здания (цвет умножен на альфу); float inv = 1 - b.a
 //   vec3 c    — цвет; float sky — доля неба в точке
+//   vec4 eg, eb — карта окон в p и в pb: r — маска огня, g — номер огня (lights); b, a — окна для заката без рисунка (tod)
+//   vec3 cn   — цвет ночного рисунка в точке; float nk — доля ночи 0..1; float bn — доля слоя здания в ночном рисунке
+//   float lk  — множитель яркости ночного рисунка в точке (мерцание огней): lights меняет, night кладёт после затемнения
+//   Ночные текстуры ng (земля) и nb (здание) объявляет tod; их альфа — место для карт погоды: ng.a — маска снега, nb.a — порядок
+//   появления снега (weather). Отдельных текстур под маски нет: у телефона 16 юнитов, 8 на кадр — и все заняты.
 // Кадров в шейдере два (A уходит, B приходит): у каждого эффекта свои текстуры и числа кадра (frameSamplers, frameUniforms).
 E2.GL = (function () {
   var gl = null, canvas = null;
@@ -143,7 +162,7 @@ E2.GL = (function () {
 
   // Собирает оба шейдера сцены из кусков включённых эффектов. Возвращает исходники и раскладку текстур по юнитам.
   function compose(effects, cfg) {
-    var samplers = [], fUni = [], uni = [], funcs = [], hooks = { uv: [], base: [], tod: [], weather: [], mix: [], post: [] }, postUni = [];
+    var samplers = [], fUni = [], uni = [], funcs = [], hooks = { uv: [], base: [], tod: [], lights: [], night: [], weather: [], mix: [], post: [] }, postUni = [];
     effects.forEach(function (e) {
       var g = e.glsl ? e.glsl(cfg) : null;
       if (!g) return;
@@ -168,7 +187,7 @@ E2.GL = (function () {
       uni.join('\n'),
       funcs.join('\n'),
       'vec4 shadeFrame(' + sig.concat(['vec2 uv', 'vec2 sc']).join(', ') + ') {',
-      hooks.uv.join('\n'), hooks.base.join('\n'), hooks.tod.join('\n'), hooks.weather.join('\n'),
+      hooks.uv.join('\n'), hooks.base.join('\n'), hooks.tod.join('\n'), hooks.lights.join('\n'), hooks.night.join('\n'), hooks.weather.join('\n'),
       '  return vec4(c, sky);',
       '}',
       'void main() {',
@@ -312,7 +331,7 @@ E2.Frames = (function () {
       var chain = Promise.resolve();
       fx.forEach(function (e) {
         (e.states ? e.states(cfg.frames[i]) : []).forEach(function (st) {
-          chain = chain.then(function () { return prep('state', [i, st[0], abs(st[1])]); })
+          chain = chain.then(function () { return prep('state', [i, st[0], abs(st[1]), st[2] ? absAll(st[2]) : null]); })
             .then(function (r) { e.uploadState(G, entry, st[0], r); return E2.Clock.pause(); })
             .catch(function (err) { E2.err('кадр ' + (i + 1) + ' ' + st[0], err); });
         });
@@ -327,9 +346,16 @@ E2.Frames = (function () {
     count: function () { return cfg.frames.length; },
     prepCfg: function () { return prepCfg; },   // что получила подготовка картинок (гейт G8: ключ-эхо)
     loadDay: loadDay, loadStates: loadStates,
-    loadAll: function (first) {   // первый кадр, его версии, затем остальные по одному
+    loadAll: function (first) {   // первый кадр, файлы здания (лист частиц), версии первого кадра, затем остальные кадры по одному
       var order = [first]; for (var i = 0; i < cfg.frames.length; i++) if (i !== first) order.push(i);
-      return order.reduce(function (p, i) { return p.then(function () { return loadDay(i); }).then(function () { return loadStates(i); }); }, Promise.resolve());
+      var p0 = loadDay(first);
+      fx.forEach(function (e) {
+        (e.assets ? e.assets(cfg) : []).forEach(function (a) {
+          p0 = p0.then(function () { return prep('raw', [abs(a[1])]); }).then(function (r) { e.uploadAsset(G, a[0], r); return E2.Clock.pause(); })
+            .catch(function (err) { E2.err('файл здания ' + a[0], err); });
+        });
+      });
+      return order.reduce(function (p, i) { return p.then(function () { return loadDay(i); }).then(function () { return loadStates(i); }); }, p0);
     },
     reset: function () { store.length = 0; dayP = []; stateP = []; }
   };
@@ -396,8 +422,23 @@ E2.Stage = (function () {
       fx.forEach(function (e) { if (e.postUniforms) e.postUniforms(gl, post.U, S); });
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
+    // частицы и картинки поверх готовой сцены (осадки, радуга): отдельный проход в ту же сцену, свои программы эффектов
+    var over = false;
+    fx.forEach(function (e) { if (e.over && e.over(gl, S, view)) over = true; });
+    if (over) { gl.disable(gl.BLEND); gl.bindBuffer(gl.ARRAY_BUFFER, quad); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0); }
     drawn++;
   }
+  // Где на экране (доли 0..1, y вниз) видна точка кадра (u, v) с глубиной d (0 далеко … 1 близко) при текущем наклоне: обратный ход
+  // крючка uv шейдера (fx/parallax.js). slot 'B' — приходящий кадр при смене. Этим же ходом живут частицы осадков — они в сцене.
+  function project(u, v, d, slot) {
+    var f = slot === 'B' ? S.fb : S.fa, c = f ? f.crop : [0, 0, 1, 1], P = cfg.effects.parallax, z = slot === 'B' ? zoomB : zoomA;
+    var x = 0.5 + (u + (2 * d - 1) * S.shiftX - 0.5) * (1 + S.zoom * d), y = 0.5 + (v + (2 * d - 1) * S.shiftY - 0.5) * (1 + S.zoom * d);
+    x = (x - c[0]) / c[2]; y = (y - c[1]) / c[3];
+    x = 0.5 + (x - 0.5) * z * P.baseScale; y = 0.5 + (y - 0.5) * z * P.baseScale;
+    return [(x - cover.x) / cover.w, (y - cover.y) / cover.h];
+  }
+  var view = { project: project, width: function () { return canvas.width; }, height: function () { return canvas.height; },
+    css: function () { return [lastW, lastH]; }, cover: function () { return cover; }, frameSize: function () { return [natW, natH]; } };
   function step(now) {
     var P = cfg.effects.parallax;
     S.dt = lastT === null ? 16.667 : E2.clamp(now - lastT, 1, 64); lastT = now; S.t = now;
@@ -473,6 +514,9 @@ E2.Stage = (function () {
     fading: function () { return !!fade; },
     state: function () { return { frame: frameIndex, fading: !!fade, tier: S.tier, drawn: drawn, canvas: [canvas.width, canvas.height], shift: [S.shiftX, S.shiftY, S.zoom], lost: lost, stats: layout.stats }; },
     shaders: function () { return { frag: layout.frag, post: layout.post }; },
+    project: function (u, v, d) { var q = project(u, v, d); return [q[0] * lastW, q[1] * lastH]; },   // точка кадра → пиксели экрана (CSS)
+    view: function () { return view; },
+    still: function (on) { S.still = !!on; return S.still; },   // стоп-кадр по ходу работы (проверки): без «дыхания» камеры и мерцания
     pixels: function () {   // пиксели холста сразу после кадра (для гейтов и паритета): RGBA, строки снизу вверх
       var w = canvas.width, h = canvas.height, px = new Uint8Array(w * h * 4);
       gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
@@ -482,29 +526,43 @@ E2.Stage = (function () {
 })();
 
 // ===== core/ui.js =====
-// core/ui.js — П1: только самое нужное, чтобы полигон можно было открыть и проверить: кнопки «День» / «Закат», стрелки кадров
-// и доступ для проверок window.__e2. Панель, плашка, точки, язык, открытка, надписи переезжают в П5–П6 (docs/STANOK.md §7).
+// core/ui.js — полигон: только самое нужное, чтобы страницу можно было открыть и проверить: кнопки времени суток («День», «Закат»,
+// «Ночь»), погоды («Снег», «Дождь»), стрелки кадров и доступ для проверок window.__e2. Панель, плашка, точки, язык, открытка, надписи переезжают в П5–П6
+// (docs/STANOK.md §7). ?break=tod — кнопки времени суток ничего не делают (красный случай гейта G7).
 E2.UI = {
   init: function (cfg, fx) {
     var tod = fx.filter(function (e) { return e.name === 'tod'; })[0];
     function setTod(name) {
-      if (!tod || !tod.set(name, { cfg: cfg })) return false;
+      if (!tod || E2.brk('tod') || !tod.set(name, { cfg: cfg })) return false;
       Array.prototype.forEach.call(document.querySelectorAll('[data-tod]'), function (b) { b.classList.toggle('on', b.getAttribute('data-tod') === name); });
       return true;
     }
     Array.prototype.forEach.call(document.querySelectorAll('[data-tod]'), function (b) { b.addEventListener('click', function () { setTod(b.getAttribute('data-tod')); }); });
+    var wx = fx.filter(function (e) { return e.name === 'weather'; })[0];
+    function setWx(name) {      // 'snow' | 'rain' | 'none'; повторное нажатие той же кнопки — выключить
+      if (!wx || !wx.set(name)) return false;
+      Array.prototype.forEach.call(document.querySelectorAll('[data-wx]'), function (b) { b.classList.toggle('on', b.getAttribute('data-wx') === name); });
+      return true;
+    }
+    Array.prototype.forEach.call(document.querySelectorAll('[data-wx]'), function (b) {
+      if (!wx) { b.style.display = 'none'; return; }
+      b.addEventListener('click', function () { var n = b.getAttribute('data-wx'); setWx(wx.state.kind === n ? 'none' : n); });
+    });
     Array.prototype.forEach.call(document.querySelectorAll('[data-go]'), function (b) { b.addEventListener('click', function () { E2.Stage.go(E2.Stage.frame() + (+b.getAttribute('data-go'))); }); });
     document.addEventListener('keydown', function (e) { if (e.key === 'ArrowRight') E2.Stage.go(E2.Stage.frame() + 1); if (e.key === 'ArrowLeft') E2.Stage.go(E2.Stage.frame() - 1); });
     window.__e2 = {
       version: cfg.engine.version,
       advance: function (ms, step) { return E2.Clock.advance(ms, step); },   // только ?vt=1
-      now: function () { return E2.Clock.now(); },
-      setTod: setTod, tod: function () { return tod ? { name: tod.state.name, p: tod.state.p, busy: tod.busy() } : null; },
+      now: function () { return E2.Clock.now(); }, redraw: function () { return E2.Clock.redraw(); },
+      setWx: setWx, setTod: setTod, tod: function () { return tod ? { name: tod.state.name, p: tod.state.p, busy: tod.busy() } : null; },
       go: function (i) { return E2.Stage.go(i); }, tilt: function (x, y) { E2.Stage.tilt(x, y); },
       state: function () { return E2.Stage.state(); }, shaders: function () { return E2.Stage.shaders(); },
       pixels: function () { return E2.Stage.pixels(); }, errors: function () { return E2.errors.slice(); },
       loaded: function (i) { var f = E2.Frames.get(i); return !!f; },
-      prepCfg: function () { return JSON.parse(JSON.stringify(E2.Frames.prepCfg())); }
+      prepCfg: function () { return JSON.parse(JSON.stringify(E2.Frames.prepCfg())); },
+      fx: function (name) { var e = E2.fxGet(name); return e && e.debug ? JSON.parse(JSON.stringify(e.debug(E2.Frames.get(E2.Stage.frame())))) : null; },
+      project: function (u, v, d) { return E2.Stage.project(u, v, d); },
+      off: function (name, on) { E2.offNow[name] = !!on; return true; }, still: function (on) { return E2.Stage.still(on); }
     };
   }
 };
@@ -566,7 +624,7 @@ E2.effect({
   bind: function (gl, U, f, s) { gl.uniform4fv(U['uCrop' + s], f.crop); gl.uniform3f(U['uKd' + s], f.kd[0], f.kd[1], f.kd[2]); },
   step: function (S) {
     var P = S.cfg.effects.parallax, t = S.t / 1000;
-    var ba = (S.still || S.tier !== 'full') ? 0 : P.breath.amp;
+    var ba = (S.still || S.tier !== 'full' || E2.off('breath')) ? 0 : P.breath.amp;
     var bx = ba * Math.sin(t * 2 * Math.PI / P.breath.periodS), by = ba * Math.cos(t * 2 * Math.PI / (P.breath.periodS * 0.7));
     var tkA = S.fa ? S.fa.tiltK : 1, tkB = S.fb ? S.fb.tiltK : tkA, tk = tkA + (tkB - tkA) * (S.fb ? S.mix : 0);
     S.shiftX = S.tiltX * P.shiftX * tk + bx;
@@ -577,8 +635,10 @@ E2.effect({
 });
 
 // ===== fx/tod.js =====
-// fx/tod.js — время суток: день (небо и зелень), полдень (снять «золотой час» рисунка), закат (docs/STANOK.md §2.2, §4.1).
-// П1: день и закат. Ночь, огни и звёзды — эффект lights (П2).
+// fx/tod.js — время суток: день (небо и зелень), полдень (снять «золотой час» рисунка), закат, ночь (docs/STANOK.md §2.2, §4.1).
+// Ночь (П2) — только рисунком Gemini (<кадр>_night.webp, обязателен): день или закат растворяется в ночной рисунок за sunsetNightS с;
+// тёмное рисунка ещё темнее (night.dim), свет — как нарисован. Ночи «фильтром», звёзд и фонарей кодом в e2 нет. Окна гаснут, зажигаются
+// и мерцают в эффекте lights: tod готовит ночной цвет (cn) и долю ночи (nk), крючок lights меняет cn, крючок night кладёт его.
 // Закат: если у кадра есть закатный рисунок (<кадр>_sunset.webp) — он проявляется поверх дня; нет — тёплый тон считает шейдер
 // и второй проход кладёт тени. Оба пути перенесены из e1.62 для паритета; цель станка — закатный рисунок пишет шаг S3 (ответ Нарека 1Б).
 // Математика шейдера — из e1.62 без изменений (проверка: python3 tools/stanok.py parity).
@@ -586,10 +646,10 @@ E2.effect({
   name: 'tod',
   low: 'on',
   cost: 4,
-  frameSamplers: ['em', 'sg', 'sb'],                 // окна (маски), закат: земля и вся картинка
-  frameUniforms: [['vec2', 'skyRef'], ['float', 'hasS'], ['float', 'noonK']],
+  frameSamplers: ['em', 'sg', 'sb', 'ng', 'nb'],     // окна (маски), закат: земля и вся картинка, ночь: земля и вся картинка
+  frameUniforms: [['vec2', 'skyRef'], ['float', 'hasS'], ['float', 'noonK'], ['float', 'hasN']],
   P: { day: 0, sunset: 1, night: 2.1667 },
-  state: { p: 0, s: 0, sun: 0, name: 'day', anim: null },
+  state: { p: 0, s: 0, sun: 0, night: 0, sky: 0, gnd: 0, name: 'day', anim: null },
   glsl: function (cfg) {
     var T = cfg.effects.tod, D = T.day, N = T.noon, SP = T.sunsetProc, SH = T.sunsetShade, glf = E2.glf, v3 = E2.v3;
     var FW = cfg.look.frameSize[0], FH = cfg.look.frameSize[1], EW = (FW + 1) >> 1, EH = (FH + 1) >> 1;
@@ -655,8 +715,23 @@ E2.effect({
       '    warm += ' + v3(SP.windowColor) + ' * winBase * ' + glf(SP.windowStrength) + ';',
       '    c = mix(c, warm, uSunset);',
       '  }',
-      '  if (hasS > 0.5 && uSunMix > 0.001) c = mix(c, texture2D(sb, pb).rgb * b.a + texture2D(sg, pc).rgb * inv, uSunMix);'
+      '  if (hasS > 0.5 && uSunMix > 0.001) c = mix(c, texture2D(sb, pb).rgb * b.a + texture2D(sg, pc).rgb * inv, uSunMix);',
+      // ночной рисунок: земля — в координатах фона, главное здание — в своих; у мягкого края вырезки — сам ночной рисунок (как nightEdge solid e1.62)
+      '  vec3 cn = c;',
+      '  float nk = uNightMix * hasN;',
+      '  float bn = 0.0;',
+      '  float lk = 1.0;',     // множитель яркости ночного рисунка в точке (мерцание огней — эффект lights); кладётся ПОСЛЕ затемнения ночи
+      '  if (nk > 0.001) {',
+      '    bn = smoothstep(0.0, 0.3, b.a);',
+      '    cn = texture2D(nb, pb).rgb * bn + texture2D(ng, pc).rgb * (1.0 - bn);',
+      '  }'
     ].filter(function (l) { return l !== ''; }).join('\n');
+    var night = [
+      '  if (nk > 0.001) {',
+      '    cn *= mix(' + glf(T.night.dim) + ', 1.0, smoothstep(0.30, 0.60, dot(cn, vec3(0.299, 0.587, 0.114))));',   // тёмное темнее, свет — как нарисован
+      '    c = mix(c, cn * lk, nk);',
+      '  }'
+    ].join('\n');
     var post = [
       '  if (uSunsetPost > 0.001) {',
       SH.strength > 0 ? [
@@ -674,7 +749,7 @@ E2.effect({
       '  }'
     ].join('\n');
     return {
-      uniforms: ['uniform float uSunset; uniform float uSunMix;'],
+      uniforms: ['uniform float uSunset; uniform float uSunMix; uniform float uNightMix; uniform vec2 uNightGS;'],     // uNightGS: ночь земли и неба 0..1 (для погоды и теней облаков)
       funcs: [
         'const vec3 DAY_SKY_TOP = ' + v3(D.skyTop) + ';',
         'const vec3 DAY_SKY_HOR = ' + v3(D.skyHor) + ';',
@@ -696,6 +771,7 @@ E2.effect({
         '}'
       ].join('\n'),
       tod: tod,
+      night: night,
       post: post,
       postUniforms: ['uniform float uSunsetPost;']
     };
@@ -710,29 +786,44 @@ E2.effect({
     var sk = entry.cfg.effects.tod.sky;
     entry.skyRef = [sk.ref, sk.end];
     entry.noonK = entry.cfg.effects.tod.noonK;
-    entry.sg = null; entry.sb = null;
+    entry.sg = null; entry.sb = null; entry.ng = null; entry.nb = null; entry.nT = null;
   },
-  states: function (f) { return f.files.sunset ? [['sunset', f.files.sunset]] : []; },
+  // ночная картинка несёт в альфе карты погоды кадра (маска снега <кадр>_snow.webp и порядок <кадр>_wx.webp): см. договор в core/gl.js
+  states: function (f) { return (f.files.sunset ? [['sunset', f.files.sunset]] : []).concat([['night', f.files.night, f.files.snow ? { alpha: f.files.snow, alpha2: f.files.wx } : null]]); },
   uploadState: function (G, entry, kind, r) {
-    if (kind !== 'sunset') return;
-    entry.sg = G.texRGB(r.w, r.h, r.ground);
-    entry.sb = G.texRGB(r.w, r.h, r.full);
+    if (kind === 'sunset') { entry.sg = G.texRGB(r.w, r.h, r.ground); entry.sb = G.texRGB(r.w, r.h, r.full); }
+    if (kind === 'night') {   // альфа ночных текстур — карты погоды кадра (их кладёт подготовка, если у кадра есть <кадр>_wx.webp): см. core/gl.js
+      entry.ng = r.ground4 ? G.texRGBA(r.w, r.h, r.ground4) : G.texRGB(r.w, r.h, r.ground);
+      entry.nb = r.full4 ? G.texRGBA(r.w, r.h, r.full4) : G.texRGB(r.w, r.h, r.full);
+      entry.nT = E2.Clock.now();
+    }
   },
-  textures: function (f) { return [f.em, f.sg || f.bg, f.sb || f.bg]; },   // картинки заката ещё нет — заглушка (шейдер её не читает: hasS = 0)
+  textures: function (f) { return [f.em, f.sg || f.bg, f.sb || f.bg, f.ng || f.bg, f.nb || f.bg]; },   // картинки ещё нет — заглушка (шейдер её не читает: hasS = 0, hasN = 0)
   bind: function (gl, U, f, s) {
     gl.uniform2f(U['uSkyRef' + s], f.skyRef[0], f.skyRef[1]);
     gl.uniform1f(U['uHasS' + s], f.sg ? 1 : 0);
     gl.uniform1f(U['uNoonK' + s], f.noonK);
+    gl.uniform1f(U['uHasN' + s], this.hasN(f));
   },
-  set: function (name, S) {          // «День» / «Закат»: переход по часам движка
+  // ночной рисунок кадра догрузился позже нажатия «Ночь» — проявляется за 0,6 с, без скачка
+  hasN: function (f) { return f.ng ? E2.sstep(0, 600, E2.Clock.now() - f.nT) : 0; },
+  set: function (name, S) {          // «День» / «Закат» / «Ночь»: переход по часам движка
     var st = this.state, T = S.cfg.effects.tod, p1 = this.P[name];
-    if (p1 === undefined || name === 'night') return false;   // ночь — П2
+    if (p1 === undefined) return false;
     var toT = function (p) { return p <= 1 ? T.daySunsetS * p : T.daySunsetS + T.sunsetNightS * (p - 1); };
     st.anim = { t0: null, T0: toT(st.p), T1: toT(p1), p1: p1 };
     st.name = name;
     return true;
   },
-  apply: function (p) { var st = this.state; st.p = p; st.s = p <= 1 ? p : 1; st.sun = E2.clamp(p, 0, 1); },
+  apply: function (p) {
+    var st = this.state, q = p - 1;
+    st.p = p;
+    st.s = p <= 1 ? p : 1 - E2.sstep(0.3, 0.9, q);            // тёплый тон заката держится, пока темнеет
+    st.sun = E2.clamp(p, 0, 1);                               // закатный рисунок проявляется весь переход день → закат
+    st.night = q > 0 ? E2.sstep(0.0, 1.1667, q) : 0;          // ночной рисунок проявляется весь переход закат → ночь
+    st.sky = q > 0 ? E2.sstep(0.0, 0.55, q) : 0;              // небо темнеет первым, земля — потом: по ним погода гасит свой свет ночью
+    st.gnd = q > 0 ? E2.sstep(0.3, 0.9, q) : 0;
+  },
   step: function (S) {
     var st = this.state, a = st.anim, T = S.cfg.effects.tod;
     if (!a) return;
@@ -743,11 +834,101 @@ E2.effect({
     if (tf >= 1) { this.apply(a.p1); st.anim = null; }
   },
   busy: function () { return !!this.state.anim; },
-  uniforms: function (gl, U) { gl.uniform1f(U.uSunset, this.state.s); gl.uniform1f(U.uSunMix, this.state.sun); },
+  uniforms: function (gl, U) { gl.uniform1f(U.uSunset, this.state.s); gl.uniform1f(U.uSunMix, this.state.sun); gl.uniform1f(U.uNightMix, this.state.night); gl.uniform2f(U.uNightGS, this.state.gnd, this.state.sky); },
   // второй проход нужен только на закате у кадров без закатного рисунка
   postAmount: function (S) { return (S.fa && S.fa.sg && (!S.fb || S.fb.sg)) ? 0 : this.state.s; },
   needsPost: function (S) { return this.postAmount(S) > 0.001; },
   postUniforms: function (gl, U, S) { gl.uniform1f(U.uSunsetPost, this.postAmount(S)); }
+});
+
+// ===== fx/lights.js =====
+// fx/lights.js — огни ночного рисунка (docs/STANOK.md §4.1, решение Нарека 1А): свет рисует Gemini, движок только гасит и зажигает.
+// Маску огней считает станок при сборке (tools/stanok_masks.py → <кадр>_lights.png): пятна, где ночной рисунок заметно ярче и теплее
+// «дня × затемнение». Она лежит в свободных каналах карты окон (em.r — мягкая маска, em.g — номер огня): лишней текстуры нет.
+// Два вида пятен: окно (ночью ярче, чем этот же пиксель днём) — гаснет и зажигается; пятно фонаря на стене и земле — только «дышит».
+// По кнопке «Ночь»: кадр темнеет с погашенными окнами (в пятне окна — дневной пиксель в ночном тоне), потом окна зажигаются ПО ОДНОМУ
+// в порядке номеров, все за turnOnS с. Конечное состояние — ровно ночной рисунок. Дальше редкое мягкое мерцание: плавный шум по огню
+// целиком (никаких клеток — фаза зависит только от номера огня), и раз в rareS с одно окно гаснет или зажигается.
+// Всё — функция часов движка (E2.Clock) и номера огня: два прогона с одинаковыми шагами времени дают одинаковые пиксели (гейт G6).
+E2.effect({
+  name: 'lights',
+  low: 'on',            // на слабой ступени работает как есть: это две строки шейдера в пятнах огней
+  cost: 1,
+  // lgt: x — доля очереди, занятая пятнами фонарей; y — число огней кадра; z — номер окна «редкого» события (−1 — нет); w — насколько оно погашено
+  // lgtTone: rgb — тон погашенного окна (ночь / день вокруг огней); a — огни кадра включены
+  frameUniforms: [['vec4', 'lgt'], ['vec4', 'lgtTone']],
+  START_P: 2.0,         // окна начинают зажигаться, когда ночь почти легла (переход закат → ночь идёт до 2,1667)
+  state: { t0: null, k: 0, doneT: null },
+  glsl: function (cfg) {
+    var L = cfg.effects.lights, glf = E2.glf;
+    var rise = E2.clamp(L.riseS / L.turnOnS, 0.02, 1), span = E2.brk('lights-all') ? 0 : 1 - rise;     // ?break=lights-all — все окна разом (красный случай G7)
+    // ?break=lights-cells — мерцание клетками 8 px вместо «по огню целиком» (красный случай G7; так мерцал nglow e1.45)
+    var ph = E2.brk('lights-cells') ? 'floor(gl_FragCoord.x / 8.0) * 0.37 + floor(gl_FragCoord.y / 8.0) * 0.61' : 'lT';
+    return {
+      uniforms: ['uniform float uLights; uniform vec2 uLightT;'],     // uLights — очередь включения 0..1; uLightT: x — секунды, y — сила мерцания (0 — стоп-кадр)
+      base: '  vec3 cRaw = c;',                                       // дневной пиксель рисунка — «погашенное окно» строится из него
+      lights: [
+        '  if (nk > 0.001 && lgtTone.a > 0.5) {',
+        '    float lM = mix(eg.r, eb.r, bn);',
+        '    if (lM > 0.004) {',
+        '      float lT = bn > 0.5 ? eb.g : eg.g;',
+        '      float lamp = step(lT, lgt.x);',
+        '      float lq = clamp((lT - lgt.x) / max(1.0 - lgt.x, 0.001), 0.0, 1.0);',
+        '      float on = max(lamp, smoothstep(lq * ' + glf(span) + ', lq * ' + glf(span) + ' + ' + glf(rise) + ', uLights));',
+        '      on *= 1.0 - lgt.w * (1.0 - lamp) * step(abs(lT - lgt.z), 0.45 / max(lgt.y, 1.0));',
+        '      float lp = ' + ph + ';',
+        '      float h1 = fract(sin(lp * 157.31) * 43758.5453), h2 = fract(sin(lp * 311.7 + 1.3) * 24634.6345);',
+        '      float amp = mix(step(h2, ' + glf(L.flicker.share) + ') * ' + glf(L.flicker.window) + ', ' + glf(L.flicker.lamp) + ', lamp) * uLightT.y;',
+        '      float gate = mix(smoothstep(0.35, 0.9, sin(uLightT.x * 0.21 * (0.6 + h1) + 6.2832 * h2)), 1.0, lamp);',     // окно мерцает не всё время, а изредка
+        '      float fl = amp * gate * (0.62 * sin(uLightT.x * (1.1 + 1.3 * h1) + 6.2832 * h2) + 0.38 * sin(uLightT.x * (2.3 + 1.9 * h2) + 6.2832 * h1));',
+        '      cn = mix(cn, cRaw * lgtTone.rgb, lM * (1.0 - on));',
+        '      lk = 1.0 + lM * on * fl;',     // после затемнения ночи (крючок night): иначе его кривая усиливает ±5 % до ±15 % в полутонах
+        '    }',
+        '  }'
+      ].join('\n')
+    };
+  },
+  frameFiles: function (f) { return f.files.lights ? { lights: f.files.lights } : {}; },
+  upload: function (G, entry) {
+    var D = (entry.cfg.derived || {}).lights, on = !!D && entry.cfg.effects.lights.on && D.n > 0;
+    entry.lights = on ? D : null;
+    entry.lgtTone = on ? [D.tone[0], D.tone[1], D.tone[2], 1] : [1, 1, 1, 0];
+  },
+  // «редкое» событие: раз в rareS секунд одно окно гаснет, следующим событием — зажигается. t — секунды с момента, когда зажглись все окна.
+  // Расписание — от номера кадра и номера события (E2.Clock.rng), не от настоящих часов.
+  rare: function (f, t, R) {
+    var L = f.lights, nW = L ? L.n - L.lamps : 0;
+    if (!nW || t <= 0) return [-1, 0];
+    var sc = f.lgtRare || (f.lgtRare = { rng: E2.Clock.rng(7919 * (f.idx + 1) + 13), times: [], wins: [] });
+    while (!sc.times.length || sc.times[sc.times.length - 1] <= t) {
+      var k = sc.times.length, last = k ? sc.times[k - 1] : 0;
+      sc.times.push(last + R[0] + (R[1] - R[0]) * sc.rng());
+      if (k % 2 === 0) sc.wins.push(Math.floor(sc.rng() * nW) % nW);
+    }
+    var e = -1;
+    for (var i = 0; i < sc.times.length && sc.times[i] <= t; i++) e = i;
+    if (e < 0) return [-1, 0];
+    var w = sc.wins[e >> 1], a = E2.sstep(0, 1.2, t - sc.times[e]);
+    return [(L.lamps + w + 0.5) / L.n, e % 2 === 0 ? a : 1 - a];
+  },
+  bind: function (gl, U, f, s) {
+    var L = E2.off('lights') ? null : f.lights, st = this.state, r = [-1, 0];
+    if (L && st.doneT !== null && !st.still) r = this.rare(f, (E2.Clock.now() - st.doneT) / 1000, st.rareS);
+    gl.uniform4f(U['uLgt' + s], L ? L.lamps / L.n : 0, L ? L.n : 0, r[0], r[1]);
+    gl.uniform4f(U['uLgtTone' + s], f.lgtTone[0], f.lgtTone[1], f.lgtTone[2], L ? f.lgtTone[3] : 0);
+  },
+  step: function (S) {
+    var st = this.state, tod = E2.fxGet('tod'), L = S.cfg.effects.lights;
+    if (!tod) return;
+    if (tod.state.p >= this.START_P && st.t0 === null) st.t0 = S.t;
+    if (tod.state.night < 0.02) { st.t0 = null; st.doneT = null; }
+    st.k = st.t0 === null ? 0 : E2.clamp((S.t - st.t0) / 1000 / L.turnOnS, 0, 1);
+    if (st.k >= 1 && st.doneT === null) st.doneT = S.t;
+    st.still = S.still; st.rareS = L.rareS;
+  },
+  uniforms: function (gl, U, S) { gl.uniform1f(U.uLights, this.state.k); gl.uniform2f(U.uLightT, S.t / 1000, S.still ? 0 : 1); },
+  // для проверок (гейт G7): очередь, огни кадра
+  debug: function (f) { return { k: this.state.k, t0: this.state.t0, doneT: this.state.doneT, frame: f && f.lights ? f.lights : null }; }
 });
 
 // ===== core/boot.js =====
@@ -757,6 +938,7 @@ E2.boot = function () {
   if (!cfg || !el) { E2.err('boot', 'нет настроек здания или #stage'); return; }
   var on = cfg.effectsOn, fx = E2.fx.filter(function (e) { return on.indexOf(e.name) >= 0; });
   try {
+    fx.forEach(function (e) { if (e.init) e.init(cfg); });
     E2.Stage.init(cfg, fx, el);
     E2.Frames.init(cfg, fx);
     E2.UI.init(cfg, fx);

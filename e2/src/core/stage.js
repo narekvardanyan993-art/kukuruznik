@@ -58,8 +58,23 @@ E2.Stage = (function () {
       fx.forEach(function (e) { if (e.postUniforms) e.postUniforms(gl, post.U, S); });
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
+    // частицы и картинки поверх готовой сцены (осадки, радуга): отдельный проход в ту же сцену, свои программы эффектов
+    var over = false;
+    fx.forEach(function (e) { if (e.over && e.over(gl, S, view)) over = true; });
+    if (over) { gl.disable(gl.BLEND); gl.bindBuffer(gl.ARRAY_BUFFER, quad); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0); }
     drawn++;
   }
+  // Где на экране (доли 0..1, y вниз) видна точка кадра (u, v) с глубиной d (0 далеко … 1 близко) при текущем наклоне: обратный ход
+  // крючка uv шейдера (fx/parallax.js). slot 'B' — приходящий кадр при смене. Этим же ходом живут частицы осадков — они в сцене.
+  function project(u, v, d, slot) {
+    var f = slot === 'B' ? S.fb : S.fa, c = f ? f.crop : [0, 0, 1, 1], P = cfg.effects.parallax, z = slot === 'B' ? zoomB : zoomA;
+    var x = 0.5 + (u + (2 * d - 1) * S.shiftX - 0.5) * (1 + S.zoom * d), y = 0.5 + (v + (2 * d - 1) * S.shiftY - 0.5) * (1 + S.zoom * d);
+    x = (x - c[0]) / c[2]; y = (y - c[1]) / c[3];
+    x = 0.5 + (x - 0.5) * z * P.baseScale; y = 0.5 + (y - 0.5) * z * P.baseScale;
+    return [(x - cover.x) / cover.w, (y - cover.y) / cover.h];
+  }
+  var view = { project: project, width: function () { return canvas.width; }, height: function () { return canvas.height; },
+    css: function () { return [lastW, lastH]; }, cover: function () { return cover; }, frameSize: function () { return [natW, natH]; } };
   function step(now) {
     var P = cfg.effects.parallax;
     S.dt = lastT === null ? 16.667 : E2.clamp(now - lastT, 1, 64); lastT = now; S.t = now;
@@ -135,6 +150,9 @@ E2.Stage = (function () {
     fading: function () { return !!fade; },
     state: function () { return { frame: frameIndex, fading: !!fade, tier: S.tier, drawn: drawn, canvas: [canvas.width, canvas.height], shift: [S.shiftX, S.shiftY, S.zoom], lost: lost, stats: layout.stats }; },
     shaders: function () { return { frag: layout.frag, post: layout.post }; },
+    project: function (u, v, d) { var q = project(u, v, d); return [q[0] * lastW, q[1] * lastH]; },   // точка кадра → пиксели экрана (CSS)
+    view: function () { return view; },
+    still: function (on) { S.still = !!on; return S.still; },   // стоп-кадр по ходу работы (проверки): без «дыхания» камеры и мерцания
     pixels: function () {   // пиксели холста сразу после кадра (для гейтов и паритета): RGBA, строки снизу вверх
       var w = canvas.width, h = canvas.height, px = new Uint8Array(w * h * 4);
       gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);

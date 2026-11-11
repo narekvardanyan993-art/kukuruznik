@@ -8,12 +8,12 @@
 <meta name="build-stamp" content="{{STAMP}}">
 <title>{{TITLE}} · e2</title>
 <style>
-  /* Полигон e2 (П1): только сцена и самое нужное для проверки. Панель, плашка, точки, открытка — П5–П6 (docs/STANOK.md §7). */
+  /* Полигон e2: только сцена и самое нужное для проверки. Панель, плашка, точки, открытка — П5–П6 (docs/STANOK.md §7). */
   html, body { margin: 0; height: 100%; background: #f5ecda; overflow: hidden; }
   #stage { position: fixed; inset: 0; touch-action: none; }
   #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-  #bar { position: fixed; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom, 0px) + 10px); display: flex; gap: 8px; justify-content: center; z-index: 5; }
-  #bar button { font: 15px/1 Georgia, serif; padding: 9px 13px; border: 1px solid #2f2a25; border-radius: 3px; background: rgba(248, 241, 224, .93); color: #2f2a25; }
+  #bar { position: fixed; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom, 0px) + 10px); display: flex; gap: 5px; justify-content: center; z-index: 5; }
+  #bar button { font: 13px/1 Georgia, serif; padding: 9px 7px; border: 1px solid #2f2a25; border-radius: 3px; background: rgba(248, 241, 224, .93); color: #2f2a25; }
   #bar button.on { background: #2f2a25; color: #f8f1e0; }
   html[data-ui="0"] #bar { display: none; }
 </style>
@@ -24,6 +24,9 @@
   <button type="button" data-go="-1" aria-label="prev">‹</button>
   <button type="button" data-tod="day" class="on">День</button>
   <button type="button" data-tod="sunset">Закат</button>
+  <button type="button" data-tod="night">Ночь</button>
+  <button type="button" data-wx="snow">Снег</button>
+  <button type="button" data-wx="rain">Дождь</button>
   <button type="button" data-go="1" aria-label="next">›</button>
 </div>
 <script>if (/[?&]ui=0/.test(location.search)) document.documentElement.setAttribute('data-ui', '0');

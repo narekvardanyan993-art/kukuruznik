@@ -232,8 +232,10 @@
       }
     },
     "tod": {
-      "about": "время суток: день, полдень, закат (ночь и огни — lights, П2)",
-      "files": {},
+      "about": "время суток: день, полдень, закат, ночь (ночной рисунок Gemini целиком; огни — эффект lights)",
+      "files": {
+        "night": "{name}_night.webp"
+      },
       "filesIf": [
         {
           "key": "sunsetPicture",
@@ -444,6 +446,18 @@
               "default": 0.68
             }
           }
+        },
+        "night": {
+          "type": "object",
+          "keys": {
+            "dim": {
+              "type": "number",
+              "min": 0.3,
+              "max": 1,
+              "default": 0.64,
+              "about": "тёмное ночного рисунка ещё темнее (светлое — как нарисовано)"
+            }
+          }
         }
       },
       "frame": {
@@ -479,6 +493,82 @@
         "sun": {
           "type": "sun",
           "about": "солнце и луна кадра [u, v]; только у кадров с небом (≥ 20 % кадра) и обязаны попадать в небо; у кадров без неба — null"
+        }
+      }
+    },
+    "lights": {
+      "about": "нарисованный свет ночного рисунка: окна зажигаются по одному, огни мягко мерцают (docs/STANOK.md §4.1). Маску огней считает станок при сборке",
+      "files": {},
+      "derived": [
+        {
+          "key": "on",
+          "file": "lights",
+          "pattern": "{name}_lights.png",
+          "maker": "lights",
+          "from": {
+            "color": "{name}.webp",
+            "night": "{name}_night.webp"
+          }
+        }
+      ],
+      "building": {
+        "turnOnS": {
+          "type": "number",
+          "min": 1,
+          "max": 6,
+          "default": 5,
+          "about": "за сколько секунд зажигаются все окна (по одному)"
+        },
+        "riseS": {
+          "type": "number",
+          "min": 0.1,
+          "max": 2,
+          "default": 0.5,
+          "about": "одно окно разгорается"
+        },
+        "flicker": {
+          "type": "object",
+          "keys": {
+            "window": {
+              "type": "number",
+              "min": 0,
+              "max": 0.1,
+              "default": 0.05,
+              "about": "мерцание окна, доля яркости (плавный шум по огню целиком)"
+            },
+            "lamp": {
+              "type": "number",
+              "min": 0,
+              "max": 0.1,
+              "default": 0.03,
+              "about": "«дыхание» фонаря и его пятна света"
+            },
+            "share": {
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "default": 0.5,
+              "about": "какая доля окон мерцает"
+            }
+          }
+        },
+        "rareS": {
+          "type": "vec",
+          "n": 2,
+          "min": 5,
+          "max": 600,
+          "default": [
+            20,
+            40
+          ],
+          "about": "раз в столько секунд одно окно гаснет или зажигается"
+        }
+      },
+      "frame": {
+        "on": {
+          "type": "bool",
+          "default": true,
+          "about": "false — огни кадра не гаснут и не мерцают (ночной рисунок как есть)"
         }
       }
     }

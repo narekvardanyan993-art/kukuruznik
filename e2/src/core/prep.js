@@ -417,14 +417,35 @@
     return out;
   }
 
+  // e2 weather: карта посадки осадков (docs/STANOK.md §4.2). Сцена кадра имеет глубину (земля — карта глубины, главное здание — своя);
+  // частица с глубиной z падает сверху и садится на первую поверхность, которая не дальше неё: land[z][u] = v посадки (0..254, доли
+  // высоты кадра; 255 — долетает до низа). Дальняя снежинка гаснет на линии крыши, ближняя пролетает перед зданием и ложится на землю.
+  var LAND_W = 128, LAND_Z = 32;
+  function landMap(depth, bld) {
+    var w = bld.w, h = bld.h, out = new Uint8Array(LAND_W * LAND_Z), x, y, l;
+    for (x = 0; x < LAND_W; x++) {
+      var px = clamp(Math.round((x + 0.5) / LAND_W * w - 0.5), 0, w - 1), dx = clamp(((px + 0.5) / w * depth.w) | 0, 0, depth.w - 1), next = 0;
+      for (l = 0; l < LAND_Z; l++) out[l * LAND_W + x] = 255;
+      for (y = 0; y < h && next < LAND_Z; y++) {
+        var i = y * w + px, d = bld.alpha[i] > 127 ? (bld.bldD ? bld.bldD[i] : bld.meanD * 255) : depth.d[clamp(((y + 0.5) / h * depth.h) | 0, 0, depth.h - 1) * depth.w + dx];
+        while (next < LAND_Z && d >= (next + 0.5) / LAND_Z * 255) { out[next * LAND_W + x] = Math.min(254, Math.round(y / h * 255)); next++; }
+      }
+    }
+    return { w: LAND_W, z: LAND_Z, d: out };
+  }
+
   // ---------- один кадр: день ----------
   function prepDay(f, i) {
     var swayOn = swayEnabled();
     return Promise.all([load(f.color), load(f.depth), load(f.bg.color), load(f.building.color), load(f.env), load(f.win2), f.fig ? load(f.fig) : null,
-      swayOn && f.sway ? load(f.sway).catch(function () { return null; }) : null]).then(function (imgs) {
+      swayOn && f.sway ? load(f.sway).catch(function () { return null; }) : null, f.lights ? load(f.lights) : null]).then(function (imgs) {
       var depth = prepareDepth(imgs[1], !!f.depthRaw);
       var bld = analyzeBuilding(imgs[3], depth, imgs[0], imgs[2]);
       var env = prepareEnv(imgs[4], imgs[5], depth, bld, i, imgs[6]);
+      if (imgs[8]) {   // e2 lights: маска огней станка (<кадр>_lights.png) — в свободные каналы карты окон: R — маска, G — номер огня
+        var lp = readChannels(imgs[8], env.ew, env.eh), le = env.ew * env.eh;
+        for (var li = 0; li < le; li++) { env.emis[li * 4] = lp[li * 4]; env.emis[li * 4 + 1] = lp[li * 4 + 1]; }
+      }
       if (swayOn) env.gpuDepth = addSway(env, imgs[7]);
       // список окон главного здания (центр и размер, доли кадра) — для «живых» деталей ночью
       var winList = (env.winsT || []).map(function (q) { return { u: q.cx / env.ew, v: q.cy / env.eh, w: q.bw / env.ew, h: q.bh / env.eh }; });
@@ -434,7 +455,8 @@
         var out = {
           w: bld.w, h: bld.h, depth: depth, kB: bld.meanD * 2 - 1, dB: bld.meanD,
           ground: bld.ground, bldPm: bld.bldPm, gpuDepth: env.gpuDepth, swayRows: !!env.swayRows, ew: env.ew, eh: env.eh, emis: env.emis,
-          wins: env.wins, skyFrac: env.skyFrac, starQ: env.starQ, winList: winList, thumb: tb
+          wins: env.wins, skyFrac: env.skyFrac, starQ: env.starQ, winList: winList, thumb: tb,
+          land: landMap(depth, bld)
         };
         if (bld.bldD) {   // глубина здания по точкам — в альфе «земли» (лишний сэмплер шейдеру не нужен: на iPhone их ровно 16)
           var n4 = bld.w * bld.h, g4 = new Uint8Array(n4 * 4);
@@ -495,10 +517,15 @@
   // ---------- закат / ночь: картинка от Nano Banana, уже приведена к размеру кадра (tools/gemini_intake.py) ----------
   // Земля — картинка состояния, где на месте главного здания лежит дневная подложка, подогнанная по яркости под это состояние
   // (по кольцу вокруг главного здания); главное здание — сама картинка (альфа берётся из дневной вырезки в шейдере). Оба — RGB.
-  function prepState(i, kind, url) {
+  // e2: extra.alpha — маска снега кадра (<кадр>_snow.webp, канал R) → альфа «земли»; extra.alpha2 — порядок появления снега
+  // (<кадр>_wx.webp, станок) → альфа «всей картинки»
+  // (маска снега и порядок его появления живут в альфе ночных текстур — лишних текстур шейдеру не нужно).
+  function prepState(i, kind, url, extra) {
     var S = STATE[i];
     if (!S) return Promise.reject(new Error('нет дневного кадра ' + i));
-    return load(url, 1).then(function (img) {
+    if (kind === 'raw') return prepRaw(url);
+    return Promise.all([load(url, 1), extra && extra.alpha ? load(extra.alpha, 1) : null, extra && extra.alpha2 ? load(extra.alpha2, 1) : null]).then(function (both) {
+      var img = both[0], aimg = both[1], aimg2 = both[2];
       var w = S.w, h = S.h, n = w * h, k, q;
       var cc = mkCanvas(); cc.width = w; cc.height = h;
       var x2 = cc.getContext('2d', { willReadFrequently: true });
@@ -549,7 +576,23 @@
         var ha = loc ? (alpha[q] > 0 ? Math.min(255, hole[q] * 3) / 255 : 0) : Math.min(255, hole[q] * 3) / 255;
         for (k = 0; k < 3; k++) ground[q * 3 + k] = ha > 0 ? np[q * 4 + k] * (1 - ha) + P[q * 4 + k] * (loc ? loc[k][q] : ratio[k]) * ha : np[q * 4 + k];
       }
-      return { ground: ground, full: full, lit: lit, w: w, h: h };
+      var res = { ground: ground, full: full, lit: lit, w: w, h: h };
+      if (aimg) {
+        var ap = readChannels(aimg, w, h), ap2 = aimg2 ? readChannels(aimg2, w, h) : null, g4 = new Uint8Array(n * 4), f4 = new Uint8Array(n * 4);
+        for (q = 0; q < n; q++) {
+          g4[q * 4] = ground[q * 3]; g4[q * 4 + 1] = ground[q * 3 + 1]; g4[q * 4 + 2] = ground[q * 3 + 2]; g4[q * 4 + 3] = ap[q * 4];
+          f4[q * 4] = full[q * 3]; f4[q * 4 + 1] = full[q * 3 + 1]; f4[q * 4 + 2] = full[q * 3 + 2]; f4[q * 4 + 3] = ap2 ? ap2[q * 4] : 0;
+        }
+        res.ground4 = g4; res.full4 = f4; res.ground = null; res.full = null;
+      }
+      return res;
+    });
+  }
+  // картинка как есть (RGBA, альфа не умножена): лист частиц, радуга
+  function prepRaw(url) {
+    return load(url, 1).then(function (img) {
+      var w = nw(img), h = nh(img);
+      return { w: w, h: h, px: new Uint8Array(readChannels(img, w, h).buffer) };
     });
   }
 
@@ -568,7 +611,8 @@
   var API = {
     init: function (cfg) { CONFIG = cfg; return Promise.resolve(true); },
     day: function (f, i) { return prepDay(f, i); },
-    state: function (i, kind, url) { return prepState(i, kind, url); }
+    state: function (i, kind, url, extra) { return prepState(i, kind, url, extra); },
+    raw: function (url) { return prepRaw(url); }
   };
 
   if (IN_WORKER) {

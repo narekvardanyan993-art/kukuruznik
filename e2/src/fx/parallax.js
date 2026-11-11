@@ -54,7 +54,7 @@ E2.effect({
   bind: function (gl, U, f, s) { gl.uniform4fv(U['uCrop' + s], f.crop); gl.uniform3f(U['uKd' + s], f.kd[0], f.kd[1], f.kd[2]); },
   step: function (S) {
     var P = S.cfg.effects.parallax, t = S.t / 1000;
-    var ba = (S.still || S.tier !== 'full') ? 0 : P.breath.amp;
+    var ba = (S.still || S.tier !== 'full' || E2.off('breath')) ? 0 : P.breath.amp;
     var bx = ba * Math.sin(t * 2 * Math.PI / P.breath.periodS), by = ba * Math.cos(t * 2 * Math.PI / (P.breath.periodS * 0.7));
     var tkA = S.fa ? S.fa.tiltK : 1, tkB = S.fb ? S.fb.tiltK : tkA, tk = tkA + (tkB - tkA) * (S.fb ? S.mix : 0);
     S.shiftX = S.tiltX * P.shiftX * tk + bx;

@@ -150,7 +150,8 @@ def effect_names(schema=None):
 def resolve(b, frames_dir=None, schema=None):
     """Проверяет настройки здания (format 2). Возвращает (cfg, files):
     cfg — настройки с умолчаниями: look, effectsOn, effects (здание), frames[] (name, kind, caption, effects, files — пока без адресов);
-    files — список имён файлов кадров, которые нужны включённым эффектам (для manifest).
+    files — список имён файлов кадров из папки кадров, которые нужны включённым эффектам (для manifest);
+    cfg['derived'] — производные файлы (маски), которые сборка считает сама: {frame, effect, key, file, maker, from}.
     frames_dir — папка кадров: если задана, каждый нужный файл обязан существовать."""
     S = schema or load_schema()
     if not isinstance(b, dict):
@@ -180,12 +181,26 @@ def resolve(b, frames_dir=None, schema=None):
             fail('effects.%s — такого эффекта нет. %s' % (e, _known(FX)))
     out['effects'] = {e: _object(be.get(e, {}), FX[e].get('building', {}), 'effects.' + e) for e in FX}
     out['effectsOn'] = list(FX.keys())
+    fdir = Path(frames_dir) if frames_dir else None
+    # производные файлы здания (лист частиц): станок собирает их из списков файлов в настройках эффекта
+    out['files'], bderived = {}, []
+    for e in FX:
+        for q in FX[e].get('derivedBuilding', []):
+            src = {k: list(v) for k, v in out['effects'][e][q['fromLists']].items() if v}
+            if not src:
+                continue
+            if fdir is not None:
+                for k, lst in src.items():
+                    for fn in lst:
+                        if not (fdir / fn).is_file():
+                            fail('effects.%s.%s.%s — нет файла %s; папка %s' % (e, q['fromLists'], k, fn, fdir))
+            out['files'][q['file']] = q['pattern']
+            bderived.append({'frame': None, 'effect': e, 'key': q['file'], 'file': q['pattern'], 'maker': q['maker'], 'from': src})
     # --- кадры ---
     fr = b.get('frames')
     if not isinstance(fr, list) or not fr:
         fail('frames — нужен непустой список кадров')
-    seen, frames, files = set(), [], []
-    fdir = Path(frames_dir) if frames_dir else None
+    seen, frames, files, derived = set(), [], [], bderived
     for i, f in enumerate(fr):
         if not isinstance(f, dict):
             fail('кадр %d — не блок { … }' % (i + 1))
@@ -216,16 +231,31 @@ def resolve(b, frames_dir=None, schema=None):
             for key, pat in FX[e].get('files', {}).items():
                 g['files'][key] = pat.replace('{name}', g['name'])
             for q in FX[e].get('filesIf', []):
-                if g['effects'][e].get(q['key']):
-                    g['files'][q['file']] = q['pattern'].replace('{name}', g['name'])
+                v = g['effects'][e].get(q['key'])
+                if v:      # 'sub' — имя файла записано в самих настройках (блок с ключом sub); иначе — по шаблону от имени кадра
+                    g['files'][q['file']] = v[q['sub']] if q.get('sub') else q['pattern'].replace('{name}', g['name'])
         if fdir is not None:
             for key, fn in g['files'].items():
                 if not (fdir / fn).is_file():
                     fail('%s — нет файла %s (нужен эффекту, ключ «%s»); папка %s' % (tag, fn, key, fdir))
         files.extend(g['files'].values())
+        # производные файлы (маски): их считает станок при сборке из файлов кадра (tools/stanok_masks.py); в папке кадров их нет
+        for e in FX:
+            for q in FX[e].get('derived', []):
+                if q.get('key') and not g['effects'][e].get(q['key']):
+                    continue
+                src = {k: pat.replace('{name}', g['name']) for k, pat in q['from'].items()}
+                if fdir is not None:
+                    for k, fn in src.items():
+                        if not (fdir / fn).is_file():
+                            fail('%s — нет файла %s (из него станок считает %s для эффекта %s); папка %s' % (tag, fn, q['pattern'].replace('{name}', g['name']), e, fdir))
+                fn = q['pattern'].replace('{name}', g['name'])
+                g['files'][q['file']] = fn
+                derived.append({'frame': len(frames), 'effect': e, 'key': q['file'], 'file': fn, 'maker': q['maker'], 'from': src})
         _frame_rules(g, tag)
         frames.append(g)
     out['frames'] = frames
+    out['derived'] = derived     # сборка считает эти файлы и убирает ключ из настроек страницы
     return out, sorted(set(files))
 
 
@@ -242,5 +272,10 @@ def _frame_rules(g, tag):
                     fail('%s, effects.tod.sun.%s = %r — не в небе: небо кончается на %.2f высоты (sky.end), а точка на %.2f' % (tag, k, sun[k], end, sun[k][1]))
         elif sun is not None:
             fail('%s, effects.tod.sun — у кадра без неба (sky.end = %.2f < %.2f) солнца нет: поставь null' % (tag, end, SKY_MIN))
+    wx = g['effects'].get('weather')
+    if wx is not None and g['kind'] == 'interior' and (wx['rain'] or wx['snow'] or wx['snowMask'] or wx['rainbow']):
+        fail('%s, effects.weather — интерьер: ни дождя, ни снега, ни радуги (rain, snow, snowMask — false; kind: interior ставит это сам)' % tag)
+    if wx is not None and wx['snowMask'] and not wx['snow']:
+        fail('%s, effects.weather.snowMask — маска снега есть, а снег на кадре выключен (snow: false)' % tag)
     if g['kind'] in ('close', 'interior') and g['effects']['parallax']['tilt'] > 0.5:
         fail('%s, effects.parallax.tilt = %r — крупные планы и интерьеры почти плоские (≤ 0.5; обычно 0.2)' % (tag, g['effects']['parallax']['tilt']))

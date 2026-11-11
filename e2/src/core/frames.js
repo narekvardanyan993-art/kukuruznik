@@ -52,7 +52,7 @@ E2.Frames = (function () {
       var chain = Promise.resolve();
       fx.forEach(function (e) {
         (e.states ? e.states(cfg.frames[i]) : []).forEach(function (st) {
-          chain = chain.then(function () { return prep('state', [i, st[0], abs(st[1])]); })
+          chain = chain.then(function () { return prep('state', [i, st[0], abs(st[1]), st[2] ? absAll(st[2]) : null]); })
             .then(function (r) { e.uploadState(G, entry, st[0], r); return E2.Clock.pause(); })
             .catch(function (err) { E2.err('кадр ' + (i + 1) + ' ' + st[0], err); });
         });
@@ -67,9 +67,16 @@ E2.Frames = (function () {
     count: function () { return cfg.frames.length; },
     prepCfg: function () { return prepCfg; },   // что получила подготовка картинок (гейт G8: ключ-эхо)
     loadDay: loadDay, loadStates: loadStates,
-    loadAll: function (first) {   // первый кадр, его версии, затем остальные по одному
+    loadAll: function (first) {   // первый кадр, файлы здания (лист частиц), версии первого кадра, затем остальные кадры по одному
       var order = [first]; for (var i = 0; i < cfg.frames.length; i++) if (i !== first) order.push(i);
-      return order.reduce(function (p, i) { return p.then(function () { return loadDay(i); }).then(function () { return loadStates(i); }); }, Promise.resolve());
+      var p0 = loadDay(first);
+      fx.forEach(function (e) {
+        (e.assets ? e.assets(cfg) : []).forEach(function (a) {
+          p0 = p0.then(function () { return prep('raw', [abs(a[1])]); }).then(function (r) { e.uploadAsset(G, a[0], r); return E2.Clock.pause(); })
+            .catch(function (err) { E2.err('файл здания ' + a[0], err); });
+        });
+      });
+      return order.reduce(function (p, i) { return p.then(function () { return loadDay(i); }).then(function () { return loadStates(i); }); }, p0);
     },
     reset: function () { store.length = 0; dayP = []; stateP = []; }
   };

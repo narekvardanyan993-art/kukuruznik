@@ -8,7 +8,6 @@
   "frames[].hotspots",
   "frames[].leafFly",
   "frames[].life",
-  "frames[].nightHalo",
   "frames[].parade",
   "frames[].pix",
   "frames[].poses",
@@ -21,9 +20,7 @@
   "tuning.CLOUD_FIELD_NIGHT",
   "tuning.CLOUD_FIELD_SPEED",
   "tuning.DRAWN_ONLY",
-  "tuning.LAMP_BREATH",
   "tuning.LOOK",
-  "tuning.NIGHT_MAIN_WINS",
   "tuning.NO_SWAY",
   "tuning.RAIN_DROPS",
   "tuning.SWAY_SOFT",
@@ -74,7 +71,8 @@
     "amp": 0.0031
    }
   },
-  "tod": {}
+  "tod": {},
+  "lights": {}
  },
  "frames": [
   {
@@ -105,7 +103,8 @@
        0.08
       ]
      }
-    }
+    },
+    "lights": {}
    }
   },
   {
@@ -137,7 +136,8 @@
        0.08
       ]
      }
-    }
+    },
+    "lights": {}
    }
   },
   {
@@ -168,7 +168,8 @@
        0.08
       ]
      }
-    }
+    },
+    "lights": {}
    }
   },
   {
@@ -186,7 +187,8 @@
       "end": 0.1
      },
      "sun": null
-    }
+    },
+    "lights": {}
    }
   },
   {
@@ -205,7 +207,8 @@
      },
      "noonK": 0.45,
      "sun": null
-    }
+    },
+    "lights": {}
    }
   },
   {
@@ -236,7 +239,8 @@
        0.08
       ]
      }
-    }
+    },
+    "lights": {}
    }
   }
  ]
