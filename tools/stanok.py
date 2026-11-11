@@ -6,8 +6,9 @@
   python3 tools/stanok.py check   tests/pogos-petros [--gate G5,G7] [--frames 0,1] [--selftest] [--out DIR] [--e1site DIR] [--chrome PATH]
         G7 (кнопки) и G6(б) идут в Chrome; --frames — только эти кадры (в облачной VM весь дом — дольше 20 мин); --out — куда положить листы G7;
         --e1site — копия сайта на e1.62 с Кукурузником (report/stanok-p0/site-before.tgz) для красного случая G6 «дождь e1.62»
-  python3 tools/stanok.py parity  tests/pogos-petros --out DIR [--frames 0,1] [--states day,sunset,night,snow,rain] [--tilts L,C,R] [--chrome PATH]
+  python3 tools/stanok.py parity  tests/pogos-petros --out DIR [--frames 0,1] [--states day,sunset,night,rain,snow] [--tilts L,C,R] [--chrome PATH]
         паритет с e1.62: сцена e2 против сцены e1.62, собранной из тех же кадров БЕЗ ещё не перенесённых эффектов (актёры, pix, тени облаков, шоу)
+        «Снег» — последним: тающий снег e2 идёт сверху вниз, а не разом (tests/<здание>/migration-allowed.json — разрешённые отличия)
 
 Настройки здания для e2 — <здание>/building.e2.json (v1 building.json рядом не трогается: на нём живут бета и live на e1.62).
 Ошибка настроек — «ОШИБКА building.json: …», код выхода 1, на диск ничего не пишется (гейт G8).
@@ -374,6 +375,16 @@ def gate_g8(bdir):
         if any(site.rglob('*')):
             probs.append('«%s»: сборка остановилась, но на диск что-то записано' % name)
         shutil.rmtree(site, ignore_errors=True)
+    # бюджет кадра (docs/STANOK.md §5.1): со схемой, где бюджет заведомо мал, настройки обязаны остановиться и назвать самый дорогой эффект
+    S = stanok_schema.load_schema()
+    if S.get('budget'):
+        S['budget'] = dict(S['budget'], cost=1)
+        try:
+            stanok_schema.resolve(json.loads(json.dumps(good)), None, S)
+            probs.append('бюджет: кадр дороже бюджета, а настройки прошли')
+        except SystemExit as e:
+            if 'бюджет кадра' not in str(e) or 'Самый дорогой' not in str(e):
+                probs.append('бюджет: сообщение не называет бюджет и самый дорогой эффект (%s)' % str(e)[:120])
     # целые настройки собираются, а значение из настроек доходит до страницы (ключ-эхо)
     site = Path(tempfile.mkdtemp(prefix='stanok-g8-'))
     echo = json.loads(json.dumps(good))
@@ -405,7 +416,7 @@ def px(args, chrome):
     return subprocess.run(['node', str(ROOT / 'tools' / 'stanok_px.mjs')] + [str(a) for a in args] + ['--chrome', chrome], capture_output=True, text=True)
 
 
-G6_STATES = 'day,sunset,night'     # состояния, которые уже есть в e2 (цель — все 5: день, закат, ночь, снег, дождь)
+G6_STATES = 'day,sunset,night,snow,rain'     # все 5 состояний (docs/STANOK.md §6, G6): осадки e2 — строго от часов движка
 
 
 def gate_g6b(site, page, chrome, frames='0', work=None, states=None):
@@ -590,7 +601,11 @@ def selftest_g7(bdir, site, page, chrome):
     return res
 
 
-G7_WX_CASES = []     # красные случаи погоды — вместе с эффектом weather
+# красные случаи погоды (эффект weather). Интерьер — кадр kind: interior здания (у Погоса — 5-й); нет такого кадра — случай пропускается.
+G7_WX_CASES = [('break=precip-pop', 'day,snow,rain', 'из ниоткуда', '?break=precip-pop — частицы появляются посреди кадра разом («шарики из ниоткуда»)'),
+               ('break=precip-noland', 'day,snow', 'сквозь', '?break=precip-noland — снежинки летят сквозь крыши и землю'),
+               ('break=snow-flat', 'day,snow', 'не сверху вниз', '?break=snow-flat — снег проявляется везде разом, а не сверху вниз'),
+               ('break=wx-interior', ('day,snow,rain', 'interior'), 'не должно', '?break=wx-interior — осадки в интерьере')]
 
 
 def check(bdir, gates, chrome, do_selftest, frames=None, out=None, e1site=None):
@@ -638,7 +653,7 @@ def check(bdir, gates, chrome, do_selftest, frames=None, out=None, e1site=None):
     return 1 if bad else 0
 
 
-def parity(bdir, out, chrome, frames=None, states='day,sunset,night,snow,rain', delta=3, share=0.0005, tilts='L,C,R'):
+def parity(bdir, out, chrome, frames=None, states='day,sunset,night,rain,snow', delta=3, share=0.0005, tilts='L,C,R'):
     """Сцена e2 против сцены e1.62 (без ещё не перенесённых эффектов). Пиксель «другой», если канал отличается больше delta;
     снимок красный, если таких пикселей больше share (доля)."""
     if not chrome:
@@ -649,15 +664,17 @@ def parity(bdir, out, chrome, frames=None, states='day,sunset,night,snow,rain', 
     s1, s2 = Path(tempfile.mkdtemp(prefix='stanok-par-e1-')), Path(tempfile.mkdtemp(prefix='stanok-par-e2-'))
     p1, p2 = build_ref(bdir, s1), build(bdir, s2, quiet=True)
     fa = ['--frames', frames] if frames else []
+    allow = (ROOT / bdir if not Path(bdir).is_absolute() else Path(bdir)) / 'migration-allowed.json'      # разрешённые отличия здания (docs/STANOK.md §2.4 п.5)
+    off = sorted({q['off'] for q in json.loads(allow.read_text(encoding='utf-8')).get('allowed', []) if q.get('off')}) if allow.is_file() else ['precip']
     for eng, site, page in (('e1', s1, p1), ('e2', s2, p2)):
-        # частицы осадков в e2 другие намеренно (migration-allowed.json): сравнивается сцена без них; у e1.62 они на отдельном холсте
-        qa = ['--query', 'off=precip'] if eng == 'e2' else []
+        # частицы осадков в e2 другие намеренно (migration-allowed.json, записи с ключом off): сравнивается сцена без них; у e1.62 они на отдельном холсте
+        qa = ['--query', 'off=' + ','.join(off)] if eng == 'e2' and off else []
         r = px(['shoot', '--engine', eng, '--site', site, '--page', page, '--out', out / eng, '--states', states, '--tilts', tilts, '--png', '1'] + fa + qa, chrome)
         print(r.stdout.strip()[-400:])
         if r.returncode != 0:
             print(r.stderr.strip()[-600:])
             return 1
-    r = px(['compare', out / 'e1', out / 'e2', '--delta', delta, '--share', share, '--report', out / 'parity.json'], chrome)
+    r = px(['compare', out / 'e1', out / 'e2', '--delta', delta, '--share', share, '--report', out / 'parity.json'] + (['--allow', allow] if allow.is_file() else []), chrome)
     print(r.stdout.strip())
     return r.returncode
 
@@ -694,7 +711,7 @@ def main(argv):
         gates = opt.get('gate', 'G5,G6,G7,G8,G13').split(',')
         return check(bdir, gates, chrome, bool(opt.get('selftest')), opt.get('frames'), opt.get('out'), opt.get('e1site'))
     elif cmd == 'parity':
-        return parity(bdir, opt.get('out', tempfile.mkdtemp(prefix='stanok-parity-')), chrome, opt.get('frames'), opt.get('states', 'day,sunset,night,snow,rain'),
+        return parity(bdir, opt.get('out', tempfile.mkdtemp(prefix='stanok-parity-')), chrome, opt.get('frames'), opt.get('states', 'day,sunset,night,rain,snow'),
                       float(opt.get('delta', 3)), float(opt.get('share', 0.0005)), opt.get('tilts', 'L,C,R'))
     elif cmd == 'ref':
         print(build_ref(bdir, opt['site']))

@@ -4,7 +4,6 @@
 E2.effect({
   name: 'parallax',
   low: 'lite',          // на слабой ступени: без «дыхания» камеры
-  cost: 3,
   frameSamplers: ['bg', 'depth', 'bld'],            // земля (rgb + глубина здания в a), карта окружения, слой здания
   frameUniforms: [['vec4', 'crop'], ['vec3', 'kd']],
   glsl: function () {

@@ -8,7 +8,6 @@
 E2.effect({
   name: 'tod',
   low: 'on',
-  cost: 4,
   frameSamplers: ['em', 'sg', 'sb', 'ng', 'nb'],     // окна (маски), закат: земля и вся картинка, ночь: земля и вся картинка
   frameUniforms: [['vec2', 'skyRef'], ['float', 'hasS'], ['float', 'noonK'], ['float', 'hasN']],
   P: { day: 0, sunset: 1, night: 2.1667 },

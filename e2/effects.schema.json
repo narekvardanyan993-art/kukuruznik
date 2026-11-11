@@ -1,6 +1,12 @@
 {
   "schema": 1,
   "about": "Единственный источник ключей building.json format 2 (docs/STANOK.md §2.3). Читают: tools/stanok_schema.py (проверка и умолчания) и через него движок e2 (в страницу вшиваются уже проверенные значения). Ключа нет здесь — сборка падает.",
+  "budget": {
+    "about": "Бюджет кадра (docs/STANOK.md §5.1; числа стартовые, уточняются замером в П6). cost — сумма очков эффектов, включённых на кадре (очки — ключ cost у эффекта ниже); lookups — выборок текстур на пиксель в собранном шейдере сцены; particles — потолок частиц осадков по ступеням full / lite / min. Выше бюджета — сборка останавливается и называет самый дорогой эффект",
+    "cost": 12,
+    "lookups": 32,
+    "particles": [400, 150, 60]
+  },
   "top": {
     "format": {
       "type": "const",
@@ -123,6 +129,7 @@
   },
   "effects": {
     "parallax": {
+      "cost": 3,
       "about": "наклон по глубине",
       "files": {
         "color": "{name}.webp",
@@ -232,6 +239,7 @@
       }
     },
     "tod": {
+      "cost": 4,
       "about": "время суток: день, полдень, закат, ночь (ночной рисунок Gemini целиком; огни — эффект lights)",
       "files": {
         "night": "{name}_night.webp"
@@ -497,6 +505,7 @@
       }
     },
     "lights": {
+      "cost": 1,
       "about": "нарисованный свет ночного рисунка: окна зажигаются по одному, огни мягко мерцают (docs/STANOK.md §4.1). Маску огней считает станок при сборке",
       "files": {},
       "derived": [
@@ -569,6 +578,271 @@
           "type": "bool",
           "default": true,
           "about": "false — огни кадра не гаснут и не мерцают (ночной рисунок как есть)"
+        }
+      }
+    },
+    "weather": {
+      "cost": 3,
+      "about": "погода кадра: дождь и снег (docs/STANOK.md §4.2). Частицы — листы Gemini, живут в сцене (глубина, посадка на поверхности), считаются строго от часов движка. Снег ложится по маске зимнего рисунка сверху вниз. Радуга после дождя — рисунок Gemini",
+      "files": {},
+      "filesIf": [
+        {
+          "key": "snowMask",
+          "file": "snow",
+          "pattern": "{name}_snow.webp"
+        },
+        {
+          "key": "rainbow",
+          "sub": "file",
+          "file": "rainbow"
+        }
+      ],
+      "derived": [
+        {
+          "key": "snowMask",
+          "file": "wx",
+          "pattern": "{name}_wx.webp",
+          "maker": "wx",
+          "from": {
+            "snow": "{name}_snow.webp"
+          }
+        }
+      ],
+      "derivedBuilding": [
+        {
+          "file": "wxAtlas",
+          "pattern": "wx_atlas.png",
+          "maker": "atlas",
+          "fromLists": "sprites"
+        }
+      ],
+      "building": {
+        "fadeMs": {
+          "type": "number",
+          "min": 200,
+          "max": 10000,
+          "default": 4000,
+          "about": "за сколько проявляется и уходит погода (пасмурно, мокро)"
+        },
+        "overcast": {
+          "type": "object",
+          "keys": {
+            "gray": {
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "default": 0.2,
+              "about": "цвета глуше"
+            },
+            "dim": {
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "default": 0.08,
+              "about": "свет ровнее и темнее"
+            },
+            "sky": {
+              "type": "vec",
+              "n": 3,
+              "min": 0,
+              "max": 1,
+              "default": [
+                0.8,
+                0.82,
+                0.84
+              ],
+              "about": "серое небо"
+            }
+          }
+        },
+        "wetDim": {
+          "type": "number",
+          "min": 0,
+          "max": 0.5,
+          "default": 0.07,
+          "about": "мокрые стены и земля темнее"
+        },
+        "rain": {
+          "type": "object",
+          "keys": {
+            "overcast": {
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "default": 0.35
+            },
+            "wet": {
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "default": 0.45
+            },
+            "drops": {
+              "type": "number",
+              "min": 0,
+              "max": 400,
+              "default": 380,
+              "about": "капель на полной ступени (телефон 390×844); lite — до 150, min — до 60"
+            },
+            "tintDay": {
+              "type": "vec",
+              "n": 4,
+              "min": 0,
+              "max": 2,
+              "default": [
+                0.78,
+                0.8,
+                0.88,
+                0.8
+              ],
+              "about": "цвет и плотность капли днём: множители к рисунку капли"
+            },
+            "tintNight": {
+              "type": "vec",
+              "n": 4,
+              "min": 0,
+              "max": 2,
+              "default": [
+                1.3,
+                1.32,
+                1.4,
+                0.6
+              ]
+            }
+          }
+        },
+        "snow": {
+          "type": "object",
+          "keys": {
+            "overcast": {
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "default": 0.35
+            },
+            "accumS": {
+              "type": "number",
+              "min": 1,
+              "max": 120,
+              "default": 12,
+              "about": "за сколько снег ложится"
+            },
+            "meltS": {
+              "type": "number",
+              "min": 1,
+              "max": 300,
+              "default": 30,
+              "about": "за сколько тает"
+            },
+            "tint": {
+              "type": "vec",
+              "n": 3,
+              "min": 0,
+              "max": 1,
+              "default": [
+                0.95,
+                0.96,
+                0.99
+              ]
+            },
+            "k": {
+              "type": "number",
+              "min": 0,
+              "max": 1,
+              "default": 0.95,
+              "about": "плотность снега по маске"
+            },
+            "flakes": {
+              "type": "number",
+              "min": 0,
+              "max": 400,
+              "default": 260,
+              "about": "снежинок на полной ступени; lite — до 150, min — до 60"
+            },
+            "tintDay": {
+              "type": "vec",
+              "n": 4,
+              "min": 0,
+              "max": 2,
+              "default": [
+                1,
+                1,
+                1,
+                0.95
+              ]
+            },
+            "tintNight": {
+              "type": "vec",
+              "n": 4,
+              "min": 0,
+              "max": 2,
+              "default": [
+                0.6,
+                0.66,
+                0.86,
+                0.85
+              ]
+            }
+          }
+        },
+        "sprites": {
+          "type": "object",
+          "keys": {
+            "flakes": {
+              "type": "strings",
+              "default": [],
+              "about": "рисунки снежинок Gemini (до 8 файлов в папке кадров)"
+            },
+            "rain": {
+              "type": "strings",
+              "default": [],
+              "about": "рисунки капель Gemini (до 8 файлов)"
+            }
+          }
+        },
+        "rainbowS": {
+          "type": "number",
+          "min": 5,
+          "max": 300,
+          "default": 50,
+          "about": "сколько секунд живёт радуга после дождя"
+        }
+      },
+      "frame": {
+        "rain": {
+          "type": "bool",
+          "default": true,
+          "byKind": {
+            "interior": false
+          },
+          "about": "дождь на этом кадре (интерьер — никогда)"
+        },
+        "snow": {
+          "type": "bool",
+          "default": true,
+          "byKind": {
+            "interior": false
+          }
+        },
+        "snowMask": {
+          "type": "bool",
+          "default": false,
+          "about": "есть маска снега <кадр>_snow.webp — снег ложится на поверхности; нет (зима уже нарисована) — только снежинки"
+        },
+        "rainbow": {
+          "type": "object",
+          "orFalse": true,
+          "default": false,
+          "keys": {
+            "file": {
+              "type": "string",
+              "about": "рисунок радуги Gemini (прозрачный фон; вырезан по силуэту здания)"
+            },
+            "rect": {
+              "type": "rect",
+              "about": "где радуга в кадре [x0, y0, x1, y1]"
+            }
+          }
         }
       }
     }

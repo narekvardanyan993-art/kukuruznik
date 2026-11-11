@@ -253,10 +253,28 @@ def resolve(b, frames_dir=None, schema=None):
                 g['files'][q['file']] = fn
                 derived.append({'frame': len(frames), 'effect': e, 'key': q['file'], 'file': fn, 'maker': q['maker'], 'from': src})
         _frame_rules(g, tag)
+        _frame_budget(g, tag, S)
         frames.append(g)
     out['frames'] = frames
     out['derived'] = derived     # сборка считает эти файлы и убирает ключ из настроек страницы
+    if S.get('budget'):
+        out['budget'] = {k: v for k, v in S['budget'].items() if k != 'about'}     # движок и гейт G7 сверяют с ним собранный шейдер и число частиц
     return out, sorted(set(files))
+
+
+def _frame_budget(g, tag, S):
+    """Бюджет кадра (docs/STANOK.md §5.1): сумма очков эффектов, которые на этом кадре работают. Выше бюджета — стоп, с самым дорогим."""
+    B, FX = S.get('budget'), S['effects']
+    if not B:
+        return
+    wx, lt = g['effects'].get('weather'), g['effects'].get('lights')
+    idle = {'weather': wx is not None and not (wx['rain'] or wx['snow']), 'lights': lt is not None and not lt['on']}
+    cost = {e: FX[e].get('cost', 0) for e in FX if not idle.get(e)}
+    total = sum(cost.values())
+    if total > B['cost']:
+        top = max(cost, key=lambda e: cost[e])
+        fail('%s — эффекты кадра стоят %d очков, бюджет кадра %d (effects.schema.json, budget.cost). Самый дорогой: %s (%d). Выключи эффект на этом кадре или упрости его'
+             % (tag, total, B['cost'], top, cost[top]))
 
 
 def _frame_rules(g, tag):

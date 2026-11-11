@@ -17,32 +17,41 @@ for (let i = 1; i < argv.length; i++) { if (argv[i].startsWith('--')) { opt[argv
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const TILT = { L: [-1, -1], C: [0, 0], R: [1, 1] };
 // Сколько виртуального времени ждать после переключения состояния, чтобы оно установилось (сравниваются установившиеся картинки):
-// ночь — переход 5,5 с + окна зажигаются по одному 5 с; снег — копится 12 с; дождь — погода проявляется ~2 с.
-const SETTLE = { day: 3200, sunset: 3200, night: 12000, snow: 16000, rain: 5000 };
+// ночь — переход 5,5 с + окна зажигаются по одному 5 с; снег — копится 12 с; дождь — погода проявляется 4 с, а после «Ночи» ещё и день
+// возвращается ~9,5 с. Порядок состояний важен: после «Снега» снег тает 30 с, и тает он в e2 иначе, чем в e1.62 (сверху вниз —
+// migration-allowed.json, snow-order): сравнивать «Дождь» и «Ночь» ПОСЛЕ «Снега» нельзя — снег идёт последним (night,rain,snow).
+const SETTLE = { day: 3200, sunset: 3200, night: 12000, snow: 16000, rain: 12000 };
 const WX = { snow: 'snow', rain: 'rain' };
 
 if (cmd === 'compare') {
   const [A, B] = pos, delta = +(opt.delta ?? 3), share = +(opt.share ?? 0.0005);
   const ia = JSON.parse(fs.readFileSync(path.join(A, 'index.json'))), ib = JSON.parse(fs.readFileSync(path.join(B, 'index.json')));
   const rows = []; let bad = 0;
+  // --allow FILE — разрешённые отличия здания (migration-allowed.json, docs/STANOK.md §2.4 п.5): записи с rect [x0, y0, x1, y1] (доли экрана
+  // снимка) — точки внутри не сравниваются, но считаются (allowed). Запись действует на свои состояния и кадры (frames: "*" — все).
+  const allow = opt.allow && fs.existsSync(opt.allow) ? (JSON.parse(fs.readFileSync(opt.allow)).allowed || []).filter((q) => Array.isArray(q.rect)) : [];
+  const [SW, SH] = ia.size || [390, 844];
+  const rectsFor = (name) => { const m = /^f(\d+)-([a-z]+)-/.exec(name); if (!m) return []; return allow.filter((q) => (q.states || []).includes(m[2]) && (q.frames === '*' || (q.frames || []).includes(+m[1]))).map((q) => [q.rect[0] * SW, q.rect[1] * SH, q.rect[2] * SW, q.rect[3] * SH]); };
   for (const name of ia.shots) {
     if (!ib.shots.includes(name)) { rows.push({ name, missing: true }); bad++; continue; }
     const a = fs.readFileSync(path.join(A, name + '.rgba')), b = fs.readFileSync(path.join(B, name + '.rgba'));
     if (a.length !== b.length) { rows.push({ name, size: [a.length, b.length] }); bad++; continue; }
-    let n = 0, mx = 0, sum = 0;
+    let n = 0, mx = 0, sum = 0, allowed = 0;
+    const rects = rectsFor(name);
     for (let i = 0; i < a.length; i += 4) {
       const d = Math.max(Math.abs(a[i] - b[i]), Math.abs(a[i + 1] - b[i + 1]), Math.abs(a[i + 2] - b[i + 2]));
+      if (rects.length && d > delta) { const x = (i / 4) % SW, y = Math.floor(i / 4 / SW); if (rects.some((r) => x >= r[0] && x < r[2] && y >= r[1] && y < r[3])) { allowed++; continue; } }
       if (d > delta) n++;
       if (d > mx) mx = d;
       sum += d;
     }
-    const px = a.length / 4, row = { name, over: n, share: +(n / px).toFixed(6), max: mx, mean: +(sum / px).toFixed(4), red: n / px > share };
+    const px = a.length / 4, row = { name, over: n, share: +(n / px).toFixed(6), max: mx, mean: +(sum / px).toFixed(4), red: n / px > share, allowed };
     if (row.red) bad++;
     rows.push(row);
   }
   for (const name of ib.shots) if (!ia.shots.includes(name)) { rows.push({ name, extra: true }); bad++; }
   if (opt.report) fs.writeFileSync(opt.report, JSON.stringify({ delta, share, a: A, b: B, rows }, null, 1));
-  for (const r of rows) console.log(r.red || r.missing || r.extra || r.size ? 'КРАСНЫЙ' : 'ок     ', r.name, r.missing ? 'нет во втором наборе' : r.extra ? 'лишний' : r.size ? 'разный размер' : `другие ${r.over} px (${(r.share * 100).toFixed(4)} %), макс ${r.max}, средн ${r.mean}`);
+  for (const r of rows) console.log(r.red || r.missing || r.extra || r.size ? 'КРАСНЫЙ' : 'ок     ', r.name, r.missing ? 'нет во втором наборе' : r.extra ? 'лишний' : r.size ? 'разный размер' : `другие ${r.over} px (${(r.share * 100).toFixed(4)} %), макс ${r.max}, средн ${r.mean}${r.allowed ? `, разрешённых ${r.allowed} px` : ''}`);
   console.log(`ИТОГ: снимков ${rows.length}, красных ${bad} (порог: канал > ${delta}, доля > ${share})`);
   process.exit(bad ? 1 : 0);
 }

@@ -93,8 +93,13 @@ try {
     if (s === 'error' || i === 959) throw new Error('страница не загрузилась: ' + JSON.stringify(await page.evaluate(() => window.E2 ? window.E2.errors : []).catch(() => [])));
     await sleep(250);
   }
-  const cfg = await page.evaluate(() => ({ n: window.E2_BUILDING.frames.length, names: window.E2_BUILDING.frames.map((f) => f.name), kinds: window.E2_BUILDING.frames.map((f) => f.kind), fx: window.E2_BUILDING.effects, version: window.__e2.version }));
+  const cfg = await page.evaluate(() => ({ n: window.E2_BUILDING.frames.length, names: window.E2_BUILDING.frames.map((f) => f.name), kinds: window.E2_BUILDING.frames.map((f) => f.kind), fx: window.E2_BUILDING.effects, wx: window.E2_BUILDING.frames.map((f) => f.effects.weather || null), version: window.__e2.version }));
   result.engine = cfg.version;
+  // бюджет кадра (docs/STANOK.md §5.1): выборок текстур на пиксель в собранном шейдере — не больше бюджета схемы; текстур — сколько даёт телефон
+  const bud = await page.evaluate(() => ({ b: window.E2_BUILDING.budget || null, s: window.__e2.state().stats }));
+  result.budget = bud;
+  if (bud.b && bud.s.lookups > bud.b.lookups) result.problems.push('бюджет: в шейдере сцены ' + bud.s.lookups + ' выборок текстур на пиксель, бюджет ' + bud.b.lookups);
+  if (bud.s.units > 16) result.problems.push('бюджет: шейдеру нужно ' + bud.s.units + ' текстур, у телефона 16');
   const frames = (opt.frames ? opt.frames.split(',').map(Number) : [...Array(cfg.n).keys()]).filter((f) => f < cfg.n);
   await page.evaluate(() => window.__e2.off('breath', true));   // камера не «дышит»: иначе любые два снимка отличаются всем кадром
   await adv(1000);
@@ -258,7 +263,7 @@ try {
         if (!(await tap(`[data-wx=${kind}]`))) { bad('нет кнопки ' + nm); continue; }
         w0 = await wxInfo();
         if (w0.kind !== kind) { bad(nm + ': кнопка не работает (погода не включилась)'); continue; }
-        const allowed = !!(w0.on && w0.on[kind]);
+        const allowed = !!(cfg.wx[f] && cfg.wx[f][kind]);      // по настройкам кадра, а не по словам движка: интерьер — никогда
         M.allowed = allowed;
         if (!allowed) {     // кадр без погоды (интерьер): ни частиц, ни перемен в сцене
           await adv(SETTLE.rain);
@@ -283,6 +288,7 @@ try {
         const P = w.parts[kind], vis = P.filter((q) => q[7] > -5 && q[7] < W + 5 && q[8] > -5 && q[8] < H + 5);
         M.parts = P.length; M.onScreen = vis.length;
         if (vis.length < 8) bad(nm + ': частиц нет (на экране ' + vis.length + ')');
+        if (bud.b && P.length > bud.b.particles[0]) bad(nm + ': частиц ' + P.length + ' — больше бюджета ' + bud.b.particles[0]);
         const R = kind === 'snow' ? 9 : 22, near = (x, y) => vis.some((q) => Math.abs(x - q[7]) <= R && y - q[8] <= R && q[8] - y <= (kind === 'snow' ? R : 34));
         const dp = diff(pr.full, pr.scene), dOut = diff(pr.full, pr.scene, (x, y) => !near(x, y));
         M.partPx = dp.over; M.partPxOutside = dOut.over;
@@ -314,13 +320,16 @@ try {
           }
         }
         await sheet(kind === 'rain' ? 'Дождь' : 'Снег');
-        // 4) посадка: частица гаснет на своей поверхности, а не летит сквозь кадр (по часам: серия моментов)
+        // 4) посадка: частица гаснет на своей поверхности, а не летит сквозь кадр (по часам: серия моментов). Линию поверхности гейт
+        //    считает сам по карте посадки кадра (столбец и глубина частицы), а не верит той, что запомнил движок.
+        const land = await page.evaluate((i) => { const L = window.E2.Frames.get(i).land; return L ? { w: L.w, z: L.z, d: Array.from(L.d) } : null; }, f);
+        const lineOf = (u, z) => { if (!land || u < 0 || u >= 1) return 9; const d = land.d[Math.min(land.z - 1, Math.floor(z * land.z)) * land.w + Math.floor(u * land.w)]; return d === 255 ? 9 : d / 255; };
         let through = 0, landed = 0, roof = 0;
         for (let k = 0; k < 12; k++) {
           await adv(kind === 'snow' ? 256 : 64);
-          (await wxInfo()).parts[kind].forEach((q) => { if (q[5] < 8 && q[2] > q[5] + 0.012) through++; if (q[6] >= 1 && q[5] < 8) { landed++; if (q[9] - q[5] > 0.05) roof++; } });
+          (await wxInfo()).parts[kind].forEach((q) => { if ((q[5] < 8 && q[2] > q[5] + 0.012) || (q[6] === 0 && q[2] > lineOf(q[1], q[3]) + 0.02)) through++; if (q[6] >= 1 && q[5] < 8) { landed++; if (Math.abs(q[9] - q[5]) < 0.012) roof++; } });
         }
-        M.through = through; M.landed = landed; M.roof = roof;     // roof — сели на предмет (линию крыши), а не на землю: частица ближе пролетела бы ниже
+        M.through = through; M.landed = landed; M.roof = roof;     // roof — погасли на линии крыш (первая поверхность сверху в своём столбце), а не долетели до земли
         if (through) bad(nm + ': частицы летят сквозь поверхности (ниже своей линии посадки: ' + through + ' наблюдений)');
         else if (!landed) bad(nm + ': ни одна частица не села на поверхность за серию наблюдений');
         else if (kind === 'snow' && F.kind === 'wide' && !roof) bad(nm + ': ни одна снежинка не погасла на линии крыши (все долетели до земли) за серию наблюдений');
