@@ -34,7 +34,8 @@ E2.UI = {
       prepCfg: function () { return JSON.parse(JSON.stringify(E2.Frames.prepCfg())); },
       fx: function (name) { var e = E2.fxGet(name); return e && e.debug ? JSON.parse(JSON.stringify(e.debug(E2.Frames.get(E2.Stage.frame())))) : null; },
       project: function (u, v, d) { return E2.Stage.project(u, v, d); },
-      off: function (name, on) { E2.offNow[name] = !!on; return true; }, still: function (on) { return E2.Stage.still(on); }
+      off: function (name, on) { E2.offNow[name] = !!on; return true; }, still: function (on) { return E2.Stage.still(on); },
+      skyT: function (s) { var e = E2.fxGet('sky'); if (e) e.state.pin = (s === null || s === undefined) ? null : +s; return !!e; }   // время неба, с (null — снова по часам): паритет с e1.62
     };
   }
 };

@@ -6,8 +6,9 @@
   python3 tools/stanok.py check   tests/pogos-petros [--gate G5,G7] [--frames 0,1] [--selftest] [--out DIR] [--e1site DIR] [--chrome PATH]
         G7 (кнопки) и G6(б) идут в Chrome; --frames — только эти кадры (в облачной VM весь дом — дольше 20 мин); --out — куда положить листы G7;
         --e1site — копия сайта на e1.62 с Кукурузником (report/stanok-p0/site-before.tgz) для красного случая G6 «дождь e1.62»
-  python3 tools/stanok.py parity  tests/pogos-petros --out DIR [--frames 0,1] [--states day,sunset,night,rain,snow] [--tilts L,C,R] [--chrome PATH]
-        паритет с e1.62: сцена e2 против сцены e1.62, собранной из тех же кадров БЕЗ ещё не перенесённых эффектов (актёры, pix, тени облаков, шоу)
+  python3 tools/stanok.py parity  tests/pogos-petros --out DIR [--frames 0,1] [--states day,sunset,night,rain,snow] [--tilts L,C,R] [--sky 1] [--chrome PATH]
+        паритет с e1.62: сцена e2 против сцены e1.62, собранной из тех же кадров БЕЗ ещё не перенесённых эффектов (актёры, pix, шоу) и без
+        теней облаков у обоих — 0 отличий; --sky 1 — паритет теней облаков: с порогом (e1.62 рисует их сеткой) и красным случаем «небо сдвинуто»
         «Снег» — последним: тающий снег e2 идёт сверху вниз, а не разом (tests/<здание>/migration-allowed.json — разрешённые отличия)
 
 Настройки здания для e2 — <здание>/building.e2.json (v1 building.json рядом не трогается: на нём живут бета и live на e1.62).
@@ -133,8 +134,22 @@ def page_config(site, page):
 # ---------------------------------------------------------------- перенос настроек v1 → format 2 (П1: parallax + tod)
 # ключи tuning v1, которые уже перенесены в effects (или сознательно не переезжают: свет кодом — LAMP_BREATH → lights, NIGHT_MAIN_WINS)
 TUNING_MOVED = ('MAX_SHIFT_X', 'MAX_SHIFT_Y', 'ZOOM_NEAR', 'BREATH_AMPLITUDE', 'BUILDING_DEPTH_PIXEL', 'LAMP_BREATH', 'NIGHT_MAIN_WINS')
-TUNING_MOVED_FX = {'weather': ('WEATHER', 'WX_PARTICLES', 'RAIN_DROPS')}     # переезжают вместе со своим эффектом (пока его нет в схеме — notYet)
-FRAME_MOVED_FX = {'weather': ('snowMask', 'wx')}
+TUNING_MOVED_FX = {'weather': ('WEATHER', 'WX_PARTICLES', 'RAIN_DROPS'),     # переезжают вместе со своим эффектом (пока его нет в схеме — notYet)
+                   'sky': ('CLOUD_FIELD', 'CLOUD_FIELD_NIGHT', 'CLOUD_FIELD_SCALE', 'CLOUD_FIELD_SPEED')}
+FRAME_MOVED_FX = {'weather': ('snowMask', 'wx'), 'sky': ('cloudShadow',)}
+
+
+def frame_sky(f, kind, cf):
+    """Небо кадра v1 → effects.sky кадра: сила тени облаков (cloudShadow × CLOUD_FIELD; 0 в e1.62 читался как 0,12) и плывущие облака
+    рисунка (первая деталь pix с kind: drift). Интерьер — без неба (в e1.62 тени облаков шли и под крышей — не переносится)."""
+    if kind == 'interior':
+        return {'shadow': 0, 'drift': False}
+    s = {'shadow': round((f.get('cloudShadow') or 0.12) * (cf or 1), 4), 'drift': False}
+    for p in f.get('pix') or []:
+        if p.get('kind') == 'drift':
+            s['drift'] = {'box': p['box'], 'px': p['p'][0], 'periodS': p['p'][1], 'phase': p['p'][2] if len(p['p']) > 2 else 0}
+            break
+    return s
 
 
 def frame_weather(f, kind, fdir):
@@ -194,6 +209,10 @@ def migrate(bdir):
                'rain': {'overcast': W1.get('rain', [0.35])[0], 'wet': W1.get('rain', [0, 0, 0.45])[2], 'drops': min(400, get('RAIN_DROPS') or 380)},
                'snow': {'overcast': W1.get('snow', [0.35])[0], 'accumS': sn.get('accumS', 12), 'meltS': sn.get('meltS', 30), 'tint': lw['snowTint'], 'k': lw['snowK']},
                'sprites': {'flakes': sorted(p.name for p in fdir.glob('show_flake_*.png'))[:8], 'rain': sorted(p.name for p in fdir.glob('show_rain_*.png'))[:8]}}
+    # небо (П2): поле теней облаков — те же числа, что у e1.62 (CLOUD_FIELD*); тени туч в непогоду — LOOK.weather.overcastShadow.
+    # Режим «два пятна» (CLOUD_FIELD = 0) в e2 не переехал: у эффекта один режим — поле
+    sky = {'clouds': {'scale': get('CLOUD_FIELD_SCALE') or 2.4, 'speed': get('CLOUD_FIELD_SPEED') or 0.011, 'night': get('CLOUD_FIELD_NIGHT') or 0,
+                      'overcast': lw.get('overcastShadow', 0.3)}}
     if not get('BUILDING_DEPTH_PIXEL'):
         raise SystemExit('перенос: у здания BUILDING_DEPTH_PIXEL = false, а в e2 глубина здания всегда по точкам — сначала пересобрать слои')
     frames, moved = [], {'name', 'caption', 'crop', 'sky', 'sun', 'tiltK', 'noon', 'sunset', 'hidden'}
@@ -211,7 +230,8 @@ def migrate(bdir):
               'tod': {'sky': {'ref': f['sky']['ref'], 'end': end}, 'noonK': f.get('noon', 1) if look.get('noon') else 0,
                       'sunsetPicture': has_sunset, 'sun': f.get('sun') if end >= stanok_schema.SKY_MIN else None},
               'lights': {},
-              'weather': frame_weather(f, kind, fdir)}
+              'weather': frame_weather(f, kind, fdir),
+              'sky': frame_sky(f, kind, get('CLOUD_FIELD'))}
         g = {'name': f['name'], 'kind': kind}
         if f.get('caption'):
             g['caption'] = f['caption']
@@ -223,7 +243,7 @@ def migrate(bdir):
     out = {'format': 2, 'id': v1['id'], 'source': '%s/building.json (v1, движок e1.62)' % bdir,
            'notYet': sorted('frames[].' + k for k in not_yet) + sorted('tuning.' + k for k in tun if k not in tun_moved),
            'text': v1.get('text'), 'look': {'frameSize': look['frameSize'], 'sunSide': look.get('sunSide', 'left')},
-           'effects': {e: trim(v, FX[e]['building']) for e, v in (('parallax', par), ('tod', tod), ('lights', lights), ('weather', weather)) if e in FX},
+           'effects': {e: trim(v, FX[e]['building']) for e, v in (('parallax', par), ('tod', tod), ('lights', lights), ('weather', weather), ('sky', sky)) if e in FX},
            'frames': frames}
     stanok_schema.resolve(out, src / v1.get('framesDir', 'frames/'))     # перенесённое обязано проходить схему
     p = src / CFG_NAME
@@ -232,23 +252,29 @@ def migrate(bdir):
 
 
 # ---------------------------------------------------------------- эталон e1.62 без ещё не перенесённых эффектов (для паритета)
-def build_ref(bdir, site):
-    """Страница здания на e1.62 (engine/), где выключено всё, чего в e2 ещё нет: актёры, pix, шоу, листья, тени облаков, события неба.
-    Остаются наклон и время суток — ровно то, что переносит П1. Кадры те же."""
+def build_ref(bdir, site, sky=False):
+    """Страница здания на e1.62 (engine/), где выключено всё, чего в e2 ещё нет: актёры, pix (кроме плывущих облаков), шоу, листья, события неба.
+    Остаются наклон, время суток, погода, плывущие облака рисунка (pix drift → sky.drift). Кадры те же.
+    sky=False — без теней облаков (точный паритет: 0 отличий); sky=True — с ними, как в building.json (паритет теней: с порогом)."""
     import build_pages
     v1 = json.loads((ROOT / bdir / 'building.json').read_text(encoding='utf-8'))
     for f in v1['frames']:
         for k in ('poses', 'leafFly', 'showVideo', 'fx', 'showCaption'):
             f.pop(k, None)
-        f.pop('pix', None)
+        drift = [q for q in f.pop('pix', None) or [] if q.get('kind') == 'drift'][:1]     # облака рисунка плывут — эффект sky (П2)
+        if drift:
+            f['pix'] = drift
         f['parade'] = False
-        f['cloudShadow'] = 1e-9     # 0 движок e1.62 читает как «нет значения» и ставит 0,12
+        if not sky:
+            f['cloudShadow'] = 1e-9     # 0 движок e1.62 читает как «нет значения» и ставит 0,12
         f['life'] = {'day': [], 'sunset': [], 'night': []}
     (v1.get('postcard') or {}).pop('show', None)     # «праздник» на открытке — без шоу снимать нечего
     # Поле облаков e1.62 рисует сцену СЕТКОЙ (тень считается в вершинах): координаты кадра интерполируются по мелким треугольникам
-    # и расходятся с обычным прямоугольником на доли пикселя — шум на штрихах (~2 % пикселей). Тени облаков — эффект sky (П2).
-    v1.setdefault('tuning', {}).update({'CLOUD_FIELD': 0, 'CLOUD_FIELD_NIGHT': 0})
-    v1['tuning'].setdefault('LOOK', {}).setdefault('weather', {})['overcastShadow'] = 0     # тени туч в непогоду — тоже облака (эффект sky)
+    # и расходятся с обычным прямоугольником на доли пикселя — шум на штрихах (~2 % пикселей). Поэтому точный паритет идёт без теней
+    # облаков (и у e2 — ?off=clouds), а тени сравниваются отдельно и с порогом (parity --sky 1).
+    if not sky:
+        v1.setdefault('tuning', {}).update({'CLOUD_FIELD': 0, 'CLOUD_FIELD_NIGHT': 0})
+        v1['tuning'].setdefault('LOOK', {}).setdefault('weather', {})['overcastShadow'] = 0     # тени туч в непогоду — тоже облака (эффект sky)
     site = Path(site)
     site.mkdir(parents=True, exist_ok=True)
     (site / 'CNAME').write_text('chka.am\n')
@@ -352,6 +378,8 @@ def bad_configs(good):
         ('format не 2', mod(lambda b: b.update({'format': 1})), 'format'),
         ('имя кадра повторяется', mod(lambda b: b['frames'].append(json.loads(json.dumps(b['frames'][0])))), 'повторяется'),
         ('неизвестный kind', mod(lambda b: f0(b).update({'kind': 'panorama'})), 'panorama'),
+        ('тени облаков в интерьере', mod(lambda b: (f0(b).update({'kind': 'interior'}), f0(b)['effects']['parallax'].update({'tilt': 0.2}), f0(b)['effects']['tod'].update({'sun': None}), f0(b)['effects']['tod']['sky'].update({'end': 0.01}), f0(b)['effects'].update({'weather': {}, 'sky': {'shadow': 0.15}}))), 'неба нет'),
+        ('прямоугольник плывущих облаков не от верха кадра', mod(lambda b: f0(b)['effects'].setdefault('sky', {}).update({'drift': {'box': [0, 0.3, 1, 0.5], 'px': 20, 'periodS': 80}})), 'от верха кадра'),
         ('крупный план с полным наклоном', mod(lambda b: (f0(b).update({'kind': 'close'}), f0(b)['effects']['parallax'].update({'tilt': 1}))), 'почти плоские'),
     ]
 
@@ -463,8 +491,11 @@ def g7_run(site, page, chrome, out, frames=None, buttons=None, query=None):
 
 
 def gate_g7(site, page, chrome, out, frames=None):
-    """Кнопки: настоящий тап по каждой кнопке каждого кадра → виртуальное время → снимок и проверки (tools/stanok_g7.mjs)."""
-    return g7_run(site, page, chrome, out, frames)
+    """Кнопки: настоящий тап по каждой кнопке каждого кадра → виртуальное время → снимок и проверки (tools/stanok_g7.mjs).
+    Плюс короткий прогон первого кадра на минимальной ступени (?tier=min): слабый телефон обязан остаться без теней облаков (§5.1)."""
+    probs = g7_run(site, page, chrome, out, frames)
+    first = (frames or '0').split(',')[0]
+    return probs + ['?tier=min: ' + q for q in g7_run(site, page, chrome, Path(out) / 'tier-min', first, 'day', 'tier=min')]
 
 
 # ---------------------------------------------------------------- самопроверки (красные случаи)
@@ -585,7 +616,7 @@ def selftest_g7(bdir, site, page, chrome):
         return res
     cases = [('break=tod', 'day,sunset,night', 'кнопка не работает', '?break=tod — кнопки времени суток ничего не делают'),
              ('break=lights-all', 'day,night', 'разом', '?break=lights-all — все окна зажигаются разом, а не по одному'),
-             ('break=lights-cells', 'day,night', 'клетки', '?break=lights-cells — мерцание клетками, а не по огню целиком')] + G7_WX_CASES
+             ('break=lights-cells', 'day,night', 'клетки', '?break=lights-cells — мерцание клетками, а не по огню целиком')] + G7_WX_CASES + G7_SKY_CASES
     for query, buttons, expect, title in cases:
         frames = '0'
         if isinstance(buttons, tuple):
@@ -606,6 +637,15 @@ G7_WX_CASES = [('break=precip-pop', 'day,snow,rain', 'из ниоткуда', '?
                ('break=precip-noland', 'day,snow', 'сквозь', '?break=precip-noland — снежинки летят сквозь крыши и землю'),
                ('break=snow-flat', 'day,snow', 'не сверху вниз', '?break=snow-flat — снег проявляется везде разом, а не сверху вниз'),
                ('break=wx-interior', ('day,snow,rain', 'interior'), 'не должно', '?break=wx-interior — осадки в интерьере')]
+
+
+# красные случаи неба (эффект sky); все — в «Дне»
+G7_SKY_CASES = [('break=sky-still', 'day', 'стоят', '?break=sky-still — небо не идёт по часам: тени облаков стоят'),
+                ('break=sky-hard', 'day', 'резкий', '?break=sky-hard — тень облаков с резким краем'),
+                ('break=sky-thick', 'day', 'гуще', '?break=sky-thick — тень облаков втрое гуще заданной'),
+                ('break=sky-all', 'day', 'на небе', '?break=sky-all — тень облаков лежит и на небе'),
+                ('break=sky-interior', ('day', 'interior'), 'не должно', '?break=sky-interior — тени облаков в интерьере'),
+                ('tier=min&break=sky-min', 'day', 'минимальной', '?tier=min&break=sky-min — на минимальной ступени тени облаков не выключились')]
 
 
 def check(bdir, gates, chrome, do_selftest, frames=None, out=None, e1site=None):
@@ -653,30 +693,57 @@ def check(bdir, gates, chrome, do_selftest, frames=None, out=None, e1site=None):
     return 1 if bad else 0
 
 
-def parity(bdir, out, chrome, frames=None, states='day,sunset,night,rain,snow', delta=3, share=0.0005, tilts='L,C,R'):
+SKY_NOISE = (3, 0.06)      # паритет теней облаков: канал > 3 не больше чем у 6 % пикселей снимка. Откуда: e1.62 с полем облаков рисует сцену
+                           # сеткой — без единой ошибки переноса ≈ 2–3 % пикселей на штрихах расходятся больше чем на 3 (замер П1 и П2)
+SKY_SHIFT_S = 25           # красный случай: небо e2 сдвинуто на столько секунд — тени лежат в других местах, паритет обязан покраснеть
+
+
+def parity(bdir, out, chrome, frames=None, states='day,sunset,night,rain,snow', delta=None, share=None, tilts='L,C,R', sky=False, settle=None):
     """Сцена e2 против сцены e1.62 (без ещё не перенесённых эффектов). Пиксель «другой», если канал отличается больше delta;
-    снимок красный, если таких пикселей больше share (доля)."""
+    снимок красный, если таких пикселей больше share (доля).
+    Обычный прогон — без теней облаков у обоих движков: порог 3 / 0,05 % (на деле 0 отличий). Облака рисунка плывут у обоих (время неба
+    e2 ставится по часам e1.62 в момент каждого снимка).
+    sky=True — паритет теней облаков: оба движка с тенями, порог SKY_NOISE (шум сетки e1.62), и обязательный красный случай: то же
+    со сдвигом неба e2 на SKY_SHIFT_S секунд обязано покраснеть (иначе порог ничего не ловит)."""
     if not chrome:
         print('ПРОПУЩЕНО: нет Chrome')
         return 2
+    delta = (SKY_NOISE[0] if sky else 3) if delta is None else delta
+    share = (SKY_NOISE[1] if sky else 0.0005) if share is None else share
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     s1, s2 = Path(tempfile.mkdtemp(prefix='stanok-par-e1-')), Path(tempfile.mkdtemp(prefix='stanok-par-e2-'))
-    p1, p2 = build_ref(bdir, s1), build(bdir, s2, quiet=True)
+    p1, p2 = build_ref(bdir, s1, sky=sky), build(bdir, s2, quiet=True)
     fa = ['--frames', frames] if frames else []
+    fa += ['--settle', settle] if settle else []
     allow = (ROOT / bdir if not Path(bdir).is_absolute() else Path(bdir)) / 'migration-allowed.json'      # разрешённые отличия здания (docs/STANOK.md §2.4 п.5)
     off = sorted({q['off'] for q in json.loads(allow.read_text(encoding='utf-8')).get('allowed', []) if q.get('off')}) if allow.is_file() else ['precip']
-    for eng, site, page in (('e1', s1, p1), ('e2', s2, p2)):
+    if not sky:
+        off = sorted(set(off) | {'clouds'})
+
+    def shoot(eng, site, page, dest, extra=()):
         # частицы осадков в e2 другие намеренно (migration-allowed.json, записи с ключом off): сравнивается сцена без них; у e1.62 они на отдельном холсте
-        qa = ['--query', 'off=' + ','.join(off)] if eng == 'e2' and off else []
-        r = px(['shoot', '--engine', eng, '--site', site, '--page', page, '--out', out / eng, '--states', states, '--tilts', tilts, '--png', '1'] + fa + qa, chrome)
+        qa = (['--query', 'off=' + ','.join(off)] if off else []) + ['--times', out / 'e1' / 'index.json'] + list(extra) if eng == 'e2' else []
+        r = px(['shoot', '--engine', eng, '--site', site, '--page', page, '--out', dest, '--states', states, '--tilts', tilts, '--png', '1'] + fa + qa, chrome)
         print(r.stdout.strip()[-400:])
         if r.returncode != 0:
             print(r.stderr.strip()[-600:])
-            return 1
-    r = px(['compare', out / 'e1', out / 'e2', '--delta', delta, '--share', share, '--report', out / 'parity.json'] + (['--allow', allow] if allow.is_file() else []), chrome)
+        return r.returncode
+    if shoot('e1', s1, p1, out / 'e1') or shoot('e2', s2, p2, out / 'e2'):
+        return 1
+    al = (['--allow', allow] if allow.is_file() else []) + (['--only', 'sky'] if sky else [])
+    r = px(['compare', out / 'e1', out / 'e2', '--delta', delta, '--share', share, '--report', out / 'parity.json'] + al, chrome)
     print(r.stdout.strip())
-    return r.returncode
+    code = r.returncode
+    if sky:
+        if shoot('e2', s2, p2, out / 'e2-shift', ['--timeshift', SKY_SHIFT_S]):
+            return 1
+        r2 = px(['compare', out / 'e1', out / 'e2-shift', '--delta', delta, '--share', share, '--report', out / 'parity-shift.json'] + al, chrome)
+        rows = [q for q in json.loads((out / 'parity-shift.json').read_text())['rows'] if 'red' in q]
+        red = sum(1 for q in rows if q['red'])
+        print('красный случай (небо e2 сдвинуто на %d с): красных %d из %d — %s' % (SKY_SHIFT_S, red, len(rows), 'ок (покраснел)' if r2.returncode else 'ПРОВАЛ (не покраснел: порог ничего не ловит)'))
+        code = code or (0 if r2.returncode else 1)
+    return code
 
 
 def main(argv):
@@ -712,7 +779,8 @@ def main(argv):
         return check(bdir, gates, chrome, bool(opt.get('selftest')), opt.get('frames'), opt.get('out'), opt.get('e1site'))
     elif cmd == 'parity':
         return parity(bdir, opt.get('out', tempfile.mkdtemp(prefix='stanok-parity-')), chrome, opt.get('frames'), opt.get('states', 'day,sunset,night,rain,snow'),
-                      float(opt.get('delta', 3)), float(opt.get('share', 0.0005)), opt.get('tilts', 'L,C,R'))
+                      float(opt['delta']) if 'delta' in opt else None, float(opt['share']) if 'share' in opt else None, opt.get('tilts', 'L,C,R'),
+                      sky=opt.get('sky') == '1', settle=opt.get('settle'))
     elif cmd == 'ref':
         print(build_ref(bdir, opt['site']))
     else:

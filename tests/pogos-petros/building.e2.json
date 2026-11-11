@@ -3,7 +3,6 @@
  "id": "pogos-petros",
  "source": "tests/pogos-petros/building.json (v1, движок e1.62)",
  "notYet": [
-  "frames[].cloudShadow",
   "frames[].fx",
   "frames[].hotspots",
   "frames[].leafFly",
@@ -14,9 +13,6 @@
   "frames[].showCaption",
   "frames[].showVideo",
   "frames[].wind",
-  "tuning.CLOUD_FIELD",
-  "tuning.CLOUD_FIELD_NIGHT",
-  "tuning.CLOUD_FIELD_SPEED",
   "tuning.DRAWN_ONLY",
   "tuning.LOOK",
   "tuning.NO_SWAY",
@@ -91,6 +87,13 @@
      "show_rain_8.png"
     ]
    }
+  },
+  "sky": {
+   "clouds": {
+    "speed": 0.02,
+    "night": 1.4,
+    "overcast": 0.12
+   }
   }
  },
  "frames": [
@@ -135,6 +138,19 @@
        0.46007
       ]
      }
+    },
+    "sky": {
+     "shadow": 0.15,
+     "drift": {
+      "box": [
+       0.0,
+       0.0,
+       1.0,
+       0.185
+      ],
+      "px": 36,
+      "periodS": 80
+     }
     }
    }
   },
@@ -171,6 +187,9 @@
     "lights": {},
     "weather": {
      "snowMask": true
+    },
+    "sky": {
+     "shadow": 0.15
     }
    }
   },
@@ -206,6 +225,9 @@
     "lights": {},
     "weather": {
      "snowMask": true
+    },
+    "sky": {
+     "shadow": 0.15
     }
    }
   },
@@ -226,7 +248,10 @@
      "sun": null
     },
     "lights": {},
-    "weather": {}
+    "weather": {},
+    "sky": {
+     "shadow": 0.15
+    }
    }
   },
   {
@@ -247,7 +272,8 @@
      "sun": null
     },
     "lights": {},
-    "weather": {}
+    "weather": {},
+    "sky": {}
    }
   },
   {
@@ -282,6 +308,9 @@
     "lights": {},
     "weather": {
      "snowMask": true
+    },
+    "sky": {
+     "shadow": 0.15
     }
    }
   }

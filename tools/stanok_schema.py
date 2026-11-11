@@ -267,8 +267,9 @@ def _frame_budget(g, tag, S):
     B, FX = S.get('budget'), S['effects']
     if not B:
         return
-    wx, lt = g['effects'].get('weather'), g['effects'].get('lights')
-    idle = {'weather': wx is not None and not (wx['rain'] or wx['snow']), 'lights': lt is not None and not lt['on']}
+    wx, lt, sk = g['effects'].get('weather'), g['effects'].get('lights'), g['effects'].get('sky')
+    idle = {'weather': wx is not None and not (wx['rain'] or wx['snow']), 'lights': lt is not None and not lt['on'],
+            'sky': sk is not None and not (sk['shadow'] or sk['drift'])}
     cost = {e: FX[e].get('cost', 0) for e in FX if not idle.get(e)}
     total = sum(cost.values())
     if total > B['cost']:
@@ -295,5 +296,10 @@ def _frame_rules(g, tag):
         fail('%s, effects.weather — интерьер: ни дождя, ни снега, ни радуги (rain, snow, snowMask — false; kind: interior ставит это сам)' % tag)
     if wx is not None and wx['snowMask'] and not wx['snow']:
         fail('%s, effects.weather.snowMask — маска снега есть, а снег на кадре выключен (snow: false)' % tag)
+    sk = g['effects'].get('sky')
+    if sk is not None and g['kind'] == 'interior' and (sk['shadow'] or sk['drift']):
+        fail('%s, effects.sky — интерьер: неба нет, ни теней облаков, ни плывущих облаков (shadow: 0, drift: false; kind: interior ставит это сам)' % tag)
+    if sk is not None and sk['drift'] and sk['drift']['box'][1] > 0.02:
+        fail('%s, effects.sky.drift.box = %r — прямоугольник неба начинается от верха кадра (y0 = 0), а здесь от %.2f' % (tag, sk['drift']['box'], sk['drift']['box'][1]))
     if g['kind'] in ('close', 'interior') and g['effects']['parallax']['tilt'] > 0.5:
         fail('%s, effects.parallax.tilt = %r — крупные планы и интерьеры почти плоские (≤ 0.5; обычно 0.2)' % (tag, g['effects']['parallax']['tilt']))

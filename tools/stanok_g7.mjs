@@ -7,6 +7,8 @@
 //   «Закат»     — теплее дня.
 //   «Ночь»      — темнее дня; окна сначала погашены, зажигаются ПО ОДНОМУ (не разом), все за ≤ 6 с; конечное состояние — ровно ночной рисунок
 //                 (0 отличий от сцены без эффекта lights); мерцание — только в пятнах огней, мягкое, по огню целиком (без клеток).
+//   небо (в «Дне») — тени облаков видны, только темнят и не гуще своей силы, край мягкий, на небо не ложатся, плывут по часам движка;
+//                 облака рисунка плывут только в своём прямоугольнике; интерьер и минимальная ступень (?tier=min) — без теней.
 //   «Дождь», «Снег» — частицы есть и на экране стоят там, где их считает движок; в начале они входят сверху или из-за края (середина
 //                 кадра не «заселяется» из ниоткуда); садятся на свои поверхности, а не летят сквозь; дождь — мокрое темнее, после
 //                 дождя радуга (если у кадра есть её рисунок); снег — белого больше и ложится сверху вниз; кадр без погоды (интерьер) —
@@ -93,7 +95,7 @@ try {
     if (s === 'error' || i === 959) throw new Error('страница не загрузилась: ' + JSON.stringify(await page.evaluate(() => window.E2 ? window.E2.errors : []).catch(() => [])));
     await sleep(250);
   }
-  const cfg = await page.evaluate(() => ({ n: window.E2_BUILDING.frames.length, names: window.E2_BUILDING.frames.map((f) => f.name), kinds: window.E2_BUILDING.frames.map((f) => f.kind), fx: window.E2_BUILDING.effects, wx: window.E2_BUILDING.frames.map((f) => f.effects.weather || null), version: window.__e2.version }));
+  const cfg = await page.evaluate(() => ({ n: window.E2_BUILDING.frames.length, names: window.E2_BUILDING.frames.map((f) => f.name), kinds: window.E2_BUILDING.frames.map((f) => f.kind), fx: window.E2_BUILDING.effects, wx: window.E2_BUILDING.frames.map((f) => f.effects.weather || null), sky: window.E2_BUILDING.frames.map((f) => f.effects.sky || null), tier: window.__e2.state().tier, version: window.__e2.version }));
   result.engine = cfg.version;
   // бюджет кадра (docs/STANOK.md §5.1): выборок текстур на пиксель в собранном шейдере — не больше бюджета схемы; текстур — сколько даёт телефон
   const bud = await page.evaluate(() => ({ b: window.E2_BUILDING.budget || null, s: window.__e2.state().stats }));
@@ -102,6 +104,7 @@ try {
   if (bud.s.units > 16) result.problems.push('бюджет: шейдеру нужно ' + bud.s.units + ' текстур, у телефона 16');
   const frames = (opt.frames ? opt.frames.split(',').map(Number) : [...Array(cfg.n).keys()]).filter((f) => f < cfg.n);
   await page.evaluate(() => window.__e2.off('breath', true));   // камера не «дышит»: иначе любые два снимка отличаются всем кадром
+  await page.evaluate(() => window.__e2.off('skymove', true));  // небо стоит (тени облаков видны, но не плывут): иначе замеры огней и погоды тонут в движении теней; движение неба меряет свой раздел
   await adv(1000);
   for (const f of frames) {
     const F = { frame: f, name: cfg.names[f], kind: cfg.kinds[f], problems: [], m: {} }, bad = (t) => F.problems.push(t);
@@ -119,6 +122,73 @@ try {
     F.m.day = { lum: r3(sDay.lum), warm: r3(sDay.warm), sd: r3(sDay.sd) };
     if (sDay.sd < 0.04) bad('«День»: кадр пустой (разброс яркости ' + sDay.sd.toFixed(3) + ')');
     if (BUTTONS.includes('day')) await sheet('День');
+    // ---------- небо: тени облаков и плывущие облака рисунка (эффект sky) ----------
+    if (BUTTONS.includes('day') && cfg.sky[f] && (await page.evaluate(() => window.__e2.fx('sky')))) {
+      cfg.tier = await page.evaluate(() => window.__e2.state().tier);   // ступень читается здесь, а не при загрузке: до первого тика движок отвечает «full» (находка П2)
+      const M = F.m.sky = {}, SK = cfg.sky[f], C = cfg.fx.sky.clouds, allowed = SK.shadow > 0 && cfg.tier !== 'min';
+      const pair = async () => {   // один и тот же момент: с тенями облаков и без них
+        const full = await shot();
+        const r = await page.evaluate(`(() => { window.__e2.off('clouds', true); window.__e2.redraw(); const p = window.__e2.pixels(); window.__e2.off('clouds', false); window.__e2.redraw(); return { w: p.w, h: p.h, data: (${b64})(p.data) }; })()`);
+        const buf = Buffer.from(r.data, 'base64'), flip = Buffer.alloc(buf.length), row = r.w * 4;
+        for (let y = 0; y < r.h; y++) buf.copy(flip, y * row, (r.h - 1 - y) * row, (r.h - y) * row);
+        return { full, bare: { w: r.w, h: r.h, d: flip } };
+      };
+      await page.evaluate(() => window.__e2.off('skymove', false));
+      await adv(64);
+      const A = await pair(), info = await page.evaluate(() => window.__e2.fx('sky'));
+      // карта неба кадра (клетки 0..255) → точки экрана: 1 — глубоко в небе, −1 — глубоко не в небе, 0 — у границы (не судим)
+      const p0 = await page.evaluate(() => window.__e2.project(0, 0, 0.5)), p1 = await page.evaluate(() => window.__e2.project(1, 1, 0.5)), mp = info.map;
+      const zone = new Int8Array(W * H);
+      if (mp) for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const cx = Math.floor((x + 0.5 - p0[0]) / (p1[0] - p0[0]) * mp.w), cy = Math.floor((y + 0.5 - p0[1]) / (p1[1] - p0[1]) * mp.h);
+        if (cx < 1 || cy < 1 || cx >= mp.w - 1 || cy >= mp.h - 1) continue;
+        let mn = 255, mx = 0;
+        for (let j = -1; j <= 1; j++) for (let i2 = -1; i2 <= 1; i2++) { const v = mp.d[(cy + j) * mp.w + cx + i2]; if (v < mn) mn = v; if (v > mx) mx = v; }
+        zone[y * W + x] = mn >= 250 ? 1 : (mx <= 5 ? -1 : 0);
+      }
+      const dA = diff(A.full, A.bare);
+      M.allowed = allowed; M.changedPx = dA.over; M.k = r3(info.k);
+      if (!allowed) {
+        if (dA.over > 0) bad(cfg.tier === 'min' ? 'небо: на минимальной ступени тени облаков должны быть выключены (отличается ' + dA.over + ' px)' : 'небо: тени облаков там, где их быть не должно (интерьер или shadow: 0): отличается ' + dA.over + ' px');
+      } else {
+        // тень: только темнее, не гуще своей силы, край мягкий, на небе её нет
+        let dark = 0, bright = 0, thick = 0, skyPx = 0, skyHit = 0, gnd = 0, steps = 0, hardSteps = 0, minR = 1;
+        const K = SK.shadow + 0.02, ratio = new Float32Array(W * H).fill(-1);
+        for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+          const i = (y * W + x) * 4, a = lumAt(A.full, i), b = lumAt(A.bare, i), z = zone[y * W + x];
+          if (A.full.d[i] > A.bare.d[i] + 1 || A.full.d[i + 1] > A.bare.d[i + 1] + 1 || A.full.d[i + 2] > A.bare.d[i + 2] + 1) bright++;
+          if (b - a > 2.5 / 255) dark++;
+          if (z === 1) { skyPx++; if (Math.abs(b - a) > 2.5 / 255) skyHit++; }
+          if (b > 0.3) { const r = a / b; if (r < minR) minR = r; if (r < 1 - K - 4 / 255 / b) thick++; if (z === -1 && b > 0.45) { ratio[y * W + x] = r; gnd++; } }
+        }
+        for (let y = 0; y < H; y++) for (let x = 1; x < W; x++) { const r0 = ratio[y * W + x - 1], r1 = ratio[y * W + x]; if (r0 < 0 || r1 < 0) continue; steps++; if (Math.abs(r1 - r0) > 0.05) hardSteps++; }
+        M.dark = r3(dark / (W * H)); M.minRatio = r3(minR); M.thick = thick; M.skyPx = skyPx; M.skyHit = skyHit; M.hardSteps = [hardSteps, steps];
+        if (dark < 0.03 * W * H) bad('небо: теней облаков не видно (темнее без них только ' + (100 * dark / (W * H)).toFixed(1) + ' % экрана)');
+        if (bright > 20) bad('небо: тень облаков местами светлее кадра без неё (' + bright + ' px)');
+        if (thick > 20) bad('небо: тень облаков гуще заданной силы ' + SK.shadow + ' (самое тёмное место — ×' + minR.toFixed(2) + ', таких точек ' + thick + ')');
+        if (steps > 2000 && hardSteps > 0.002 * steps) bad('небо: край тени облаков резкий (скачков яркости между соседними точками ' + hardSteps + ' из ' + steps + ')');
+        if (skyPx >= 400 && skyHit > 0.01 * skyPx) bad('небо: тень облаков лежит на небе (' + skyHit + ' px из ' + skyPx + ' в глубине неба)');
+        // движение: через 8 с тени лежат иначе (по часам движка)
+        await adv(8000 - 32);
+        const B = await pair();
+        let moved = 0, n = 0;
+        for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+          if (zone[y * W + x] === 1) continue;
+          const i = (y * W + x) * 4; n++;
+          if (Math.abs((lumAt(A.bare, i) - lumAt(A.full, i)) - (lumAt(B.bare, i) - lumAt(B.full, i))) > 2.5 / 255) moved++;
+        }
+        M.moved = r3(n ? moved / n : 0);
+        if (moved < 0.02 * n) bad('небо: тени облаков стоят (за 8 с изменилось ' + (100 * moved / Math.max(1, n)).toFixed(1) + ' % точек земли и стен)');
+        // облака рисунка плывут — только в своём прямоугольнике неба; без drift сцена под тенями неподвижна
+        const yBox = SK.drift ? p0[1] + (p1[1] - p0[1]) * SK.drift.box[3] + 3 : -1;
+        const dIn = diff(A.bare, B.bare, (x, y) => y < yBox), dOut = diff(A.bare, B.bare, (x, y) => y >= yBox);
+        M.drift = { on: !!SK.drift, insidePx: dIn.over, outsidePx: dOut.over };
+        if (SK.drift && dIn.over < 50) bad('небо: облака рисунка не плывут (за 8 с в прямоугольнике неба изменилось ' + dIn.over + ' px)');
+        if (dOut.over > 0) bad('небо: без теней сцена под небом должна стоять, а изменилось ' + dOut.over + ' px вне прямоугольника неба (движение мимо эффекта)');
+      }
+      await page.evaluate(() => window.__e2.off('skymove', true));
+      await adv(64);
+    }
     // ---------- «Закат» ----------
     if (BUTTONS.includes('sunset')) {
       if (!(await tap('[data-tod=sunset]'))) bad('нет кнопки «Закат»');
@@ -251,6 +321,15 @@ try {
       for (let y = 0; y < r.h; y++) buf.copy(flip, y * row, (r.h - 1 - y) * row, (r.h - y) * row);
       return { full, scene: { w: r.w, h: r.h, d: flip } };
     };
+    // Сцена без частиц И без теней облаков — для сравнений «до/после погоды» (снег лёг, мокрое темнее, сверху вниз). Тени облаков между
+    // двумя снимками успевают уплыть, а под тучами они гуще: на крупном плане (кадр F Погоса) тень съедала всё «белое» снега, и гейт писал
+    // «снег не лёг», хотя снег лежал (находка П2, e2.0.4). Сами тени проверяет раздел «небо».
+    const sceneBare = async () => {
+      const r = await page.evaluate(`(() => { const k = ['precip', 'rainbow', 'clouds']; k.forEach((n) => window.__e2.off(n, true)); window.__e2.redraw(); const p = window.__e2.pixels(); k.forEach((n) => window.__e2.off(n, false)); window.__e2.redraw(); return { w: p.w, h: p.h, data: (${b64})(p.data) }; })()`);
+      const buf = Buffer.from(r.data, 'base64'), flip = Buffer.alloc(buf.length), row = r.w * 4;
+      for (let y = 0; y < r.h; y++) buf.copy(flip, y * row, (r.h - 1 - y) * row, (r.h - y) * row);
+      return { w: r.w, h: r.h, d: flip };
+    };
     const RU = { rain: '«Дождь»', snow: '«Снег»' }, VMAX = { rain: 1.7, snow: 0.15 }, SETTLE = { rain: 6000, snow: 16000 }, EARLY = { rain: 96, snow: 704 };
     if ((BUTTONS.includes('rain') || BUTTONS.includes('snow')) && (await wxInfo())) {
       if (BUTTONS.includes('night') || BUTTONS.includes('sunset')) { await tap('[data-tod=day]'); await adv(9000); }
@@ -260,6 +339,7 @@ try {
         let w0 = await wxInfo();
         if (w0.kind !== 'none') { await tap(`[data-wx=${w0.kind}]`); await adv(32000); }
         const base = await shot();                                     // тот же кадр без погоды, прямо перед нажатием
+        const baseBare = await sceneBare();                            // он же без теней облаков — для сравнений «до/после погоды»
         if (!(await tap(`[data-wx=${kind}]`))) { bad('нет кнопки ' + nm); continue; }
         w0 = await wxInfo();
         if (w0.kind !== kind) { bad(nm + ': кнопка не работает (погода не включилась)'); continue; }
@@ -267,7 +347,7 @@ try {
         M.allowed = allowed;
         if (!allowed) {     // кадр без погоды (интерьер): ни частиц, ни перемен в сцене
           await adv(SETTLE.rain);
-          const w = await wxInfo(), now = await shot(), d = diff(base, now);
+          const w = await wxInfo(), now = await sceneBare(), d = diff(baseBare, now);     // без теней облаков: они плывут и на кадре без погоды
           M.parts = w.parts[kind].length; M.changed = r3(d.share);
           if (w.parts[kind].length > 0 || d.share > 0.002) bad(nm + ': осадки там, где их быть не должно (кадр без погоды — интерьер): частиц ' + w.parts[kind].length + ', изменилось ' + (d.share * 100).toFixed(2) + ' % пикселей');
           await sheet(kind === 'rain' ? 'Дождь' : 'Снег');
@@ -281,10 +361,10 @@ try {
         if (pop.length) bad(nm + ': частицы появились посреди кадра («из ниоткуда»): ' + pop.length + ' шт. через ' + el.toFixed(2) + ' с после нажатия ниже, чем могли долететь сверху');
         // снег ложится сверху вниз: к этому моменту верх кадра набрал большую долю своего снега, чем низ
         let mid = null;
-        if (kind === 'snow') { await adv(4200 - EARLY.snow); mid = (await scenePair()).scene; }
+        if (kind === 'snow') { await adv(4200 - EARLY.snow); mid = await sceneBare(); }
         await adv(SETTLE[kind] - (kind === 'snow' ? 4232 : EARLY.rain));
         // 2) установилось: частицы есть, и на экране они там, где говорит движок
-        const pr = await scenePair(); w = await wxInfo();
+        const pr = await scenePair(), bare = await sceneBare(); w = await wxInfo();
         const P = w.parts[kind], vis = P.filter((q) => q[7] > -5 && q[7] < W + 5 && q[8] > -5 && q[8] < H + 5);
         M.parts = P.length; M.onScreen = vis.length;
         if (vis.length < 8) bad(nm + ': частиц нет (на экране ' + vis.length + ')');
@@ -295,8 +375,8 @@ try {
         if (vis.length >= 8 && dp.over < 30) bad(nm + ': частицы не видны на экране (отличается ' + dp.over + ' px)');
         if (dp.over >= 30 && dOut.over > 0.05 * dp.over) bad(nm + ': частицы на экране не там, где их считает движок (' + dOut.over + ' px из ' + dp.over + ' вне частиц)');
         // 3) сцена: дождь — мокрое темнее; снег — белого больше (если у кадра есть маска снега)
-        const sB = stats(base, [0, H * 0.5, W, H]), sS = stats(pr.scene, [0, H * 0.5, W, H]);
-        M.sceneLum = [r3(sB.lum), r3(sS.lum)]; M.white = [r3(stats(base).white), r3(stats(pr.scene).white)];
+        const sB = stats(baseBare, [0, H * 0.5, W, H]), sS = stats(bare, [0, H * 0.5, W, H]);
+        M.sceneLum = [r3(sB.lum), r3(sS.lum)]; M.white = [r3(stats(baseBare).white), r3(stats(bare).white)];
         if (kind === 'rain' && sS.lum > sB.lum * 0.99) bad(nm + ': мокрое не темнее (яркость низа кадра ' + sS.lum.toFixed(3) + ' против ' + sB.lum.toFixed(3) + ' без дождя)');
         if (kind === 'snow' && w.mask) {
           const g = M.white[1] - M.white[0];
@@ -309,9 +389,9 @@ try {
               const zone = y < H * 0.55 ? acc.top : (y >= H * 0.7 ? acc.bottom : null);
               if (!zone) continue;
               for (let x = 0; x < W; x++) {
-                const i = (y * W + x) * 4, g1 = lumAt(pr.scene, i) - lumAt(base, i);
+                const i = (y * W + x) * 4, g1 = lumAt(bare, i) - lumAt(baseBare, i);
                 if (g1 < 0.12) continue;
-                zone[0]++; zone[1] += Math.min(1, Math.max(0, (lumAt(mid, i) - lumAt(base, i)) / g1));
+                zone[0]++; zone[1] += Math.min(1, Math.max(0, (lumAt(mid, i) - lumAt(baseBare, i)) / g1));
               }
             }
             const pt = acc.top[0] ? acc.top[1] / acc.top[0] : 0, pb = acc.bottom[0] ? acc.bottom[1] / acc.bottom[0] : 0;

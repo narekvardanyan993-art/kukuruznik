@@ -104,9 +104,14 @@ E2.effect({
     }
     st.night = night; st.tier = S.tier;
   },
+  // пасмурно на кадре f сейчас, 0..1 (кадр без погоды — 0); эту же долю берёт небо для теней туч (fx/sky.js)
+  overcast: function (f) {
+    var st = this.state, W = this.cfg.effects.weather, on = f.wxOn || { rain: false, snow: false };
+    return Math.max(on.rain ? (st.rainK || 0) * W.rain.overcast : 0, on.snow ? (st.snowK || 0) * W.snow.overcast : 0);
+  },
   bind: function (gl, U, f, s) {
     var st = this.state, W = this.cfg.effects.weather, on = f.wxOn || { rain: false, snow: false };
-    var oc = Math.max(on.rain ? (st.rainK || 0) * W.rain.overcast : 0, on.snow ? (st.snowK || 0) * W.snow.overcast : 0);
+    var oc = this.overcast(f);
     var mask = f.wxMask && f.ng && on.snow ? E2.sstep(0, 1500, E2.Clock.now() - f.nT) : 0;      // маска догрузилась позже — проявляется без скачка
     gl.uniform4f(U['uWx' + s], oc, mask, on.rain ? (st.rainK || 0) * W.rain.wet : 0, mask > 0 ? (st.cover || 0) : 0);
   },

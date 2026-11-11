@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // stanok_px — пиксели СЦЕНЫ (холст WebGL, без интерфейса) страницы здания: для паритета e2 ↔ e1.62 и гейта G6 (docs/STANOK.md §6).
 //   node tools/stanok_px.mjs shoot --engine e1|e2 --site DIR --page PAGE --out DIR [--frames 0,1] [--states day,sunset] [--tilts L,C,R] [--png 1] [--move 1] --chrome PATH
+//     e2: [--times E1_DIR/index.json] — небо e2 в момент каждого снимка ставится на время неба e1.62 из набора e1 (паритет теней облаков); [--timeshift С]
 //   node tools/stanok_px.mjs compare DIR_A DIR_B [--delta 3] [--share 0.0005] [--report FILE]
 // shoot: телефон 390×844, dsf 1. Пиксели читаются из холста сразу после кадра (gl.readPixels), а не снимком экрана.
 //   e1 — страница e1.62: время подменяется снаружи (как tools/stanok_look.mjs), адрес ?still=1&perf=0.
@@ -29,7 +30,7 @@ if (cmd === 'compare') {
   const rows = []; let bad = 0;
   // --allow FILE — разрешённые отличия здания (migration-allowed.json, docs/STANOK.md §2.4 п.5): записи с rect [x0, y0, x1, y1] (доли экрана
   // снимка) — точки внутри не сравниваются, но считаются (allowed). Запись действует на свои состояния и кадры (frames: "*" — все).
-  const allow = opt.allow && fs.existsSync(opt.allow) ? (JSON.parse(fs.readFileSync(opt.allow)).allowed || []).filter((q) => Array.isArray(q.rect)) : [];
+  const allow = opt.allow && fs.existsSync(opt.allow) ? (JSON.parse(fs.readFileSync(opt.allow)).allowed || []).filter((q) => Array.isArray(q.rect) && (!q.only || q.only === opt.only)) : [];   // запись с ключом only действует только в прогоне --only <имя> (паритет теней облаков: --only sky)
   const [SW, SH] = ia.size || [390, 844];
   const rectsFor = (name) => { const m = /^f(\d+)-([a-z]+)-/.exec(name); if (!m) return []; return allow.filter((q) => (q.states || []).includes(m[2]) && (q.frames === '*' || (q.frames || []).includes(+m[1]))).map((q) => [q.rect[0] * SW, q.rect[1] * SH, q.rect[2] * SW, q.rect[3] * SH]); };
   for (const name of ia.shots) {
@@ -79,6 +80,7 @@ const E1_INIT = () => {   // виртуальное время для e1.62 — 
   window.requestAnimationFrame = (cb) => { q.push(cb); return q.length; };
   window.cancelAnimationFrame = () => {};
   window.__advance = (ms) => { const n = Math.ceil(ms / 32); for (let i = 0; i < n; i++) { vt += 32; const c = q; q = []; c.forEach((cb) => cb(vt)); } };
+  window.__vtS = () => (vt - 10000) / 1000;   // секунды от старта движка: это время облаков e1.62 (t0 движка = первое чтение часов = 10000)
   let s = 12345;
   Math.random = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 };
@@ -91,7 +93,10 @@ page.on('pageerror', (e) => problems.push('pageerror: ' + String(e.message).slic
 page.on('response', (r) => { if (r.status() >= 400 && r.url().startsWith(origin) && !/favicon/.test(r.url())) problems.push('HTTP ' + r.status() + ' ' + r.url().replace(origin, '')); });
 await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
 fs.mkdirSync(out, { recursive: true });
-const shots = []; let info = {};
+const shots = [], times = {}; let info = {};
+// --times FILE (только e2): index.json набора e1 — у каждого снимка время неба e1.62 в его момент; e2 ставит своему небу то же время
+// (__e2.skyT), иначе облака двух движков сняты в разные моменты и сравнивать тени нечего. --timeshift С — сдвинуть это время (красный случай).
+const skyTimes = opt.times ? (JSON.parse(fs.readFileSync(opt.times)).times || {}) : null, skyShift = +(opt.timeshift || 0);
 const save = async (name, r) => {
   const buf = Buffer.from(r.data, 'base64'), flip = Buffer.alloc(buf.length), row = r.w * 4;
   for (let y = 0; y < r.h; y++) buf.copy(flip, y * row, (r.h - 1 - y) * row, (r.h - y) * row);   // readPixels отдаёт строки снизу вверх
@@ -124,7 +129,8 @@ try {
         for (const t of tilts) {
           await page.evaluate((a) => window.__viewer.tilt(a[0], a[1]), TILT[t]);
           await adv(160);
-          const r = await page.evaluate(`(() => { window.__advance(32); const c = document.getElementById('gl'), g = c.getContext('webgl') || c.getContext('experimental-webgl'); const px = new Uint8Array(c.width * c.height * 4); g.readPixels(0, 0, c.width, c.height, g.RGBA, g.UNSIGNED_BYTE, px); return { w: c.width, h: c.height, data: (${b64})(px) }; })()`);
+          const r = await page.evaluate(`(() => { window.__advance(32); const c = document.getElementById('gl'), g = c.getContext('webgl') || c.getContext('experimental-webgl'); const px = new Uint8Array(c.width * c.height * 4); g.readPixels(0, 0, c.width, c.height, g.RGBA, g.UNSIGNED_BYTE, px); return { w: c.width, h: c.height, t: window.__vtS(), data: (${b64})(px) }; })()`);
+          times[`f${f}-${st}-t${t}`] = r.t;
           await save(`f${f}-${st}-t${t}`, r);
         }
       }
@@ -149,7 +155,13 @@ try {
         for (const t of tilts) {
           await page.evaluate((a) => window.__e2.tilt(a[0], a[1]), TILT[t]);
           await adv(160);
+          if (skyTimes) {
+            const ts = skyTimes[`f${f}-${st}-t${t}`];
+            if (ts === undefined) problems.push(`нет времени неба для f${f}-${st}-t${t} в ${opt.times}`);
+            else await page.evaluate((v) => window.__e2.skyT(v), ts + skyShift);
+          }
           const r = await page.evaluate(`(() => { window.__e2.advance(32); const p = window.__e2.pixels(); return { w: p.w, h: p.h, data: (${b64})(p.data) }; })()`);
+          if (skyTimes) await page.evaluate(() => window.__e2.skyT(null));
           await save(`f${f}-${st}-t${t}`, r);
         }
       }
@@ -160,7 +172,7 @@ try {
     info.stats = await page.evaluate(() => window.__e2.state().stats);
   }
 } catch (e) { problems.push('fatal: ' + e.message); }
-fs.writeFileSync(path.join(out, 'index.json'), JSON.stringify({ page: page_, kind: eng, ...info, problems, shots }, null, 1));
+fs.writeFileSync(path.join(out, 'index.json'), JSON.stringify({ page: page_, kind: eng, ...info, problems, shots, times }, null, 1));
 await browser.close(); srv.close();
 console.log(`${eng} ${page_}: снимков ${shots.length}, проблем ${problems.length}${problems.length ? ' — ' + problems.slice(0, 3).join('; ') : ''}`);
 process.exit(problems.length ? 1 : 0);
