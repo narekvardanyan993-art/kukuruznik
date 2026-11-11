@@ -32,3 +32,9 @@ tests/*/source/*/figs/debug/
 
 # личное, правила v2 (не в публичный репо)
 _private/
+
+# Станок: рабочие папки зданий (мастера Gemini, ролики Veo) — docs/STANOK.md §1.1
+/work/
+
+# Отчёты и снимки заходов в корне (тяжёлые PNG, архивы); отчёты зданий tests/<slug>/report/ — в git
+/report/
