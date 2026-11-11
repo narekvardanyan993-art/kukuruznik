@@ -478,7 +478,7 @@ def check_publish_hub():
         files = ph.payload(site=site)
         need = ['index.html', 'assets/hub.css', 'assets/hub-museum.css', 'assets/story.css', 'assets/chka-common.js', 'assets/hub.js',
                 'assets/hub-pages.css', 'assets/history.css', 'assets/compare-kuk-photo-720.webp', 'assets/compare-kuk-drawing-720.webp',   # s40
-                'kukuruznik/about.html', 'kukuruznik/history.html'] + ['%s/%s' % (s, n) for s in bp.test_live_slugs() for n in bp.OWN_PAGES]
+                'kukuruznik/about.html', 'kukuruznik/history.html'] + ['%s/%s' % (s, n) for s in bp.test_live_slugs() for n in bp.OWN_PAGES] + ph.SALE_PAGES + ph.SALE_ASSETS   # С1
         miss = [f for f in need if f not in files]
         rec('publish_hub: едут главная, общие стили/скрипты и about/history всех живых зданий', not miss, ('нет: ' + ', '.join(miss)) if miss else '')
         rec('publish_hub: каждая страница едет со всеми своими файлами assets/', not ph.payload_problems(files), '; '.join(ph.payload_problems(files)[:3]))
@@ -487,6 +487,8 @@ def check_publish_hub():
             any('assets/hub.css' in x for x in ph.payload_problems(old)))
         nosrc = {k: v for k, v in files.items() if k != 'assets/compare-kuk-drawing-720.webp'}
         rec('publish_hub (s40): картинка только из srcset тоже считается — без неё стоп', any('compare-kuk-drawing-720.webp' in x for x in ph.payload_problems(nosrc)))
+        nosale = {k: v for k, v in files.items() if k != 'assets/sale.css'}
+        rec('publish_hub (С1): без assets/sale.css страницы продажи не уезжают — стоп', any('assets/sale.css' in x for x in ph.payload_problems(nosale)))
         pages = {k: v.decode('utf-8') for k, v in files.items() if k.endswith(('about.html', 'history.html'))}
         old_look = [k for k, t in pages.items() if 'fonts.googleapis' in t or 'hub-pages.css' not in t or 'class="x-head' not in t or 'class="x-tabs' not in t or 'tiktok' in t.lower()]
         rec('страницы экспоната (s40): этикетка-шапка, вкладки, стиль главной; без Google-шрифтов и TikTok', not old_look, ', '.join(old_look))
@@ -495,7 +497,7 @@ def check_publish_hub():
         k = next(p for p in bad if p.endswith('about.html'))
         bad[k] = bad[k].replace(b'<footer class="foot', b'<footer class="foot old', 1)
         rec('publish_hub: чужой подвал на странице ловится', ph.footer_problems(bad) == [k])
-        live = [d.decode('utf-8') for p, d in files.items() if p.endswith('.html') and not p.startswith('beta/')]
+        live = [d.decode('utf-8') for p, d in files.items() if p.endswith('.html') and not p.startswith('beta/') and p not in ph.SALE_PAGES]   # С1: страницы продажи — noindex намеренно (как был /buy)
         rec('publish_hub: живые страницы без noindex и без tests/', all('noindex' not in t and '"tests/' not in t and '/tests/' not in t for t in live))
         changed = [f for f, d in files.items() if not (site / f).is_file() or (site / f).read_bytes() != d]
         for f, d in files.items():
@@ -545,6 +547,67 @@ def cursor_problems(text):
     if re.search(r'style\.cursor|\.cursor\s*=|cursor-?(ring|dot|follow)', text):
         bad.append('курсор из скрипта')
     return bad
+
+
+def check_sale_pages():
+    """С1 (11.11.2026): страницы продажи надписи — /buy, /t, /i, /f, /pay, /thanks — из одного шаблона (tools/build_sale_pages.py).
+    Файлы на диске == шаблон; места берутся из sale в building.json; /t /i /f отличаются от /buy только src; /pay берёт src из белого списка;
+    витрина сама никуда не перекидывает; счётчик на всех; красные случаи: испорченный sale, рукой правленая страница. Возвращает (ok, строки)."""
+    import build_sale_pages as bs
+    out, ok = [], True
+    def rec(name, good, extra=''):
+        nonlocal ok
+        ok &= bool(good)
+        out.append('%s  %s%s' % ('OK   ' if good else 'ОШИБКА', name, (' — ' + extra) if extra else ''))
+    def disk(f):
+        return (ROOT / f / 'index.html').read_text(encoding='utf-8') if (ROOT / f / 'index.html').is_file() else ''
+    snip = bs.SNIP.search(disk('buy'))
+    snippet = snip.group(1) if snip else ''
+    rec('sale: на всех страницах счётчик Cloudflare (<!--chka-analytics-->)', bool(snippet) and all(bs.SNIP.search(disk(f)) and bs.SNIP.search(disk(f)).group(1) == snippet for f in bs.PAGES), 'нет сниппета в buy/index.html' if not snippet else '')
+    sale = bs.sale_block()
+    pages = bs.build(sale, snippet)
+    stale = [f for f in bs.PAGES if disk(f) != pages[f]]
+    rec('sale: 6 страниц на диске == шаблон (build_sale_pages --check)', not stale, ('правлено руками или устарело: ' + ', '.join(stale) + ' — python3 tools/build_sale_pages.py') if stale else '')
+    rec('sale: вся витрина — один шаблон: /t /i /f == /buy с точностью до src кнопки',
+        all(pages[f].replace('/pay/?src=' + src, '/pay/?src=@').replace('data-src="%s"' % src, 'data-src="@"') == pages['buy'].replace('/pay/?src=site', '/pay/?src=@').replace('data-src="site"', 'data-src="@"')
+            for f, src in bs.CHANNELS.items()))
+    rec('sale: кнопка каналов -> /pay/?src=tiktok|instagram|facebook|site, кнопка одна',
+        all(pages[f].count('class="btn"') == 1 and ('href="/pay/?src=%s"' % src) in pages[f] for f, src in bs.CHANNELS.items()) and [bs.CHANNELS[f] for f in ('t', 'i', 'f')] == ['tiktok', 'instagram', 'facebook'])
+    rec('sale: витрина сама никуда не перекидывает (нет refresh / location.replace)',
+        all('http-equiv="refresh"' not in pages[f] and 'location.replace' not in pages[f] for f in bs.CHANNELS))
+    js = (ROOT / 'assets' / 'sale.js').read_text(encoding='utf-8')
+    rec('sale: переход в sale.js только на /pay (data-page="pay"), утм из белого списка', js.count('location.replace') == 1 and js.index("page === 'pay'") < js.index('location.replace') and "ok.indexOf(m[1]) >= 0 ? m[1] : 'site'" in js)
+    rec('sale: /pay — касса Polar и каналы %s, запасной переход без JS с utm_source=site' % ','.join(bs.PAY_CHANNELS),
+        ('data-polar="%s"' % bs.POLAR_URL) in pages['pay'] and ('data-channels="%s"' % ','.join(bs.PAY_CHANNELS)) in pages['pay'] and ('<noscript><meta http-equiv="refresh" content="3; url=%s?utm_source=site">' % bs.POLAR_URL) in pages['pay'])
+    chips = lambda t: re.findall(r'<li class="chip( taken)?"', t)
+    rec('sale: места из sale (всего %d, свободно %d): %d чипов, занято %d' % (sale['total'], sale['left'], len(chips(pages['buy'])), sale['total'] - sale['left']),
+        len(chips(pages['buy'])) == sale['total'] and sum(1 for c in chips(pages['buy']) if c) == sale['total'] - sale['left'])
+    p5 = bs.build({'total': 8, 'left': 5}, snippet)['buy']
+    p0 = bs.build({'total': 8, 'left': 0}, snippet)['buy']
+    rec('sale: left=5 из 8 -> занято 3 и «5 из 8»; left=0 -> занято 8', sum(1 for c in chips(p5) if c) == 3 and ' 5 ' in p5 and sum(1 for c in chips(p0) if c) == 8)
+    import json as _j
+    tmp = Path(tempfile.mkdtemp(prefix='chka-test-sale-'))
+    try:
+        bad = []
+        for name, sl in (('нет sale', None), ('left > total', {'total': 8, 'left': 9}), ('left < 0', {'total': 8, 'left': -1}), ('left строкой', {'total': 8, 'left': '8'}), ('total = 0', {'total': 0, 'left': 0}), ('left = True', {'total': 8, 'left': True})):
+            f = tmp / 'b.json'
+            f.write_text(_j.dumps({} if sl is None else {'sale': sl}), encoding='utf-8')
+            try:
+                bs.sale_block(f)
+                bad.append(name)
+            except SystemExit:
+                pass
+        rec('sale: испорченный sale (нет блока, left>total, <0, строка, total=0, bool) останавливает сборку', not bad, ', '.join(bad))
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    hand = dict(pages)
+    hand['buy'] = hand['buy'].replace('$15', '$14')
+    rec('sale: правка страницы руками (цена) ловится сверкой с шаблоном', hand['buy'] != disk('buy'))
+    ex = [ROOT / 'assets' / n for n, _ in bs.EXAMPLES]
+    rec('sale: 3 картинки примеров есть, каждая ≤ 150 КБ', all(p.is_file() and p.stat().st_size <= 150 * 1024 for p in ex), ', '.join('%s %d КБ' % (p.name, p.stat().st_size // 1024) for p in ex if p.is_file()))
+    rec('sale: армянские строки есть у каждого ключа (hy не пустой)', all(v[0].strip() and re.search('[\u0531-\u058f]', v[0]) for v in bs.STR.values()))
+    rec('sale: нет почты в страницах (адреса почты в репозиторий нельзя)', not any(re.search(r'[\w.+-]+@[\w-]+\.[\w.]+', pages[f]) for f in bs.PAGES))
+    return ok, out
 
 
 def check_hub_cards():
@@ -855,6 +918,10 @@ def main():
     for l in lines_hc:
         print(l)
     ok_all &= ok_hc
+    ok_sp, lines_sp = guarded(check_sale_pages)   # С1: страницы продажи
+    for l in lines_sp:
+        print(l)
+    ok_all &= ok_sp
     # стопка главной: картинка здания встаёт на место силуэта, повтор ничего не меняет, чужое место и вне-диффы ловятся
     hub0 = (ROOT / 'index.html').read_text(encoding='utf-8')
     base = re.sub(r'\s*<!-- stack:lenin .*?<!-- /stack:lenin -->', '\n      <div class="stack-card sc-c"><div class="sc-pic"><svg class="ghost" viewBox="0 0 200 200"><use href="#ghost-statue"/></svg></div></div>', hub0, flags=re.S)

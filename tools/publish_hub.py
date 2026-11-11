@@ -17,6 +17,8 @@
                                          chka-common.js, hub.js) + всё из assets/, на что ссылаются эти страницы (src, href и srcset:
                                          s40 — hub-pages.css, history.css, картинки сравнения compare-kuk-*);
   • kukuruznik/card.webp               — картинка карточки Кукурузника;
+  • buy/ t/ i/ f/ pay/ thanks/ index.html + assets/sale.css, sale.js, sale-ex-1..3.webp — страницы продажи надписи (С1; собирает tools/build_sale_pages.py,
+                                         подвал главной у них не требуется);
   • about.html / history.html зданий   — у Кукурузника из kukuruznik/, у тестовых живых зданий (lenin) — из tests/<имя>/ так же, как их
                                          кладёт publish_building (адреса пересчитаны, без noindex), и их копии в бете beta/tests/<имя>/
                                          (если бета есть на сайте) — общий подвал и ?v= стилей на всех страницах одинаковые.
@@ -47,7 +49,9 @@ import publish_beta as pb  # noqa: E402  git(), remove_worktree(), run_check()
 ROOT = bp.ROOT
 SHARED_ASSETS = ['assets/hub.css', 'assets/hub-museum.css', 'assets/story.css', 'assets/chka-common.js', 'assets/hub.js', 'assets/pg-pencil-560.webp', 'assets/pg-pencil-920.webp', 'assets/pg-water-560.webp', 'assets/pg-water-920.webp', 'assets/pg-brush.webp', 'assets/pg-wash.webp']   # s43: гранат Gemini + маски (маски — только в CSS)
 KUK_PAGES = ['kukuruznik/about.html', 'kukuruznik/history.html']
-HUB_FILES = ['index.html'] + SHARED_ASSETS + ['kukuruznik/card.webp'] + KUK_PAGES   # постоянная часть; страницы тестовых живых зданий — payload()
+SALE_PAGES = ['buy/index.html', 't/index.html', 'i/index.html', 'f/index.html', 'pay/index.html', 'thanks/index.html']   # С1 (11.11.2026): продажа надписи, tools/build_sale_pages.py; свой вид, подвала главной нет
+SALE_ASSETS = ['assets/sale.css', 'assets/sale.js', 'assets/sale-ex-1.webp', 'assets/sale-ex-2.webp', 'assets/sale-ex-3.webp']
+HUB_FILES = ['index.html'] + SHARED_ASSETS + ['kukuruznik/card.webp'] + KUK_PAGES + SALE_PAGES + SALE_ASSETS   # постоянная часть; страницы тестовых живых зданий — payload()
 _ASSET_REF = re.compile(r'(?:src|href)="((?:\.\./)*assets/[^"?#]+)')
 _SRCSET = re.compile(r'srcset="([^"]+)"')   # s40: картинки сравнения «архив ⇄ рисунок» стоят только в srcset — их тоже везём
 
@@ -108,7 +112,7 @@ def footer_of(html_text):
 
 def footer_problems(files):
     """Страницы из files, у которых подвал не такой, как на главной (подвал один на весь сайт)."""
-    feet = {p: footer_of(d.decode('utf-8')) for p, d in files.items() if p.endswith('.html')}
+    feet = {p: footer_of(d.decode('utf-8')) for p, d in files.items() if p.endswith('.html') and p not in SALE_PAGES}   # С1: страницы продажи — со своим подвалом
     return sorted(p for p, f in feet.items() if f is None or f != feet.get('index.html'))
 
 
@@ -159,7 +163,7 @@ def main():
     tag = '[dry-run] ' if args.dry_run else ''
     message = args.message or 'hub: главная и подвал страниц — редизайн 10а/10б — %s' % time.strftime('%Y-%m-%d %H:%M')
 
-    missing = [f for f in ['index.html'] + SHARED_ASSETS + ['kukuruznik/card.webp'] if not (ROOT / f).is_file()]
+    missing = [f for f in ['index.html'] + SHARED_ASSETS + ['kukuruznik/card.webp'] + SALE_PAGES + SALE_ASSETS if not (ROOT / f).is_file()]   # С1: нет страниц продажи — python3 tools/build_sale_pages.py
     if missing:
         raise SystemExit('СТОП: в ветке нет файлов главной: %s' % ', '.join(missing))
     src_hub = (ROOT / 'index.html').read_text(encoding='utf-8')
