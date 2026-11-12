@@ -216,6 +216,9 @@ a.cover { display: block; height: auto; color: inherit; text-decoration: none; t
 .card-actions .btn { width: 100%; min-height: 48px; padding: 8px 16px; line-height: 1.15; gap: 10px; font-size: 1.0625rem; text-align: center; }
 @media (min-width: 1000px) { .card-actions .btn { padding: 8px 10px; gap: 8px; font-size: 1rem; } }   /* 4 колонки: «Смотреть в 3D» в одну строку */
 .card-actions .btn svg { width: 20px; height: 20px; flex: none; transition: transform var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)); }
+.card-sale { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; padding: 6px 4px; font-size: .95rem; color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; opacity: .85; }   /* e1.58 «Оставить надпись» */
+.card-sale:hover { opacity: 1; }
+.card-sale .carve-i { width: 20px; height: 20px; flex: none; }
 .card-actions .btn-about { background: transparent; border: 1.5px solid rgba(42, 36, 32, 0.4); color: var(--ink); box-shadow: none; }
 a.cover:active .pic > img, a.cover.lift .pic > img { transform: scale(0.97); transition-duration: 160ms; }
 /* появление: наклейку кладут на стол — чуть крупнее и с поворотом, оседает с лёгкой пружиной */
