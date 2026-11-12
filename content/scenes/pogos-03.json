@@ -1,0 +1,382 @@
+{
+ "name": "pogos-03",
+ "engine": "remotion",
+ "build": "node content/remotion/build.mjs content/scenes/pogos-03.json",
+ "title": "Погос-Петрос — формат 06 «Загадка: что здесь стояло?» (крючок №6 + №9, тип B)",
+ "format": "06-zagadka",
+ "hook": 6,
+ "fps": 30,
+ "size": [
+  1080,
+  1920
+ ],
+ "safe": [
+  250,
+  600,
+  160
+ ],
+ "seed": 11,
+ "dur": 11.7,
+ "check_zoom": 1.9,
+ "credit": "фото «сейчас»: Travis K. Witt, CC BY-SA 4.0 (Commons, Moscow_Cinema_Yerevan_Sept_2014.JPG) — подпись в посте",
+ "bg": {
+  "paper": "repo:engine/paper/old-paper-1.webp",
+  "grid": 60
+ },
+ "fonts": [
+  {
+   "file": "repo:engine/fonts/NotoSerif-latin.woff2",
+   "range": "U+0000-00FF, U+0131, U+0152-0153, U+2000-206F, U+2190-21FF"
+  },
+  {
+   "file": "repo:engine/fonts/NotoSerifArmenian-armenian.woff2",
+   "range": "U+0530-058F, U+FB13-FB17"
+  }
+ ],
+ "defaults": {
+  "card": {
+   "x": 540,
+   "y": 880,
+   "w": 800,
+   "h": 1140,
+   "mat": 18,
+   "radius": 22,
+   "enter": "depth",
+   "enterDur": 0.55,
+   "exitDur": 0.3
+  }
+ },
+ "cards": [
+  {
+   "id": "now",
+   "at": -0.3,
+   "dur": 6.25,
+   "src": {
+    "image": "repo:pogos-petros/sources/commons/c_now_2014.jpg"
+   },
+   "w": 900,
+   "h": 612,
+   "y": 690,
+   "rot": -1.5,
+   "enter": "depth",
+   "exit": "depth",
+   "exitDur": 0.32,
+   "cam": {
+    "from": [
+     0.5,
+     0.5,
+     1.0
+    ],
+    "to": [
+     0.47,
+     0.4,
+     1.14
+    ],
+    "ease": "inout"
+   },
+   "x": 510,
+   "sfx_out": "none"
+  },
+  {
+   "id": "clue1",
+   "at": 1.45,
+   "dur": 4.4,
+   "src": {
+    "image": "repo:pogos-petros/frames/B.png"
+   },
+   "w": 460,
+   "h": 460,
+   "x": 300,
+   "y": 1010,
+   "rot": -4,
+   "enter": "left",
+   "exit": "down",
+   "exitDur": 0.24,
+   "cam": {
+    "from": [
+     0.68,
+     0.5,
+     2.5
+    ],
+    "to": [
+     0.68,
+     0.5,
+     2.68
+    ],
+    "ease": "linear"
+   }
+  },
+  {
+   "id": "clue2",
+   "at": 2.6,
+   "dur": 3.3,
+   "src": {
+    "image": "repo:pogos-petros/frames/D.png"
+   },
+   "w": 460,
+   "h": 460,
+   "x": 770,
+   "y": 1035,
+   "rot": 3,
+   "enter": "right",
+   "exit": "right",
+   "exitDur": 0.24,
+   "cam": {
+    "from": [
+     0.38,
+     0.62,
+     1.8
+    ],
+    "to": [
+     0.38,
+     0.6,
+     1.93
+    ],
+    "ease": "linear"
+   },
+   "sfx_out": "none"
+  },
+  {
+   "id": "clue3",
+   "at": 3.75,
+   "dur": 2.2,
+   "src": {
+    "image": "repo:pogos-petros/frames/C.png"
+   },
+   "w": 460,
+   "h": 460,
+   "x": 535,
+   "y": 1105,
+   "rot": -1.5,
+   "enter": "up",
+   "exit": "down",
+   "exitDur": 0.24,
+   "cam": {
+    "from": [
+     0.77,
+     0.31,
+     2.3
+    ],
+    "to": [
+     0.77,
+     0.3,
+     2.45
+    ],
+    "ease": "linear"
+   },
+   "sfx_out": "none"
+  },
+  {
+   "id": "answer",
+   "at": 5.8,
+   "dur": 3.3,
+   "src": {
+    "seq": "cap:show_b",
+    "reverse": true
+   },
+   "rot": 1.2,
+   "exit": "left",
+   "exitDur": 0.34,
+   "cam": {
+    "from": [
+     0.5,
+     0.5,
+     1.0
+    ],
+    "to": [
+     0.5,
+     0.49,
+     1.09
+    ],
+    "ease": "inout"
+   },
+   "sfx_out": "none"
+  },
+  {
+   "id": "final",
+   "at": 8.9,
+   "dur": 2.8,
+   "src": {
+    "seq": "cap:final_c"
+   },
+   "rot": -0.8,
+   "enter": "right",
+   "exit": "none",
+   "cam": {
+    "from": [
+     0.5,
+     0.5,
+     1.1
+    ],
+    "to": [
+     0.5,
+     0.5,
+     1.0
+    ],
+    "ease": "out"
+   }
+  }
+ ],
+ "items": [
+  {
+   "kind": "tag",
+   "text": "?",
+   "variant": "big",
+   "at": 0.08,
+   "dur": 6.15,
+   "x": 510,
+   "y": 545,
+   "size": 220,
+   "rot": -4,
+   "sfx_out": "none"
+  },
+  {
+   "kind": "chain",
+   "at": 0.6,
+   "step": 0.13,
+   "dur": 0.9,
+   "on": "now",
+   "items": [
+    {
+     "kind": "dot",
+     "x": 0.2,
+     "y": 0.44
+    },
+    {
+     "kind": "dot",
+     "x": 0.42,
+     "y": 0.63
+    },
+    {
+     "kind": "dot",
+     "x": 0.78,
+     "y": 0.42
+    }
+   ]
+  },
+  {
+   "kind": "chip",
+   "text": "1",
+   "on": "clue1",
+   "at": 1.75,
+   "x": 0.15,
+   "y": 0.13,
+   "rot": -6
+  },
+  {
+   "kind": "chip",
+   "text": "2",
+   "on": "clue2",
+   "at": 2.9,
+   "x": 0.15,
+   "y": 0.13,
+   "rot": 5
+  },
+  {
+   "kind": "chip",
+   "text": "3",
+   "on": "clue3",
+   "at": 4.05,
+   "x": 0.15,
+   "y": 0.13,
+   "rot": -3
+  },
+  {
+   "kind": "chain",
+   "at": 4.6,
+   "step": 0.13,
+   "items": [
+    {
+     "kind": "chip",
+     "text": "?",
+     "on": "clue1",
+     "x": 0.86,
+     "y": 0.84,
+     "rot": 8
+    },
+    {
+     "kind": "chip",
+     "text": "?",
+     "on": "clue2",
+     "x": 0.86,
+     "y": 0.84,
+     "rot": -7
+    },
+    {
+     "kind": "chip",
+     "text": "?",
+     "on": "clue3",
+     "x": 0.86,
+     "y": 0.84,
+     "rot": 6
+    }
+   ]
+  },
+  {
+   "kind": "tag",
+   "text": "1930",
+   "variant": "big",
+   "at": 8.25,
+   "dur": 0.9,
+   "x": 520,
+   "y": 400,
+   "size": 170,
+   "rot": -2,
+   "sfx_out": "none"
+  },
+  {
+   "kind": "stamp",
+   "on": "answer",
+   "at": 8.5,
+   "x": 0.72,
+   "y": 0.8,
+   "size": 290,
+   "rot": -12,
+   "top": "ԵՐԵՎԱՆ",
+   "mid": "ՉԿԱ",
+   "bottom": "1930"
+  },
+  {
+   "kind": "tag",
+   "text": "chka.am",
+   "variant": "big",
+   "at": 9.2,
+   "dur": 0,
+   "x": 520,
+   "y": 405,
+   "size": 150,
+   "rot": -2
+  },
+  {
+   "kind": "chain",
+   "at": 9.95,
+   "step": 0.16,
+   "on": "final",
+   "items": [
+    {
+     "kind": "dot",
+     "x": 0.28,
+     "y": 0.45
+    },
+    {
+     "kind": "dot",
+     "x": 0.75,
+     "y": 0.33
+    },
+    {
+     "kind": "dot",
+     "x": 0.64,
+     "y": 0.69
+    }
+   ]
+  },
+  {
+   "kind": "tap",
+   "on": "final",
+   "at": 10.75,
+   "x": 0.64,
+   "y": 0.69,
+   "size": 150
+  }
+ ]
+}

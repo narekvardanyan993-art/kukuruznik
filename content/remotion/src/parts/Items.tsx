@@ -1,5 +1,5 @@
 import React from 'react';
-import { ACCENT, IN, INDIGO, INK, OUT, SURFACE, clamp01, lerp, mix, seg, sh, spr } from './ease';
+import { ACCENT, IN, INDIGO, INK, OUT, SURFACE, clamp01, lerp, mix, seg, sh, soft, softDrop, softText, spr } from './ease';
 
 // Всё ниже — графика интерфейса (бирки, значки, штамп) в стиле сайта: бумага, тень, карандашный контур.
 // Значки луны и снежинки — те же контуры, что на кнопках просмотрщика (engine/page.html),
@@ -7,7 +7,7 @@ import { ACCENT, IN, INDIGO, INK, OUT, SURFACE, clamp01, lerp, mix, seg, sh, spr
 
 export type Word = { s: string; at: number };
 export type ItemP = {
-  kind: 'tag' | 'icon' | 'tap' | 'stamp' | 'counter';
+  kind: 'tag' | 'icon' | 'tap' | 'stamp' | 'counter' | 'dot' | 'chip';
   id: string; at: number; dur: number; x: number; y: number; rot: number; size: number;
   on?: string;               // id карточки: элемент едет вместе с ней (x, y — доли карточки)
   words?: Word[]; variant?: 'tag' | 'label' | 'big';
@@ -15,6 +15,7 @@ export type ItemP = {
   top?: string; mid?: string; bottom?: string;
   from?: string; to?: string; tick?: number; label?: string;
   impact?: number; paper?: boolean;
+  text?: string;             // chip: год, число или знак (→ ? × ✓)
 };
 
 const FONT = '"Chka Serif", "Noto Serif", Georgia, serif';
@@ -37,9 +38,9 @@ const PencilBox: React.FC<{ r: number; color?: string; w?: number }> = ({ r, col
 );
 
 const paperBg = `linear-gradient(170deg, #fffdf6 0%, ${SURFACE} 55%, #f3e9d3 100%)`;
-const paperShadow = (lift = 0) =>
-  `0 1px 0 rgba(255,255,255,0.75) inset, 0 ${2 + 3 * lift}px ${3 + 6 * lift}px ${sh(0.18)}, 0 ${18 + 26 * lift}px ${34 + 30 * lift}px -${14}px ${sh(0.5)}`;
-const textShadow = `0 1px 0 rgba(255,255,255,0.9), 0 2px 1px ${sh(0.12)}, 0 6px 14px ${sh(0.22)}`;
+// единая мягкая тень — ease.ts (soft / softDrop / softText)
+const paperShadow = (lift = 0) => `0 1px 0 rgba(255,255,255,0.75) inset, ${soft(lift)}`;
+const textShadow = softText;
 
 // ---------- бирка / ярлык со словами ----------
 export const Tag: React.FC<{ it: ItemP; T: number; fps: number }> = ({ it, T, fps }) => {
@@ -159,7 +160,7 @@ export const Tap: React.FC<{ it: ItemP; T: number; fps: number }> = ({ it, T }) 
   const r1 = ring(0);
   const r2 = ring(0.14);
   return (
-    <div style={{ position: 'absolute', left: it.x - d / 2, top: it.y - d / 2, width: d, height: d, opacity: clamp01(press * 2) * fade }}>
+    <div style={{ position: 'absolute', left: it.x - d / 2, top: it.y - d / 2, width: d, height: d, opacity: clamp01(press * 2) * fade, filter: softDrop(0.3, 0.8) }}>
       {[r1, r2].map((r, i) => (
         <svg key={i} viewBox="0 0 100 100" style={{ position: 'absolute', inset: 0, transform: `scale(${r.s})`, opacity: r.o, overflow: 'visible' }}>
           <circle cx="50" cy="50" r="40" fill="none" stroke="#fffdf6" strokeWidth={7} />
@@ -169,7 +170,7 @@ export const Tap: React.FC<{ it: ItemP; T: number; fps: number }> = ({ it, T }) 
       <div style={{
         position: 'absolute', inset: d * 0.3, borderRadius: '50%', transform: `scale(${down})`,
         background: 'radial-gradient(circle at 40% 35%, rgba(255,253,246,0.6), rgba(251,246,234,0.35))',
-        boxShadow: `0 0 0 3px ${ACCENT}, 0 6px 16px ${sh(0.35)}`,
+        boxShadow: `0 0 0 3px ${ACCENT}, ${soft(0.4)}`,
       }} />
     </div>
   );
@@ -188,7 +189,7 @@ export const Stamp: React.FC<{ it: ItemP; T: number; fps: number }> = ({ it, T }
     <div style={{
       position: 'absolute', left: it.x - d * 0.7, top: it.y - d / 2, width: d * 1.4, height: d,
       transform: `rotate(${it.rot + (t < hit ? -8 * (1 - a) : 0)}deg) scale(${s})`, opacity: o,
-      mixBlendMode: it.paper ? 'normal' : 'multiply', filter: it.paper ? `drop-shadow(0 6px 10px ${sh(0.45)})` : `drop-shadow(0 0 1px rgba(251,246,234,0.6))`,
+      mixBlendMode: it.paper ? 'normal' : 'multiply', filter: it.paper ? softDrop(0.5) : `drop-shadow(0 0 1px rgba(251,246,234,0.6)) ${softDrop(0, 0.45)}`,
     }}>
       <svg viewBox="0 0 168 120" style={{ width: '100%', height: '100%', overflow: 'visible', color: ACCENT }}>
         <defs>
@@ -219,8 +220,10 @@ export const Counter: React.FC<{ it: ItemP; T: number; fps: number }> = ({ it, T
   const { t, p, q, alive } = env(it, T, fps);
   if (!alive) return null;
   const fs = it.size;
-  const k = spr(t - (it.tick ?? 1), fps, 'pop');      // смена цифры с пружиной
-  const flash = mix(t - (it.tick ?? 1), [0, 0.08, 0.5], [0, 1, 0]);
+  // без `to` — счётчик стоит, цифра не щёлкает (места продаются по-настоящему — тогда и щелчок)
+  const still = !it.to;
+  const k = still ? 0 : spr(t - (it.tick ?? 1), fps, 'pop');      // смена цифры с пружиной
+  const flash = still ? 0 : mix(t - (it.tick ?? 1), [0, 0.08, 0.5], [0, 1, 0]);
   const digit = (s: string, y: number, o: number) => (
     <span style={{
       position: 'absolute', left: 0, right: 0, textAlign: 'center',
@@ -241,9 +244,61 @@ export const Counter: React.FC<{ it: ItemP; T: number; fps: number }> = ({ it, T
         <PencilBox r={fs * 0.1} />
         <div style={{ position: 'relative', width: fs * wch, height: fs * 1.08, overflow: 'hidden' }}>
           {digit(it.from ?? '', lerp(0, -fs * 1.1, clamp01(k)), 1 - clamp01(k))}
-          {digit(it.to ?? '', lerp(fs * 1.1, 0, k), clamp01(k * 1.5))}
+          {still ? null : digit(it.to ?? '', lerp(fs * 1.1, 0, k), clamp01(k * 1.5))}
         </div>
         {it.label ? <span style={{ font: `700 ${fs * 0.5}px/1 ${FONT}`, color: INK, textShadow, transform: `translateY(${fs * 0.04}px)` }}>{it.label}</span> : null}
+      </div>
+    </div>
+  );
+};
+
+
+// ---------- мелочи для микро-ритма: точка и бирка-фишка ----------
+// Короткий вход (≈8 кадров, пружина «pop»), короткий уход; идут цепочками (`chain` в сценарии).
+const microEnv = (it: ItemP, T: number, fps: number) => {
+  const t = T - it.at;
+  const p = spr(t, fps, 'pop');
+  const q = it.dur > 0 ? IN(clamp01((t - (it.dur - 0.18)) / 0.18)) : 0;
+  return { t, p, q, alive: t >= 0 && (it.dur <= 0 || t <= it.dur + 0.02) };
+};
+
+/** Точка — как «точка интереса» просмотрщика: бумажный кружок с красной сердцевиной и одним кольцом-импульсом. */
+export const Dot: React.FC<{ it: ItemP; T: number; fps: number }> = ({ it, T, fps }) => {
+  const { t, p, q, alive } = microEnv(it, T, fps);
+  if (!alive) return null;
+  const d = it.size;
+  const u = clamp01(t / 0.55);
+  return (
+    <div style={{
+      position: 'absolute', left: it.x - d / 2, top: it.y - d / 2, width: d, height: d,
+      transform: `scale(${lerp(0.2, 1, p) * lerp(1, 0.3, q)})`, opacity: clamp01(p * 3) * (1 - q),
+    }}>
+      <div style={{ position: 'absolute', inset: -d * 0.5, borderRadius: '50%', border: `${Math.max(2, d * 0.06)}px solid ${ACCENT}`,
+        transform: `scale(${lerp(0.4, 1, OUT(u))})`, opacity: (1 - u) * 0.7 }} />
+      <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: paperBg, boxShadow: paperShadow(1 - clamp01(p)) }} />
+      <div style={{ position: 'absolute', inset: d * 0.27, borderRadius: '50%', background: ACCENT, boxShadow: `inset 0 -2px 3px rgba(0,0,0,0.25)` }} />
+    </div>
+  );
+};
+
+/** Фишка — маленькая бирка из бумаги: год эпохи, число или знак (→ ? × ✓). Падает с поворотом и пружиной. */
+export const Chip: React.FC<{ it: ItemP; T: number; fps: number }> = ({ it, T, fps }) => {
+  const { p, q, alive } = microEnv(it, T, fps);
+  if (!alive) return null;
+  const fs = it.size;
+  return (
+    <div style={{
+      position: 'absolute', left: it.x, top: it.y,
+      transform: `translate(-50%, -50%) translateY(${lerp(-34, 0, p) + 18 * q}px) rotate(${lerp(it.rot + 14, it.rot, p)}deg) scale(${lerp(0.4, 1, p) * lerp(1, 0.7, q)})`,
+      opacity: clamp01(p * 3) * (1 - q),
+    }}>
+      <div style={{
+        position: 'relative', whiteSpace: 'nowrap', padding: `${fs * 0.16}px ${fs * 0.34}px ${fs * 0.2}px`,
+        background: paperBg, borderRadius: fs * 0.18, boxShadow: paperShadow(1 - clamp01(p)),
+        font: `700 ${fs}px/1 ${FONT}`, color: it.variant === 'big' ? ACCENT : INK, textShadow,
+      }}>
+        <PencilBox r={fs * 0.14} w={1.8} />
+        {it.text}
       </div>
     </div>
   );
@@ -256,6 +311,8 @@ export const Item: React.FC<{ it: ItemP; T: number; fps: number }> = (pr) => {
     case 'tap': return <Tap {...pr} />;
     case 'stamp': return <Stamp {...pr} />;
     case 'counter': return <Counter {...pr} />;
+    case 'dot': return <Dot {...pr} />;
+    case 'chip': return <Chip {...pr} />;
     default: return null;
   }
 };

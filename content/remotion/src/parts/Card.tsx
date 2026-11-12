@@ -1,12 +1,13 @@
 import React from 'react';
 import { Img, OffthreadVideo, Sequence, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
-import { IN, INOUT, OUT, clamp01, lerp, seg, sh, spr } from './ease';
+import { IN, INOUT, OUT, clamp01, lerp, seg, sh, soft, spr } from './ease';
 
 export type Src = {
   kind: 'image' | 'seq' | 'video';
   path: string;          // в public/ (для seq — папка с 0000.jpg …)
   w: number; h: number;  // размер источника
   frames?: number; fps?: number; start?: number; rate?: number;
+  reverse?: boolean;     // seq задом наперёд (шоу «назад»)
 };
 export type CardP = {
   id: string; at: number; dur: number;
@@ -43,15 +44,29 @@ const Content: React.FC<{ c: CardP; t: number; W: number; H: number }> = ({ c, t
     const a = seg(t, 0.12, c.look.alive, INOUT);
     filter = `grayscale(${1 - a}) contrast(${lerp(1.25, 1, a)}) brightness(${lerp(1.08, 1, a)})`;
   }
+  // Размер картинки постоянный (z = 1), приближение — только transform: scale. Если менять width каждый кадр,
+  // Chrome пересэмплирует картинку в целый размер и сдвигает её ступеньками (0,25 → 0,05 → 0,2 px за кадр) —
+  // на наезде это видно как «20 кадров в секунду».
   const style: React.CSSProperties = {
-    position: 'absolute', left: 0, top: 0, width: dw, height: dh,
-    transform: `translate(${left}px, ${top}px)`, filter, maxWidth: 'none',
+    position: 'absolute', left: 0, top: 0, width: dw / z, height: dh / z,
+    transform: `translate(${left}px, ${top}px) scale(${z})`, transformOrigin: '0 0', filter, maxWidth: 'none',
   };
   if (c.src.kind === 'image') return <Img src={staticFile(c.src.path)} style={style} />;
   if (c.src.kind === 'seq') {
+    // Кадр сайта = кадр ролика (30 к/с, rate 1). rate ≠ 1 — не повторять кадр (рывок «как 20 к/с»),
+    // а смешивать два соседних: дробная часть индекса = прозрачность следующего.
     const n = c.src.frames ?? 1;
-    const idx = Math.max(0, Math.min(n - 1, Math.floor(((c.src.start ?? 0) + t * (c.src.rate ?? 1)) * (c.src.fps ?? 30) + 1e-6)));
-    return <Img src={staticFile(`${c.src.path}/${String(idx).padStart(4, '0')}.jpg`)} style={style} />;
+    let fi = ((c.src.start ?? 0) + t * (c.src.rate ?? 1)) * (c.src.fps ?? 30);
+    fi = Math.max(0, Math.min(n - 1, fi + 1e-6));
+    if (c.src.reverse) fi = n - 1 - fi;
+    const i0 = Math.floor(fi), fr = fi - i0, i1 = Math.min(n - 1, i0 + 1);
+    const url = (i: number) => staticFile(`${c.src.path}/${String(i).padStart(4, '0')}.jpg`);
+    return (
+      <>
+        <Img src={url(i0)} style={style} />
+        {fr > 0.02 && i1 !== i0 ? <Img src={url(i1)} style={{ ...style, opacity: fr }} /> : null}
+      </>
+    );
   }
   return (
     <OffthreadVideo
@@ -107,11 +122,7 @@ export const Card: React.FC<{ c: CardP; shake: { x: number; y: number }; childre
   const W = c.w - 2 * c.mat;
   const H = c.h - 2 * c.mat;
   const L = P.lift;
-  const shadow = [
-    `0 ${2 + 6 * L}px ${4 + 10 * L}px ${sh(0.2)}`,
-    `0 ${26 + 60 * L}px ${50 + 70 * L}px -${18 - 6 * L}px ${sh(0.5 - 0.15 * L)}`,
-    `0 ${60 + 90 * L}px ${90 + 80 * L}px -40px ${sh(0.3 - 0.1 * L)}`,
-  ].join(', ');
+  const shadow = soft(L, 1.25);
   return (
     <div
       style={{
@@ -119,7 +130,8 @@ export const Card: React.FC<{ c: CardP; shake: { x: number; y: number }; childre
         transform: `translate(${P.x + shake.x}px, ${P.y + shake.y}px) rotate(${P.r}deg) scale(${P.s})`,
         opacity: P.o, filter: P.blur > 0.2 ? `blur(${P.blur}px)` : undefined,
         borderRadius: c.radius, background: '#fffdf7', boxShadow: shadow,
-        padding: c.mat, boxSizing: 'border-box', willChange: 'transform',
+        padding: c.mat, boxSizing: 'border-box',
+        // без will-change: с ним Chrome растрирует карточку один раз в размере входа и растягивает — резкость ×0,45
       }}
     >
       {/* фотобумага: лёгкий тон и край */}

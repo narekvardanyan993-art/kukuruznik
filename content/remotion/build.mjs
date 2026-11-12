@@ -3,8 +3,10 @@
 //   node content/remotion/build.mjs content/scenes/pogos-02.json
 // Флаги: --still 3.2 (один кадр + поля TikTok, без сборки) · --audio-only (пересвести звук к готовому видео)
 //        --browser <путь к Chrome> · --concurrency N
-// Результат: content/out/<имя>.mp4, <имя>-sfx.wav (если в content/sfx/ есть звуки), <имя>-sheet.jpg, <имя>-events.json
+// Результат: content/out/<имя>.mp4, <имя>-sfx.wav (если в content/sfx/ есть звуки), <имя>-sheet.jpg, <имя>-events.json,
+//            <имя>-zoom10.jpg (10 кадров подряд на наезде) + проверка плавности в конце
 import { spawnSync } from 'node:child_process';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -72,8 +74,31 @@ const publish = (abs) => {
 };
 
 const probe = (abs) => {
-  const j = JSON.parse(run('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height:format=duration', '-of', 'json', abs], { quiet: true }));
-  return { w: j.streams[0].width, h: j.streams[0].height, dur: parseFloat(j.format?.duration ?? '0') };
+  const j = JSON.parse(run('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height,r_frame_rate:format=duration', '-of', 'json', abs], { quiet: true }));
+  const [a, b] = String(j.streams[0].r_frame_rate ?? '0/1').split('/').map(Number);
+  return { w: j.streams[0].width, h: j.streams[0].height, dur: parseFloat(j.format?.duration ?? '0'), fps: b ? a / b : 0 };
+};
+const warns = [];
+const warn = (m) => { warns.push(m); console.log('ВНИМАНИЕ:', m); };
+
+// Ролик (Veo 24 к/с) → кадры 30 к/с «кадр в кадр»: обрезать нужный кусок, растянуть по времени (rate),
+// дорисовать промежуточные кадры по движению (minterpolate). Без этого 24→30 даёт повтор каждого 4-го кадра,
+// а замедление 0,5× — каждый кадр дважды («как 15–20 к/с»). Размер — родной, без увеличения. Кэш — public/_vid/.
+const videoToSeq = (abs, start, len, rate, id) => {
+  const key = crypto.createHash('sha1').update(`${abs}|${fs.statSync(abs).size}|${start}|${len}|${rate}|${fps}|v2`).digest('hex').slice(0, 10);
+  const rel = `_vid/${id}-${key}`;
+  const dir = path.join(PUB, rel);
+  const need = Math.round(len * fps);
+  if (fs.existsSync(dir) && fs.readdirSync(dir).filter((f) => f.endsWith('.jpg')).length >= need) return rel;
+  fs.mkdirSync(dir, { recursive: true });
+  const pr = probe(abs);
+  const vf = [`setpts=(PTS-STARTPTS)/${rate}`];
+  if (Math.abs(pr.fps / rate - fps) > 0.01) vf.push(`minterpolate=fps=${fps}:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1`);
+  else vf.push(`fps=${fps}`);
+  log(`ролик ${id}: ${pr.w}×${pr.h} ${pr.fps.toFixed(2)} к/с, кусок ${start}–${(start + len * rate).toFixed(2)} с, скорость ${rate.toFixed(2)} → кадры ${fps} к/с`);
+  run('ffmpeg', ['-y', '-v', 'error', '-ss', String(start), '-t', String(len * rate + 0.3), '-i', abs, '-vf', vf.join(','),
+    '-frames:v', String(need), '-q:v', '2', '-start_number', '0', path.join(dir, '%04d.jpg')]);
+  return rel;
 };
 
 // ---------- сценарий → свойства композиции ----------
@@ -82,18 +107,36 @@ const cards = (S.cards ?? []).map((c) => {
   const d = { ...D.card, ...c };
   const kind = c.src.image ? 'image' : c.src.seq ? 'seq' : 'video';
   const abs = resolveSrc(c.src.image ?? c.src.seq ?? c.src.video);
-  const src = { kind, path: publish(abs), start: c.src.start ?? 0, rate: c.src.rate ?? 1 };
-  if (kind === 'seq') {
+  let src = { kind, path: '', start: c.src.start ?? 0, rate: c.src.rate ?? 1, reverse: !!c.src.reverse };
+  if (kind === 'video') {
+    // ролик → кадры (см. videoToSeq); короче карточки → замедлить, но промежуточные кадры дорисовать, а не повторять
+    const pr = probe(abs);
+    let rate = src.rate;
+    if (src.start + d.dur * rate > pr.dur - 0.05) {
+      rate = Math.max(0.2, (pr.dur - 0.05 - src.start) / d.dur);
+      warn(`карточка ${d.id}: ролик короче карточки — скорость ${rate.toFixed(2)} (кадры дорисованы, рывка нет; лучше взять кусок длиннее)`);
+    }
+    const rel = videoToSeq(abs, src.start, d.dur, rate, d.id);
+    src = { kind: 'seq', path: rel, start: 0, rate: 1, reverse: src.reverse, w: pr.w, h: pr.h, frames: Math.round(d.dur * fps), fps };
+  } else if (kind === 'seq') {
+    src.path = publish(abs);
     const files = fs.readdirSync(abs).filter((f) => /^\d{4}\.jpg$/.test(f)).sort();
     Object.assign(src, probe(path.join(abs, files[0])), { frames: files.length, fps: c.src.fps ?? 30 });
+    const need = (src.start + d.dur * src.rate) * src.fps;
+    if (need > files.length + 1) warn(`карточка ${d.id}: кадров сайта ${files.length}, нужно ${Math.ceil(need)} — последний кадр стоит ${((need - files.length) / src.fps).toFixed(1)} с (снять длиннее)`);
+    if (Math.abs(src.rate - 1) > 1e-3) warn(`карточка ${d.id}: кадры сайта со скоростью ${src.rate} — соседние кадры смешиваются; чище — снять с нужной скоростью (speed) и играть 1:1`);
   } else {
+    src.path = publish(abs);
     const pr = probe(abs);
     Object.assign(src, { w: pr.w, h: pr.h });
-    if (kind === 'video') {
-      // ролик короче карточки → замедлить, чтобы не встал раньше времени
-      const need = src.start + d.dur * src.rate;
-      if (need > pr.dur - 0.05) src.rate = Math.max(0.2, (pr.dur - 0.05 - src.start) / d.dur);
-    }
+  }
+  // чёткость: сколько пикселей источника приходится на пиксель экрана при самом сильном приближении
+  {
+    const iw = (d.w ?? 800) - 2 * (d.mat ?? 18), ih = (d.h ?? 1140) - 2 * (d.mat ?? 18);
+    const fit = (d.fit ?? 'cover') === 'contain' ? Math.min(iw / src.w, ih / src.h) : Math.max(iw / src.w, ih / src.h);
+    const zmax = Math.max(d.cam?.from?.[2] ?? 1, d.cam?.to?.[2] ?? 1.06) * 1.035;
+    const up = fit * zmax;
+    if (up > 1.15) warn(`карточка ${d.id}: источник ${src.w}×${src.h} растянут ×${up.toFixed(2)} — будет мыло (карточку меньше или приближение слабее)`);
   }
   return {
     id: d.id, at: d.at, dur: d.dur, x: d.x ?? W / 2, y: d.y ?? 880, w: d.w ?? 800, h: d.h ?? 1140,
@@ -106,9 +149,23 @@ const cards = (S.cards ?? []).map((c) => {
 });
 
 let n = 0;
-const items = (S.items ?? []).map((it) => {
+// chain — цепочка мелочей (точки, фишки-годы, знаки, тап): входят друг за другом с шагом step,
+// уходят вместе в конце (обратной лесенкой). На каждый вход — короткий pop/click.
+const flat = [];
+for (const it of S.items ?? []) {
+  if (it.kind !== 'chain') { flat.push(it); continue; }
+  const step = it.step ?? 0.12, list = it.items ?? [];
+  if (list.length > 5 || step < 0.08) warn(`цепочка на ${it.at} с: ${list.length} элементов, шаг ${step} — мельтешит (3–5 элементов, шаг ≥ 0,08 с)`);
+  list.forEach((m, k) => {
+    const at = it.at + k * step;
+    const end = it.dur ? it.at + it.dur - (list.length - 1 - k) * 0.05 : 0;
+    flat.push({ ...m, on: m.on ?? it.on, at, dur: it.dur ? Math.max(0.3, end - at) : 0, chain: `${it.at}`, ci: k });
+  });
+}
+const SIZE = { dot: 44, chip: 54, tap: 140 };
+const items = flat.map((it) => {
   const d = { ...D[it.kind], ...it };
-  const o = { ...d, id: d.id ?? `${d.kind}${n++}`, rot: d.rot ?? 0, size: d.size ?? 80, dur: d.dur ?? 0 };
+  const o = { ...d, id: d.id ?? `${d.kind}${n++}`, rot: d.rot ?? 0, size: d.size ?? SIZE[d.kind] ?? 80, dur: d.dur ?? 0 };
   if (d.kind === 'tag') {
     // слово за словом: шаг 70 мс (docs/ANIMATION.md: лесенка 50–80 мс)
     const step = d.step ?? 0.07;
@@ -129,6 +186,7 @@ const props = {
 
 // ---------- события звука: каждое появление и уход ----------
 const G = { whoosh: -19, pop: -17, click: -23, stamp: -11 };
+const MICRO = { pop: -24, click: -27 };   // мелочи цепочек — тише главных событий
 const ev = [];
 const add = (t, type, what, gain = G[type]) => { if (type && type !== 'none' && t >= 0 && t < dur) ev.push({ t: +t.toFixed(3), type, what, gain_db: gain }); };
 for (const c of cards) {
@@ -136,22 +194,29 @@ for (const c of cards) {
   if (c.exit !== 'none') add(c.at + c.dur - c.exitDur, c.sfx_out, `карточка ${c.id}: уход`, G.whoosh - 3);
 }
 for (const i of items) {
+  if (i.sfx === 'none') continue;           // элемент без звука (когда рядом уже звучит другое)
   const out = i.at + i.dur - 0.26;
+  const outOk = i.sfx_out !== 'none';      // sfx_out: "none" — уход без звука
   if (i.kind === 'tag') {
     add(i.at, 'pop', `бирка «${i.text}»: появление`);
     i.words.forEach((w, k) => k > 0 && add(w.at, 'click', `слово «${w.s}»`, G.click - 2));
-    if (i.dur) add(out, 'whoosh', `бирка «${i.text}»: уход`, G.whoosh - 5);
+    if (i.dur && outOk) add(out, 'whoosh', `бирка «${i.text}»: уход`, G.whoosh - 5);
   } else if (i.kind === 'icon') {
     add(i.at, 'pop', `значок ${i.name}: появление`);
-    if (i.dur) add(out, 'whoosh', `значок ${i.name}: уход`, G.whoosh - 5);
+    if (i.dur && outOk) add(out, 'whoosh', `значок ${i.name}: уход`, G.whoosh - 5);
   } else if (i.kind === 'tap') {
     add(i.at, 'click', 'тап', G.click + 6);
   } else if (i.kind === 'stamp') {
     add(i.at + i.impact, 'stamp', `штамп «${i.mid}»`);
   } else if (i.kind === 'counter') {
     add(i.at, 'pop', `счётчик ${i.from}: появление`);
-    add(i.at + (i.tick ?? 1), 'click', `счётчик ${i.from} → ${i.to}`, G.click + 4);
-    if (i.dur) add(out, 'whoosh', `счётчик: уход`, G.whoosh - 5);
+    if (i.to) add(i.at + (i.tick ?? 1), 'click', `счётчик ${i.from} → ${i.to}`, G.click + 4);
+    if (i.dur && outOk) add(out, 'whoosh', `счётчик: уход`, G.whoosh - 5);
+  } else if (i.kind === 'dot' || i.kind === 'chip') {
+    // в цепочке звуки чередуются: pop, click, pop… (один файл подряд не звучит)
+    const type = i.chain !== undefined ? (i.ci % 2 ? 'click' : 'pop') : 'pop';
+    add(i.at, type, `${i.kind === 'dot' ? 'точка' : `фишка «${i.text}»`}: появление`, MICRO[type]);
+    if (i.dur && outOk && i.chain !== undefined && i.ci === 0) add(out + 0.1, 'whoosh', `цепочка ${i.chain}: уход`, G.whoosh - 9);
   }
 }
 ev.sort((a, b) => a.t - b.t);
@@ -202,7 +267,7 @@ if (!flag('--audio-only')) {
   run(remotion, ['render', 'src/index.ts', 'promo', silent, ...common,
     '--codec', 'h264', '--crf', '18', '--pixel-format', 'yuv420p', '--color-space', 'bt709',
     '--image-format', 'jpeg', '--jpeg-quality', '92', '--muted',
-    '--concurrency', opt('--concurrency', '50%'), '--log', 'info'], { cwd: HERE });
+    '--concurrency', opt('--concurrency', '50%'), '--log', 'info', ...(opt('--frames') ? ['--frames', opt('--frames')] : [])], { cwd: HERE });
   log('видео собрано');
 }
 
@@ -236,3 +301,34 @@ const sheet = path.join(OUT, `${name}-sheet.jpg`);
 const cols = 7, rows = Math.ceil(dur / cols);
 run('ffmpeg', ['-y', '-v', 'error', '-i', mp4, '-vf', `fps=1,scale=216:384,tile=${cols}x${rows}:padding=4:color=white`, '-frames:v', '1', '-q:v', '3', sheet]);
 log(`готово: ${path.relative(REPO, mp4)} · ${path.relative(REPO, sheet)} · ${path.relative(REPO, evFile)}`);
+
+// ---------- плавность и чёткость: 10 кадров подряд на наезде + повторы кадров ----------
+// Повтор = кадр почти не отличается от соседа, хотя камера идёт (признак «20 к/с»). Окно — середина каждой карточки.
+{
+  const cw = 360, chh = 480;   // центр кадра (там карточка), уменьшено ×3
+  const raw = spawnSync('ffmpeg', ['-v', 'error', '-i', mp4, '-vf', `crop=${cw * 3}:${chh * 3}:0:220,scale=${cw}:${chh},format=gray`, '-f', 'rawvideo', '-'], { maxBuffer: 1 << 30 });
+  const buf = raw.stdout, fsz = cw * chh, N = Math.floor(buf.length / fsz);
+  const diff = [];
+  for (let k = 1; k < N; k++) { let s2 = 0; const a = (k - 1) * fsz, b = k * fsz; for (let i = 0; i < fsz; i += 3) s2 += Math.abs(buf[a + i] - buf[b + i]); diff.push(s2 / (fsz / 3)); }
+  const rows = [];
+  let worst = null;
+  for (const c of cards) {
+    const i0 = Math.round((c.at + c.enterDur + 0.1) * fps), i1 = Math.round((c.at + c.dur - c.exitDur - 0.1) * fps);
+    const seg2 = diff.slice(i0, i1); if (seg2.length < 6) continue;
+    const med = [...seg2].sort((x, y) => x - y)[Math.floor(seg2.length / 2)];
+    // повтор: кадр заметно «тише» обоих соседей (дубль картинки, меняется только камера) — пила 20/10/20/10
+    let rep = 0;
+    for (let k = 1; k < seg2.length - 1; k++) if (seg2[k] < 0.65 * Math.min(seg2[k - 1], seg2[k + 1]) && seg2[k - 1] > 0.8 && seg2[k + 1] > 0.8) rep++;
+    rows.push({ card: c.id, frames: seg2.length, median_diff: +med.toFixed(2), repeats: rep });
+    const zch = Math.abs(c.cam.to[2] - c.cam.from[2]);
+    if (!worst || zch > worst.z) worst = { z: zch, c };
+  }
+  const zt = S.check_zoom ?? (worst ? worst.c.at + worst.c.dur / 2 : dur / 2);
+  const strip = path.join(OUT, `${name}-zoom10.jpg`);
+  run('ffmpeg', ['-y', '-v', 'error', '-ss', String(zt), '-i', mp4, '-vf', `crop=640:640:220:560,tile=5x2:padding=4:color=white`, '-frames:v', '1', '-q:v', '2', strip]);
+  const rep = rows.reduce((a, r) => a + r.repeats, 0);
+  fs.writeFileSync(path.join(OUT, `${name}-smooth.json`), JSON.stringify({ zoom10_at: zt, repeats_total: rep, cards: rows, warnings: warns }, null, 1));
+  console.table(rows);
+  log(`плавность: повторов кадров ${rep} · 10 кадров подряд с ${zt.toFixed(2)} с → ${path.relative(REPO, strip)}`);
+  if (warns.length) console.log('ВНИМАНИЕ:\n- ' + warns.join('\n- '));
+}
