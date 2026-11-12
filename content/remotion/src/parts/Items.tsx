@@ -1,5 +1,5 @@
 import React from 'react';
-import { ACCENT, IN, INDIGO, INK, OUT, SURFACE, clamp01, lerp, mix, seg, sh, soft, softDrop, softText, spr } from './ease';
+import { ACCENT, DROP_OUT, IN, INDIGO, INK, OUT, SURFACE, clamp01, drop, lerp, mix, seg, sh, soft, softDrop, softText, spr } from './ease';
 
 // Всё ниже — графика интерфейса (бирки, значки, штамп) в стиле сайта: бумага, тень, карандашный контур.
 // Значки луны и снежинки — те же контуры, что на кнопках просмотрщика (engine/page.html),
@@ -7,27 +7,30 @@ import { ACCENT, IN, INDIGO, INK, OUT, SURFACE, clamp01, lerp, mix, seg, sh, sof
 
 export type Word = { s: string; at: number };
 export type ItemP = {
-  kind: 'tag' | 'icon' | 'tap' | 'stamp' | 'counter' | 'dot' | 'chip';
+  kind: 'tag' | 'icon' | 'tap' | 'stamp' | 'counter' | 'dot' | 'chip' | 'ruler' | 'sfx';
   id: string; at: number; dur: number; x: number; y: number; rot: number; size: number;
   on?: string;               // id карточки: элемент едет вместе с ней (x, y — доли карточки)
   words?: Word[]; variant?: 'tag' | 'label' | 'big';
-  name?: 'moon' | 'flake' | 'bulb';
+  name?: 'moon' | 'flake' | 'bulb' | 'sun' | 'sunset';
   top?: string; mid?: string; bottom?: string;
   from?: string; to?: string; tick?: number; label?: string;
   impact?: number; paper?: boolean;
   text?: string;             // chip: год, число или знак (→ ? × ✓)
+  pin?: boolean;             // x, y (и x2, y2) — доли КАДРА ИСТОЧНИКА внутри карточки: точка едет с камерой карточки
+  x2?: number; y2?: number; n?: number; step?: number;   // ruler: куда, сколько кусочков, шаг
 };
 
 const FONT = '"Chka Serif", "Noto Serif", Georgia, serif';
-const OUT_D = 0.26;  // уход короче появления
 
-/** Общая огибающая: пружинный вход, уход по кривой «in». */
-const env = (it: ItemP, T: number, fps: number) => {
+/** Общая огибающая «капля» (ease.ts → drop): вход 0,25 с с перелётом и сплющиванием, уход 0,18 с. */
+const env = (it: ItemP, T: number, _fps?: number) => {
   const t = T - it.at;
-  const p = spr(t, fps, 'pop');
-  const q = it.dur > 0 ? IN(clamp01((t - (it.dur - OUT_D)) / OUT_D)) : 0;
-  return { t, p, q, alive: t >= 0 && (it.dur <= 0 || t <= it.dur + 0.02) };
+  const out = it.dur > 0 ? t - (it.dur - DROP_OUT) : -1;
+  const D = drop(t, out >= 0 ? out : -1);
+  return { t, D, p: clamp01(t / 0.25), alive: D.alive };
 };
+const dropTf = (D: ReturnType<typeof drop>, rot: number) =>
+  `translateY(${D.y}px) rotate(${rot}deg) scale(${D.sx}, ${D.sy})`;
 
 /** Карандашный контур: два чуть смещённых дрожащих штриха. */
 const PencilBox: React.FC<{ r: number; color?: string; w?: number }> = ({ r, color = INK, w = 2.4 }) => (
@@ -44,21 +47,19 @@ const textShadow = softText;
 
 // ---------- бирка / ярлык со словами ----------
 export const Tag: React.FC<{ it: ItemP; T: number; fps: number }> = ({ it, T, fps }) => {
-  const { t, p, q, alive } = env(it, T, fps);
+  const { t, D, p, alive } = env(it, T, fps);
   if (!alive) return null;
   const big = it.variant === 'big';
   const tag = it.variant !== 'label' && !big;
   const fs = it.size;
-  const s = lerp(0.35, 1, p) * lerp(1, 0.86, q);
-  const r = lerp(it.rot - 10, it.rot, p) + Math.sin((T - it.at) * 2.1) * 0.6;
-  const y = lerp(46, 0, p) - 26 * q;
+  const r = lerp(it.rot - 6, it.rot, OUT(p)) + Math.sin((T - it.at) * 2.1) * 0.6;
   const color = big ? ACCENT : INK;
   const under = big ? seg(t, 0.25 + 0.07 * (it.words?.length ?? 1), 0.5, OUT) : 0;
   return (
     <div style={{
       position: 'absolute', left: it.x, top: it.y,
-      transform: `translate(-50%, -50%) translateY(${y}px) rotate(${r}deg) scale(${s})`,
-      opacity: clamp01(p * 3) * (1 - q),
+      transform: `translate(-50%, -50%) ${dropTf(D, r)}`,
+      opacity: D.o,
     }}>
       <div style={{
         position: 'relative', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap',
@@ -76,7 +77,7 @@ export const Tag: React.FC<{ it: ItemP; T: number; fps: number }> = ({ it, T, fp
           </svg>
         ) : null}
         {(it.words ?? []).map((w, i) => {
-          const pw = spr(T - w.at, fps, 'pop');
+          const pw = clamp01(drop(T - w.at, -1, 0).s);
           return (
             <span key={i} style={{
               display: 'inline-block', marginRight: i < (it.words!.length - 1) ? fs * 0.26 : 0,
@@ -112,6 +113,18 @@ const ICONS: Record<string, (k: number) => React.ReactNode> = {
       <path d="M16 5.5v21M6.9 10.75l18.2 10.5M6.9 21.25l18.2-10.5M13.2 7.3L16 9.6l2.8-2.3M13.2 24.7L16 22.4l2.8 2.3M7.6 14.6l3.5-.6-1.3-3.3M24.4 17.4l-3.5.6 1.3 3.3M7.6 17.4l3.5.6-1.3 3.3M24.4 14.6l-3.5-.6 1.3-3.3" />
     </g>
   ),
+  sun: () => (
+    <g fill="none" stroke={INK} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="16" cy="16" r="5.6" fill="rgba(236, 186, 80, 0.55)" />
+      <path d="M16 4.5v3M16 24.5v3M4.5 16h3M24.5 16h3M7.9 7.9l2.1 2.1M22 22l2.1 2.1M7.9 24.1l2.1-2.1M22 10l2.1-2.1" />
+    </g>
+  ),
+  sunset: () => (
+    <g fill="none" stroke={INK} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9.5 21a6.5 6.5 0 0 1 13 0z" fill="rgba(226, 132, 72, 0.55)" />
+      <path d="M5 21h22M8.5 25h15M16 8.5v3M8.2 12.2l2 2M23.8 12.2l-2 2M4.8 17h2.6M24.6 17h2.6" />
+    </g>
+  ),
   bulb: () => (
     <g fill="none" stroke={INK} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 20.5c-2.2-1.6-3.6-4-3.6-6.7a7.6 7.6 0 0 1 15.2 0c0 2.7-1.4 5.1-3.6 6.7v2.5h-8z" fill="rgba(240, 200, 100, 0.5)" />
@@ -121,16 +134,16 @@ const ICONS: Record<string, (k: number) => React.ReactNode> = {
 };
 
 export const Icon: React.FC<{ it: ItemP; T: number; fps: number }> = ({ it, T, fps }) => {
-  const { t, p, q, alive } = env(it, T, fps);
+  const { t, D, p, alive } = env(it, T, fps);
   if (!alive) return null;
   const d = it.size;
-  const idle = it.name === 'flake' ? t * 28 : Math.sin(t * 2.4) * 7;
-  const glow = it.name === 'moon' || it.name === 'bulb' ? 0.35 + 0.25 * Math.sin(t * 3.1) : 0;
+  const idle = it.name === 'flake' || it.name === 'sun' ? t * 28 : Math.sin(t * 2.4) * 7;
+  const glow = it.name === 'moon' || it.name === 'bulb' || it.name === 'sun' || it.name === 'sunset' ? 0.35 + 0.25 * Math.sin(t * 3.1) : 0;
   return (
     <div style={{
       position: 'absolute', left: it.x - d / 2, top: it.y - d / 2, width: d, height: d,
-      transform: `translateY(${lerp(60, 0, p) - 40 * q}px) rotate(${lerp(-40, it.rot, p)}deg) scale(${lerp(0.2, 1, p) * lerp(1, 0.6, q)})`,
-      opacity: clamp01(p * 3) * (1 - q),
+      transform: dropTf(D, lerp(it.rot - 12, it.rot, OUT(p))),
+      opacity: D.o,
     }}>
       {glow ? <div style={{ position: 'absolute', inset: -d * 0.35, borderRadius: '50%', background: `radial-gradient(circle, rgba(250, 214, 120, ${glow}) 0%, rgba(250,214,120,0) 65%)` }} /> : null}
       <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: paperBg, boxShadow: paperShadow(1 - clamp01(p)) }} />
@@ -217,7 +230,7 @@ export const Stamp: React.FC<{ it: ItemP; T: number; fps: number }> = ({ it, T }
 
 // ---------- счётчик «8 → 7» / «1930 → 1936» ----------
 export const Counter: React.FC<{ it: ItemP; T: number; fps: number }> = ({ it, T, fps }) => {
-  const { t, p, q, alive } = env(it, T, fps);
+  const { t, D, p, alive } = env(it, T, fps);
   if (!alive) return null;
   const fs = it.size;
   // без `to` — счётчик стоит, цифра не щёлкает (места продаются по-настоящему — тогда и щелчок)
@@ -234,8 +247,8 @@ export const Counter: React.FC<{ it: ItemP; T: number; fps: number }> = ({ it, T
   return (
     <div style={{
       position: 'absolute', left: it.x, top: it.y,
-      transform: `translate(-50%, -50%) translateY(${lerp(50, 0, p) - 26 * q}px) rotate(${lerp(it.rot - 9, it.rot, p)}deg) scale(${lerp(0.35, 1, p) * lerp(1, 0.86, q) * (1 + 0.06 * flash)})`,
-      opacity: clamp01(p * 3) * (1 - q),
+      transform: `translate(-50%, -50%) ${dropTf(D, it.rot)} scale(${1 + 0.06 * flash})`,
+      opacity: D.o,
     }}>
       <div style={{
         position: 'relative', display: 'flex', alignItems: 'center', gap: fs * 0.16, whiteSpace: 'nowrap',
@@ -255,23 +268,18 @@ export const Counter: React.FC<{ it: ItemP; T: number; fps: number }> = ({ it, T
 
 // ---------- мелочи для микро-ритма: точка и бирка-фишка ----------
 // Короткий вход (≈8 кадров, пружина «pop»), короткий уход; идут цепочками (`chain` в сценарии).
-const microEnv = (it: ItemP, T: number, fps: number) => {
-  const t = T - it.at;
-  const p = spr(t, fps, 'pop');
-  const q = it.dur > 0 ? IN(clamp01((t - (it.dur - 0.18)) / 0.18)) : 0;
-  return { t, p, q, alive: t >= 0 && (it.dur <= 0 || t <= it.dur + 0.02) };
-};
+const microEnv = env;   // мелочи — тоже каплей (вход 0,25 с, уход 0,18 с)
 
 /** Точка — как «точка интереса» просмотрщика: бумажный кружок с красной сердцевиной и одним кольцом-импульсом. */
 export const Dot: React.FC<{ it: ItemP; T: number; fps: number }> = ({ it, T, fps }) => {
-  const { t, p, q, alive } = microEnv(it, T, fps);
+  const { t, D, p, alive } = microEnv(it, T, fps);
   if (!alive) return null;
   const d = it.size;
   const u = clamp01(t / 0.55);
   return (
     <div style={{
       position: 'absolute', left: it.x - d / 2, top: it.y - d / 2, width: d, height: d,
-      transform: `scale(${lerp(0.2, 1, p) * lerp(1, 0.3, q)})`, opacity: clamp01(p * 3) * (1 - q),
+      transform: dropTf(D, 0), opacity: D.o,
     }}>
       <div style={{ position: 'absolute', inset: -d * 0.5, borderRadius: '50%', border: `${Math.max(2, d * 0.06)}px solid ${ACCENT}`,
         transform: `scale(${lerp(0.4, 1, OUT(u))})`, opacity: (1 - u) * 0.7 }} />
@@ -283,14 +291,14 @@ export const Dot: React.FC<{ it: ItemP; T: number; fps: number }> = ({ it, T, fp
 
 /** Фишка — маленькая бирка из бумаги: год эпохи, число или знак (→ ? × ✓). Падает с поворотом и пружиной. */
 export const Chip: React.FC<{ it: ItemP; T: number; fps: number }> = ({ it, T, fps }) => {
-  const { p, q, alive } = microEnv(it, T, fps);
+  const { D, p, alive } = microEnv(it, T, fps);
   if (!alive) return null;
   const fs = it.size;
   return (
     <div style={{
       position: 'absolute', left: it.x, top: it.y,
-      transform: `translate(-50%, -50%) translateY(${lerp(-34, 0, p) + 18 * q}px) rotate(${lerp(it.rot + 14, it.rot, p)}deg) scale(${lerp(0.4, 1, p) * lerp(1, 0.7, q)})`,
-      opacity: clamp01(p * 3) * (1 - q),
+      transform: `translate(-50%, -50%) ${dropTf(D, lerp(it.rot + 8, it.rot, OUT(p)))}`,
+      opacity: D.o,
     }}>
       <div style={{
         position: 'relative', whiteSpace: 'nowrap', padding: `${fs * 0.16}px ${fs * 0.34}px ${fs * 0.2}px`,
@@ -304,6 +312,38 @@ export const Chip: React.FC<{ it: ItemP; T: number; fps: number }> = ({ it, T, f
   );
 };
 
+/** Линейка — пунктир из n кусочков от (x, y) к (x2, y2): кусочки падают каплей по одному (шаг step), на каждый — тихий tick;
+ *  уходят все вместе быстрой обратной лесенкой. Красная черта с бумажной каймой — читается на любом кадре. */
+export const Ruler: React.FC<{ it: ItemP; T: number; fps: number }> = ({ it, T }) => {
+  const n = it.n ?? 5, step = it.step ?? 0.09;
+  const x2 = it.x2 ?? it.x, y2 = it.y2 ?? it.y;
+  const L = Math.hypot(x2 - it.x, y2 - it.y), ang = Math.atan2(y2 - it.y, x2 - it.x) * 180 / Math.PI;
+  const th = it.size > 30 ? 10 : it.size * 0.3;     // толщина
+  const len = (L / n) * 0.58;
+  const t = T - it.at;
+  if (t < 0 || (it.dur > 0 && t > it.dur + 0.02)) return null;
+  return (
+    <>
+      {Array.from({ length: n }, (_, k) => {
+        const tk = t - k * step;
+        const outStart = it.dur > 0 ? it.dur - DROP_OUT - (n - 1 - k) * 0.025 : 1e9;
+        const D = drop(tk, t >= outStart ? t - outStart : -1, 0.25);
+        if (!D.alive || D.o <= 0) return null;
+        const f = (k + 0.5) / n;
+        const cx = lerp(it.x, x2, f), cy = lerp(it.y, y2, f);
+        return (
+          <div key={k} style={{
+            position: 'absolute', left: cx - len / 2, top: cy - th / 2, width: len, height: th, borderRadius: th / 2,
+            background: ACCENT, opacity: D.o,
+            boxShadow: `0 0 0 ${Math.max(2, th * 0.28)}px #fffdf6, ${soft(0.15, 0.7)}`,
+            transform: `rotate(${ang}deg) scale(${D.sx}, ${D.sy})`,
+          }} />
+        );
+      })}
+    </>
+  );
+};
+
 export const Item: React.FC<{ it: ItemP; T: number; fps: number }> = (pr) => {
   switch (pr.it.kind) {
     case 'tag': return <Tag {...pr} />;
@@ -313,6 +353,7 @@ export const Item: React.FC<{ it: ItemP; T: number; fps: number }> = (pr) => {
     case 'counter': return <Counter {...pr} />;
     case 'dot': return <Dot {...pr} />;
     case 'chip': return <Chip {...pr} />;
+    case 'ruler': return <Ruler {...pr} />;
     default: return null;
   }
 };

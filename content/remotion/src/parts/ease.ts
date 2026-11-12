@@ -46,3 +46,30 @@ export const softDrop = (lift = 0, k = 1) =>
   `drop-shadow(0 ${1 + 2 * lift}px ${1.5 + 2 * lift}px ${sh(0.18 * k)}) drop-shadow(0 ${6 + 8 * lift}px ${9 + 8 * lift}px ${sh(0.24 * k)})`;
 /** тень букв: тонкий светлый край сверху + мягкая тень под строкой */
 export const softText = `0 1px 0 rgba(255,253,246,0.85), 0 2px 3px ${sh(0.16)}, 0 8px 20px ${sh(0.24)}`;
+
+/** «Капля» (отзыв Нарека на pogos-03): появление 0 → 1,12 → 0,96 → 1 за 0,25 с с лёгким вздрагиванием —
+ *  пока растёт, капля чуть вытянута; на перелёте сплющена (шире и ниже), на отскоке снова вытянута.
+ *  Уход так же быстрый: 0,18 с — короткий вдох (1 → 1,07), потом схлопывается в точку.
+ *  t — секунды от начала появления; out — секунды от начала ухода (< 0 — ухода ещё нет). */
+export const DROP_IN = 0.25;
+export const DROP_OUT = 0.18;
+const dropScale = (t: number) => {
+  if (t <= 0) return 0;
+  if (t < 0.11) return 1.12 * OUT(t / 0.11);
+  if (t < 0.18) return lerp(1.12, 0.96, INOUT((t - 0.11) / 0.07));
+  if (t < DROP_IN) return lerp(0.96, 1, INOUT((t - 0.18) / (DROP_IN - 0.18)));
+  return 1;
+};
+export const drop = (t: number, out = -1, squash = 0.3) => {
+  let s = dropScale(t);
+  let o = clamp01(t / 0.05);
+  let y = t < 0.11 ? lerp(-18, 0, OUT(clamp01(t / 0.11))) : 0;   // чуть «падает» на место
+  if (out >= 0) {
+    const u = clamp01(out / DROP_OUT);
+    s *= u < 0.28 ? lerp(1, 1.07, OUT(u / 0.28)) : lerp(1.07, 0, IN((u - 0.28) / 0.72));
+    o *= 1 - clamp01((u - 0.55) / 0.45);
+    y -= 10 * u;
+  }
+  const k = out >= 0 ? 0 : squash * (s - 1);   // у ухода без сплющивания
+  return { s, sx: s * (1 + k), sy: s * (1 - k), o, y, alive: t >= 0 && (out < 0 || out <= DROP_OUT + 0.01) };
+};

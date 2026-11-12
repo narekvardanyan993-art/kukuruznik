@@ -1,0 +1,912 @@
+{
+ "name": "tour-01",
+ "engine": "remotion",
+ "build": "node content/remotion/build.mjs content/scenes/tour-01.json",
+ "title": "Экскурсия по музею chka.am — живая запись экрана iPhone в рамке телефона: набор адреса → главная → Погос-Петрос → кадры, зумы → меню → закат → chka.am",
+ "format": "tour",
+ "hook": "телефон вылетает, адрес набирается пальцем (тип F — процесс)",
+ "fps": 30,
+ "size": [
+  1080,
+  1920
+ ],
+ "safe": [
+  250,
+  600,
+  160
+ ],
+ "seed": 5,
+ "dur": 20.074,
+ "source": "content/raw/site-tour-01.mp4 — запись iPhone 1180×2556, 60 к/с; куски без окна разрешения (0:24), плашки батареи (0:41–0:46), снега (0:50+) и пункта управления; статус-бар срезан",
+ "bg": {
+  "paper": "repo:engine/paper/old-paper-1.webp",
+  "grid": 60
+ },
+ "fonts": [
+  {
+   "file": "repo:engine/fonts/NotoSerif-latin.woff2",
+   "range": "U+0000-00FF, U+0131, U+0152-0153, U+2000-206F, U+2190-21FF"
+  },
+  {
+   "file": "repo:engine/fonts/NotoSerifArmenian-armenian.woff2",
+   "range": "U+0530-058F, U+FB13-FB17"
+  }
+ ],
+ "check_zoom": 12.399,
+ "cards": [
+  {
+   "id": "phone",
+   "frame": "phone",
+   "at": -0.1333,
+   "dur": 20.208,
+   "src": {
+    "video": "repo:content/raw/site-tour-01.mp4",
+    "crop": [
+     0,
+     150,
+     1180,
+     2406
+    ],
+    "segs": [
+     {
+      "from": 0.85,
+      "to": 3.45,
+      "rate": 1.5
+     },
+     {
+      "from": 5.75,
+      "to": 6.62,
+      "rate": 1.0
+     },
+     {
+      "from": 6.62,
+      "to": 7.5,
+      "rate": 1.0
+     },
+     {
+      "from": 11.7,
+      "to": 12.353,
+      "rate": 2.0
+     },
+     {
+      "from": 12.487,
+      "to": 12.803,
+      "rate": 2.0
+     },
+     {
+      "from": 13.003,
+      "to": 13.853,
+      "rate": 2.0
+     },
+     {
+      "from": 13.937,
+      "to": 14.987,
+      "rate": 2.0
+     },
+     {
+      "from": 15.037,
+      "to": 15.953,
+      "rate": 2.0
+     },
+     {
+      "from": 16.003,
+      "to": 16.387,
+      "rate": 2.0
+     },
+     {
+      "from": 16.4,
+      "to": 17.62,
+      "rate": 1.0
+     },
+     {
+      "from": 17.69,
+      "to": 18.32,
+      "rate": 1.5
+     },
+     {
+      "from": 20.0,
+      "to": 22.45,
+      "rate": 2.0
+     },
+     {
+      "from": 22.45,
+      "to": 24.55,
+      "rate": 1.5
+     },
+     {
+      "from": 25.5,
+      "to": 26.9,
+      "rate": 1.5
+     },
+     {
+      "from": 27.6,
+      "to": 29.6,
+      "rate": 1.5
+     },
+     {
+      "from": 30.35,
+      "to": 32.0,
+      "rate": 1.5
+     },
+     {
+      "from": 32.44,
+      "to": 34.3,
+      "rate": 1.5
+     },
+     {
+      "from": 34.93,
+      "to": 39.0,
+      "rate": 2.0
+     },
+     {
+      "from": 39.0,
+      "to": 41.15,
+      "rate": 1.5
+     },
+     {
+      "from": 47.2,
+      "to": 49.5,
+      "rate": 1.0
+     }
+    ]
+   },
+   "x": 470,
+   "y": 965,
+   "w": 718,
+   "h": 1430,
+   "mat": 16,
+   "radius": 72,
+   "rot": -1.2,
+   "enter": "up",
+   "enterDur": 0.5,
+   "exit": "none",
+   "sfx_in": "none",
+   "float": [
+    10,
+    14
+   ],
+   "cam": {
+    "keys": [
+     [
+      0,
+      0.5,
+      0.62,
+      1.0
+     ],
+     [
+      1.9733,
+      0.5,
+      0.66,
+      1.07
+     ],
+     [
+      2.3833,
+      0.5,
+      0.5,
+      1.0
+     ],
+     [
+      3.4833,
+      0.5,
+      0.48,
+      1.04,
+      "in"
+     ],
+     [
+      5.5673,
+      0.5,
+      0.5,
+      1.0,
+      "lin"
+     ],
+     [
+      5.9683,
+      0.5,
+      0.384,
+      1.16,
+      "out"
+     ],
+     [
+      6.7667,
+      0.5,
+      0.416,
+      1.2,
+      "in"
+     ],
+     [
+      6.8,
+      0.5,
+      0.5,
+      1.0
+     ],
+     [
+      8.4333,
+      0.5,
+      0.5,
+      1.05,
+      "lin"
+     ],
+     [
+      9.8,
+      0.5,
+      0.47,
+      1.12,
+      "in"
+     ],
+     [
+      9.8333,
+      0.5,
+      0.5,
+      1.0
+     ],
+     [
+      10.8323,
+      0.5,
+      0.48,
+      1.06,
+      "in"
+     ],
+     [
+      10.9333,
+      0.5,
+      0.5,
+      1.0
+     ],
+     [
+      12.1323,
+      0.62,
+      0.45,
+      1.08,
+      "lin"
+     ],
+     [
+      12.5993,
+      0.38,
+      0.575,
+      1.5,
+      "out"
+     ],
+     [
+      13.1667,
+      0.38,
+      0.586,
+      1.56,
+      "in"
+     ],
+     [
+      13.2,
+      0.5,
+      0.5,
+      1.0
+     ],
+     [
+      13.7063,
+      0.48,
+      0.554,
+      1.45,
+      "out"
+     ],
+     [
+      14.4,
+      0.5,
+      0.554,
+      1.52,
+      "in"
+     ],
+     [
+      14.4333,
+      0.5,
+      0.5,
+      1.0
+     ],
+     [
+      17.2083,
+      0.5,
+      0.607,
+      1.22
+     ],
+     [
+      17.8667,
+      0.5,
+      0.596,
+      1.27,
+      "in"
+     ],
+     [
+      17.9,
+      0.5,
+      0.5,
+      1.0
+     ],
+     [
+      20.4073,
+      0.5,
+      0.5,
+      1.06,
+      "lin"
+     ]
+    ]
+   },
+   "keys": [
+    {
+     "t": 18.3533,
+     "x": 0,
+     "y": 0,
+     "s": 1,
+     "rx": 0,
+     "ry": 0,
+     "r": 0
+    },
+    {
+     "t": 19.4533,
+     "x": -30,
+     "y": 40,
+     "s": 0.9,
+     "rx": 7,
+     "ry": -17,
+     "r": -2
+    }
+   ]
+  }
+ ],
+ "items": [
+  {
+   "kind": "sfx",
+   "at": 0.03,
+   "type": "whoosh",
+   "what": "телефон вылетает"
+  },
+  {
+   "kind": "tap",
+   "on": "phone",
+   "pin": true,
+   "at": 0.0,
+   "x": 0.402,
+   "y": 0.8162,
+   "size": 96,
+   "sfx": "key_1",
+   "what": "c"
+  },
+  {
+   "kind": "tap",
+   "on": "phone",
+   "pin": true,
+   "at": 0.38,
+   "x": 0.598,
+   "y": 0.7472,
+   "size": 96,
+   "sfx": "key_1",
+   "what": "h"
+  },
+  {
+   "kind": "tap",
+   "on": "phone",
+   "pin": true,
+   "at": 0.5,
+   "x": 0.794,
+   "y": 0.7472,
+   "size": 96,
+   "sfx": "key_1",
+   "what": "k"
+  },
+  {
+   "kind": "tap",
+   "on": "phone",
+   "pin": true,
+   "at": 0.647,
+   "x": 0.105,
+   "y": 0.7472,
+   "size": 96,
+   "sfx": "key_1",
+   "what": "a"
+  },
+  {
+   "kind": "tap",
+   "on": "phone",
+   "pin": true,
+   "at": 1.22,
+   "x": 0.769,
+   "y": 0.8831,
+   "size": 96,
+   "sfx": "key_1",
+   "what": "."
+  },
+  {
+   "kind": "tap",
+   "on": "phone",
+   "pin": true,
+   "at": 1.333,
+   "x": 0.105,
+   "y": 0.7472,
+   "size": 96,
+   "sfx": "key_1",
+   "what": "a"
+  },
+  {
+   "kind": "tap",
+   "on": "phone",
+   "pin": true,
+   "at": 1.447,
+   "x": 0.794,
+   "y": 0.8162,
+   "size": 96,
+   "sfx": "key_1",
+   "what": "m"
+  },
+  {
+   "kind": "sfx",
+   "at": 0.793,
+   "type": "tick",
+   "what": "подсказка адреса"
+  },
+  {
+   "kind": "tap",
+   "on": "phone",
+   "pin": true,
+   "at": 1.83,
+   "x": 0.902,
+   "y": 0.8831,
+   "size": 110,
+   "sfx": "key_enter"
+  },
+  {
+   "kind": "sfx",
+   "at": 2.1,
+   "type": "whoosh",
+   "what": "страница открылась"
+  },
+  {
+   "kind": "chip",
+   "text": "Yerevan",
+   "at": 2.51,
+   "dur": 1.423,
+   "x": 700,
+   "y": 318,
+   "size": 60,
+   "rot": -4
+  },
+  {
+   "kind": "dot",
+   "on": "phone",
+   "pin": true,
+   "at": 2.85,
+   "x": 0.355,
+   "y": 0.2564,
+   "dur": 0.5,
+   "size": 40,
+   "sfx": "click"
+  },
+  {
+   "kind": "sfx",
+   "at": 3.375,
+   "type": "scroll",
+   "what": "прокрутка"
+  },
+  {
+   "kind": "sfx",
+   "at": 3.693,
+   "type": "scroll",
+   "what": "прокрутка"
+  },
+  {
+   "kind": "sfx",
+   "at": 4.008,
+   "type": "scroll",
+   "what": "прокрутка"
+  },
+  {
+   "kind": "sfx",
+   "at": 4.391,
+   "type": "scroll",
+   "what": "прокрутка"
+  },
+  {
+   "kind": "sfx",
+   "at": 4.816,
+   "type": "scroll",
+   "what": "прокрутка"
+  },
+  {
+   "kind": "sfx",
+   "at": 5.216,
+   "type": "scroll",
+   "what": "прокрутка"
+  },
+  {
+   "kind": "tag",
+   "on": "phone",
+   "pin": true,
+   "at": 5.655,
+   "x": 0.73,
+   "y": 0.2086,
+   "text": "1930",
+   "variant": "big",
+   "size": 110,
+   "rot": -5,
+   "dur": 0.8
+  },
+  {
+   "kind": "dot",
+   "on": "phone",
+   "pin": true,
+   "at": 5.985,
+   "x": 0.3,
+   "y": 0.3201,
+   "dur": 0.55,
+   "size": 40
+  },
+  {
+   "kind": "tap",
+   "on": "phone",
+   "pin": true,
+   "at": 6.535,
+   "x": 0.5,
+   "y": 0.6792,
+   "size": 130
+  },
+  {
+   "kind": "sfx",
+   "at": 6.661,
+   "type": "whoosh",
+   "what": "переход к зданию"
+  },
+  {
+   "kind": "sfx",
+   "at": 7.125,
+   "type": "tick",
+   "what": "буква"
+  },
+  {
+   "kind": "sfx",
+   "at": 7.55,
+   "type": "tick",
+   "what": "буква"
+  },
+  {
+   "kind": "sfx",
+   "at": 7.975,
+   "type": "tick",
+   "what": "буква"
+  },
+  {
+   "kind": "sfx",
+   "at": 8.333,
+   "type": "whoosh",
+   "what": "здание проявилось"
+  },
+  {
+   "kind": "dot",
+   "on": "phone",
+   "pin": true,
+   "at": 8.566,
+   "x": 0.615,
+   "y": 0.2978,
+   "dur": 1.067,
+   "size": 42,
+   "sfx": "pop"
+  },
+  {
+   "kind": "dot",
+   "on": "phone",
+   "pin": true,
+   "at": 8.766,
+   "x": 0.28,
+   "y": 0.4986,
+   "dur": 0.867,
+   "size": 42,
+   "sfx": "click",
+   "sfx_out": "none"
+  },
+  {
+   "kind": "dot",
+   "on": "phone",
+   "pin": true,
+   "at": 8.966,
+   "x": 0.647,
+   "y": 0.5899,
+   "dur": 0.667,
+   "size": 42,
+   "sfx": "pop",
+   "sfx_out": "none"
+  },
+  {
+   "kind": "sfx",
+   "at": 9.7,
+   "type": "whoosh",
+   "what": "листание кадра"
+  },
+  {
+   "kind": "sfx",
+   "at": 10.733,
+   "type": "whoosh",
+   "what": "листание кадра"
+  },
+  {
+   "kind": "sfx",
+   "at": 12.066,
+   "type": "whoosh",
+   "what": "листание кадра"
+  },
+  {
+   "kind": "sfx",
+   "at": 13.106,
+   "type": "whoosh",
+   "what": "листание кадра"
+  },
+  {
+   "kind": "sfx",
+   "at": 14.341,
+   "type": "whoosh",
+   "what": "листание кадра"
+  },
+  {
+   "kind": "ruler",
+   "on": "phone",
+   "pin": true,
+   "at": 9.833,
+   "x": 0.14,
+   "y": 0.437,
+   "x2": 0.86,
+   "y2": 0.3307,
+   "n": 6,
+   "step": 0.08,
+   "dur": 0.767
+  },
+  {
+   "kind": "dot",
+   "on": "phone",
+   "pin": true,
+   "at": 10.899,
+   "x": 0.86,
+   "y": 0.7132,
+   "dur": 1.0,
+   "size": 40,
+   "sfx_out": "none"
+  },
+  {
+   "kind": "ruler",
+   "on": "phone",
+   "pin": true,
+   "at": 10.999,
+   "x": 0.86,
+   "y": 0.6813,
+   "x2": 0.86,
+   "y2": 0.1501,
+   "n": 7,
+   "step": 0.07,
+   "dur": 0.9
+  },
+  {
+   "kind": "dot",
+   "on": "phone",
+   "pin": true,
+   "at": 12.3,
+   "x": 0.6,
+   "y": 0.4051,
+   "dur": 0.699,
+   "size": 40,
+   "sfx_out": "none"
+  },
+  {
+   "kind": "ruler",
+   "on": "phone",
+   "pin": true,
+   "at": 12.399,
+   "x": 0.6,
+   "y": 0.437,
+   "x2": 0.6,
+   "y2": 0.7769,
+   "n": 5,
+   "step": 0.08,
+   "dur": 0.6
+  },
+  {
+   "kind": "dot",
+   "on": "phone",
+   "pin": true,
+   "at": 13.306,
+   "x": 0.36,
+   "y": 0.4901,
+   "dur": 0.934,
+   "size": 40,
+   "sfx_out": "none"
+  },
+  {
+   "kind": "ruler",
+   "on": "phone",
+   "pin": true,
+   "at": 13.406,
+   "x": 0.4,
+   "y": 0.5326,
+   "x2": 0.74,
+   "y2": 0.6813,
+   "n": 5,
+   "step": 0.08,
+   "dur": 0.834
+  },
+  {
+   "kind": "dot",
+   "on": "phone",
+   "pin": true,
+   "at": 13.773,
+   "x": 0.77,
+   "y": 0.7025,
+   "dur": 0.467,
+   "size": 40,
+   "sfx": "click",
+   "sfx_out": "none"
+  },
+  {
+   "kind": "dot",
+   "on": "phone",
+   "pin": true,
+   "at": 14.791,
+   "x": 0.24,
+   "y": 0.7025,
+   "dur": 1.25,
+   "size": 40,
+   "sfx_out": "none"
+  },
+  {
+   "kind": "ruler",
+   "on": "phone",
+   "pin": true,
+   "at": 14.941,
+   "x": 0.3,
+   "y": 0.6919,
+   "x2": 0.7,
+   "y2": 0.6707,
+   "n": 4,
+   "step": 0.09,
+   "dur": 1.1
+  },
+  {
+   "kind": "dot",
+   "on": "phone",
+   "pin": true,
+   "at": 15.341,
+   "x": 0.76,
+   "y": 0.6707,
+   "dur": 0.7,
+   "size": 40,
+   "sfx": "click",
+   "sfx_out": "none"
+  },
+  {
+   "kind": "dot",
+   "on": "phone",
+   "pin": true,
+   "at": 15.916,
+   "x": 0.126,
+   "y": 0.83,
+   "dur": 0.5,
+   "size": 40,
+   "sfx_out": "none"
+  },
+  {
+   "kind": "tap",
+   "on": "phone",
+   "pin": true,
+   "at": 16.316,
+   "x": 0.126,
+   "y": 0.83,
+   "size": 120
+  },
+  {
+   "kind": "sfx",
+   "at": 16.408,
+   "type": "whoosh",
+   "what": "меню выезжает"
+  },
+  {
+   "kind": "sfx",
+   "at": 16.841,
+   "type": "tick",
+   "what": "меню встало"
+  },
+  {
+   "kind": "icon",
+   "name": "sun",
+   "at": 17.141,
+   "dur": 0.55,
+   "x": 850,
+   "y": 700,
+   "size": 128,
+   "rot": -6
+  },
+  {
+   "kind": "tap",
+   "on": "phone",
+   "pin": true,
+   "at": 17.608,
+   "x": 0.497,
+   "y": 0.5814,
+   "size": 120
+  },
+  {
+   "kind": "sfx",
+   "at": 17.774,
+   "type": "whoosh",
+   "what": "закат"
+  },
+  {
+   "kind": "icon",
+   "name": "sunset",
+   "at": 17.874,
+   "dur": 1.75,
+   "x": 850,
+   "y": 700,
+   "size": 128,
+   "rot": 5
+  },
+  {
+   "kind": "sfx",
+   "at": 18.27,
+   "type": "whoosh",
+   "what": "телефон наклоняется"
+  },
+  {
+   "kind": "tag",
+   "text": "chka.am",
+   "variant": "big",
+   "at": 18.57,
+   "dur": 0,
+   "x": 470,
+   "y": 1150,
+   "size": 150,
+   "rot": -2
+  },
+  {
+   "kind": "chip",
+   "text": "Yerevan",
+   "at": 19.07,
+   "dur": 0,
+   "x": 470,
+   "y": 1290,
+   "size": 58,
+   "rot": 3
+  },
+  {
+   "kind": "dot",
+   "on": "phone",
+   "pin": true,
+   "at": 19.47,
+   "x": 0.22,
+   "y": 0.6707,
+   "dur": 0,
+   "size": 40,
+   "sfx": "pop"
+  },
+  {
+   "kind": "dot",
+   "on": "phone",
+   "pin": true,
+   "at": 19.63,
+   "x": 0.6,
+   "y": 0.3838,
+   "dur": 0,
+   "size": 40,
+   "sfx": "click"
+  },
+  {
+   "kind": "dot",
+   "on": "phone",
+   "pin": true,
+   "at": 19.79,
+   "x": 0.82,
+   "y": 0.5963,
+   "dur": 0,
+   "size": 40,
+   "sfx": "pop"
+  },
+  {
+   "kind": "tap",
+   "on": "phone",
+   "pin": true,
+   "at": 20.17,
+   "x": 0.22,
+   "y": 0.6707,
+   "size": 120
+  }
+ ]
+}

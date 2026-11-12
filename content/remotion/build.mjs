@@ -84,20 +84,37 @@ const warn = (m) => { warns.push(m); console.log('ВНИМАНИЕ:', m); };
 // Ролик (Veo 24 к/с) → кадры 30 к/с «кадр в кадр»: обрезать нужный кусок, растянуть по времени (rate),
 // дорисовать промежуточные кадры по движению (minterpolate). Без этого 24→30 даёт повтор каждого 4-го кадра,
 // а замедление 0,5× — каждый кадр дважды («как 15–20 к/с»). Размер — родной, без увеличения. Кэш — public/_vid/.
-const videoToSeq = (abs, start, len, rate, id) => {
-  const key = crypto.createHash('sha1').update(`${abs}|${fs.statSync(abs).size}|${start}|${len}|${rate}|${fps}|v2`).digest('hex').slice(0, 10);
+// Куски (segs) — несколько отрезков одного ролика подряд в одной карточке (живая запись экрана: набор → прокрутка → …),
+// у каждого своя скорость; склейки внутри карточки — мгновенные. crop [x, y, w, h] — срезать статус-бар и т. п.
+// Если кадров у источника хватает (запись iPhone 60 к/с при скорости ≤ 2), кадры ОТБИРАЮТСЯ (fps), а не дорисовываются:
+// дорисовка (minterpolate) на тексте интерфейса даёт «плывущие» буквы. Не хватает (Veo 24 к/с, замедление) — дорисовка.
+const videoToSeq = (abs, segs, id, crop) => {
+  const key = crypto.createHash('sha1').update(`${abs}|${fs.statSync(abs).size}|${JSON.stringify(segs)}|${crop}|${fps}|v3`).digest('hex').slice(0, 10);
   const rel = `_vid/${id}-${key}`;
   const dir = path.join(PUB, rel);
-  const need = Math.round(len * fps);
+  const total = segs.reduce((a, g) => a + g.len, 0);
+  const need = Math.round(total * fps);
   if (fs.existsSync(dir) && fs.readdirSync(dir).filter((f) => f.endsWith('.jpg')).length >= need) return rel;
   fs.mkdirSync(dir, { recursive: true });
   const pr = probe(abs);
-  const vf = [`setpts=(PTS-STARTPTS)/${rate}`];
-  if (Math.abs(pr.fps / rate - fps) > 0.01) vf.push(`minterpolate=fps=${fps}:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1`);
-  else vf.push(`fps=${fps}`);
-  log(`ролик ${id}: ${pr.w}×${pr.h} ${pr.fps.toFixed(2)} к/с, кусок ${start}–${(start + len * rate).toFixed(2)} с, скорость ${rate.toFixed(2)} → кадры ${fps} к/с`);
-  run('ffmpeg', ['-y', '-v', 'error', '-ss', String(start), '-t', String(len * rate + 0.3), '-i', abs, '-vf', vf.join(','),
-    '-frames:v', String(need), '-q:v', '2', '-start_number', '0', path.join(dir, '%04d.jpg')]);
+  let t = 0, done = 0;
+  for (const g of segs) {
+    t += g.len;
+    const n = Math.round(t * fps) - done;          // кадров в куске (накопленное округление — без дрейфа)
+    const vf = crop ? [`crop=${crop[2]}:${crop[3]}:${crop[0]}:${crop[1]}`] : [];
+    vf.push(`setpts=(PTS-STARTPTS)/${g.rate}`);
+    const interp = pr.fps / g.rate < fps - 0.01;
+    // шаг отбора: 60 к/с × скорость / 30 должен быть целым (×1 → 2, ×1,5 → 3, ×2 → 4), иначе кадры идут через 1-2-1-2 — дёргается
+    const step = (pr.fps * g.rate) / fps;
+    if (!interp && Math.abs(step - Math.round(step)) > 0.05) warn(`ролик ${id}: кусок с ${g.start} с ×${g.rate} — шаг ${step.toFixed(2)} кадра источника, неровный (дёргается); взять скорость с целым шагом`);
+    vf.push(interp ? `minterpolate=fps=${fps}:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1` : `fps=${fps}`);
+    log(`ролик ${id}: кусок ${g.start.toFixed(2)}–${(g.start + g.len * g.rate).toFixed(2)} с ×${g.rate} → ${n} кадров (${interp ? 'дорисовка' : 'отбор кадров, без повторов'})`);
+    run('ffmpeg', ['-y', '-v', 'error', '-ss', String(g.start), '-t', String(g.len * g.rate + 0.25), '-i', abs, '-vf', vf.join(','),
+      '-frames:v', String(n), '-q:v', '2', '-start_number', String(done), path.join(dir, '%04d.jpg')]);
+    const got = fs.readdirSync(dir).filter((f) => f.endsWith('.jpg')).length;
+    if (got < done + n) warn(`ролик ${id}: кусок с ${g.start} с дал ${got - done} кадров из ${n}`);
+    done += n;
+  }
   return rel;
 };
 
@@ -111,13 +128,25 @@ const cards = (S.cards ?? []).map((c) => {
   if (kind === 'video') {
     // ролик → кадры (см. videoToSeq); короче карточки → замедлить, но промежуточные кадры дорисовать, а не повторять
     const pr = probe(abs);
-    let rate = src.rate;
-    if (src.start + d.dur * rate > pr.dur - 0.05) {
-      rate = Math.max(0.2, (pr.dur - 0.05 - src.start) / d.dur);
-      warn(`карточка ${d.id}: ролик короче карточки — скорость ${rate.toFixed(2)} (кадры дорисованы, рывка нет; лучше взять кусок длиннее)`);
+    const crop = c.src.crop;
+    let segs;
+    if (c.src.segs) {
+      segs = c.src.segs.map((g) => ({ start: g.from, rate: g.rate ?? 1, len: (g.to - g.from) / (g.rate ?? 1) }));
+      const tot = segs.reduce((a, g) => a + g.len, 0);
+      if (Math.abs(tot - d.dur) > 0.04) warn(`карточка ${d.id}: куски дают ${tot.toFixed(2)} с, карточка ${d.dur} с — разница стоит последним кадром или режется`);
+      const last = segs[segs.length - 1];
+      if (d.dur > tot) last.len += d.dur - tot;
+    } else {
+      let rate = src.rate;
+      if (src.start + d.dur * rate > pr.dur - 0.05) {
+        rate = Math.max(0.2, (pr.dur - 0.05 - src.start) / d.dur);
+        warn(`карточка ${d.id}: ролик короче карточки — скорость ${rate.toFixed(2)} (кадры дорисованы, рывка нет; лучше взять кусок длиннее)`);
+      }
+      segs = [{ start: src.start, rate, len: d.dur }];
     }
-    const rel = videoToSeq(abs, src.start, d.dur, rate, d.id);
-    src = { kind: 'seq', path: rel, start: 0, rate: 1, reverse: src.reverse, w: pr.w, h: pr.h, frames: Math.round(d.dur * fps), fps };
+    const rel = videoToSeq(abs, segs, d.id, crop);
+    const w = crop ? crop[2] : pr.w, h = crop ? crop[3] : pr.h;
+    src = { kind: 'seq', path: rel, start: 0, rate: 1, reverse: src.reverse, w, h, frames: Math.round(d.dur * fps), fps };
   } else if (kind === 'seq') {
     src.path = publish(abs);
     const files = fs.readdirSync(abs).filter((f) => /^\d{4}\.jpg$/.test(f)).sort();
@@ -134,14 +163,15 @@ const cards = (S.cards ?? []).map((c) => {
   {
     const iw = (d.w ?? 800) - 2 * (d.mat ?? 18), ih = (d.h ?? 1140) - 2 * (d.mat ?? 18);
     const fit = (d.fit ?? 'cover') === 'contain' ? Math.min(iw / src.w, ih / src.h) : Math.max(iw / src.w, ih / src.h);
-    const zmax = Math.max(d.cam?.from?.[2] ?? 1, d.cam?.to?.[2] ?? 1.06) * 1.035;
+    const zmax = Math.max(d.cam?.from?.[2] ?? 1, d.cam?.to?.[2] ?? 1.06, ...(d.cam?.keys ?? []).map((k) => +k[3])) * 1.035 * Math.max(1, ...(d.keys ?? []).map((k) => k.s ?? 1));
     const up = fit * zmax;
     if (up > 1.15) warn(`карточка ${d.id}: источник ${src.w}×${src.h} растянут ×${up.toFixed(2)} — будет мыло (карточку меньше или приближение слабее)`);
   }
   return {
     id: d.id, at: d.at, dur: d.dur, x: d.x ?? W / 2, y: d.y ?? 880, w: d.w ?? 800, h: d.h ?? 1140,
     mat: d.mat ?? 18, radius: d.radius ?? 22, src, fit: d.fit ?? 'cover',
-    cam: { from: d.cam?.from ?? [0.5, 0.5, 1], to: d.cam?.to ?? [0.5, 0.5, 1.06], ease: d.cam?.ease ?? 'inout' },
+    cam: { from: d.cam?.from ?? [0.5, 0.5, 1], to: d.cam?.to ?? [0.5, 0.5, 1.06], ease: d.cam?.ease ?? 'inout', ...(d.cam?.keys ? { keys: d.cam.keys } : {}) },
+    keys: d.keys, frame: d.frame ?? 'photo', float: d.float,
     look: d.look ?? {}, rot: d.rot ?? 0, enter: d.enter ?? 'depth', exit: d.exit ?? 'left',
     enterDur: d.enterDur ?? 0.55, exitDur: d.exitDur ?? 0.42,
     sfx_in: d.sfx_in ?? 'whoosh', sfx_out: d.sfx_out ?? 'whoosh',
@@ -162,7 +192,7 @@ for (const it of S.items ?? []) {
     flat.push({ ...m, on: m.on ?? it.on, at, dur: it.dur ? Math.max(0.3, end - at) : 0, chain: `${it.at}`, ci: k });
   });
 }
-const SIZE = { dot: 44, chip: 54, tap: 140 };
+const SIZE = { dot: 44, chip: 54, tap: 140, ruler: 34 };
 const items = flat.map((it) => {
   const d = { ...D[it.kind], ...it };
   const o = { ...d, id: d.id ?? `${d.kind}${n++}`, rot: d.rot ?? 0, size: d.size ?? SIZE[d.kind] ?? 80, dur: d.dur ?? 0 };
@@ -185,27 +215,37 @@ const props = {
 };
 
 // ---------- события звука: каждое появление и уход ----------
-const G = { whoosh: -19, pop: -17, click: -23, stamp: -11 };
-const MICRO = { pop: -24, click: -27 };   // мелочи цепочек — тише главных событий
+const G = { whoosh: -19, pop: -17, click: -23, stamp: -11, out: -21, key: -21, tick: -22, scroll: -22 };
+const MICRO = { pop: -24, click: -27, tick: -25 };   // мелочи цепочек и линеек — тише главных событий
 const ev = [];
-const add = (t, type, what, gain = G[type]) => { if (type && type !== 'none' && t >= 0 && t < dur) ev.push({ t: +t.toFixed(3), type, what, gain_db: gain }); };
+// type — тип звука (pop, out, whoosh, click, key, scroll, tick, stamp) или начало имени файла (key_enter)
+const add = (t, type, what, gain = G[type] ?? G[String(type).split('_')[0]] ?? -20) => { if (type && type !== 'none' && t >= 0 && t < dur) ev.push({ t: +t.toFixed(3), type, what, gain_db: gain }); };
+const DROP_OUT = 0.18;   // уход «капли» (ease.ts) — звук исчезновения в начале ухода
 for (const c of cards) {
   add(c.at, c.sfx_in, `карточка ${c.id}: вход`);
   if (c.exit !== 'none') add(c.at + c.dur - c.exitDur, c.sfx_out, `карточка ${c.id}: уход`, G.whoosh - 3);
 }
 for (const i of items) {
+  if (i.kind === 'sfx') { add(i.at, i.type, i.what ?? `звук ${i.type}`, i.gain ?? undefined); continue; }   // звук без картинки (прокрутка, листание в записи)
   if (i.sfx === 'none') continue;           // элемент без звука (когда рядом уже звучит другое)
-  const out = i.at + i.dur - 0.26;
-  const outOk = i.sfx_out !== 'none';      // sfx_out: "none" — уход без звука
+  const out = i.at + i.dur - DROP_OUT;
+  const outOk = i.sfx_out !== 'none';      // sfx_out: "none" — уход без звука; строка — свой тип звука ухода
+  const outT = typeof i.sfx_out === 'string' && i.sfx_out !== 'none' ? i.sfx_out : 'out';
+  const inT = (d) => (typeof i.sfx === 'string' ? i.sfx : d);   // sfx: "key" — свой тип звука входа
   if (i.kind === 'tag') {
-    add(i.at, 'pop', `бирка «${i.text}»: появление`);
+    add(i.at, inT('pop'), `бирка «${i.text}»: появление`);
     i.words.forEach((w, k) => k > 0 && add(w.at, 'click', `слово «${w.s}»`, G.click - 2));
-    if (i.dur && outOk) add(out, 'whoosh', `бирка «${i.text}»: уход`, G.whoosh - 5);
+    if (i.dur && outOk) add(out, outT, `бирка «${i.text}»: исчезновение`);
   } else if (i.kind === 'icon') {
-    add(i.at, 'pop', `значок ${i.name}: появление`);
-    if (i.dur && outOk) add(out, 'whoosh', `значок ${i.name}: уход`, G.whoosh - 5);
+    add(i.at, inT('pop'), `значок ${i.name}: появление`);
+    if (i.dur && outOk) add(out, outT, `значок ${i.name}: исчезновение`);
+  } else if (i.kind === 'ruler') {
+    const n = i.n ?? 5, step = i.step ?? 0.09;
+    for (let k = 0; k < n; k++) add(i.at + k * step, inT('tick'), `линейка: кусок ${k + 1}/${n}`, MICRO.tick);
+    if (i.dur && outOk) add(out - (n - 1) * 0.025, outT, 'линейка: исчезновение', G.out - 3);
   } else if (i.kind === 'tap') {
-    add(i.at, 'click', 'тап', G.click + 6);
+    const ty = inT('click');
+    add(i.at, ty, 'тап', ty === 'click' ? G.click + 6 : undefined);
   } else if (i.kind === 'stamp') {
     add(i.at + i.impact, 'stamp', `штамп «${i.mid}»`);
   } else if (i.kind === 'counter') {
@@ -214,28 +254,43 @@ for (const i of items) {
     if (i.dur && outOk) add(out, 'whoosh', `счётчик: уход`, G.whoosh - 5);
   } else if (i.kind === 'dot' || i.kind === 'chip') {
     // в цепочке звуки чередуются: pop, click, pop… (один файл подряд не звучит)
-    const type = i.chain !== undefined ? (i.ci % 2 ? 'click' : 'pop') : 'pop';
+    const type = inT(i.chain !== undefined ? (i.ci % 2 ? 'click' : 'pop') : 'pop');
     add(i.at, type, `${i.kind === 'dot' ? 'точка' : `фишка «${i.text}»`}: появление`, MICRO[type]);
-    if (i.dur && outOk && i.chain !== undefined && i.ci === 0) add(out + 0.1, 'whoosh', `цепочка ${i.chain}: уход`, G.whoosh - 9);
+    if (i.dur && outOk && (i.chain === undefined || i.ci === 0)) add(out + (i.chain !== undefined ? 0.05 : 0), outT, `${i.chain !== undefined ? `цепочка ${i.chain}` : i.kind}: исчезновение`, G.out - 3);
   }
 }
 ev.sort((a, b) => a.t - b.t);
 
 // файлы по типу: content/sfx/<тип>*.wav|mp3; один и тот же файл подряд не повторять
-const pool = {};
-if (fs.existsSync(SFX)) for (const f of fs.readdirSync(SFX).sort()) {
-  const m = f.match(/^([a-z]+).*\.(wav|mp3)$/i);
-  if (m) (pool[m[1].toLowerCase()] ??= []).push(path.join(SFX, f));
-}
+// тип — начало имени файла: pop → pop_*.mp3; key_enter → только key_enter.mp3
+const files = fs.existsSync(SFX) ? fs.readdirSync(SFX).filter((f) => /\.(wav|mp3)$/i.test(f)).sort() : [];
+const poolOf = (type) => files.filter((f) => f.toLowerCase().startsWith(String(type).toLowerCase())).map((f) => path.join(SFX, f));
 let seed = S.seed ?? 7;
 const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
 const last = {};
 for (const e of ev) {
-  const list = pool[e.type];
+  const list = poolOf(e.type);
   if (!list?.length) { e.file = null; continue; }
   let cand = list.length > 1 ? list.filter((f) => f !== last[e.type]) : list;
   e.file = path.relative(REPO, cand[Math.floor(rnd() * cand.length)]);
+  // лёгкий разброс высоты ±4 %: у типа с одним файлом (out, key_enter) подряд звучит не «одно и то же»
+  e.pitch = +(0.96 + 0.08 * rnd()).toFixed(3);
   last[e.type] = path.join(REPO, e.file);
+}
+// темп звука (отзыв Нарека: «темп держать звуками всё время»): событие хотя бы раз в 0,5 с, не больше двух разом
+const density = (() => {
+  const ts = ev.filter((e) => e.file || !files.length).map((e) => e.t).sort((a, b) => a - b);
+  let maxGap = ts.length ? ts[0] : dur, gapAt = 0, maxSim = 0, simAt = 0;
+  for (let k = 1; k < ts.length; k++) if (ts[k] - ts[k - 1] > maxGap) { maxGap = ts[k] - ts[k - 1]; gapAt = ts[k - 1]; }
+  if (ts.length && dur - ts[ts.length - 1] > maxGap) { maxGap = dur - ts[ts.length - 1]; gapAt = ts[ts.length - 1]; }
+  for (let k = 0; k < ts.length; k++) { const n = ts.filter((x) => x >= ts[k] && x < ts[k] + 0.04).length; if (n > maxSim) { maxSim = n; simAt = ts[k]; } }
+  const gaps = [];
+  for (let k = 1; k < ts.length; k++) if (ts[k] - ts[k - 1] > 0.5) gaps.push(`${ts[k - 1].toFixed(2)}–${ts[k].toFixed(2)}`);
+  return { per_sec: +(ts.length / dur).toFixed(2), max_gap: +maxGap.toFixed(2), max_gap_at: gapAt, max_together: maxSim, together_at: simAt, gaps_over_05: gaps };
+})();
+if (S.tempo !== false) {
+  if (density.gaps_over_05.length) warn(`звук: тишина дольше 0,5 с — ${density.gaps_over_05.join(', ')}`);
+  if (density.max_together > 2) warn(`звук: ${density.max_together} звука разом на ${density.together_at} с (не больше двух)`);
 }
 
 fs.mkdirSync(OUT, { recursive: true });
@@ -244,8 +299,8 @@ const name = S.name;
 const propsFile = path.join(HERE, '.props', `${name}.json`);
 fs.writeFileSync(propsFile, JSON.stringify(props));
 const evFile = path.join(OUT, `${name}-events.json`);
-fs.writeFileSync(evFile, JSON.stringify({ name, dur, fps, sfx_dir: 'content/sfx', counts: Object.fromEntries(Object.keys(G).map((k) => [k, ev.filter((e) => e.type === k).length])), events: ev }, null, 1));
-log(`сценарий: ${cards.length} карточек, ${items.length} элементов, ${ev.length} звуковых событий, ${dur} с`);
+fs.writeFileSync(evFile, JSON.stringify({ name, dur, fps, sfx_dir: 'content/sfx', density, counts: Object.fromEntries(Object.keys(G).map((k) => [k, ev.filter((e) => String(e.type).startsWith(k)).length])), events: ev }, null, 1));
+log(`сценарий: ${cards.length} карточек, ${items.length} элементов, ${ev.length} звуковых событий, ${dur} с · звук: ${density.per_sec}/с, самая длинная тишина ${density.max_gap} с, разом до ${density.max_together}`);
 
 // ---------- Remotion ----------
 const remotion = path.join(HERE, 'node_modules/.bin/remotion');
@@ -281,7 +336,8 @@ if (withFile.length) {
     args.push('-i', path.join(REPO, e.file));
     const ms = Math.round(e.t * 1000);
     // тишину в начале файла срезать (удар — точно в событие), хвост не длиннее 1,2 с
-    fl.push(`[${k + 1}:a]aresample=48000,aformat=channel_layouts=stereo,silenceremove=start_periods=1:start_threshold=-45dB,atrim=0:1.2,afade=t=out:st=0.9:d=0.3,volume=${e.gain_db}dB,adelay=${ms}|${ms}[a${k}]`);
+    const pt = e.pitch && Math.abs(e.pitch - 1) > 1e-3 ? `asetrate=${Math.round(48000 * e.pitch)},aresample=48000,` : '';
+    fl.push(`[${k + 1}:a]aresample=48000,${pt}aformat=channel_layouts=stereo,silenceremove=start_periods=1:start_threshold=-45dB,atrim=0:1.2,afade=t=out:st=0.9:d=0.3,volume=${e.gain_db}dB,adelay=${ms}|${ms}[a${k}]`);
   });
   fl.push(`[0:a]${withFile.map((_, k) => `[a${k}]`).join('')}amix=inputs=${withFile.length + 1}:normalize=0:duration=first,alimiter=limit=0.7[out]`);
   run('ffmpeg', [...args, '-filter_complex', fl.join(';'), '-map', '[out]', '-c:a', 'pcm_s16le', wav]);
@@ -327,7 +383,7 @@ log(`готово: ${path.relative(REPO, mp4)} · ${path.relative(REPO, sheet)} 
   const strip = path.join(OUT, `${name}-zoom10.jpg`);
   run('ffmpeg', ['-y', '-v', 'error', '-ss', String(zt), '-i', mp4, '-vf', `crop=640:640:220:560,tile=5x2:padding=4:color=white`, '-frames:v', '1', '-q:v', '2', strip]);
   const rep = rows.reduce((a, r) => a + r.repeats, 0);
-  fs.writeFileSync(path.join(OUT, `${name}-smooth.json`), JSON.stringify({ zoom10_at: zt, repeats_total: rep, cards: rows, warnings: warns }, null, 1));
+  fs.writeFileSync(path.join(OUT, `${name}-smooth.json`), JSON.stringify({ zoom10_at: zt, repeats_total: rep, cards: rows, sound: density, warnings: warns }, null, 1));
   console.table(rows);
   log(`плавность: повторов кадров ${rep} · 10 кадров подряд с ${zt.toFixed(2)} с → ${path.relative(REPO, strip)}`);
   if (warns.length) console.log('ВНИМАНИЕ:\n- ' + warns.join('\n- '));

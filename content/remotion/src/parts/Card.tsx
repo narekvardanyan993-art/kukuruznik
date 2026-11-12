@@ -1,6 +1,7 @@
 import React from 'react';
 import { Img, OffthreadVideo, Sequence, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import { IN, INOUT, OUT, clamp01, lerp, seg, sh, soft, spr } from './ease';
+import { Item, ItemP } from './Items';
 
 export type Src = {
   kind: 'image' | 'seq' | 'video';
@@ -13,7 +14,10 @@ export type CardP = {
   id: string; at: number; dur: number;
   x: number; y: number; w: number; h: number; mat: number; radius: number;
   src: Src; fit: 'cover' | 'contain';
-  cam: { from: [number, number, number]; to: [number, number, number]; ease: 'inout' | 'out' | 'linear' };
+  cam: { from: [number, number, number]; to: [number, number, number]; ease: 'inout' | 'out' | 'linear'; keys?: (number | string)[][] };
+  keys?: PoseKey[];        // ключи позы карточки (секунды от начала карточки): сдвиг, масштаб, поворот, наклон в 3D
+  frame?: 'photo' | 'phone';
+  float?: [number, number];  // парение (px по x, y): камера не замирает, даже когда запись стоит
   look: { sepia?: number; alive?: number };
   rot: number;
   enter: 'depth' | 'up' | 'left' | 'right';
@@ -21,13 +25,37 @@ export type CardP = {
   enterDur: number; exitDur: number;
 };
 
-/** Внутренность карточки: картинка / кадры сайта / ролик + камера (точка в центре и приближение). */
-const Content: React.FC<{ c: CardP; t: number; W: number; H: number }> = ({ c, t, W, H }) => {
-  const { fps } = useVideoConfig();
-  const k = c.cam.ease === 'linear' ? clamp01(t / c.dur) : (c.cam.ease === 'out' ? OUT : INOUT)(clamp01(t / c.dur));
-  const cx = lerp(c.cam.from[0], c.cam.to[0], k);
-  const cy = lerp(c.cam.from[1], c.cam.to[1], k);
-  const z = lerp(c.cam.from[2], c.cam.to[2], k);
+export type PoseKey = { t: number; x?: number; y?: number; s?: number; r?: number; rx?: number; ry?: number; e?: string };
+// кривая отрезка «предыдущий ключ → этот»: inout (по умолчанию), in — разгон до склейки (камера не замирает перед стыком),
+// out — торможение после склейки, lin — ровно
+const EASE: Record<string, (x: number) => number> = { inout: INOUT, in: IN, out: OUT, lin: (x) => x };
+
+/** Значение по ключам [t, ...v]: между ключами — плавно (inout), до первого и после последнего — держится. */
+export const keyed = <K extends { t: number; e?: string }>(keys: K[], t: number, get: (k: K) => number) => {
+  if (!keys.length) return 0;
+  if (t <= keys[0].t) return get(keys[0]);
+  for (let i = 1; i < keys.length; i++) {
+    if (t <= keys[i].t) {
+      const a = keys[i - 1], b = keys[i];
+      return lerp(get(a), get(b), (EASE[b.e ?? 'inout'] ?? INOUT)(clamp01((t - a.t) / Math.max(1e-6, b.t - a.t))));
+    }
+  }
+  return get(keys[keys.length - 1]);
+};
+
+/** Камера карточки в момент t → где лежит картинка источника внутри окна W×H (left, top, ширина, высота, приближение).
+ *  Её же берут «приколотые» элементы (pin): точка источника (fx, fy) → окно: left + fx·dw, top + fy·dh. */
+export const camMap = (c: CardP, t: number, W: number, H: number) => {
+  let cx: number, cy: number, z: number;
+  if (c.cam.keys?.length) {
+    const K = c.cam.keys.map(([kt, a, b, zz, e]) => ({ t: +kt, a: +a, b: +b, zz: +zz, e: e as string | undefined }));
+    cx = keyed(K, t, (k) => k.a); cy = keyed(K, t, (k) => k.b); z = keyed(K, t, (k) => k.zz);
+  } else {
+    const k = c.cam.ease === 'linear' ? clamp01(t / c.dur) : (c.cam.ease === 'out' ? OUT : INOUT)(clamp01(t / c.dur));
+    cx = lerp(c.cam.from[0], c.cam.to[0], k);
+    cy = lerp(c.cam.from[1], c.cam.to[1], k);
+    z = lerp(c.cam.from[2], c.cam.to[2], k);
+  }
   const s0 = c.fit === 'contain' ? Math.min(W / c.src.w, H / c.src.h) : Math.max(W / c.src.w, H / c.src.h);
   const dw = c.src.w * s0 * z;
   const dh = c.src.h * s0 * z;
@@ -37,6 +65,13 @@ const Content: React.FC<{ c: CardP; t: number; W: number; H: number }> = ({ c, t
     left = Math.min(0, Math.max(W - dw, left));
     top = Math.min(0, Math.max(H - dh, top));
   }
+  return { left, top, dw, dh, z };
+};
+
+/** Внутренность карточки: картинка / кадры сайта / ролик + камера (точка в центре и приближение). */
+const Content: React.FC<{ c: CardP; t: number; W: number; H: number }> = ({ c, t, W, H }) => {
+  const { fps } = useVideoConfig();
+  const { left, top, dw, dh, z } = camMap(c, t, W, H);
   const sep = c.look.sepia ?? 0;
   let filter = sep ? `sepia(${sep}) contrast(1.06) brightness(0.98)` : 'none';
   if (c.look.alive) {
@@ -111,10 +146,23 @@ export const cardPose = (c: CardP, t: number, fps: number) => {
       lift += 0.5 * q;
     }
   }
-  return { x, y, s, r, o, blur, lift };
+  // парение: два синуса с разными периодами — движение не останавливается ни в один кадр
+  if (c.float) {
+    x += c.float[0] * Math.sin((2 * Math.PI * t) / 4.3 + 0.7);
+    y += c.float[1] * Math.sin((2 * Math.PI * t) / 3.1);
+    r += 0.25 * Math.sin((2 * Math.PI * t) / 5.7 + 1.3);
+  }
+  // ключи позы (финал: телефон наклоняется, отъезжает): поверх входа и ухода
+  let rx = 0, ry = 0;
+  if (c.keys?.length) {
+    x += keyed(c.keys, t, (k) => k.x ?? 0); y += keyed(c.keys, t, (k) => k.y ?? 0);
+    s *= keyed(c.keys, t, (k) => k.s ?? 1); r += keyed(c.keys, t, (k) => k.r ?? 0);
+    rx = keyed(c.keys, t, (k) => k.rx ?? 0); ry = keyed(c.keys, t, (k) => k.ry ?? 0);
+  }
+  return { x, y, s, r, o, blur, lift, rx, ry };
 };
 
-export const Card: React.FC<{ c: CardP; shake: { x: number; y: number }; children?: React.ReactNode }> = ({ c, shake, children }) => {
+export const Card: React.FC<{ c: CardP; shake: { x: number; y: number }; items?: ItemP[]; T0?: number; children?: React.ReactNode }> = ({ c, shake, items = [], children }) => {
   const f = useCurrentFrame();       // локальный кадр: карточка лежит внутри <Sequence>
   const { fps } = useVideoConfig();
   const t = f / fps;
@@ -122,37 +170,50 @@ export const Card: React.FC<{ c: CardP; shake: { x: number; y: number }; childre
   const W = c.w - 2 * c.mat;
   const H = c.h - 2 * c.mat;
   const L = P.lift;
-  const shadow = soft(L, 1.25);
+  const phone = c.frame === 'phone';
+  const shadow = soft(L + (phone ? 0.25 : 0), phone ? 1.35 : 1.25);
+  // элементы на карточке: x, y — доли карточки; pin — доли кадра источника (едут с камерой карточки)
+  const m = camMap(c, t, W, H);
+  const own = items.map((i) => {
+    const X = (v: number) => (i.pin ? c.mat + m.left + v * m.dw : v * c.w);
+    const Y = (v: number) => (i.pin ? c.mat + m.top + v * m.dh : v * c.h);
+    return { ...i, x: X(i.x), y: Y(i.y), ...(i.x2 !== undefined ? { x2: X(i.x2), y2: Y(i.y2 ?? i.y) } : {}) };
+  });
+  const T = c.at + t;
+  const tilt = P.rx || P.ry ? `perspective(2200px) rotateX(${P.rx}deg) rotateY(${P.ry}deg) ` : '';
   return (
     <div
       style={{
         position: 'absolute', left: c.x - c.w / 2, top: c.y - c.h / 2, width: c.w, height: c.h,
-        transform: `translate(${P.x + shake.x}px, ${P.y + shake.y}px) rotate(${P.r}deg) scale(${P.s})`,
+        transform: `translate(${P.x + shake.x}px, ${P.y + shake.y}px) ${tilt}rotate(${P.r}deg) scale(${P.s})`,
         opacity: P.o, filter: P.blur > 0.2 ? `blur(${P.blur}px)` : undefined,
-        borderRadius: c.radius, background: '#fffdf7', boxShadow: shadow,
+        borderRadius: c.radius, background: phone ? 'linear-gradient(160deg, #3a332d 0%, #1f1b18 45%, #2b2520 100%)' : '#fffdf7', boxShadow: shadow,
         padding: c.mat, boxSizing: 'border-box',
         // без will-change: с ним Chrome растрирует карточку один раз в размере входа и растягивает — резкость ×0,45
       }}
     >
-      {/* фотобумага: лёгкий тон и край */}
-      <div style={{ position: 'absolute', inset: 0, borderRadius: c.radius, boxShadow: `inset 0 0 0 1px ${sh(0.12)}, inset 0 -10px 24px -18px ${sh(0.35)}` }} />
-      <div style={{ position: 'relative', width: W, height: H, overflow: 'hidden', borderRadius: Math.max(4, c.radius - c.mat * 0.6), background: '#e9dcc0' }}>
+      {/* фотобумага: лёгкий тон и край; телефон — тонкий блик по краю рамки */}
+      <div style={{ position: 'absolute', inset: 0, borderRadius: c.radius, boxShadow: phone
+        ? `inset 0 0 0 1.5px rgba(255,248,235,0.16), inset 0 2px 3px rgba(255,248,235,0.12)`
+        : `inset 0 0 0 1px ${sh(0.12)}, inset 0 -10px 24px -18px ${sh(0.35)}` }} />
+      <div style={{ position: 'relative', width: W, height: H, overflow: 'hidden', borderRadius: phone ? c.radius - c.mat : Math.max(4, c.radius - c.mat * 0.6), background: '#e9dcc0' }}>
         <Content c={c} t={t} W={W} H={H} />
-        <div style={{ position: 'absolute', inset: 0, boxShadow: `inset 0 0 0 1px ${sh(0.18)}, inset 0 0 40px ${sh(0.12)}`, borderRadius: 'inherit' }} />
+        <div style={{ position: 'absolute', inset: 0, boxShadow: phone ? `inset 0 0 0 1px rgba(0,0,0,0.35)` : `inset 0 0 0 1px ${sh(0.18)}, inset 0 0 40px ${sh(0.12)}`, borderRadius: 'inherit' }} />
       </div>
-      {/* вложенные элементы (штамп, тап) ездят вместе с карточкой */}
+      {/* вложенные элементы (штамп, тап, точки, линейки) ездят вместе с карточкой */}
+      {own.map((i) => <Item key={i.id} it={i} T={T} fps={fps} />)}
       {children}
     </div>
   );
 };
 
-export const CardSeq: React.FC<{ c: CardP; shake: (frameGlobal: number) => { x: number; y: number }; children?: React.ReactNode }> = ({ c, shake, children }) => {
+export const CardSeq: React.FC<{ c: CardP; shake: (frameGlobal: number) => { x: number; y: number }; items?: ItemP[]; children?: React.ReactNode }> = ({ c, shake, items, children }) => {
   const { fps } = useVideoConfig();
   const from = Math.round(c.at * fps);
   const g = useCurrentFrame();
   return (
     <Sequence from={from} durationInFrames={Math.round(c.dur * fps)} layout="none" name={`card ${c.id}`}>
-      <Card c={c} shake={shake(g)}>{children}</Card>
+      <Card c={c} shake={shake(g)} items={items}>{children}</Card>
     </Sequence>
   );
 };

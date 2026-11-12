@@ -70,18 +70,14 @@ export const Promo: React.FC<PromoProps> = (P) => {
     return { x, y };
   };
   const sh = shakeAt(g);
-  const free = P.items.filter((i) => !i.on);
+  const free = P.items.filter((i) => !i.on && i.kind !== 'sfx');
   return (
     <AbsoluteFill style={{ overflow: 'hidden' }}>
       <Defs />
       <Paper paper={P.bg.paper} grid={P.bg.grid} />
       {P.cards.map((c) => {
-        const own = P.items.filter((i) => i.on === c.id).map((i) => ({ ...i, x: i.x * c.w, y: i.y * c.h }));
-        return (
-          <CardSeq key={c.id} c={c} shake={shakeAt}>
-            {own.map((i) => <Item key={i.id} it={i} T={T} fps={P.fps} />)}
-          </CardSeq>
-        );
+        const own = P.items.filter((i) => i.on === c.id && i.kind !== 'sfx');
+        return <CardSeq key={c.id} c={c} shake={shakeAt} items={own} />;
       })}
       <AbsoluteFill style={{ transform: `translate(${sh.x * 0.5}px, ${sh.y * 0.5}px)` }}>
         {free.map((i) => <Item key={i.id} it={i} T={T} fps={P.fps} />)}
