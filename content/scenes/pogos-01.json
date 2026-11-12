@@ -1,0 +1,71 @@
+{
+ "name": "pogos-01",
+ "title": "Ереван, которого больше нет — Погос-Петрос",
+ "fps": 30,
+ "size": [1080, 1920],
+ "safe": [250, 600, 160],
+ "font": {"file": "repo:engine/fonts/NotoSerif-latin.woff2", "weight": 600},
+ "seed": 7,
+ "capture": {
+  "page": "pogos-petros",
+  "dpr": 2,
+  "shots": [
+   {"id": "tilt_c", "frame": 2, "dur": 1.8, "fps": 30, "settle": 800, "tilt": [[0, -1, -0.4], [1, 1, 0.4]]},
+   {"id": "night_a", "frame": 0, "dur": 2.4, "fps": 30, "settle": 800, "speed": 5.0, "step": 200, "events": [{"at": 0.0, "do": "tod", "val": "night"}], "tilt": [[0, 0.3, 0], [1, -0.3, 0.2]]},
+   {"id": "snow_a", "frame": 0, "precip": "snow", "settle": 3000, "dur": 1.8, "fps": 30, "speed": 5, "step": 170, "tilt": [[0, -0.3, 0], [1, 0.3, 0]]},
+   {"id": "show_b", "frame": 1, "dur": 2.8, "fps": 30, "settle": 800, "show": [2.0, 21.0]},
+   {"id": "card_a", "frame": 0, "tod": "sunset", "settle": 4000, "card": {"lang": "hy", "seed": 26}},
+   {"id": "final_c", "frame": 2, "tod": "night", "settle": 12000, "dur": 2.6, "fps": 30, "tilt": [[0, -1, 0.3], [1, 1, -0.2]]}
+  ]
+ },
+ "scenes": [
+  {"id": "hook_photo", "dur": 1.3,
+   "src": {"image": "repo:pogos-petros/sources/commons/c_1930s.png"}, "look": {"sepia": 1}, "crop": [0.0, 0.0, 0.87, 0.93],
+   "fit": "contain", "bg": "repo:engine/paper/old-paper-1.webp", "frame": 14,
+   "cam": {"from": [0.5, 0.5, 1.0], "to": [0.5, 0.5, 1.1], "ease": "linear"},
+   "sfx": "air_low",
+   "text": [{"s": "1930", "at": 0.12, "size": 300, "y": 0.2, "sfx_in": "drop", "sfx_out": "none"}]},
+
+  {"id": "drawing_b", "dur": 1.2, "trans": {"type": "develop", "dur": 0.7},
+   "src": {"image": "repo:pogos-petros/frames/B.png"},
+   "cam": {"from": [0.56, 0.57, 1.16], "to": [0.52, 0.52, 1.0], "ease": "out"}},
+
+  {"id": "tilt", "dur": 1.4, "trans": {"type": "zoom", "dur": 0.35},
+   "src": {"seq": "cap:tilt_c"}, "cam": {"from": [0.5, 0.5, 1.0], "to": [0.5, 0.48, 1.06]},
+   "text": [{"s": "Yerevan", "at": 0.1, "dur": 1.15, "size": 170, "y": 0.12}]},
+
+  {"id": "night", "dur": 2.0, "trans": {"type": "dissolve", "dur": 0.35},
+   "src": {"seq": "cap:night_a"}, "cam": {"from": [0.5, 0.52, 1.04], "to": [0.5, 0.5, 1.12]},
+   "sfx_extra": [[0.9, "glass"]]},
+
+  {"id": "snow", "dur": 1.4, "trans": {"type": "dissolve", "dur": 0.35}, "sfx": "air_low",
+   "src": {"seq": "cap:snow_a"}, "cam": {"from": [0.5, 0.5, 1.12], "to": [0.5, 0.55, 1.02]}},
+
+  {"id": "dog", "dur": 1.3, "trans": {"type": "zoom", "dur": 0.3},
+   "src": {"video": "kitchen:zhivost-v2/veo/dog_kennel_7fa384f9.mp4", "start": 1.2}, "crop": [0.39, 0.0, 0.706, 1.0], "look": {"sharpen": 0.9},
+   "cam": {"from": [0.5, 0.5, 1.0], "to": [0.45, 0.57, 1.2]}},
+
+  {"id": "oldman", "dur": 1.3, "trans": {"type": "slide", "dur": 0.5},
+   "src": {"video": "kitchen:zhivost-v2/veo/oldman_snow_7f5c8b13.mp4", "start": 4.2}, "crop": [0.22, 0.0, 0.536, 1.0], "look": {"sharpen": 0.9},
+   "cam": {"from": [0.52, 0.45, 1.12], "to": [0.52, 0.56, 1.0]}},
+
+  {"id": "show", "dur": 2.4, "trans": {"type": "dissolve", "dur": 0.3},
+   "src": {"seq": "cap:show_b"}, "look": {"blur": 0.7}, "cam": {"from": [0.5, 0.52, 1.02], "to": [0.5, 0.5, 1.1]},
+   "text": [{"s": "1930", "at": 0.05, "dur": 0.95, "size": 220, "y": 0.1},
+            {"s": "1936", "at": 1.45, "dur": 0.95, "size": 220, "y": 0.1, "sfx_in": "pop", "sfx_out": "none"}]},
+
+  {"id": "postcard", "dur": 1.4, "trans": {"type": "flash", "dur": 0.3},
+   "src": {"image": "cap:card_a/card.jpg"}, "fit": "contain", "bg": "repo:engine/paper/old-paper-1.webp",
+   "cam": {"from": [0.5, 0.5, 1.18], "to": [0.5, 0.5, 0.86], "ease": "out"},
+   "sfx_extra": [[0.75, "drop"]]},
+
+  {"id": "stone", "dur": 1.8, "trans": {"type": "zoom", "dur": 0.3},
+   "src": {"image": "kitchen:money/spots/B1_NAREK_gemini.jpeg"},
+   "reveal": {"from": "kitchen:money/spots/B1_crop.png", "align": true, "at": 0.25, "dur": 0.95, "mode": "wipe", "span": [0.3, 0.7], "sfx": "pluck"},
+   "cam": {"from": [0.48, 0.5, 1.0], "to": [0.5, 0.49, 1.14]}},
+
+  {"id": "final", "dur": 2.2, "trans": {"type": "zoom", "dur": 0.35},
+   "src": {"seq": "cap:final_c"}, "cam": {"from": [0.5, 0.5, 1.08], "to": [0.5, 0.5, 1.0], "ease": "out"},
+   "text": [{"s": "chka.am", "at": 0.2, "size": 190, "y": 0.5, "sfx_in": "glass", "sfx_out": "none"}]}
+ ]
+}
