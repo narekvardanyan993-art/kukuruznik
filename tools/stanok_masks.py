@@ -5,6 +5,8 @@
   lights(day, night)  → <кадр>_lights.png (вдвое мельче кадра): R — мягкая маска огня, G — номер огня (момент включения); + список огней
   wx(snow)            → <кадр>_wx.webp (серая, вдвое мельче кадра): порядок появления снега по маске зимнего рисунка Gemini — сверху вниз
   atlas(flakes, rain) → wx_atlas.png: лист снежинок и капель Gemini одной текстурой (П2, weather)
+  crown(bg, building) → <кадр>_crown.png (в размер кадра): крона отдельно от подложки — «что добавляет крона к заливке под ней» со знаком (П3, wind)
+  windfield(…те же…)  → <кадр>_windfield.png (вдвое мельче кадра, два этажа): R — где качать, B — высота над корнем 0..1, нижний этаж R — фаза дерева (П3, wind)
 
 Результат одинаков при одинаковых входных файлах (без времени и случайности: порядок огней — от содержимого кадра).
 """
@@ -18,7 +20,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-VERSION = 'm6'          # меняется при правке алгоритмов: кэш производных файлов сбрасывается сам
+VERSION = 'm10'          # меняется при правке алгоритмов: кэш производных файлов сбрасывается сам
 MAX_LIGHTS = 64         # огней на кадр (docs/STANOK.md §4.1)
 MAX_POOLS = 12          # из них пятен света (фонари и их свет на стенах и земле): только «дышат», не гаснут
 
@@ -234,14 +236,142 @@ def atlas(flakes, rain):
     return _png(a), meta
 
 
+# ---------------------------------------------------------------- П3, wind: крона отдельно от подложки (docs/STANOK.md §4.3)
+# Идея: качается только сама крона, фон стоит. Станок находит крону на подложке (_bg) по рисунку — зелень и тёмный штрих внутри
+# «дыр» слоя здания (там, где вырезка кадра пуста), в пределах заданного прямоугольника кадра (box), и считает заливку под ней
+# (обычная заливка по соседям, cv2.inpaint). В файл идёт разность D = w · (подложка − заливка), w — вес вынимания (1 над кроной и на 2 пикселя шире): ноль везде, кроме кроны. Движок при
+# качании берёт D в сдвинутой точке и вычитает D на месте: крона уходит, под ней — заливка, вокруг — те же пиксели, что были.
+# Ничего не рисуется: заливка — только соседи, крона — сам рисунок.
+D_ZERO = 128            # байт «разности нет»; в шейдере D = (байт·255 − 128) / 127
+_CROWN_CACHE = {}
+
+
+def _push_pull(img, known):
+    """Заливка по соседям, гладкая: каждая неизвестная точка берёт среднее ближайших известных, чем ближе круг, тем лучше (круги 1,5…48 px).
+    Тонкий штрих заливается своим же соседним фоном; крона целиком — плавным полем от её границы (без полос и пятен, как у Telea)."""
+    import cv2
+    out = img.copy()
+    filled = known.copy()
+    kf = known.astype(np.float32)
+    num_src = img * kf[..., None]
+    est = None
+    for sigma in (1.5, 3, 6, 12, 24, 48, 96):
+        w = cv2.GaussianBlur(kf, (0, 0), sigma)
+        est = cv2.GaussianBlur(num_src, (0, 0), sigma) / np.maximum(w, 1e-6)[..., None]
+        use = (~filled) & (w > 0.2)
+        out[use] = est[use]
+        filled |= use
+    out[~filled] = est[~filled]
+    return np.clip(out, 0, 255)
+
+
+def _crown_calc(src, params):
+    import cv2
+    key = (VERSION, json.dumps(params, sort_keys=True), tuple(sorted((k, str(v)) for k, v in src.items())))
+    if key in _CROWN_CACHE:
+        return _CROWN_CACHE[key]
+    bg = np.asarray(Image.open(src['bg']).convert('RGB')).copy()
+    H, W = bg.shape[:2]
+    ab = np.asarray(Image.open(src['building']).convert('RGBA'))[..., 3].astype(np.float32) / 255
+    mx = int(np.ceil(params.get('maxPx', 9)))
+    box = np.zeros((H, W), bool)
+    bx = params.get('box') or [0, 0, 1, 1]
+    box[int(bx[1] * H):int(np.ceil(bx[3] * H)), int(bx[0] * W):int(np.ceil(bx[2] * W))] = True
+    for r in params.get('exclude') or []:       # чужое внутри прямоугольника: карниз, кладка, руина — стоит
+        box[int(r[1] * H):int(np.ceil(r[3] * H)), int(r[0] * W):int(np.ceil(r[2] * W))] = False
+    om = box
+    holes = ab < 0.02                  # крона лежит на подложке: где слой здания есть, он закрывает подложку
+    hsv = cv2.cvtColor(bg, cv2.COLOR_RGB2HSV).astype(np.int32)
+    env = np.asarray(Image.open(src['env']).convert('RGB'))
+    sky = env[..., 0] > 128                       # небо, доведённое до силуэта кроны (маска кадра): небо кроной не бывает
+    green = (hsv[..., 0] >= 21) & (hsv[..., 0] <= 95) & (hsv[..., 1] >= 70) & (hsv[..., 2] < 235)     # листва: оливковая, плотнее и темнее неба и стен
+    dark = hsv[..., 2] < 120
+    m = ((green | dark) & om & holes & ~sky).astype(np.uint8)
+    m = cv2.morphologyEx(m, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
+    n, lab, st, _ = cv2.connectedComponentsWithStats(m, connectivity=8)
+    keep = np.zeros(n, bool)
+    keep[1:] = st[1:, cv2.CC_STAT_AREA] >= 40
+    m = keep[lab].astype(np.uint8)
+    inv = (1 - m).astype(np.uint8)       # мелкие просветы внутри кроны — часть кроны
+    n, lab, st, _ = cv2.connectedComponentsWithStats(inv, connectivity=4)
+    small = np.zeros(n, bool)
+    small[1:] = st[1:, cv2.CC_STAT_AREA] < 90
+    m = (m | small[lab].astype(np.uint8)) & (om & holes).astype(np.uint8)
+    # дерево = всё, что ближе 15 px друг к другу (кроны из нескольких кусков качаются вместе, одной фазой и высотой)
+    n, lab, st, _ = cv2.connectedComponentsWithStats(cv2.dilate(m, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (31, 31))), connectivity=8)
+    trees = []
+    for i in range(1, n):
+        ys, xs = np.nonzero((lab == i) & (m > 0))
+        if len(ys) >= 120:
+            trees.append((int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1, len(ys)))
+    keepm = np.zeros((H, W), np.uint8)
+    for q in trees:
+        keepm[q[1]:q[3], q[0]:q[2]] = 1
+    m = m * keepm      # куски кроны, отставшие от деревьев, не качаем: стоят
+    # тёмный контур у края кроны (штрихи тоньше порога классификации) — тоже крона: иначе он остаётся на месте «призраком» (замер G1)
+    near = cv2.dilate(m, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (13, 13)))
+    m = (m | ((hsv[..., 2] < 150) & (near > 0) & om & holes & ~sky)).astype(np.uint8)
+    a = np.clip(cv2.GaussianBlur(m.astype(np.float32), (0, 0), 0.8) * 1.4, 0, 1) * holes
+    cov = cv2.dilate((a > 0.004).astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))) * 255          # заливка нужна под кроной и чуть шире
+    fill = _push_pull(bg.astype(np.float32), cov == 0)
+    # вес вынимания: 1 над кроной и на 5 пикселей шире, дальше мягко до 0 (там подложка и заливка почти совпадают). Не α кроны: мягкий край α оставил бы
+    # на месте кроны «призрак» (1 − α)·(кадр − заливка) — тёмные штрихи контура (замер G1)
+    w = np.clip(cv2.GaussianBlur(cv2.dilate((a > 0.004).astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))).astype(np.float32), (0, 0), 1.3), 0, 1) * holes
+    D = np.clip(w[..., None] * (bg.astype(np.float32) - fill.astype(np.float32)), -255, 255)
+    enc = np.round(D_ZERO + D / 255 * 127).astype(np.uint8)
+    # поле качания: где качать (R), высота над корнем (B), фаза дерева (нижний этаж, R)
+    hull = cv2.dilate((a > 0.004).astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (4 * mx + 13, 4 * mx + 13))).astype(np.float32)
+    hmap = np.zeros((H, W), np.float32)
+    ph = np.zeros((H, W), np.uint8)
+    yy = np.arange(H, dtype=np.float32)[:, None]
+    info = []
+    for k, (x0, y0, x1, y1, area) in enumerate(trees):
+        ytop, ybot = y0, y1
+        col = np.clip((ybot - yy) / max(1.0, ybot - ytop), 0, 1) ** 1.3
+        xs = slice(max(0, x0 - 2 * mx - 4), min(W, x1 + 2 * mx + 4))
+        reg = np.zeros((H, W), bool)
+        reg[:, xs] = True
+        cell = np.where(reg, np.broadcast_to(col, (H, W)), 0).astype(np.float32)
+        take = (cell > hmap) & (hull > 0)
+        hmap = np.where(take, cell, hmap)
+        ph = np.where(take, np.uint8(round(255 * ((0.17 + 0.2753 * k) % 1.0))), ph)
+        info.append({'bbox': [x0, y0, x1, y1], 'area': area})
+    ew, eh = (W + 1) >> 1, (H + 1) >> 1
+    top = np.zeros((eh, ew, 3), np.uint8)
+    top[..., 0] = np.round(cv2.resize(cv2.GaussianBlur(hull, (0, 0), 2.0), (ew, eh), interpolation=cv2.INTER_AREA) * 255).astype(np.uint8)
+    top[..., 2] = np.round(cv2.resize(hmap * hull, (ew, eh), interpolation=cv2.INTER_AREA) * 255).astype(np.uint8)
+    bot = np.zeros((eh, ew, 3), np.uint8)
+    bot[..., 0] = cv2.resize(ph, (ew, eh), interpolation=cv2.INTER_NEAREST)
+    meta = {'trees': len(trees), 'crownPx': int((a > 0.5).sum()), 'info': info, 'maxPx': mx,
+            'size': max([max(q['bbox'][2] - q['bbox'][0], q['bbox'][3] - q['bbox'][1]) for q in info] or [0])}
+    out = (_png(enc), _png(np.vstack([top, bot])), meta)
+    _CROWN_CACHE[key] = out
+    return out
+
+
+def crown(src, params):
+    d, _, meta = _crown_calc(src, params)
+    return d, meta
+
+
+def windfield(src, params):
+    _, f, meta = _crown_calc(src, params)
+    return f, meta
+
+
 MAKERS = {'lights': lambda src: lights(src['color'], src['night']),
           'wx': lambda src: wx(src['snow']),
-          'atlas': lambda src: atlas(src.get('flakes', []), src.get('rain', []))}
+          'atlas': lambda src: atlas(src.get('flakes', []), src.get('rain', [])),
+          'crown': lambda src, params: crown(src, params or {}),
+          'windfield': lambda src, params: windfield(src, params or {})}
 
 
-def make(kind, src, cache=None):
-    """Производный файл с кэшем по содержимому входных файлов. src: {ключ: путь}. Возвращает (bytes, meta)."""
-    h = hashlib.sha256((VERSION + '\0' + kind + '\0').encode())
+PARAM_KINDS = ('crown', 'windfield')      # производные файлы, которым нужны настройки кадра (params)
+
+
+def make(kind, src, cache=None, params=None):
+    """Производный файл с кэшем по содержимому входных файлов и настройкам. src: {ключ: путь}. Возвращает (bytes, meta)."""
+    h = hashlib.sha256((VERSION + '\0' + kind + '\0' + json.dumps(params, sort_keys=True) + '\0').encode())
     for k in sorted(src):
         v = src[k]
         for p in (v if isinstance(v, (list, tuple)) else [v]):
@@ -251,7 +381,7 @@ def make(kind, src, cache=None):
     fb, fm = cdir / (key + '.bin'), cdir / (key + '.json')
     if fb.is_file() and fm.is_file():
         return fb.read_bytes(), json.loads(fm.read_text(encoding='utf-8'))
-    data, meta = MAKERS[kind](src)
+    data, meta = MAKERS[kind](src, params) if kind in PARAM_KINDS else MAKERS[kind](src)
     try:
         cdir.mkdir(parents=True, exist_ok=True)
         fb.write_bytes(data)

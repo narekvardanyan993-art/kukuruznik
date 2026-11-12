@@ -85,6 +85,10 @@ def _value(v, s, where, kind=None):
         if not isinstance(v, list) or len(v) != 4 or any(not _is_num(x) for x in v) or not (0 <= v[0] < v[2] <= 1 and 0 <= v[1] < v[3] <= 1):
             fail('%s — нужен прямоугольник [x0, y0, x1, y1] в долях кадра (0…1), а здесь %r' % (where, v))
         return v
+    if t == 'rects':
+        if not isinstance(v, list):
+            fail('%s — нужен список прямоугольников [[x0, y0, x1, y1], …], а здесь %r' % (where, v))
+        return [_value(r, {'type': 'rect'}, '%s[%d]' % (where, i)) for i, r in enumerate(v)]
     if t == 'frameSize':
         if not isinstance(v, list) or len(v) != 2 or any(not isinstance(x, int) or isinstance(x, bool) or x < 64 for x in v):
             fail('%s — нужен размер кадра [ширина, высота] в пикселях, а здесь %r' % (where, v))
@@ -225,6 +229,8 @@ def resolve(b, frames_dir=None, schema=None):
             if e not in FX:
                 fail('%s, effects.%s — такого эффекта нет. %s' % (tag, e, _known(FX)))
         g['effects'] = {e: _object(fe.get(e, {}), FX[e].get('frame', {}), tag + ', effects.' + e, g['kind']) for e in FX}
+        if g['kind'] == 'interior' and g['effects'].get('wind'):      # интерьер: ветра нет (kind: interior ставит on: false сам, как у неба и погоды)
+            g['effects']['wind']['on'] = False
         # --- файлы кадра ---
         g['files'] = {}
         for e in FX:
@@ -251,7 +257,10 @@ def resolve(b, frames_dir=None, schema=None):
                             fail('%s — нет файла %s (из него станок считает %s для эффекта %s); папка %s' % (tag, fn, q['pattern'].replace('{name}', g['name']), e, fdir))
                 fn = q['pattern'].replace('{name}', g['name'])
                 g['files'][q['file']] = fn
-                derived.append({'frame': len(frames), 'effect': e, 'key': q['file'], 'file': fn, 'maker': q['maker'], 'from': src})
+                dq = {'frame': len(frames), 'effect': e, 'key': q['file'], 'file': fn, 'maker': q['maker'], 'from': src}
+                if q.get('params'):      # настройки для станка: «frame:<ключ>» — из кадра, «building:<ключ>» — из настроек эффекта здания
+                    dq['params'] = {pk: (g['effects'][e] if pv.startswith('frame:') else out['effects'][e]).get(pv.split(':', 1)[1]) for pk, pv in q['params'].items()}
+                derived.append(dq)
         _frame_rules(g, tag)
         _frame_budget(g, tag, S)
         frames.append(g)
@@ -267,8 +276,8 @@ def _frame_budget(g, tag, S):
     B, FX = S.get('budget'), S['effects']
     if not B:
         return
-    wx, lt, sk = g['effects'].get('weather'), g['effects'].get('lights'), g['effects'].get('sky')
-    idle = {'weather': wx is not None and not (wx['rain'] or wx['snow']), 'lights': lt is not None and not lt['on'],
+    wx, lt, sk, wd = g['effects'].get('weather'), g['effects'].get('lights'), g['effects'].get('sky'), g['effects'].get('wind')
+    idle = {'wind': wd is not None and not wd['on'], 'weather': wx is not None and not (wx['rain'] or wx['snow']), 'lights': lt is not None and not lt['on'],
             'sky': sk is not None and not (sk['shadow'] or sk['drift'])}
     cost = {e: FX[e].get('cost', 0) for e in FX if not idle.get(e)}
     total = sum(cost.values())
@@ -291,6 +300,9 @@ def _frame_rules(g, tag):
                     fail('%s, effects.tod.sun.%s = %r — не в небе: небо кончается на %.2f высоты (sky.end), а точка на %.2f' % (tag, k, sun[k], end, sun[k][1]))
         elif sun is not None:
             fail('%s, effects.tod.sun — у кадра без неба (sky.end = %.2f < %.2f) солнца нет: поставь null' % (tag, end, SKY_MIN))
+    wd = g['effects'].get('wind')
+    if wd is not None and wd['on'] and not wd.get('box'):
+        fail('%s, effects.wind.box — ветер включён, а где искать кроны не сказано: box [x0, y0, x1, y1] только вокруг деревьев (без травы, карнизов, минаретов)' % tag)
     wx = g['effects'].get('weather')
     if wx is not None and g['kind'] == 'interior' and (wx['rain'] or wx['snow'] or wx['snowMask'] or wx['rainbow']):
         fail('%s, effects.weather — интерьер: ни дождя, ни снега, ни радуги (rain, snow, snowMask — false; kind: interior ставит это сам)' % tag)

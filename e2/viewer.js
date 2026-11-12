@@ -1,7 +1,7 @@
-/* chka.am — движок e2 e2.0.4. СОБРАННЫЙ ФАЙЛ: не править. Исходники — e2/src/, сборка — tools/build_engine.py. */
+/* chka.am — движок e2 e2.0.5. СОБРАННЫЙ ФАЙЛ: не править. Исходники — e2/src/, сборка — tools/build_engine.py. */
 (function () {
 'use strict';
-var E2 = { version: 'e2.0.4', fx: [], effect: function (e) { E2.fx.push(e); return e; } };
+var E2 = { version: 'e2.0.5', fx: [], effect: function (e) { E2.fx.push(e); return e; } };
 window.E2 = E2;
 
 // ===== core/util.js =====
@@ -577,31 +577,37 @@ E2.effect({
   name: 'parallax',
   low: 'lite',          // на слабой ступени: без «дыхания» камеры
   frameSamplers: ['bg', 'depth', 'bld'],            // земля (rgb + глубина здания в a), карта окружения, слой здания
-  frameUniforms: [['vec4', 'crop'], ['vec3', 'kd']],
+  frameUniforms: [['vec4', 'crop'], ['vec3', 'kd'], ['vec4', 'atl']],   // atl: этажи текстур (ветер): масштаб по y земли и окружения и полтексела — см. funcs
   glsl: function () {
     return {
       uniforms: ['uniform vec2 uShift; uniform float uZoom;'],
+      // Земля и карта окружения у кадра с ветром — двухэтажные (второй этаж: крона / поле ветра, эффект wind). atl = (масштаб y земли, полтексела земли,
+      // масштаб y окружения, полтексела окружения): 1 и 1 — этажа нет, выборка как была (край — как CLAMP_TO_EDGE).
+      funcs: [
+        'vec4 envT(sampler2D s, vec4 a, vec2 q) { return texture2D(s, vec2(q.x, a.z * min(q.y, 1.0 - a.w))); }',
+        'vec4 bgT(sampler2D s, vec4 a, vec2 q) { return texture2D(s, vec2(q.x, a.x * min(q.y, 1.0 - a.y))); }'
+      ].join('\n'),
       uv: [
         '  uv = crop.xy + uv * crop.zw;',
         '  vec2 p = uv;',
         '  for (int i = 0; i < 3; i++) {',
-        '    float d = texture2D(depth, p).r;',
+        '    float d = envT(depth, atl, p).r;',
         '    float k = d * 2.0 - 1.0;',
         '    p = 0.5 + (uv - 0.5) / (1.0 + uZoom * d) - k * uShift;',
         '  }',
-        '  vec4 env = texture2D(depth, p);',
+        '  vec4 env = envT(depth, atl, p);',
         '  vec2 pc = clamp(p, 0.0, 1.0);',
         '  vec2 pb = 0.5 + (uv - 0.5) / (1.0 + uZoom * kd.y) - kd.x * uShift;',
         '  float bdL = kd.y;',
         '  if (kd.z > 0.5) {',
         '    for (int i = 0; i < 3; i++) {',
-        '      bdL = texture2D(bg, clamp(pb, 0.0, 1.0)).a;',
+        '      bdL = bgT(bg, atl, clamp(pb, 0.0, 1.0)).a;',
         '      pb = 0.5 + (uv - 0.5) / (1.0 + uZoom * bdL) - (bdL * 2.0 - 1.0) * uShift;',
         '    }',
         '  }'
       ].join('\n'),
       base: [
-        '  vec3 c = texture2D(bg, pc).rgb;',
+        '  vec3 c = bgT(bg, atl, pc).rgb;',
         '  float sky = env.g;',
         '  vec4 b = texture2D(bld, pb);',
         '  c = b.rgb + c * (1.0 - b.a);',
@@ -614,15 +620,17 @@ E2.effect({
   prepCfg: function (cfg) { return { DEPTH_BLUR_PX: cfg.effects.parallax.depthBlurPx, BUILDING_DEPTH_PIXEL: true }; },
   frameFiles: function (f) { return { color: f.files.color, depth: f.files.depth, bg: { color: f.files.bg }, building: { color: f.files.building }, env: f.files.env, win2: f.files.win }; },
   upload: function (G, entry, r) {
-    entry.bg = r.ground4 ? G.texRGBA(r.w, r.h, r.ground4) : G.texRGB(r.w, r.h, r.ground);
-    entry.depth = G.texRGBA(r.ew, r.eh, r.gpuDepth);
+    entry.bg = r.ground4 ? G.texRGBA(r.w, r.atlas ? r.h * 2 : r.h, r.ground4) : G.texRGB(r.w, r.h, r.ground);
+    entry.depth = G.texRGBA(r.ew, r.windRows ? r.eh * 2 : r.eh, r.gpuDepth);
+    entry.windOn = !!(r.atlas && r.windRows);   // у кадра есть крона и поле ветра (эффект wind)
+    entry.atl = new Float32Array([r.atlas ? 0.5 : 1, 0.5 / r.h, r.windRows ? 0.5 : 1, 0.5 / r.eh]);
     entry.bld = G.texRGBA(r.w, r.h, r.bldPm);
     entry.kd = [r.kB, r.dB, r.bldD ? 1 : 0];
     var c = entry.cfg.effects.parallax.crop;
     entry.crop = new Float32Array([c[0], c[1], c[2] - c[0], c[3] - c[1]]);
     entry.tiltK = entry.cfg.effects.parallax.tilt;
   },
-  bind: function (gl, U, f, s) { gl.uniform4fv(U['uCrop' + s], f.crop); gl.uniform3f(U['uKd' + s], f.kd[0], f.kd[1], f.kd[2]); },
+  bind: function (gl, U, f, s) { gl.uniform4fv(U['uCrop' + s], f.crop); gl.uniform3f(U['uKd' + s], f.kd[0], f.kd[1], f.kd[2]); gl.uniform4fv(U['uAtl' + s], f.atl); },
   step: function (S) {
     var P = S.cfg.effects.parallax, t = S.t / 1000;
     var ba = (S.still || S.tier !== 'full' || E2.off('breath')) ? 0 : P.breath.amp;
@@ -673,8 +681,8 @@ E2.effect({
       '    float ringW = 0.0;',
       '    if (sky < 0.5 && rel > 0.92) {',
       '      vec2 e1 = vec2(2.0 / ' + EW.toFixed(1) + ', 2.0 / ' + EH.toFixed(1) + '), e2 = e1 * 2.0;',
-      '      float sn = max(max(texture2D(depth, p + vec2(e1.x, 0.0)).g, texture2D(depth, p - vec2(e1.x, 0.0)).g), max(texture2D(depth, p + vec2(0.0, e1.y)).g, texture2D(depth, p - vec2(0.0, e1.y)).g));',
-      '      sn = max(sn, max(max(texture2D(depth, p + vec2(e2.x, 0.0)).g, texture2D(depth, p - vec2(e2.x, 0.0)).g), max(texture2D(depth, p + vec2(0.0, e2.y)).g, texture2D(depth, p - vec2(0.0, e2.y)).g)));',
+      '      float sn = max(max(envT(depth, atl, p + vec2(e1.x, 0.0)).g, envT(depth, atl, p - vec2(e1.x, 0.0)).g), max(envT(depth, atl, p + vec2(0.0, e1.y)).g, envT(depth, atl, p - vec2(0.0, e1.y)).g));',
+      '      sn = max(sn, max(max(envT(depth, atl, p + vec2(e2.x, 0.0)).g, envT(depth, atl, p - vec2(e2.x, 0.0)).g), max(envT(depth, atl, p + vec2(0.0, e2.y)).g, envT(depth, atl, p - vec2(0.0, e2.y)).g)));',
       '      ringW = smoothstep(0.3, 0.8, sn) * smoothstep(0.92, 1.0, rel);',
       '    }',
       '    float skyW = max(max(smoothstep(0.35, 0.85, sky), haloW), ringW);',
@@ -839,6 +847,80 @@ E2.effect({
   postAmount: function (S) { return (S.fa && S.fa.sg && (!S.fb || S.fb.sg)) ? 0 : this.state.s; },
   needsPost: function (S) { return this.postAmount(S) > 0.001; },
   postUniforms: function (gl, U, S) { gl.uniform1f(U.uSunsetPost, this.postAmount(S)); }
+});
+
+// ===== fx/wind.js =====
+// fx/wind.js — ветер: качаются кроны деревьев, фон за ними стоит (docs/STANOK.md §4.3, П3).
+// Как это устроено. Станок при сборке вынимает крону из подложки (tools/stanok_masks.py: маска кроны, подложка под ней достроена гладко) и
+// кладёт две карты: «крона» — разность D = α·(кадр − подложка) со знаком (128 = нет разности), и «поле ветра» — оболочка кроны, высота
+// внутри кроны (верхушка качается больше низа, как консоль) и фаза дерева. Карты лежат вторым этажом уже существующих текстур земли и
+// окружения (core/prep.js; лишних сэмплеров нет — на iPhone их ровно 16). Шейдер: c += D(p − A) − D(p): крона уходит с места и приходит на
+// новое, подложка под ней — как есть. Вне оболочки A = 0 и разность равна нулю ровно, трава, стены и небо стоят.
+// Крючок tod эффекта wind идёт ПОСЛЕ крючка tod (порядок в effects.schema.json): окраска дня (небо, зелень) считается по неподвижным маскам
+// окружения на месте, а сдвинутая крона кладётся поверх уже готового цвета — иначе светлый лист на чужом небе окрашивался бы как небо (искры на кромке, замер G1).
+// Сдвиг A мягко упирается в maxPx пикселей кадра: A / sqrt(1 + (A / maxPx)²). Время — только E2.Clock (через S.t), порыв — от часов движка (G6).
+// Ветра нет, когда на экране не дневная картинка: ночь, закатный рисунок (это неподвижные картинки) — доля ветра гаснет вместе с переходом.
+// ?off=wind — ветер выключен (паритет сцены с e1.62 сравнивается без него); ?break=wind-smear / wind-far / wind-dead — красные случаи гейта G1.
+E2.effect({
+  name: 'wind',
+  low: 'lite',                       // слабая ступень — как есть; минимальная — без ветра (см. step)
+  frameUniforms: [['float', 'wind']],   // доля ветра кадра 0…1 (0 — кадр без крон, ночь, закатный рисунок, выключен)
+  state: { t: 0, gust: 0, on: true, px: 0 },
+  prepCfg: function (cfg) { return { WIND_ON: cfg.frames.some(function (f) { return f.effects.wind && f.effects.wind.on; }) }; },
+  frameFiles: function (f) { return (f.effects.wind && f.effects.wind.on && f.files.crown && f.files.windfield) ? { crown: f.files.crown, windfield: f.files.windfield } : {}; },
+  glsl: function (cfg) {
+    var FW = cfg.look.frameSize[0], glf = E2.glf;
+    var brk = E2.brk('wind-smear') ? 1 : 0;        // красный случай: фон тянется за кроной (подложка не вычитается: «сдвиг картинки», а не кроны)
+    return {
+      uniforms: ['uniform vec4 uWind; uniform vec3 uWindK;'],      // uWind: время, порыв, размах и наклон (доли ширины кадра); uWindK: период, 1 / потолок²
+      funcs: [
+        'vec3 windD(vec3 v) { return (v * 255.0 - 128.0) / 127.0; }',
+        'vec4 windF(sampler2D s, vec4 a, vec2 q) { return texture2D(s, vec2(q.x, 0.5 + 0.5 * min(q.y, 1.0 - a.w))); }',
+        'vec4 crownT(sampler2D s, vec4 a, vec2 q) { return texture2D(s, vec2(q.x, 0.5 + 0.5 * clamp(q.y, a.y, 1.0 - a.y))); }'
+      ].join('\n'),
+      tod: [
+        '  if (wind > 0.0) {',
+        '    vec4 wf = windF(depth, atl, pc);',
+        '    if (wf.r > 0.004 && wf.b > 0.0) {',
+        '      float tt = uWind.x;',
+        '      float s1 = sin(6.2831853 * (tt / uWindK.x + wf.a));',
+        '      float s2 = sin(6.2831853 * (tt / (uWindK.x * 0.43) + wf.a * 2.7 + 0.31));',
+        '      float a = wf.b * wind * uWind.y * (uWind.z * (0.7 * s1 + 0.3 * s2) + uWind.w);',
+        '      a = a / sqrt(1.0 + a * a * uWindK.y);',
+        '      vec3 d0 = windD(crownT(bg, atl, pc).rgb);',
+        '      vec3 d1 = windD(crownT(bg, atl, pc - vec2(a, 0.0)).rgb);',
+        brk ? '      c = clamp(c + (bgT(bg, atl, pc - vec2(a, 0.0)).rgb - bgT(bg, atl, pc).rgb) * wf.r, 0.0, 1.0);' : '      c = clamp(c + d1 - d0, 0.0, 1.0);',
+        '    }',
+        '  }'
+      ].join('\n')
+    };
+  },
+  // доля ветра кадра: день и дождь со снегом — 1; ночной рисунок и закатный рисунок закрывают картинку — ветер уходит вместе с ними
+  amount: function (f) {
+    if (!f || !f.windOn || E2.off('wind') || this.state.off) return 0;
+    var td = E2.fxGet('tod'), st = td ? td.state : null, k = 1;
+    if (st) { k *= 1 - st.night * td.hasN(f); if (f.sg) k *= 1 - st.sun; }
+    return Math.max(0, k);
+  },
+  init: function () { },
+  step: function (S) {
+    var W = S.cfg.effects.wind, st = this.state, t = S.t / 1000;
+    var far = E2.brk('wind-far') ? 6 : 1;                      // красный случай: размах и потолок в 6 раз больше, порыв всегда полный (крона уходит дальше maxPx)
+    st.off = S.tier === 'min' || E2.brk('wind-dead');           // wind-dead — красный случай: ветра нет совсем
+    st.t = t;
+    // порыв: два медленных колебания разной длины; 0,25 между порывами (кроны почти замирают), 1 — в самом порыве
+    var g = 0.6 * Math.sin(2 * Math.PI * t / W.gustS + 1.3) + 0.4 * Math.sin(2 * Math.PI * t / (W.gustS * 0.37) + 0.9);
+    st.gust = far > 1 ? 1 : 0.25 + 0.75 * E2.sstep(-0.35, 0.65, g);
+    st.px = W.maxPx;
+    st.far = far;
+  },
+  uniforms: function (gl, U, S) {
+    var W = S.cfg.effects.wind, st = this.state, FW = S.cfg.look.frameSize[0], M = W.maxPx * (st.far || 1) / FW;   // wind-far: потолок и размах в 6 раз выше (красный случай G1)
+    gl.uniform4f(U.uWind, st.t, st.gust, (W.swayPx / FW) * (st.far || 1), (W.leanPx / FW) * (st.far || 1));
+    gl.uniform3f(U.uWindK, W.periodS, 1 / (M * M), 0);
+  },
+  bind: function (gl, U, f, s) { gl.uniform1f(U['uWind' + s], this.amount(f)); },
+  debug: function (f) { var st = this.state; return { t: st.t, gust: st.gust, amount: this.amount(f), on: !!(f && f.windOn), maxPx: st.px }; }
 });
 
 // ===== fx/lights.js =====

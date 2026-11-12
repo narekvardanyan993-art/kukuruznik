@@ -3,7 +3,7 @@
 
   python3 tools/stanok.py migrate tests/pogos-petros            # building.json (v1) → building.e2.json (format 2; только эффекты, которые уже есть в e2)
   python3 tools/stanok.py build   tests/pogos-petros --site DIR # страница e2: DIR/beta/e2/<id>/ + движок DIR/e/<версия>/ + manifest + штамп
-  python3 tools/stanok.py check   tests/pogos-petros [--gate G5,G7] [--frames 0,1] [--selftest] [--out DIR] [--e1site DIR] [--chrome PATH]
+  python3 tools/stanok.py check   tests/pogos-petros [--gate G1,G5,G7] [--frames 0,1] [--selftest] [--out DIR] [--e1site DIR] [--chrome PATH]
         G7 (кнопки) и G6(б) идут в Chrome; --frames — только эти кадры (в облачной VM весь дом — дольше 20 мин); --out — куда положить листы G7;
         --e1site — копия сайта на e1.62 с Кукурузником (report/stanok-p0/site-before.tgz) для красного случая G6 «дождь e1.62»
   python3 tools/stanok.py parity  tests/pogos-petros --out DIR [--frames 0,1] [--states day,sunset,night,rain,snow] [--tilts L,C,R] [--sky 1] [--chrome PATH]
@@ -90,7 +90,7 @@ def build(bdir, site, page=None, e2=E2, building=None, quiet=False):
     made = {}
     for d in cfg.pop('derived', []):
         if d['file'] not in made:
-            made[d['file']] = stanok_masks.make(d['maker'], {k: (str(src / fdir_name / v) if isinstance(v, str) else [str(src / fdir_name / x) for x in v]) for k, v in d['from'].items()})
+            made[d['file']] = stanok_masks.make(d['maker'], {k: (str(src / fdir_name / v) if isinstance(v, str) else [str(src / fdir_name / x) for x in v]) for k, v in d['from'].items()}, params=d.get('params'))
         data, meta = made[d['file']]
         manifest['files'][d['file']] = {'sha256': sha(data), 'bytes': len(data), 'derived': d['maker']}
         tgt = cfg['frames'][d['frame']] if d['frame'] is not None else cfg
@@ -498,6 +498,46 @@ def gate_g7(site, page, chrome, out, frames=None):
     return probs + ['?tier=min: ' + q for q in g7_run(site, page, chrome, Path(out) / 'tier-min', first, 'day', 'tier=min')]
 
 
+def g1_run(site, page, chrome, out, frames=None, query=None, n=None):
+    """Прогон tools/stanok_g1.mjs (ветер). Возвращает список проблем (пустой — зелёный)."""
+    out = Path(out)
+    args = ['node', str(ROOT / 'tools' / 'stanok_g1.mjs'), '--site', str(site), '--page', page, '--out', str(out), '--chrome', chrome]
+    for k, v in (('frames', frames), ('query', query), ('n', n)):
+        if v:
+            args += ['--' + k, str(v)]
+    r = subprocess.run(args, capture_output=True, text=True)
+    jp = out / 'g1.json'
+    if not jp.is_file():
+        return ['прогон G1 не дал отчёта: ' + (r.stdout + r.stderr).strip()[-300:]]
+    return json.loads(jp.read_text(encoding='utf-8'))['problems']
+
+
+def gate_g1(site, page, chrome, out, frames=None):
+    """Ветер (эффект wind): кроны качаются, фон за ними стоит, сдвиг не больше потолка, качание плавное (tools/stanok_g1.mjs)."""
+    return g1_run(site, page, chrome, out, frames)
+
+
+# красные случаи ветра (на кадре с деревьями): каждая поломка обязана дать свою проблему
+G1_CASES = [('break=wind-smear', 'вне кроны', '?break=wind-smear — фон тянется за кроной (сдвигается картинка, а не крона)'),
+            ('break=wind-far', 'вне кроны', '?break=wind-far — крона уходит дальше потолка maxPx'),
+            ('break=wind-dead', 'не качается', '?break=wind-dead — ветра нет совсем')]
+
+
+def selftest_g1(bdir, site, page, chrome):
+    if not chrome:
+        return [('G1', 'поломки в браузере ПРОПУЩЕНЫ: нет Chrome', None)]
+    res = []
+    b = read_building(bdir)[0]
+    idx = [i for i, f in enumerate(b['frames']) if (f.get('effects', {}).get('wind') or {}).get('on')]
+    if not idx:
+        return [('G1', 'у здания нет кадров с ветром — самопроверка ПРОПУЩЕНА', None)]
+    frames = str(idx[0] if len(idx) == 1 else idx[1])      # кадр с густой кроной (у Погоса — b: кипарисы)
+    for query, expect, title in G1_CASES:
+        probs = g1_run(site, page, chrome, tempfile.mkdtemp(prefix='stanok-g1-self-'), frames, query, 24)
+        res.append(('G1', title, any(expect in p for p in probs)))
+    return res
+
+
 # ---------------------------------------------------------------- самопроверки (красные случаи)
 BREAK_FX = '''// ТЕСТОВЫЙ эффект самопроверки G6: движение по настоящим часам и случайности (так делать нельзя).
 E2.effect({ name: 'tod_break', glsl: function () { return null; },
@@ -565,6 +605,8 @@ def selftest(bdir, gates, chrome, e1site=None):
             res.append(('G6', '(б) ПРОПУЩЕНО: нет Chrome', None))
     if 'G7' in gates:
         res += selftest_g7(bdir, site, page, chrome)
+    if 'G1' in gates:
+        res += selftest_g1(bdir, site, page, chrome)
     return res
 
 
@@ -661,6 +703,12 @@ def check(bdir, gates, chrome, do_selftest, frames=None, out=None, e1site=None):
                 print('   - ' + p)
         else:
             print('%s зелёный%s' % (g, extra))
+    if 'G1' in gates:
+        if chrome:
+            g1out = (Path(out) / 'g1') if out else Path(tempfile.mkdtemp(prefix='stanok-g1-'))
+            show('G1', gate_g1(site, page, chrome, g1out, frames), ' (кадры: %s; лист и числа: %s)' % (frames or 'все с ветром', g1out))
+        else:
+            print('G1 ПРОПУЩЕНО: нет Chrome (ветер проверяется только в браузере)')
     if 'G5' in gates:
         show('G5', gate_g5(site, page, bdir))
     if 'G6' in gates:
@@ -718,6 +766,7 @@ def parity(bdir, out, chrome, frames=None, states='day,sunset,night,rain,snow', 
     fa += ['--settle', settle] if settle else []
     allow = (ROOT / bdir if not Path(bdir).is_absolute() else Path(bdir)) / 'migration-allowed.json'      # разрешённые отличия здания (docs/STANOK.md §2.4 п.5)
     off = sorted({q['off'] for q in json.loads(allow.read_text(encoding='utf-8')).get('allowed', []) if q.get('off')}) if allow.is_file() else ['precip']
+    off = sorted(set(off) | {'wind'})        # ветер e2 — новое, в e1.62 так нет: сцена сравнивается без него (его проверяет G1)
     if not sky:
         off = sorted(set(off) | {'clouds'})
 
@@ -775,7 +824,7 @@ def main(argv):
             raise SystemExit('нужен --site ПАПКА (копия сайта; в репозиторий страница e2 пока не собирается)')
         build(bdir, opt['site'], opt.get('page'))
     elif cmd == 'check':
-        gates = opt.get('gate', 'G5,G6,G7,G8,G13').split(',')
+        gates = opt.get('gate', 'G1,G5,G6,G7,G8,G13').split(',')
         return check(bdir, gates, chrome, bool(opt.get('selftest')), opt.get('frames'), opt.get('out'), opt.get('e1site'))
     elif cmd == 'parity':
         return parity(bdir, opt.get('out', tempfile.mkdtemp(prefix='stanok-parity-')), chrome, opt.get('frames'), opt.get('states', 'day,sunset,night,rain,snow'),

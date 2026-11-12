@@ -417,6 +417,16 @@
     return out;
   }
 
+  // e2 wind (docs/STANOK.md §4.3): поле ветра (<кадр>_windfield.png, высота ×2: сверху R — мягкая «оболочка» крон, B — высота внутри кроны,
+  // снизу R — фаза дерева) становится вторым этажом карты окружения: R оболочка, G 0, B высота, A фаза. Лишнего сэмплера не нужно.
+  function addWind(env, img) {
+    var en = env.ew * env.eh, out = new Uint8Array(en * 8), wf = readChannels(img, env.ew, env.eh * 2), b = en * 4;
+    out.set(env.gpuDepth);
+    for (var i = 0; i < en; i++) { out[b + i * 4] = wf[i * 4]; out[b + i * 4 + 2] = wf[i * 4 + 2]; out[b + i * 4 + 3] = wf[(en + i) * 4]; }
+    env.windRows = true;
+    return out;
+  }
+
   // e2 weather: карта посадки осадков (docs/STANOK.md §4.2). Сцена кадра имеет глубину (земля — карта глубины, главное здание — своя);
   // частица с глубиной z падает сверху и садится на первую поверхность, которая не дальше неё: land[z][u] = v посадки (0..254, доли
   // высоты кадра; 255 — долетает до низа). Дальняя снежинка гаснет на линии крыши, ближняя пролетает перед зданием и ложится на землю.
@@ -438,7 +448,8 @@
   function prepDay(f, i) {
     var swayOn = swayEnabled();
     return Promise.all([load(f.color), load(f.depth), load(f.bg.color), load(f.building.color), load(f.env), load(f.win2), f.fig ? load(f.fig) : null,
-      swayOn && f.sway ? load(f.sway).catch(function () { return null; }) : null, f.lights ? load(f.lights) : null]).then(function (imgs) {
+      swayOn && f.sway ? load(f.sway).catch(function () { return null; }) : null, f.lights ? load(f.lights) : null,
+      CONFIG.WIND_ON && f.crown && f.windfield ? load(f.crown) : null, CONFIG.WIND_ON && f.crown && f.windfield ? load(f.windfield) : null]).then(function (imgs) {
       var depth = prepareDepth(imgs[1], !!f.depthRaw);
       var bld = analyzeBuilding(imgs[3], depth, imgs[0], imgs[2]);
       var env = prepareEnv(imgs[4], imgs[5], depth, bld, i, imgs[6]);
@@ -447,6 +458,7 @@
         for (var li = 0; li < le; li++) { env.emis[li * 4] = lp[li * 4]; env.emis[li * 4 + 1] = lp[li * 4 + 1]; }
       }
       if (swayOn) env.gpuDepth = addSway(env, imgs[7]);
+      if (imgs[10]) env.gpuDepth = addWind(env, imgs[10]);
       // список окон главного здания (центр и размер, доли кадра) — для «живых» деталей ночью
       var winList = (env.winsT || []).map(function (q) { return { u: q.cx / env.ew, v: q.cy / env.eh, w: q.bw / env.ew, h: q.bh / env.eh }; });
       STATE[i] = { w: bld.w, h: bld.h, alpha: bld.alpha, dayPx: bld.dayPx, plate: bld.plate, ew: env.ew, eh: env.eh, winList: winList };
@@ -454,7 +466,7 @@
       return Promise.resolve(thumb).then(function (tb) {
         var out = {
           w: bld.w, h: bld.h, depth: depth, kB: bld.meanD * 2 - 1, dB: bld.meanD,
-          ground: bld.ground, bldPm: bld.bldPm, gpuDepth: env.gpuDepth, swayRows: !!env.swayRows, ew: env.ew, eh: env.eh, emis: env.emis,
+          ground: bld.ground, bldPm: bld.bldPm, gpuDepth: env.gpuDepth, swayRows: !!env.swayRows, windRows: !!env.windRows, ew: env.ew, eh: env.eh, emis: env.emis,
           wins: env.wins, skyFrac: env.skyFrac, starQ: env.starQ, winList: winList, thumb: tb,
           land: landMap(depth, bld)
         };
@@ -462,6 +474,12 @@
           var n4 = bld.w * bld.h, g4 = new Uint8Array(n4 * 4);
           for (var q = 0; q < n4; q++) { g4[q * 4] = bld.ground[q * 3]; g4[q * 4 + 1] = bld.ground[q * 3 + 1]; g4[q * 4 + 2] = bld.ground[q * 3 + 2]; g4[q * 4 + 3] = bld.bldD[q]; }
           out.ground4 = g4; out.bldD = { w: bld.w, h: bld.h, d: bld.bldD };
+          if (imgs[9] && env.windRows) {   // e2 wind: подложка — двухэтажная: сверху земля как была, снизу крона (разность «кадр − подложка», байт 128 = нет разности)
+            var cr = readChannels(imgs[9], bld.w, bld.h), g8 = new Uint8Array(n4 * 8);
+            g8.set(g4);
+            for (var cq = 0; cq < n4; cq++) { g8[n4 * 4 + cq * 4] = cr[cq * 4]; g8[n4 * 4 + cq * 4 + 1] = cr[cq * 4 + 1]; g8[n4 * 4 + cq * 4 + 2] = cr[cq * 4 + 2]; g8[n4 * 4 + cq * 4 + 3] = 255; }
+            out.ground4 = g8; out.atlas = true;
+          }
         }
         return out;
       });
