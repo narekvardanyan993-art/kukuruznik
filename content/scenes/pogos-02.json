@@ -1,0 +1,54 @@
+{
+ "name": "pogos-02",
+ "engine": "remotion",
+ "build": "node content/remotion/build.mjs content/scenes/pogos-02.json",
+ "title": "Погос-Петрос — моушн-ролик (бумага в клетку, карточки, бирки)",
+ "fps": 30,
+ "size": [1080, 1920],
+ "safe": [250, 600, 160],
+ "seed": 7,
+ "dur": 21.0,
+ "bg": {"paper": "repo:engine/paper/old-paper-1.webp", "grid": 60},
+ "fonts": [
+  {"file": "repo:engine/fonts/NotoSerif-latin.woff2", "range": "U+0000-00FF, U+0131, U+0152-0153, U+2000-206F, U+2190-21FF"},
+  {"file": "repo:engine/fonts/NotoSerifArmenian-armenian.woff2", "range": "U+0530-058F, U+FB13-FB17"}
+ ],
+ "defaults": {
+  "card": {"x": 540, "y": 880, "w": 800, "h": 1140, "mat": 18, "radius": 22, "enter": "depth", "enterDur": 0.55, "exitDur": 0.42}
+ },
+ "cards": [
+  {"id": "photo", "at": 0.0, "dur": 1.2, "src": {"image": "repo:pogos-petros/sources/commons/c_1930s.png"}, "look": {"sepia": 1},
+   "w": 920, "h": 660, "y": 840, "rot": -2.5, "exit": "down", "exitDur": 0.38, "cam": {"from": [0.45, 0.47, 1.07], "to": [0.45, 0.47, 1.14]}},
+  {"id": "drawing", "at": 1.05, "dur": 2.1, "src": {"image": "repo:pogos-petros/frames/B.png"}, "look": {"alive": 0.75},
+   "rot": 1.6, "exit": "left", "cam": {"from": [0.56, 0.57, 1.14], "to": [0.52, 0.52, 1.0], "ease": "out"}},
+  {"id": "tilt", "at": 3.0, "dur": 2.25, "src": {"seq": "cap:tilt_c", "rate": 0.8},
+   "rot": -1.4, "exit": "depth", "cam": {"from": [0.5, 0.5, 1.0], "to": [0.5, 0.47, 1.07]}},
+  {"id": "night", "at": 5.1, "dur": 2.45, "src": {"seq": "cap:night_a"},
+   "rot": 1.2, "exit": "right", "cam": {"from": [0.5, 0.52, 1.03], "to": [0.5, 0.5, 1.12]}},
+  {"id": "snow", "at": 7.4, "dur": 2.0, "src": {"seq": "cap:snow_a", "rate": 0.9},
+   "rot": -1.2, "exit": "left", "cam": {"from": [0.5, 0.5, 1.12], "to": [0.5, 0.55, 1.02]}},
+  {"id": "dog", "at": 9.25, "dur": 1.65, "src": {"video": "repo:content/cache/seg/pogos-01/05-dog-*.mp4", "start": 0.33},
+   "rot": 1.5, "exit": "right", "cam": {"from": [0.5, 0.5, 1.0], "to": [0.48, 0.53, 1.12]}},
+  {"id": "oldman", "at": 10.75, "dur": 1.65, "src": {"video": "repo:content/cache/seg/pogos-01/06-oldman-*.mp4", "start": 0.55},
+   "rot": -1.3, "exit": "up", "cam": {"from": [0.52, 0.47, 1.08], "to": [0.52, 0.53, 1.0]}},
+  {"id": "show", "at": 12.25, "dur": 2.95, "src": {"seq": "cap:show_b"},
+   "rot": 1.0, "exit": "left", "cam": {"from": [0.5, 0.52, 1.02], "to": [0.5, 0.5, 1.1]}},
+  {"id": "stone", "at": 15.05, "dur": 2.6, "src": {"video": "repo:content/cache/seg/pogos-01/09-stone-*.mp4", "start": 0.4},
+   "rot": -1.5, "exit": "depth", "cam": {"from": [0.48, 0.5, 1.0], "to": [0.5, 0.49, 1.1]}},
+  {"id": "final", "at": 17.5, "dur": 3.5, "src": {"seq": "cap:final_c"},
+   "rot": 0.8, "exit": "none", "cam": {"from": [0.5, 0.5, 1.1], "to": [0.5, 0.5, 1.0], "ease": "out"}}
+ ],
+ "items": [
+  {"kind": "tag", "text": "1930", "variant": "big", "at": 0.12, "dur": 1.0, "x": 540, "y": 400, "size": 170, "rot": -3},
+  {"kind": "stamp", "on": "photo", "at": 0.45, "x": 0.7, "y": 0.62, "size": 330, "rot": -14, "top": "ԵՐԵՎԱՆ", "mid": "ՉԿԱ", "bottom": "1930"},
+  {"kind": "tag", "text": "Սուրբ Պողոս-Պետրոս · 1930", "variant": "tag", "at": 1.4, "dur": 1.6, "x": 520, "y": 370, "size": 66, "rot": -2},
+  {"kind": "tag", "text": "Այս եկեղեցին այլևս չկա", "variant": "label", "at": 3.35, "dur": 1.7, "x": 520, "y": 370, "size": 72, "rot": 1.5},
+  {"kind": "icon", "name": "moon", "at": 4.9, "dur": 1.7, "x": 790, "y": 385, "size": 200, "rot": 0},
+  {"kind": "icon", "name": "flake", "at": 7.2, "dur": 1.8, "x": 290, "y": 385, "size": 200, "rot": 0},
+  {"kind": "tap", "on": "dog", "at": 9.85, "x": 0.55, "y": 0.6, "size": 170},
+  {"kind": "counter", "from": "1930", "to": "1936", "tick": 1.4, "at": 12.5, "dur": 2.4, "x": 520, "y": 380, "size": 120, "rot": -2},
+  {"kind": "counter", "from": "8", "to": "7", "label": "տեղ", "tick": 1.25, "at": 15.35, "dur": 2.0, "x": 520, "y": 380, "size": 120, "rot": 2},
+  {"kind": "tag", "text": "chka.am", "variant": "big", "at": 17.9, "dur": 0, "x": 520, "y": 410, "size": 150, "rot": -2},
+  {"kind": "stamp", "on": "final", "at": 18.7, "x": 0.68, "y": 0.8, "size": 300, "rot": 12, "paper": true, "top": "ԵՐԵՎԱՆ", "mid": "ՉԿԱ", "bottom": "ЕРЕВАН"}
+ ]
+}
