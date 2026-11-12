@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#f5ecda">
 <meta name="viewer-version" content="pogos-petros-1">
-<meta name="engine-version" content="e1.55">
+<meta name="engine-version" content="e1.62">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Չկա">
 <meta property="og:url" content="https://chka.am/pogos-petros/">
@@ -34,20 +34,20 @@
 <title>Պողոս-Պետրոս եկեղեցի, Երևան | Չկա</title>
 <script>/* ?motion=1 — показать всё движение, даже если в системе включено «Уменьшить движение» (для проверки) */
 (function () { if (/[?&]motion=1/.test(location.search)) document.documentElement.setAttribute('data-motion', 'on'); })();</script>
-<link rel="preload" href="../engine/welcome-loader.js?v=e1.55" as="script">
-<link rel="preload" href="../engine/welcome-letters.js?v=e1.55" as="script">
-<link rel="preload" href="../engine/fonts/NotoSerif-latin.woff2?v=e1.55" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.55" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.55" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../engine/welcome-loader.js?v=e1.62" as="script">
+<link rel="preload" href="../engine/welcome-letters.js?v=e1.62" as="script">
+<link rel="preload" href="../engine/fonts/NotoSerif-latin.woff2?v=e1.62" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.62" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.62" as="font" type="font/woff2" crossorigin>
 <style>
   /* Один шрифт для hy/ru/en — Noto Serif: латиница и кириллица (Noto Serif) и армянский (Noto Serif Armenian)
      из одной системы дизайна, лицензия OFL (fonts/LICENSE.txt). Подключён локально, один вес 400–700. */
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../engine/fonts/NotoSerif-latin.woff2?v=e1.55) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    src: url(../engine/fonts/NotoSerif-latin.woff2?v=e1.62) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.55) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+    src: url(../engine/fonts/NotoSerif-cyrillic.woff2?v=e1.62) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
   @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
-    src: url(../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.55) format("woff2"); unicode-range: U+0308, U+0530-058F, U+2010, U+2024, U+25CC, U+FB13-FB17; }
+    src: url(../engine/fonts/NotoSerifArmenian-armenian.woff2?v=e1.62) format("woff2"); unicode-range: U+0308, U+0530-058F, U+2010, U+2024, U+25CC, U+FB13-FB17; }
   :root {
     --font: "Chka Serif", "Noto Serif", serif;
     --paper: #f5ecda; --paper-2: #ede0c2; --ink: #2f2a25;
@@ -424,6 +424,14 @@
   #windBtn[data-wind="1"] .lvl u:first-child, #windBtn[data-wind="2"] .lvl u { opacity: 1; }
   #windBtn .w3 { opacity: 0.35; } #windBtn[data-wind="2"] .w3 { opacity: 1; }
   .p-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .p-sale[hidden] { display: none; }
+  .hs-dot.insc-me { animation: inscPulse 1.6s cubic-bezier(.22,1,.36,1) 3; }
+  @keyframes inscPulse { 0% { box-shadow: 0 0 0 0 rgba(255,236,190,.9); } 100% { box-shadow: 0 0 0 22px rgba(255,236,190,0); } }
+  .sale-btn { display: flex; align-items: center; gap: 10px; width: 100%; text-decoration: none; color: inherit; padding: 10px 14px; box-sizing: border-box; }
+  .sale-btn svg { width: 30px; height: 30px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .sale-t { display: flex; flex-direction: column; line-height: 1.2; text-align: left; }
+  .sale-t small { opacity: .7; font-size: .82em; }
+  .sale-btn.off { pointer-events: none; opacity: .55; }
   .p-acts .act[hidden] { display: none; }
   .p-acts .chip-act { width: 100%; min-height: 64px; white-space: normal; }
   .p-acts .chip-act span { white-space: normal; text-align: center; line-height: 1.15; }
@@ -1025,12 +1033,12 @@
   }
   @media (prefers-reduced-motion: reduce) { #cardToast, #cardToast.on { transform: translate(-50%, 0); } }
 </style>
-</head>
+<script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "4f01792791754703ad86dfbc0e762731"}'></script></head>
 <body>
 <script>try { if (localStorage.getItem('chka-panel') === 'collapsed') document.body.classList.add('panel-collapsed'); } catch (e) {}   /* панель, свёрнутая в прошлый раз, — сразу свёрнутой, без анимации закрытия */</script>
 
-<script src="../engine/welcome-letters.js?v=e1.55"></script>
-<script src="../engine/welcome-loader.js?v=e1.55"></script>
+<script src="../engine/welcome-letters.js?v=e1.62"></script>
+<script src="../engine/welcome-loader.js?v=e1.62"></script>
 <script>
 /* ===================== CONFIG =====================
    Все параметры эффекта «3D-фото» собраны здесь, ничего похожего
@@ -1219,6 +1227,21 @@ var CONFIG = {
  "PERF_MIN_FPS": 45,
  "FALLBACK_LAYER_K": 0.6,
  "UI_I18N": {
+  "sale": {
+   "hy": "Թողնել քո անունը",
+   "ru": "Оставить надпись",
+   "en": "Leave your name"
+  },
+  "saleLeft": {
+   "hy": "մնաց {n} տեղ {t}-ից",
+   "ru": "осталось {n} из {t}",
+   "en": "{n} of {t} left"
+  },
+  "saleNone": {
+   "hy": "տեղեր չկան",
+   "ru": "мест нет",
+   "en": "sold out"
+  },
   "home": {
    "ru": "На главную",
    "en": "Home",
@@ -1939,7 +1962,7 @@ var CONFIG = {
     16,
     40
    ],
-   "note": "снос: собака убегает, звонницы падают, стены оседают → руины → на их месте поднимается кинотеатр «Москва» (Veo из последнего кадра руин) → пауза → всё назад до церкви в 2.5 раза быстрее — «время отматывается»",
+   "note": "снос: собака спит → трещины и камешки → просыпается, в испуге смотрит вверх, пятится и убегает вправо (Veo dog_scared_a9d6dd19, bshow21.py) → звонницы падают, руины → кинотеатр «Москва» → пауза → назад в 2.5 раза быстрее; собаки на отмотке нет, в конце проявляется спящей",
    "eraseV": 0.655
   },
   {
@@ -2013,6 +2036,44 @@ var CONFIG = {
      "wx": "snow",
      "fade": 0.6,
      "note": "в снег старик поднял воротник, руки в карманах, голубей нет (правка Gemini Pro jex41d)"
+    },
+    {
+     "rect": [
+      0.26042,
+      0.66007,
+      0.60026,
+      0.86007
+     ],
+     "video": "vid_a_old_rain.mp4",
+     "mask": "vid_a_old_rain_mask.png",
+     "wx": "rain",
+     "note": "e1.56 дождь: старик живой под газетой — Veo 02f061d2 (in_oldman_rain), петля 9 с; поверх картинки show_wx_a_rain.png (wx20.py)"
+    },
+    {
+     "rect": [
+      0.26042,
+      0.66007,
+      0.60026,
+      0.86007
+     ],
+     "video": "vid_a_old_snow.mp4",
+     "mask": "vid_a_old_snow_mask.png",
+     "wx": "snow",
+     "note": "e1.56 снег: старик в воротнике, пар изо рта, кормит голубей крошками — Veo 7f5c8b13 (in_oldman_snow), петля 9 с (wx20.py)"
+    },
+    {
+     "rect": [
+      0.07812,
+      0.0293,
+      1.0,
+      0.46007
+     ],
+     "srcs": [
+      "show_wx_a_rainbow.png"
+     ],
+     "wx": "after",
+     "fade": 0,
+     "note": "e1.59 радуга после дождя (~50 с, гаснет): акварельная дуга, вырезана из картинки Gemini 4lttxn (rainbow_layer.png), за колокольней — альфа срезана по слою здания"
     }
    ]
   },
@@ -2074,6 +2135,22 @@ var CONFIG = {
       0.7,
       0.84
      ],
+     "video": "vid_b_dog_butterfly.mp4",
+     "mask": "vid_b_dog_butterfly_mask.png",
+     "hours": [
+      11,
+      19
+     ],
+     "set": "dog",
+     "note": "e1.56 день (11–19): бабочка, собака вскакивает, играет, ложится в исходную позу — Veo 2dce1c49 (fix18.py clip … butterfly); чередуется с day/day2"
+    },
+    {
+     "rect": [
+      0.4,
+      0.68,
+      0.7,
+      0.84
+     ],
      "video": "vid_b_dog_night.mp4",
      "mask": "vid_b_dog_night_mask.png",
      "hours": [
@@ -2118,9 +2195,47 @@ var CONFIG = {
      "srcs": [
       "show_wx_b_kennel.png"
      ],
-     "wx": true,
+     "wx": "rain",
      "fade": 0.6,
      "note": "в дождь/снег собака в будке у стены (правка Gemini Pro)"
+    },
+    {
+     "rect": [
+      0.4,
+      0.66,
+      0.72,
+      0.84
+     ],
+     "srcs": [
+      "show_wx_b_kennel_snow.png"
+     ],
+     "wx": "snow",
+     "fade": 0.6,
+     "note": "e1.56 снег: будка с объёмной снежной шапкой (правка Gemini ig9g30, kennel20.py); снег будки вырезан из маски pogos_b_snow — плоской крыши больше нет. Видео в снегу — следующим Veo"
+    },
+    {
+     "rect": [
+      0.39974,
+      0.67619,
+      0.72005,
+      0.84029
+     ],
+     "video": "vid_b_dog_kennel.mp4",
+     "mask": "vid_b_dog_kennel_mask.png",
+     "wx": "rain",
+     "note": "e1.56 дождь/снег: собака в будке дышит, выглядывает, тонкий пар — Veo 52b18094 (in_dog_kennel), петля 9 с (wx20.py)"
+    },
+    {
+     "rect": [
+      0.39974,
+      0.66007,
+      0.72005,
+      0.84029
+     ],
+     "video": "vid_b_dog_kennel_snow.mp4",
+     "mask": "vid_b_dog_kennel_snow_mask.png",
+     "wx": "snow",
+     "note": "e1.56 снег: собака в будке с объёмной снежной шапкой дышит, выглядывает, тонкий пар — Veo c4a21ade (вход kennel_snow_ig9g30), маска только будка (wx20.py --win 186,880,0.175824 + обрезка по альфе show_wx_b_kennel_snow)"
     }
    ],
    "tone": {
@@ -2170,6 +2285,32 @@ var CONFIG = {
      "wx": true,
      "fade": 0.6,
      "note": "в дождь/снег пара под зонтом (правка Gemini Pro)"
+    },
+    {
+     "rect": [
+      0.04036,
+      0.66886,
+      0.4401,
+      0.87692
+     ],
+     "video": "vid_f_pair_umbrella.mp4",
+     "mask": "vid_f_pair_umbrella_mask.png",
+     "wx": true,
+     "note": "e1.56 дождь/снег: пара под зонтом разговаривает — Veo 187e8dea (in_pair_umbrella), петля 9 с (wx20.py)"
+    },
+    {
+     "rect": [
+      0.4,
+      0.7,
+      1.0,
+      0.86
+     ],
+     "srcs": [
+      "show_wx_f_fountain_snow.png"
+     ],
+     "wx": "snow",
+     "fade": 0.6,
+     "note": "e1.62 снег: фонтан выключен на зиму — чаша замёрзла, струй нет, снег по бортику (правка Gemini r8u7d6, fountain20.py); струи и рябь pix в снег замирают (snowOff)"
     }
    ]
   }
@@ -2576,7 +2717,8 @@ var CONFIG = {
      45,
      0.12
     ],
-    "note": "струя слева"
+    "note": "струя слева",
+    "snowOff": true
    },
    {
     "kind": "jet",
@@ -2595,7 +2737,8 @@ var CONFIG = {
      50,
      0.12
     ],
-    "note": "большая струя"
+    "note": "большая струя",
+    "snowOff": true
    },
    {
     "kind": "jet",
@@ -2614,7 +2757,8 @@ var CONFIG = {
      42,
      0.12
     ],
-    "note": "струя справа"
+    "note": "струя справа",
+    "snowOff": true
    },
    {
     "kind": "ripple",
@@ -2633,7 +2777,8 @@ var CONFIG = {
      2.4,
      0.18
     ],
-    "note": "рябь в чаше"
+    "note": "рябь в чаше",
+    "snowOff": true
    },
    {
     "kind": "glow",
@@ -2770,7 +2915,7 @@ var CONFIG = {
    "win2": "frames/pogos_b_win2.webp?v=527e153b",
    "sunset": "frames/pogos_b_sunset.webp?v=80fcfab9",
    "night": "frames/pogos_b_night.webp?v=7232481b",
-   "snow": "frames/pogos_b_snow.webp?v=f2cdc059"
+   "snow": "frames/pogos_b_snow.webp?v=1bf5678f"
   },
   {
    "color": "frames/pogos_c.webp?v=24d472c9",
@@ -3674,22 +3819,28 @@ var CONFIG = {
   },
   "open_hall": {
    "hy": "Բացօթյա դահլիճ։ 2010-ին կառավարությունը որոշեց «Մոսկվա» կինոթատրոնի բացօթյա դահլիճի տարածքը տալ Էջմիածնին՝ հին եկեղեցու տեղում նորը կառուցելու համար։ Բողոքի ակցիան հավաքեց մոտ 18 000 ստորագրություն, և ծրագիրը չեղարկվեց։",
-   "ru": "Открытый зал. В 2010 г. землю открытого зала «Москвы» решили отдать Эчмиадзину под новую церковь на месте старой. Протест «Спасём открытый зал» собрал около 18 000 подписей, и план отменили.",
-   "en": "Open-air hall. In 2010 the government decided to give the cinema’s open-air hall to Etchmiadzin for a new church on the old site. The “Save the Open-Air Hall” protest gathered about 18,000 signatures, and the plan was dropped."
+   "ru": "Открытый зал. В 2010 г. землю открытого зала «Москвы» решили отдать Эчмиадзину под новую церковь на месте старой. Протест собрал около 18 000 подписей, и план отменили.",
+   "en": "Open-air hall. In 2010 the government decided to give the cinema’s open-air hall to Etchmiadzin for a new church on the old site. A protest gathered about 18,000 signatures, and the plan was dropped."
   },
   "demolished": {
    "hy": "Քանդումը։ Եկեղեցին քանդվել է 1930–1931 թվականներին, իսկ 1936-ին նրա տեղում բացվել է «Մոսկվա» կինոթատրոնը։",
    "ru": "Снос. Церковь снесли в 1930–1931 гг., а в 1936 г. на её месте открыли кинотеатр «Москва».",
    "en": "Demolition. The church was torn down in 1930–1931; in 1936 the Moscow Cinema opened on its site."
   }
+ },
+ "SALE": {
+  "url": "/buy/",
+  "total": 8,
+  "left": 8,
+  "note": "e1.57: продажа мест под надписи (Polar, org Chka). После каждой продажи — left минус 1 и publish_building"
  }
 };
-CONFIG.ENGINE_V = 'e1.55';
+CONFIG.ENGINE_V = 'e1.62';
 /* e1.15 (s9): Safari на iPhone показывал старую страницу из кэша (восстановленная вкладка) — со старыми настройками при новом движке
    (у Ленина всплыли отменённые круги с цифрами). Страница сверяет свою версию с engine/VERSION (без кэша) при открытии, при возврате
    из кэша вкладок и после 10+ мин в фоне; новее — один раз перезагружается на свежий адрес. */
 (function () {
-  var V = 'e1.55', E = '../engine/', hid = 0;
+  var V = 'e1.62', E = '../engine/', hid = 0;
   function chk() {
     if (!window.fetch) return;
     fetch(E + 'VERSION?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
@@ -3773,6 +3924,9 @@ window.__wl = WelcomeLoader.create({
     <section class="p-sec p-acts" id="pActs">
       <div class="act"><button type="button" id="fsBtn" class="chip chip-act act-pair"><svg viewBox="0 0 32 32" aria-hidden="true"><g class="i-fs"><path class="c1" d="M5.7 12.6 Q5.3 8.6 5.8 5.9 Q8.6 5.4 12.4 5.7"/><path class="c2" d="M19.6 5.6 Q23.6 5.3 26.2 5.8 Q26.7 8.6 26.4 12.5"/><path class="c3" d="M26.4 19.5 Q26.8 23.5 26.2 26.2 Q23.4 26.7 19.6 26.4"/><path class="c4" d="M12.4 26.5 Q8.5 26.8 5.8 26.2 Q5.3 23.4 5.7 19.6"/><path class="i-fs-in" d="M11.4 11.7 Q16 11.3 20.6 11.6 Q20.9 16 20.5 20.4 Q16 20.8 11.5 20.5 Q11.1 16 11.4 11.7Z" stroke-width="1.2" opacity=".5"/></g></svg><span data-i18n="fullscreen">Во весь экран</span></button></div>
       <div class="act act-card"><button type="button" id="cardBtn" class="chip chip-act act-pair" aria-haspopup="dialog"><svg viewBox="0 0 32 32" aria-hidden="true"><g class="i-story"><path d="M10.4 3.6 Q16 3.2 21.8 3.7 Q23.6 3.8 23.6 5.8 Q24 16 23.5 26.4 Q23.4 28.3 21.5 28.3 Q16 28.7 10.3 28.2 Q8.5 28.1 8.5 26.2 Q8.1 16 8.6 5.6 Q8.7 3.7 10.4 3.6Z"/><path d="M9.9 5.2 Q16 4.8 22 5.3 M22.2 6.4 Q22.5 16 22.1 26.6" stroke-width="0.8" opacity=".5"/><path class="i-cardsun" d="M10.6 19.6 l3.6-3.4 2.9 2.4 2.3-2 2.2 2.4"/><circle class="i-cardsun2" cx="19.2" cy="10.6" r="1.7"/><path class="i-plq" d="M11.2 23.4 h6.6 M11.2 25.6 h4.2" stroke-width="1.4"/></g></svg><span data-i18n="postcard">Открытка</span></button></div>
+    </section>
+    <section class="p-sec p-sale" id="pSale" hidden>
+      <a id="saleBtn" class="p-btn sale-btn" href="#" target="_blank" rel="noopener"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5.4 25.6 Q9.6 21.2 13.8 16.9"/><path d="M12.2 15.3 L19.6 7.8 Q21.4 6.2 23.4 7.4 Q25.2 9.1 23.8 11 L16.4 18.6 Z"/><path d="M6.2 28.2 Q15.8 27.6 26.6 28.3"/><path d="M19.4 20.6 h.01 M23.6 22.8 h.01 M21.2 24.6 h.01" stroke-width="2.4"/></svg><span class="sale-t"><b data-i18n="sale">Оставить надпись</b><small id="saleLeft"></small></span></a>
     </section>
     <section class="p-sec p-grp p-size">
       <div class="grp-h"><h3 data-i18n="textSize">Размер текста</h3>
@@ -3885,10 +4039,10 @@ document.querySelectorAll('.chips').forEach(function (g) { g.querySelectorAll('.
 </main>
 </div>
 
-<script src="../engine/wall-data.js?v=e1.55" defer></script>
-<script src="../engine/wall.js?v=e1.55" defer></script>
-<script src="../engine/postcard.js?v=e1.55" defer></script>
-<script src="../engine/viewer.js?v=e1.55" defer>
+<script src="../engine/wall-data.js?v=e1.62" defer></script>
+<script src="../engine/wall.js?v=e1.62" defer></script>
+<script src="../engine/postcard.js?v=e1.62" defer></script>
+<script src="../engine/viewer.js?v=e1.62" defer>
 </script>
 <script>
 // e1.13: курсор ПК — чернильный кружок у острия плавно растёт над кликабельным, при загрузке рядом рисует себя чернильный круг

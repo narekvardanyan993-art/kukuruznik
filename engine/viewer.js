@@ -94,6 +94,14 @@
 
   function setI18n(el, key) { el.textContent = CONFIG.UI_I18N[key][currentLang]; }
 
+  function saleUpd() {   // e1.58 «Оставить надпись»: CONFIG.SALE {url, total, left} — кнопка в меню, ведёт на страницу покупки (chka.am/buy), счётчик мест
+    var S = CONFIG.SALE, sec = document.getElementById('pSale'), a = document.getElementById('saleBtn'), sm = document.getElementById('saleLeft');
+    if (!S || !sec || !a || !sm) return;
+    var t = CONFIG.UI_I18N, n = Math.max(0, S.left | 0), tot = S.total | 0;
+    sec.hidden = false; a.href = S.url || '/buy/';
+    sm.textContent = n > 0 ? t.saleLeft[currentLang].replace('{n}', n).replace('{t}', tot) : t.saleNone[currentLang];
+    a.classList.toggle('off', n <= 0);
+  }
   var wl = null;   // приветствие + загрузка (компонент test-assets/welcome-loader.js) — создаётся ниже, сразу
   function applyLang() {
     var t = CONFIG.UI_I18N;
@@ -109,6 +117,7 @@
       if (t[key]) { el.setAttribute('aria-label', t[key][currentLang]); el.title = t[key][currentLang]; }
     });
     if (wl) wl.setLang(currentLang);
+    saleUpd();   // e1.58: счётчик мест «Оставить надпись» — на языке страницы
     panelBtn.setAttribute('aria-label', t.menu[currentLang]);
     // e1.9: короткие общепонятные слова на бирках-кнопках телефона (меню, праздник/стоп); aria-label остаётся полным из I18N
     var BTN_WORD = { menu: { hy: 'Մենյու', ru: 'Меню', en: 'Menu' }, show: { hy: 'Հրաշք', ru: 'Чудо', en: 'Magic' }, stop: { hy: 'Կանգ', ru: 'Стоп', en: 'Stop' } };
@@ -370,6 +379,16 @@
     return b;
   }) : null;
   var PIX_EMPTY = PN > 0 ? new Float32Array(12 * PN) : null;
+  // e1.62 pix[].snowOff (Погос-Петрос F, отзыв «фонтан зимой мультяшный»): фонтан на зиму выключен — в снег у этих деталей
+  // дрожь, бег и мерцание (p[0], p[2], p[3]) плавно уходят в ноль; длина волны (p[1]) не трогается. Картинка замёрзшей чаши — актёр wx "snow".
+  var PIX_SNOW = PN > 0 ? PIXS.map(function (items) { return items.some(function (it) { return it.snowOff; }); }) : null, PIX_WXBUF = [];
+  function pixWx(i) {
+    var b = PIX_BUF[i]; if (!PIX_SNOW || !PIX_SNOW[i] || typeof wx === 'undefined') return b;
+    var sn = sstep(0.04, 0.6, wx.cur[3]); if (!(sn > 0.001)) return b;
+    var o = PIX_WXBUF[i] || (PIX_WXBUF[i] = new Float32Array(b.length)), k = 1 - sn; o.set(b);
+    PIXS[i].forEach(function (it, j) { if (it.snowOff) { var q = 12 * j; o[q + 8] *= k; o[q + 10] *= k; o[q + 11] *= k; } });
+    return o;
+  }
   // e1.19 (s15): тени облаков полем (CLOUD_FIELD) — в вершинном шейдере сцены на сетке CF_GRID, а не на каждый пиксель
   var CF_GRID = [64, 128];   // ячеек сетки по ширине и высоте экрана
   var CF_SRC = CF > 0 ? [
@@ -1134,7 +1153,8 @@
         var vd = document.createElement('video'); vd.muted = true; vd.defaultMuted = true; vd.loop = true; vd.playsInline = true; vd.preload = 'auto'; vd.crossOrigin = 'anonymous';
         vd.setAttribute('muted', ''); vd.setAttribute('playsinline', ''); vd.setAttribute('webkit-playsinline', '');
         vd.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none;z-index:-1';
-        if (a.hours && !hourIn(a.hours, performance.now())) vd.preload = 'none';   // e1.52: не его часы — не грузить заранее
+        if (a.hours && !hourIn(a.hours, performance.now())) vd.preload = 'none';
+        if (a.wx) vd.preload = 'none';   // e1.56: видео непогоды грузится, только когда пошёл дождь/снег   // e1.52: не его часы — не грузить заранее
         document.body.appendChild(vd); vd.src = dir + (vd.canPlayType('video/mp4; codecs="avc1.4d401f"') ? a.video : a.video.replace(/\.mp4$/, '.webm'));   // нет H.264 — запасной WebM
         A.vid = vd; A.vv = 0; A.vT = -1; A.vLast = 0; A.vdata = null;
         if (a.set) { vd.loop = false; vd.preload = a.tap ? 'auto' : 'none'; vd.addEventListener('ended', function () { A.ended = true; }); }   // e1.53 НАБОР: ролик один раз, потом следующий
@@ -1231,6 +1251,8 @@
       var t1 = Math.min(T[1], ck.len), kin = clamp((ck.t - T[0]) / Math.max(0.01, fd[0]), 0, 1), kout = clamp((t1 - ck.t) / Math.max(0.01, fd[1]), 0, 1);
       tgt = sstep(0, 1, Math.min(kin, kout)) * (1 - ck.kill); want = ck.t - T[0];
     }
+    st.on = on;   // e1.57: шоу кадра идёт (живые позы под ним плавно гаснут — без «телепорта»)
+    if ((on || st.active) && st.overlap && f.poses && f.poses.last !== st.pLast) { st.pLast = f.poses.last; st.dirty = true; }   // только пока шоу идёт: иначе кусок шоу не перерисовываем
     if (st.vbad || reduced()) tgt = 0;
     if (tgt > 0.001 && st.vsrcSet) {
       var dur = vd.duration || 0, tw = clamp(want, 0, Math.max(0, dur - 0.05));
@@ -1253,6 +1275,14 @@
     st.dirty = false;
     var o = st.out, ch = st.ch, vdd = st.vdata, idx = st.idx, al = st.al, rf = st.ref, gr = st.gref;
     o.set(st.base);
+    var PS = st.overlap && f.poses;   // e1.57: под шоу — то, что сейчас показывают позы (собака плавно ложится), а не голый рисунок
+    if (PS && PS.out && PS.bld === st.bld) {
+      var pc = PS.ch === 4 ? 4 : 3, ox0 = Math.max(st.x0, PS.x0), ox1 = Math.min(st.x0 + st.w, PS.x0 + PS.w), oy0 = Math.max(st.y0, PS.y0), oy1 = Math.min(st.y0 + st.h, PS.y0 + PS.h);
+      for (var yy2 = oy0; yy2 < oy1; yy2++) for (var xx2 = ox0; xx2 < ox1; xx2++) {
+        var so = ((yy2 - PS.y0) * PS.w + (xx2 - PS.x0)) * pc, dso = ((yy2 - st.y0) * st.w + (xx2 - st.x0)) * ch;
+        o[dso] = PS.out[so]; o[dso + 1] = PS.out[so + 1]; o[dso + 2] = PS.out[so + 2]; if (ch === 4 && pc === 4) o[dso + 3] = PS.out[so + 3];
+      }
+    }
     if (vis > 0) for (var k = 0, n = idx.length; k < n; k++) {
       var p = idx[k], a = al[k] * vis, s4 = p * 4, q = p * ch;
       if (rf) { var p3 = p * 3, dv = Math.max(Math.abs(vdd[s4] - rf[p3]), Math.abs(vdd[s4 + 1] - rf[p3 + 1]), Math.abs(vdd[s4 + 2] - rf[p3 + 2])), kd = (dv - st.dlo) * st.dk; if (kd <= 0 && !gr) continue; a *= kd <= 0 ? 0 : (kd < 1 ? kd * kd * (3 - 2 * kd) : 1); }   // e1.50 diff (e1.51: у слоя здания дальше — проверка подложки)
@@ -1285,10 +1315,10 @@
     S.cur = A; A.ended = false; A.vFresh = false; A.vT = -1; A.mx = 0; A.xf = tap ? 0.35 : (S.prev ? 0.3 : 0.6);
     vd.preload = 'auto'; try { vd.currentTime = 0; } catch (e) {} var pr = vd.play(); if (pr && pr.catch) pr.catch(function () {});
   }
-  function setsStep(st, now, dtS, wxRaw, still) {
+  function setsStep(st, now, dtS, wxRaw, still, showOn) {
     for (var nm in st.sets) {
       var S = st.sets[nm], bad = S.all.every(function (A) { return A.vbad; });
-      var kT = bad || still ? 0 : (st.tone ? 1 : (1 - sstep(0.06, 0.4, tod.night)) * (1 - tod.sun)) * (1 - wxRaw);   // с тоном — и ночью, и на закате
+      var kT = bad || still || showOn ? 0 : (st.tone ? 1 : (1 - sstep(0.06, 0.4, tod.night)) * (1 - tod.sun)) * (1 - wxRaw);   // с тоном — и ночью, и на закате; e1.57: шоу кадра — набор плавно гаснет
       S.k = dtS > 0 ? S.k + (kT - S.k) * Math.min(1, dtS / 0.6) : kT; if (Math.abs(S.k - kT) < 0.01) S.k = kT;
       if (S.want) { var wA = S.want; S.want = null; if (!wA.vbad) setSwitch(S, wA, true); }
       var cur = S.cur;
@@ -1346,14 +1376,19 @@
     if (wk !== st.wxK) { st.wxK = wk; st.dirty = true; }
     var wS = typeof wx !== 'undefined' ? Math.round(sstep(0.04, 0.6, wx.cur[3]) * 20) / 20 : 0, wR = typeof wx !== 'undefined' ? Math.round(sstep(0.04, 0.6, wx.cur[2]) * (1 - wS) * 20) / 20 : 0;   // e1.50: снег важнее дождя
     if (wS !== st.wxS || wR !== st.wxR) { st.wxS = wS; st.wxR = wR; st.dirty = true; }
+    var rawR = typeof wx !== 'undefined' ? sstep(0.04, 0.6, wx.cur[2]) * (1 - sstep(0.04, 0.6, wx.cur[3])) : 0;   // e1.59 РАДУГА: после дождя (wx "after")
+    st.rainMem = Math.max(rawR, (st.rainMem || 0) - (st.lastT ? Math.min(0.25, now / 1000 - st.lastT) : 0) / 50);   // память дождя гаснет за ~50 с
+    var wA = Math.round(clamp((st.rainMem - rawR) * 2.2, 0, 1) * clamp(st.rainMem * 1.6, 0, 1) * 20) / 20;
+    if (wA !== st.wxA) { st.wxA = wA; st.dirty = true; }
     var dtS = st.lastT ? Math.min(0.25, t - st.lastT) : 0; st.lastT = t;
     if (!st.gcT || now - st.gcT > 500) { st.gcT = now; vidsGc(now); }
-    if (st.sets) { st.actors.forEach(function (A) { if (A.cfg.set) A.seen = now; }); setsStep(st, now, dtS, wxRaw, still); }   // e1.53 наборы
+    if (st.sets) { st.actors.forEach(function (A) { if (A.cfg.set) A.seen = now; }); setsStep(st, now, dtS, wxRaw, still, !!(f.showv && f.showv.on && f.showv.overlap)); }   // e1.53 наборы
     st.actors.forEach(function (A) {
       if (!A.vid) return;
       A.seen = now;
       if (A.cfg.set && st.sets) return;   // e1.53: набор — в setsStep
-      var tgt = A.vbad ? 0 : (1 - sstep(0.06, 0.4, tod.night)) * (1 - wxRaw) * (still ? 0 : 1) * (hourIn(A.cfg.hours, now) ? 1 : 0) * (1 - tod.sun), pv = A.vv;   // e1.52: часы зрителя; на закате — закатный рисунок
+      var wxv = A.cfg.wx ? (A.cfg.wx === 'after' ? st.wxA : (A.cfg.wx === 'rain' ? st.wxR : (A.cfg.wx === 'snow' ? st.wxS : st.wxK))) : 1 - wxRaw;   // e1.56: видео-версия непогоды (actors[].video + wx) — живёт в дождь/снег, в ясную гаснет
+      var tgt = A.vbad ? 0 : (1 - sstep(0.06, 0.4, tod.night)) * wxv * (still ? 0 : 1) * (hourIn(A.cfg.hours, now) ? 1 : 0) * (1 - tod.sun), pv = A.vv;   // e1.52: часы зрителя; на закате — закатный рисунок
       A.vv = dtS > 0 ? A.vv + (tgt - A.vv) * Math.min(1, dtS / 0.6) : tgt; if (Math.abs(A.vv - tgt) < 0.01) A.vv = tgt;
       if (Math.abs(A.vv - pv) > 0.004) st.dirty = true;
       var vd = A.vid;
@@ -1382,12 +1417,12 @@
     if (busy && now - st.last < 50) return;   // смена позы: ~20 обновлений куска в секунду, не на каждый кадр
     st.last = now; st.dirty = false;
     var w = st.w, h = st.h, b = st.base, o = st.out, oc = st.ch === 4 ? 4 : 3, i, n = w * h;
-    var acc = new Float32Array(n * 4), ordA = st.actors.filter(function (A) { return !A.cfg.wx && !A.vid; }).concat(st.actors.filter(function (A) { return A.vid; }).sort(function (a, b) { return (a.zi || 0) - (b.zi || 0); }), st.actors.filter(function (A) { return A.cfg.wx; }));   // e1.49; e1.53: прежний ролик набора — под текущим
+    var acc = new Float32Array(n * 4), ordA = st.actors.filter(function (A) { return !A.cfg.wx && !A.vid; }).concat(st.actors.filter(function (A) { return A.vid && !A.cfg.wx; }).sort(function (a, b) { return (a.zi || 0) - (b.zi || 0); }), st.actors.filter(function (A) { return A.cfg.wx && !A.vid; }), st.actors.filter(function (A) { return A.cfg.wx && A.vid; }));   // e1.56: видео непогоды — поверх своей картинки   // e1.49; e1.53: прежний ролик набора — под текущим
     for (i = 0; i < n; i++) { acc[i * 4] = b[i * 4]; acc[i * 4 + 1] = b[i * 4 + 1]; acc[i * 4 + 2] = b[i * 4 + 2]; acc[i * 4 + 3] = b[i * 4 + 3]; }
     ordA.forEach(function (A) {
-      var c = A.cfg, vis = (c.set && st.tone ? 1 : 1 - st.nightK) * (c.wx ?   /* e1.53: с тоном набор и ночью (альфа слоя здания) */ (c.wx === 'rain' ? st.wxR : (c.wx === 'snow' ? st.wxS : st.wxK)) : (st.hasWx ? 1 - st.wxK : 1)); if (vis <= 0) return;   // e1.50: wx "rain" / "snow" — своя версия   // e1.49: погодная версия — в непогоду, остальные актёры — в ясную
+      var c = A.cfg, vis = (c.set && st.tone ? 1 : 1 - st.nightK) * (c.wx ?   /* e1.53: с тоном набор и ночью (альфа слоя здания) */ (c.wx === 'after' ? st.wxA : (c.wx === 'rain' ? st.wxR : (c.wx === 'snow' ? st.wxS : st.wxK))) : (st.hasWx ? 1 - st.wxK : 1)); if (vis <= 0) return;   // e1.50: wx "rain" / "snow" — своя версия   // e1.49: погодная версия — в непогоду, остальные актёры — в ясную
       if (A.vid) {   // e1.49: кадр видео по маске
-        var vdd = A.vdata, vm = A.vmask, k2 = A.vv * (st.hasWx ? 1 - st.wxK : 1); if (!vdd || !vm || k2 <= 0.003) return;
+        var vdd = A.vdata, vm = A.vmask, k2 = A.vv * (c.wx ? 1 : (st.hasWx ? 1 - st.wxK : 1)); if (!vdd || !vm || k2 <= 0.003) return;   // e1.56: у видео непогоды своя видимость (vv)
         var vb = A.box, vw = vb[2] - vb[0];
         for (var y2 = Math.max(0, vb[1]); y2 < Math.min(h, vb[3]); y2++) for (var x2 = Math.max(0, vb[0]); x2 < Math.min(w, vb[2]); x2++) {
           var p2 = (y2 - vb[1]) * vw + (x2 - vb[0]), a2 = vm[p2] / 255 * k2; if (a2 <= 0.002) continue;
@@ -1412,9 +1447,11 @@
       });
     });
     for (i = 0; i < n; i++) { o[i * oc] = acc[i * 4]; o[i * oc + 1] = acc[i * 4 + 1]; o[i * oc + 2] = acc[i * 4 + 2]; if (oc === 4) o[i * oc + 3] = acc[i * 4 + 3]; }
-    gl.bindTexture(gl.TEXTURE_2D, st.bld ? f.bldTex : f.bgTex);
-    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-    gl.texSubImage2D(gl.TEXTURE_2D, 0, st.x0, st.y0, w, h, oc === 4 ? gl.RGBA : gl.RGB, gl.UNSIGNED_BYTE, o);
+    if (!(f.showv && f.showv.active && f.showv.overlap)) {   // e1.57: под идущим шоу кусок пишет шоу (поверх этих поз)
+      gl.bindTexture(gl.TEXTURE_2D, st.bld ? f.bldTex : f.bgTex);
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, st.x0, st.y0, w, h, oc === 4 ? gl.RGBA : gl.RGB, gl.UNSIGNED_BYTE, o);
+    }
     if (st.tone) poseToneWrite(f, st);   // e1.53 ТОН
   }
   function uploadDay(f, r) {
@@ -1879,7 +1916,7 @@
   var pixT = 0, pixLast = 0;
   function pixUpload(fa, fb, t) {
     var na = (PIXS[fa.idx] || []).length, nb = fb ? (PIXS[fb.idx] || []).length : 0;
-    gl.uniform4fv(US.uPixA, na ? PIX_BUF[fa.idx] : PIX_EMPTY); gl.uniform4fv(US.uPixB, nb ? PIX_BUF[fb.idx] : PIX_EMPTY);
+    gl.uniform4fv(US.uPixA, na ? pixWx(fa.idx) : PIX_EMPTY); gl.uniform4fv(US.uPixB, nb ? pixWx(fb.idx) : PIX_EMPTY);   // e1.62: pix[].snowOff — в снег струи/рябь замирают
     gl.uniform2f(US.uPixN, Math.min(na, PN), Math.min(nb, PN));
     if (fx.pixOn) pixT += Math.min(0.1, Math.max(0, t - pixLast)); pixLast = t;
     gl.uniform1f(US.uPixT, pixT);
@@ -2283,6 +2320,8 @@
   }
 
   // ---------- точки-подсказки ----------
+  var INSC_Q = (function () { try { var m = /[?&]n=([a-z0-9-]{2,40})/i.exec(location.search); return m ? m[1].toLowerCase() : null; } catch (e) { return null; } })();
+  var inscWant = INSC_Q && CONFIG.INSCR && CONFIG.INSCR[INSC_Q] != null ? CONFIG.INSCR[INSC_Q] : null;   // e1.60 личная ссылка ?n=<id>: кадр надписи + открытая подсказка
   var hotspotsEl = document.getElementById('hotspots');
   var hsPopup = document.getElementById('hsPopup');
   var activeHotspots = []; // [{el, hs, d, k}] для текущего кадра
@@ -2317,7 +2356,7 @@
     var a = activeHotspots.filter(function (x) { return x.el === dotEl; })[0];
     if (a) placePopup(a);
     hsPopup.classList.add('show');
-    stage.classList.add('reading');
+    if (!hs.insc) stage.classList.add('reading');   // e1.60: у надписи фон не размывается — её же и смотрят
   }
 
   hsBack.addEventListener('click', closePopup);
@@ -2343,7 +2382,7 @@
     (HS[frameIdx] || []).forEach(function (hs) {
       var btn = document.createElement('button');   // e1.15: только точки как у живого Кукурузника; «обводка» с номерами (e1.13) удалена из движка
       btn.type = 'button';
-      btn.className = 'hs-dot';
+      btn.className = 'hs-dot' + (hs.insc ? ' hs-insc' : '');   // e1.60: точка купленной надписи
       btn.setAttribute('aria-label', (CONFIG.I18N[hs.key] && CONFIG.I18N[hs.key][currentLang]) || hs.key);
       btn.addEventListener('pointerdown', function (e) { lastPointerType = e.pointerType; });
       btn.addEventListener('click', function (e) {
@@ -2365,6 +2404,13 @@
     requestAnimationFrame(function () {
       activeHotspots.forEach(function (a) { a.el.classList.add('show'); });
     });
+    if (inscWant != null) {   // e1.60: личная ссылка — сначала на кадр надписи, там открыть её подсказку
+      if (frameIdx !== inscWant) { var tgtF = inscWant; setTimeout(function () { if (inscWant === tgtF && frameIndex !== tgtF) goTo(tgtF); }, 700); }
+      else {
+        var ia = activeHotspots.filter(function (x) { return x.hs.key === 'insc:' + INSC_Q; })[0];
+        if (ia) { inscWant = null; ia.el.classList.add('insc-me'); setTimeout(function () { openPopup(ia.hs, ia.el); }, 900); }
+      }
+    }
   }
 
   function hideHotspots() {
@@ -3095,7 +3141,7 @@
       safe('weather', function () { stepWeather(now); });
       if (NI) safe('video', function () { mvPlan(fade ? fade.from : frameIndex, fade ? fade.to : null, rm); });
       if (SHOWVID && !glLost) safe('showv', function () { showvStep(fa, now); if (fb) showvStep(fb, now); });   // e1.50: видео-шоу кадра
-      if (POSES && !glLost) safe('poses', function () { [fa, fb].forEach(function (f) { if (f && !(f.showv && f.showv.active && f.showv.overlap)) posesStep(f, now); }); });   // e1.44: позы фигур рисунка (e1.50: не под видео-шоу)
+      if (POSES && !glLost) safe('poses', function () { [fa, fb].forEach(function (f) { if (f) posesStep(f, now); }); });   // e1.44: позы фигур рисунка (e1.50: не под видео-шоу)
       if (!glLost && !(gl.isContextLost && gl.isContextLost())) safe('draw', function () { drawGL(fa, fb, mixState, shiftX, shiftY, zoom, t, tAmb); });
       safe('precip', function () { drawPrecip(now, dt, rm); });
       if (window.Details && window.Details.frame && !detailsBroken) {   // живые детали: тот же цикл, не свой rAF; 30 ошибок подряд — детали выключаются, кадр живёт
