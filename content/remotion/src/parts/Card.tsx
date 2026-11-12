@@ -1,6 +1,6 @@
 import React from 'react';
 import { Img, OffthreadVideo, Sequence, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
-import { IN, INOUT, OUT, clamp01, lerp, seg, sh, soft, spr } from './ease';
+import { DROP_OUT, IN, INK, INOUT, OUT, clamp01, drop, lerp, seg, sh, soft, spr } from './ease';
 import { Item, ItemP } from './Items';
 
 export type Src = {
@@ -23,6 +23,8 @@ export type CardP = {
   enter: 'depth' | 'up' | 'left' | 'right';
   exit: 'left' | 'right' | 'down' | 'up' | 'depth' | 'none';
   enterDur: number; exitDur: number;
+  // «до / после» шторкой: вторая картинка поверх первой, видна слева от ручки; ручка едет по ключам [t, доля x, кривая?]
+  compare?: { path: string; w: number; h: number; cam: [number, number, number]; keys: (number | string)[][]; show: number };
 };
 
 export type PoseKey = { t: number; x?: number; y?: number; s?: number; r?: number; rx?: number; ry?: number; e?: string };
@@ -68,6 +70,83 @@ export const camMap = (c: CardP, t: number, W: number, H: number) => {
   return { left, top, dw, dh, z };
 };
 
+/** Кадр источника seq в момент t: индексы двух соседних кадров и доля второго (для смешивания при rate ≠ 1). */
+const seqAt = (c: CardP, t: number) => {
+  const n = c.src.frames ?? 1;
+  let fi = ((c.src.start ?? 0) + t * (c.src.rate ?? 1)) * (c.src.fps ?? 30);
+  fi = Math.max(0, Math.min(n - 1, fi + 1e-6));
+  if (c.src.reverse) fi = n - 1 - fi;
+  const i0 = Math.floor(fi);
+  return { i0, i1: Math.min(n - 1, i0 + 1), fr: fi - i0 };
+};
+const seqUrl = (c: CardP, i: number) => staticFile(`${c.src.path}/${String(i).padStart(4, '0')}.jpg`);
+
+/** Шторка «до / после»: картинка compare поверх основной, обрезана по ручке; ручка — бумажная черта с кружком ‹ ›. */
+const Compare: React.FC<{ c: CardP; t: number; W: number; H: number }> = ({ c, t, W, H }) => {
+  const k = c.compare!;
+  const K = k.keys.map(([kt, hx, e]) => ({ t: +kt, v: +hx, e: e as string | undefined }));
+  const hx = keyed(K, t, (q) => q.v);
+  const fake = { ...c, src: { ...c.src, w: k.w, h: k.h }, fit: 'cover' as const, cam: { from: k.cam, to: k.cam, ease: 'inout' as const } };
+  const { left, top, dw, dh } = camMap(fake as CardP, 0, W, H);
+  const D = drop(t - k.show);
+  const knob = 76;
+  return (
+    <>
+      <div style={{ position: 'absolute', inset: 0, clipPath: `inset(0 ${(1 - hx) * 100}% 0 0)` }}>
+        <Img src={staticFile(k.path)} style={{ position: 'absolute', left, top, width: dw, height: dh, maxWidth: 'none' }} />
+      </div>
+      {t >= k.show ? (
+        <div style={{ position: 'absolute', left: hx * W, top: 0, height: H, width: 0, opacity: D.o }}>
+          <div style={{ position: 'absolute', left: -3, top: 0, bottom: 0, width: 6, background: '#fffdf6', boxShadow: soft(0.2, 0.8), transform: `scaleY(${clamp01(D.s)})` }} />
+          <div style={{
+            position: 'absolute', left: -knob / 2, top: H / 2 - knob / 2, width: knob, height: knob, borderRadius: '50%',
+            background: 'linear-gradient(170deg, #fffdf6 0%, #fbf6ea 60%, #f3e9d3 100%)', boxShadow: soft(0.4),
+            transform: `translateY(${D.y}px) scale(${D.sx}, ${D.sy})`,
+          }}>
+            <svg viewBox="0 0 76 76" style={{ position: 'absolute', inset: 0 }}>
+              <circle cx="38" cy="38" r="34" fill="none" stroke={INK} strokeOpacity={0.7} strokeWidth={2.2} filter="url(#pencil)" />
+              <path d="M30 27 L20 38 L30 49 M46 27 L56 38 L46 49" fill="none" stroke={INK} strokeWidth={3.4} strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+};
+
+/** Лупа: круг поверх точки источника (pin), внутри — тот же кадр крупнее в mag раз. Входит и уходит каплей. */
+const Loupe: React.FC<{ c: CardP; t: number; it: ItemP; W: number; H: number }> = ({ c, t, it, W, H }) => {
+  const T = c.at + t;
+  const ti = T - it.at;
+  const out = it.dur > 0 ? ti - (it.dur - 0.2) : -1;
+  // крупный предмет — без отскока (SKILL §4): растёт по easeOut 0,3 с, уходит по easeIn 0,2 с; монотонно, без «стоп-кадров» на развороте
+  if (ti < 0 || (it.dur > 0 && ti > it.dur)) return null;
+  const pin = OUT(clamp01(ti / 0.3)), pout = out >= 0 ? IN(clamp01(out / 0.2)) : 0;
+  const sc = lerp(0.55, 1, pin) * lerp(1, 0.6, pout);
+  const D = { o: clamp01(ti / 0.12) * (1 - pout), y: lerp(14, 0, pin), sx: sc, sy: sc };
+  const m = camMap(c, t, W, H);
+  const fx = it.x, fy = it.y;
+  const d = it.size, mag = it.mag ?? 2;
+  const X = c.mat + m.left + fx * m.dw, Y = c.mat + m.top + fy * m.dh;
+  const iw = m.dw * mag, ih = m.dh * mag;
+  const img = c.src.kind === 'seq' ? seqUrl(c, seqAt(c, t).i0) : staticFile(c.src.path);
+  // лёгкое «дыхание» стекла, пока лупа лежит
+  const br = 1 + 0.012 * Math.sin(ti * 3.2);
+  return (
+    <div style={{ position: 'absolute', left: X - d / 2, top: Y - d / 2, width: d, height: d, opacity: D.o,
+      transform: `translateY(${D.y}px) scale(${D.sx * br}, ${D.sy * br})`, zIndex: 5 }}>
+      {/* ручка лупы */}
+      <div style={{ position: 'absolute', left: d * 0.8, top: d * 0.8, width: d * 0.16, height: d * 0.42, borderRadius: d * 0.06,
+        background: 'linear-gradient(90deg, #4a3a2c, #2f251d)', transform: 'rotate(-45deg)', transformOrigin: '50% 0', boxShadow: soft(0.3) }} />
+      <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden', background: '#e9dcc0',
+        boxShadow: `0 0 0 ${d * 0.035}px #fbf6ea, 0 0 0 ${d * 0.05}px ${sh(0.55)}, ${soft(0.6, 1.2)}` }}>
+        <Img src={img} style={{ position: 'absolute', left: d / 2 - fx * iw, top: d / 2 - fy * ih, width: iw, height: ih, maxWidth: 'none' }} />
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'radial-gradient(circle at 32% 28%, rgba(255,255,255,0.28), rgba(255,255,255,0) 45%)', boxShadow: `inset 0 0 ${d * 0.08}px ${sh(0.35)}` }} />
+      </div>
+    </div>
+  );
+};
+
 /** Внутренность карточки: картинка / кадры сайта / ролик + камера (точка в центре и приближение). */
 const Content: React.FC<{ c: CardP; t: number; W: number; H: number }> = ({ c, t, W, H }) => {
   const { fps } = useVideoConfig();
@@ -90,12 +169,8 @@ const Content: React.FC<{ c: CardP; t: number; W: number; H: number }> = ({ c, t
   if (c.src.kind === 'seq') {
     // Кадр сайта = кадр ролика (30 к/с, rate 1). rate ≠ 1 — не повторять кадр (рывок «как 20 к/с»),
     // а смешивать два соседних: дробная часть индекса = прозрачность следующего.
-    const n = c.src.frames ?? 1;
-    let fi = ((c.src.start ?? 0) + t * (c.src.rate ?? 1)) * (c.src.fps ?? 30);
-    fi = Math.max(0, Math.min(n - 1, fi + 1e-6));
-    if (c.src.reverse) fi = n - 1 - fi;
-    const i0 = Math.floor(fi), fr = fi - i0, i1 = Math.min(n - 1, i0 + 1);
-    const url = (i: number) => staticFile(`${c.src.path}/${String(i).padStart(4, '0')}.jpg`);
+    const { i0, i1, fr } = seqAt(c, t);
+    const url = (i: number) => seqUrl(c, i);
     return (
       <>
         <Img src={url(i0)} style={style} />
@@ -198,10 +273,12 @@ export const Card: React.FC<{ c: CardP; shake: { x: number; y: number }; items?:
         : `inset 0 0 0 1px ${sh(0.12)}, inset 0 -10px 24px -18px ${sh(0.35)}` }} />
       <div style={{ position: 'relative', width: W, height: H, overflow: 'hidden', borderRadius: phone ? c.radius - c.mat : Math.max(4, c.radius - c.mat * 0.6), background: '#e9dcc0' }}>
         <Content c={c} t={t} W={W} H={H} />
+        {c.compare ? <Compare c={c} t={t} W={W} H={H} /> : null}
         <div style={{ position: 'absolute', inset: 0, boxShadow: phone ? `inset 0 0 0 1px rgba(0,0,0,0.35)` : `inset 0 0 0 1px ${sh(0.18)}, inset 0 0 40px ${sh(0.12)}`, borderRadius: 'inherit' }} />
       </div>
       {/* вложенные элементы (штамп, тап, точки, линейки) ездят вместе с карточкой */}
-      {own.map((i) => <Item key={i.id} it={i} T={T} fps={fps} />)}
+      {own.filter((i) => i.kind !== 'loupe').map((i) => <Item key={i.id} it={i} T={T} fps={fps} />)}
+      {items.filter((i) => i.kind === 'loupe').map((i) => <Loupe key={i.id} c={c} t={t} it={i} W={W} H={H} />)}
       {children}
     </div>
   );

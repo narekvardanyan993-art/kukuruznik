@@ -7,11 +7,12 @@ import { ACCENT, DROP_OUT, IN, INDIGO, INK, OUT, SURFACE, clamp01, drop, lerp, m
 
 export type Word = { s: string; at: number };
 export type ItemP = {
-  kind: 'tag' | 'icon' | 'tap' | 'stamp' | 'counter' | 'dot' | 'chip' | 'ruler' | 'sfx';
+  kind: 'tag' | 'icon' | 'tap' | 'stamp' | 'counter' | 'dot' | 'chip' | 'ruler' | 'sfx' | 'loupe';
   id: string; at: number; dur: number; x: number; y: number; rot: number; size: number;
   on?: string;               // id карточки: элемент едет вместе с ней (x, y — доли карточки)
   words?: Word[]; variant?: 'tag' | 'label' | 'big';
-  name?: 'moon' | 'flake' | 'bulb' | 'sun' | 'sunset';
+  name?: 'moon' | 'flake' | 'bulb' | 'sun' | 'sunset' | 'tilt';
+  mag?: number;              // loupe: во сколько раз крупнее
   top?: string; mid?: string; bottom?: string;
   from?: string; to?: string; tick?: number; label?: string;
   impact?: number; paper?: boolean;
@@ -125,6 +126,15 @@ const ICONS: Record<string, (k: number) => React.ReactNode> = {
       <path d="M5 21h22M8.5 25h15M16 8.5v3M8.2 12.2l2 2M23.8 12.2l-2 2M4.8 17h2.6M24.6 17h2.6" />
     </g>
   ),
+  // наклон телефона: телефон чуть повёрнут, по бокам — дуги-стрелки (как жест «наклони»)
+  tilt: () => (
+    <g fill="none" stroke={INK} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="11.6" y="8" width="8.8" height="16" rx="2" transform="rotate(-14 16 16)" fill="rgba(236, 186, 80, 0.35)" />
+      <path d="M14.6 21.4h2.4" transform="rotate(-14 16 16)" />
+      <path d="M6.5 11.5a11 11 0 0 0 0 9" /><path d="M5 18.6l1.5 2 2-1.2" />
+      <path d="M25.5 20.5a11 11 0 0 0 0-9" /><path d="M27 13.4l-1.5-2-2 1.2" />
+    </g>
+  ),
   bulb: () => (
     <g fill="none" stroke={INK} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 20.5c-2.2-1.6-3.6-4-3.6-6.7a7.6 7.6 0 0 1 15.2 0c0 2.7-1.4 5.1-3.6 6.7v2.5h-8z" fill="rgba(240, 200, 100, 0.5)" />
@@ -137,7 +147,7 @@ export const Icon: React.FC<{ it: ItemP; T: number; fps: number }> = ({ it, T, f
   const { t, D, p, alive } = env(it, T, fps);
   if (!alive) return null;
   const d = it.size;
-  const idle = it.name === 'flake' || it.name === 'sun' ? t * 28 : Math.sin(t * 2.4) * 7;
+  const idle = it.name === 'flake' || it.name === 'sun' ? t * 28 : it.name === 'tilt' ? Math.sin(t * 3.4) * 13 : Math.sin(t * 2.4) * 7;
   const glow = it.name === 'moon' || it.name === 'bulb' || it.name === 'sun' || it.name === 'sunset' ? 0.35 + 0.25 * Math.sin(t * 3.1) : 0;
   return (
     <div style={{
