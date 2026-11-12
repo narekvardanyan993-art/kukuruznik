@@ -32,7 +32,9 @@ const srv = http.createServer((q, r) => {
   if (!f.startsWith(site)) { r.writeHead(403); r.end(); return; }
   if (fs.existsSync(f) && fs.statSync(f).isDirectory()) f = path.join(f, 'index.html');
   if (!fs.existsSync(f)) { r.writeHead(404); r.end('not found'); return; }
-  r.writeHead(200, { 'Content-Type': MIME[path.extname(f).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-store' });
+  const st = fs.statSync(f), type = MIME[path.extname(f).toLowerCase()] || 'application/octet-stream', rg = q.headers.range;   // Range (206): без него ролик героя не перематывается
+  if (rg) { const m = /bytes=(\d*)-(\d*)/.exec(rg), a = m[1] ? +m[1] : 0, b = m[2] ? Math.min(+m[2], st.size - 1) : st.size - 1; r.writeHead(206, { 'Content-Type': type, 'Content-Range': `bytes ${a}-${b}/${st.size}`, 'Accept-Ranges': 'bytes', 'Content-Length': b - a + 1, 'Cache-Control': 'no-store' }); fs.createReadStream(f, { start: a, end: b }).pipe(r); return; }
+  r.writeHead(200, { 'Content-Type': type, 'Accept-Ranges': 'bytes', 'Content-Length': st.size, 'Cache-Control': 'no-store' });
   fs.createReadStream(f).pipe(r);
 });
 await new Promise((res) => srv.listen(0, '127.0.0.1', res));

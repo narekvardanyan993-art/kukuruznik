@@ -13,6 +13,7 @@
 //                 кадра не «заселяется» из ниоткуда); садятся на свои поверхности, а не летят сквозь; дождь — мокрое темнее, после
 //                 дождя радуга (если у кадра есть её рисунок); снег — белого больше и ложится сверху вниз; кадр без погоды (интерьер) —
 //                 ни частиц, ни перемен.
+// изюминки   — на каждом снимке листа: каждая видна (не пропала, ≥ 90 % в экране), кнопки её не закрывают (эффект actors).
 // Итог: OUT/g7.json (числа и проблемы) и OUT/sheet_<кадр>.png — лист: столбец на кнопку, снимок страницы с интерфейсом.
 // Код выхода 0 — проблем нет, 1 — есть.
 import puppeteer from 'puppeteer-core';
@@ -32,7 +33,9 @@ const srv = http.createServer((q, r) => {
   if (!f.startsWith(site)) { r.writeHead(403); r.end(); return; }
   if (fs.existsSync(f) && fs.statSync(f).isDirectory()) f = path.join(f, 'index.html');
   if (!fs.existsSync(f)) { r.writeHead(404); r.end('not found'); return; }
-  r.writeHead(200, { 'Content-Type': MIME[path.extname(f).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-store' });
+  const st = fs.statSync(f), type = MIME[path.extname(f).toLowerCase()] || 'application/octet-stream', rg = q.headers.range;   // Range (206): без него ролик героя не перематывается
+  if (rg) { const m = /bytes=(\d*)-(\d*)/.exec(rg), a = m[1] ? +m[1] : 0, b = m[2] ? Math.min(+m[2], st.size - 1) : st.size - 1; r.writeHead(206, { 'Content-Type': type, 'Content-Range': `bytes ${a}-${b}/${st.size}`, 'Accept-Ranges': 'bytes', 'Content-Length': b - a + 1, 'Cache-Control': 'no-store' }); fs.createReadStream(f, { start: a, end: b }).pipe(r); return; }
+  r.writeHead(200, { 'Content-Type': type, 'Accept-Ranges': 'bytes', 'Content-Length': st.size, 'Cache-Control': 'no-store' });
   fs.createReadStream(f).pipe(r);
 });
 await new Promise((res) => srv.listen(0, '127.0.0.1', res));
@@ -104,6 +107,8 @@ try {
   if (bud.s.units > 16) result.problems.push('бюджет: шейдеру нужно ' + bud.s.units + ' текстур, у телефона 16');
   const frames = (opt.frames ? opt.frames.split(',').map(Number) : [...Array(cfg.n).keys()]).filter((f) => f < cfg.n);
   await page.evaluate(() => window.__e2.off('breath', true));   // камера не «дышит»: иначе любые два снимка отличаются всем кадром
+  // герои (actors) и ветер (wind) — своё движение: замеры неба, огней и погоды идут без них (ветер проверяет G1, героев — G10 и снимки листа)
+  await page.evaluate(() => { window.__e2.off('actors', true); window.__e2.off('wind', true); });
   await page.evaluate(() => window.__e2.off('skymove', true));  // небо стоит (тени облаков видны, но не плывут): иначе замеры огней и погоды тонут в движении теней; движение неба меряет свой раздел
   await adv(1000);
   for (const f of frames) {
@@ -114,7 +119,33 @@ try {
       for (let k = 0; k < 60; k++) { await adv(100); if (!(await page.evaluate(() => window.__e2.state().fading))) break; }
       if ((await page.evaluate(() => window.__e2.state().frame)) !== f) { bad('кадр не открылся'); result.frames.push(F); continue; }
     }
-    const sheet = async (label) => { sheets.push({ label, png: PNG.sync.read(await page.screenshot({ type: 'png' })) }); };
+    // изюминки (эффект actors) на каждом снимке листа: видны (не пропали, не за краем экрана) и кнопки их не закрывают
+    const heroes = async (label) => {
+      const d = await page.evaluate(() => window.__e2.fx('actors'));
+      if (!d || !d.actors.length) return;
+      const ui = await page.evaluate(() => Array.prototype.filter.call(document.querySelectorAll('#bar button'), (b) => b.offsetParent !== null).map((b) => { const r = b.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom, b.textContent.trim() || b.getAttribute('aria-label')]; }));
+      const s = await shot();
+      F.m.heroes = F.m.heroes || {};
+      for (const A of d.actors.filter((q) => q.emotion)) {
+        const r = A.figure || A.rect, a = await page.evaluate((u, v) => window.__e2.project(u, v, 0.5), r[0], r[1]), b = await page.evaluate((u, v) => window.__e2.project(u, v, 0.5), r[2], r[3]);
+        const box = [a[0], a[1], b[0], b[1]];
+        // сколько героя в экране — по точкам его маски, а не по рамке (рамка маски захватывает и неподвижное рядом: край скамейки у кромки)
+        const inS = await page.evaluate((P, w, h) => { let n = 0; for (const q of P) { const p = window.__e2.project(q[0], q[1], 0.5); if (p[0] >= 0 && p[0] < w && p[1] >= 0 && p[1] < h) n++; } return P.length ? n / P.length : 0; }, A.pts || [], W, H);
+        const cover = ui.filter((q) => q[0] < box[2] && q[2] > box[0] && q[1] < box[3] && q[3] > box[1]).map((q) => q[4]);
+        const st = stats(s, box);
+        (F.m.heroes[A.id] = F.m.heroes[A.id] || {})[label] = { kind: A.kind, w: A.w, inScreen: r3(inS), sd: r3(st.sd), cover };
+        if (cover.length) bad(label + ': кнопки закрывают изюминку «' + A.id + '» (' + cover.join(', ') + ')');
+        if (inS < 0.9) bad(label + ': изюминка «' + A.id + '» за краем экрана (в экране ' + (100 * inS).toFixed(0) + ' % точек её маски)');
+        if ((A.kind === 'clip' || A.kind === 'image') ? A.w < 0.5 : A.kind !== 'drawing') bad(label + ': изюминка «' + A.id + '» пропала (' + A.kind + ', вес ' + A.w + ')');
+        else if (st.sd < 0.03) bad(label + ': на месте изюминки «' + A.id + '» пусто');
+      }
+    };
+    const settle = async () => { for (let k = 0; k < 400; k++) { const p = await page.evaluate(() => { window.__e2.redraw(); return window.__e2.pending(); }); if (!p) return; await sleep(25); } };
+    const sheet = async (label) => {   // лист — с героями (их ролики встали на свой кадр); после снимка герои снова выключены
+      await page.evaluate(() => { window.__e2.off('actors', false); window.__e2.off('wind', false); window.__e2.redraw(); }); await settle();
+      sheets.push({ label, png: PNG.sync.read(await page.screenshot({ type: 'png' })) }); await heroes(label);
+      await page.evaluate(() => { window.__e2.off('actors', true); window.__e2.off('wind', true); window.__e2.redraw(); });
+    };
     // ---------- «День» ----------
     if (!(await tap('[data-tod=day]'))) bad('нет кнопки «День»');
     await adv(9000);

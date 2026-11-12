@@ -1,6 +1,6 @@
 // core/ui.js — полигон: только самое нужное, чтобы страницу можно было открыть и проверить: кнопки времени суток («День», «Закат»,
 // «Ночь»), погоды («Снег», «Дождь»), стрелки кадров и доступ для проверок window.__e2. Панель, плашка, точки, язык, открытка, надписи переезжают в П5–П6
-// (docs/STANOK.md §7). ?break=tod — кнопки времени суток ничего не делают (красный случай гейта G7).
+// (docs/STANOK.md §7). ?break=tod — кнопки времени суток ничего не делают; ?break=bar-cover — кнопки поверх героя (красные случаи гейта G7).
 E2.UI = {
   init: function (cfg, fx) {
     var tod = fx.filter(function (e) { return e.name === 'tod'; })[0];
@@ -20,6 +20,12 @@ E2.UI = {
       if (!wx) { b.style.display = 'none'; return; }
       b.addEventListener('click', function () { var n = b.getAttribute('data-wx'); setWx(wx.state.kind === n ? 'none' : n); });
     });
+    if (E2.brk('bar-cover')) { var bar = document.getElementById('bar'); if (bar) bar.style.bottom = '17%'; }   // красный случай G7: кнопки поверх героя (как плашка поверх старика 09.11)
+    var show = fx.filter(function (e) { return e.name === 'show'; })[0];
+    Array.prototype.forEach.call(document.querySelectorAll('[data-show]'), function (b) {     // «Шоу»: запуск; повторное нажатие — остановить
+      if (!show) { b.style.display = 'none'; return; }
+      b.addEventListener('click', function () { if (show.run) show.stop(); else show.start(E2.Stage.frame()); });
+    });
     Array.prototype.forEach.call(document.querySelectorAll('[data-go]'), function (b) { b.addEventListener('click', function () { E2.Stage.go(E2.Stage.frame() + (+b.getAttribute('data-go'))); }); });
     document.addEventListener('keydown', function (e) { if (e.key === 'ArrowRight') E2.Stage.go(E2.Stage.frame() + 1); if (e.key === 'ArrowLeft') E2.Stage.go(E2.Stage.frame() - 1); });
     window.__e2 = {
@@ -35,6 +41,13 @@ E2.UI = {
       fx: function (name) { var e = E2.fxGet(name); return e && e.debug ? JSON.parse(JSON.stringify(e.debug(E2.Frames.get(E2.Stage.frame())))) : null; },
       project: function (u, v, d) { return E2.Stage.project(u, v, d); },
       off: function (name, on) { E2.offNow[name] = !!on; return true; }, still: function (on) { return E2.Stage.still(on); },
+      pending: function () { var n = 0; fx.forEach(function (e) { if (e.pendingNow) n += e.pendingNow(); }); return n; },   // ролики, которые ещё не встали на свой кадр (проверки ждут 0)
+      show: function (i, sec) {   // проверки: шоу кадра i, стоп-кадр на секунде sec (null — идёт по часам); i = -1 — остановить
+        if (!show) return false;
+        if (i < 0) { show.run = null; return true; }
+        if (!show.run && !show.start(i)) return false;
+        return show.freeze(sec === undefined ? null : sec);
+      },
       skyT: function (s) { var e = E2.fxGet('sky'); if (e) e.state.pin = (s === null || s === undefined) ? null : +s; return !!e; }   // время неба, с (null — снова по часам): паритет с e1.62
     };
   }

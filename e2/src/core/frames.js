@@ -1,5 +1,6 @@
 // core/frames.js — загрузка кадров: первый (день) сразу, остальное по одному в фоне. Тяжёлая подготовка картинок — core/prep.js
 // (Web Worker, если есть; иначе в главном потоке). Какие файлы и текстуры нужны — говорит каждый эффект (frameFiles, upload, states).
+// Версия кадра, загруженная одним эффектом (закат, ночь — tod), видна и другим: onState(G, entry, kind, r, owner) — актёры пишут в неё свой тон.
 E2.Frames = (function () {
   var store = [], dayP = [], stateP = [], cfg = null, fx = [], G = null, prep = null, prepCfg = null;
   function abs(u) { return new URL(u, location.href).href; }
@@ -53,7 +54,7 @@ E2.Frames = (function () {
       fx.forEach(function (e) {
         (e.states ? e.states(cfg.frames[i]) : []).forEach(function (st) {
           chain = chain.then(function () { return prep('state', [i, st[0], abs(st[1]), st[2] ? absAll(st[2]) : null]); })
-            .then(function (r) { e.uploadState(G, entry, st[0], r); return E2.Clock.pause(); })
+            .then(function (r) { e.uploadState(G, entry, st[0], r); fx.forEach(function (o) { if (o.onState) E2.safe(o.name + '.onState', function () { o.onState(G, entry, st[0], r, e.name); }); }); return E2.Clock.pause(); })
             .catch(function (err) { E2.err('кадр ' + (i + 1) + ' ' + st[0], err); });
         });
       });

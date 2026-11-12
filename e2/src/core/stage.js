@@ -5,7 +5,7 @@ E2.Stage = (function () {
   var S = { t: 0, dt: 16.667, tiltX: 0, tiltY: 0, shiftX: 0, shiftY: 0, zoom: 0, mix: 0, fa: null, fb: null, tier: 'full', still: false, cfg: null };
   var targetX = 0, targetY = 0, curX = 0, curY = 0, ret = null, pointer = false, dragId = null, dsx = 0, dsy = 0, dbx = 0, dby = 0;
   var frameIndex = 0, fade = null, zoomA = 1, zoomB = 1, lastT = null, natW = 768, natH = 1365;
-  var cover = { w: 1, h: 1, x: 0, y: 0 }, lastW = 0, lastH = 0, drawn = 0;
+  var cover = { w: 1, h: 1, x: 0, y: 0 }, base = { w: 1, h: 1, x: 0, y: 0 }, lastW = 0, lastH = 0, drawn = 0;
 
   function resize(force) {
     var cssW = stageEl.clientWidth, cssH = stageEl.clientHeight;
@@ -15,6 +15,7 @@ E2.Stage = (function () {
     if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
     var k = Math.max(cssW / natW, cssH / natH);   // как CSS background-size: cover
     cover.w = cssW / (natW * k); cover.h = cssH / (natH * k); cover.x = (1 - cover.w) / 2; cover.y = (1 - cover.h) / 2;
+    base.w = cover.w; base.h = cover.h; base.x = cover.x; base.y = cover.y;     // без камеры шоу
   }
   function build() {   // шейдеры из кусков эффектов
     var src = G.compose(fx, cfg);
@@ -100,7 +101,23 @@ E2.Stage = (function () {
     S.fb = fade ? E2.Frames.get(fade.to) : null;
     if (!S.fa || (fade && !S.fb) || lost) return;
     fx.forEach(function (ef) { if (ef.step) E2.safe(ef.name + '.step', function () { ef.step(S); }); });
+    camera();
     draw();
+  }
+  // Камера шоу (fx/show.js, формулы e1.43): эффект говорит «точка кадра at приезжает в точку экрана to, крупнее в zoom раз, доля k» —
+  // меняется только «cover» (какой кусок кадра на экране); наклон на время наезда слабее во столько же раз (параллакс на экране тот же).
+  function camera() {
+    cover.w = base.w; cover.h = base.h; cover.x = base.x; cover.y = base.y;
+    var cam = null;
+    fx.forEach(function (ef) { if (ef.camera && !cam) cam = E2.safe(ef.name + '.camera', function () { return ef.camera(S); }) || null; });
+    S.cam = cam ? cam.k : 0;
+    if (!cam) return;
+    var cZ = 1 + (cam.zoom - 1) * cam.k, cS = cfg.effects.parallax.baseScale, cr = S.fa.crop, to = cam.to || [0.5, 0.45];
+    var cU = 0.5 + ((cam.at[0] - cr[0]) / cr[2] - 0.5) * cS, cV = 0.5 + ((cam.at[1] - cr[1]) / cr[3] - 0.5) * cS;
+    var sx = (cU - cover.x) / cover.w, sy = (cV - cover.y) / cover.h;
+    cover.w /= cZ; cover.h /= cZ;
+    cover.x = cU - (sx + (to[0] - sx) * cam.k) * cover.w; cover.y = cV - (sy + (to[1] - sy) * cam.k) * cover.h;
+    S.shiftX /= cZ; S.shiftY /= cZ; S.zoom /= cZ;
   }
   function input() {
     function fromClient(x, y) {

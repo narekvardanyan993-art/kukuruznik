@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
-"""Станок chka.am — конвейер и гейты движка e2 (docs/STANOK.md). Сборка страницы e2, перенос настроек, гейты G5, G6, G7, G8, G13, паритет.
+"""Станок chka.am — конвейер и гейты движка e2 (docs/STANOK.md). Сборка страницы e2, перенос настроек, гейты G1, G5, G6, G7, G8, G10, G13, паритет, сверка шоу.
 
   python3 tools/stanok.py migrate tests/pogos-petros            # building.json (v1) → building.e2.json (format 2; только эффекты, которые уже есть в e2)
   python3 tools/stanok.py build   tests/pogos-petros --site DIR # страница e2: DIR/beta/e2/<id>/ + движок DIR/e/<версия>/ + manifest + штамп
-  python3 tools/stanok.py check   tests/pogos-petros [--gate G1,G5,G7] [--frames 0,1] [--selftest] [--out DIR] [--e1site DIR] [--chrome PATH]
-        G7 (кнопки) и G6(б) идут в Chrome; --frames — только эти кадры (в облачной VM весь дом — дольше 20 мин); --out — куда положить листы G7;
+  python3 tools/stanok.py build   tests/pogos-petros --site DIR --beta   # страница беты: DIR/beta/tests/<slug>-e2/ + движок DIR/beta/e/<версия>/
+  python3 tools/stanok.py beta    tests/pogos-petros [--dry-run]  # ТОЛЬКО советник: бета e2 в main (worktree от origin/main, коммит только этих папок, пуш)
+  python3 tools/stanok.py check   tests/pogos-petros [--gate G1,G5,G7,G10] [--frames 0,1] [--selftest] [--out DIR] [--e1site DIR] [--chrome PATH]
+        G7 (кнопки), G10 (живость и изюминки), G1 (ветер) и G6(б) идут в Chrome; --frames — только эти кадры (в облачной VM весь дом — дольше 20 мин); --out — куда положить листы G7;
         --e1site — копия сайта на e1.62 с Кукурузником (report/stanok-p0/site-before.tgz) для красного случая G6 «дождь e1.62»
   python3 tools/stanok.py parity  tests/pogos-petros --out DIR [--frames 0,1] [--states day,sunset,night,rain,snow] [--tilts L,C,R] [--sky 1] [--chrome PATH]
         паритет с e1.62: сцена e2 против сцены e1.62, собранной из тех же кадров БЕЗ ещё не перенесённых эффектов (актёры, pix, шоу) и без
         теней облаков у обоих — 0 отличий; --sky 1 — паритет теней облаков: с порогом (e1.62 рисует их сеткой) и красным случаем «небо сдвинуто»
         «Снег» — последним: тающий снег e2 идёт сверху вниз, а не разом (tests/<здание>/migration-allowed.json — разрешённые отличия)
+  python3 tools/stanok.py showcmp tests/pogos-petros --out DIR [--frames 0,1,2] [--chrome PATH]
+        шоу «до/после» на e2 против e1.62: стоп-кадры показа (секунды — SHOW_SECS), день, наклон C; отличия — только migration-allowed.json
 
 Настройки здания для e2 — <здание>/building.e2.json (v1 building.json рядом не трогается: на нём живут бета и live на e1.62).
 Ошибка настроек — «ОШИБКА building.json: …», код выхода 1, на диск ничего не пишется (гейт G8).
@@ -62,8 +66,12 @@ def read_building(bdir):
         raise SystemExit('ОШИБКА building.json: %s не читается как JSON (строка %d, символ %d): %s' % (p.name, e.lineno, e.colno, e.msg))
 
 
-def build(bdir, site, page=None, e2=E2, building=None, quiet=False):
-    """Собирает страницу здания на e2. Возвращает папку страницы (от корня сайта). Сначала ВСЕ проверки, потом запись."""
+BETA_PAGE = 'beta/tests/%s-e2/'     # страница e2 в бете (рядом с бетой e1.62 beta/tests/<slug>/, её не трогает); движок — beta/e/<версия>/
+
+
+def build(bdir, site, page=None, e2=E2, building=None, quiet=False, eng_root=''):
+    """Собирает страницу здания на e2. Возвращает папку страницы (от корня сайта). Сначала ВСЕ проверки, потом запись.
+    eng_root — где на сайте лежат версии движка e/<версия>/ ('' — корень сайта; 'beta/' — внутри беты: публикация беты коммитит только beta/)."""
     if building is None:
         b, raw, bpath = read_building(bdir)
     else:
@@ -76,12 +84,12 @@ def build(bdir, site, page=None, e2=E2, building=None, quiet=False):
     ver = build_engine.version(e2)
     site = Path(site)
     page = (page or 'beta/e2/%s/' % cfg['id']).strip('/') + '/'
-    eng_dir = site / 'e' / ver
+    eng_dir = site / eng_root / 'e' / ver
     eng = {n: (e2 / n).read_bytes() for n in ('viewer.js', 'prep.js')}
     eng['VERSION'] = (ver + '\n').encode()
     for n, data in eng.items():                      # выпущенная версия неизменяема
         if (eng_dir / n).is_file() and (eng_dir / n).read_bytes() != data:
-            raise SystemExit('ОШИБКА сборки: на сайте уже лежит другой движок версии %s (e/%s/%s). Версия неизменяема — смени e2/VERSION.' % (ver, ver, n))
+            raise SystemExit('ОШИБКА сборки: на сайте уже лежит другой движок версии %s (%se/%s/%s). Версия неизменяема — смени e2/VERSION.' % (ver, eng_root, ver, n))
     manifest = {'schema': 1, 'building': cfg['id'], 'engine': ver, 'files': {}}
     for fn in files:
         data = (src / fdir_name / fn).read_bytes()
@@ -98,7 +106,7 @@ def build(bdir, site, page=None, e2=E2, building=None, quiet=False):
     for f in cfg['frames'] + [cfg]:      # файлы кадров и файлы здания (лист частиц)
         f['files'] = {k: 'frames/%s?v=%s' % (fn, manifest['files'][fn]['sha256'][:8]) for k, fn in f.get('files', {}).items()}
     depth = page.count('/')
-    cfg['engine'] = {'base': '../' * depth + 'e/%s/' % ver, 'version': ver}
+    cfg['engine'] = {'base': '../' * depth + eng_root + 'e/%s/' % ver, 'version': ver}
     man_text = json.dumps(manifest, ensure_ascii=False, indent=1, sort_keys=True) + '\n'
     stamp = {'building': sha(raw), 'schema': sha((e2 / 'effects.schema.json').read_bytes()), 'engine': ver,
              'engineSrc': build_engine.src_sha(e2), 'manifest': sha(man_text.encode('utf-8'))}
@@ -136,7 +144,7 @@ def page_config(site, page):
 TUNING_MOVED = ('MAX_SHIFT_X', 'MAX_SHIFT_Y', 'ZOOM_NEAR', 'BREATH_AMPLITUDE', 'BUILDING_DEPTH_PIXEL', 'LAMP_BREATH', 'NIGHT_MAIN_WINS')
 TUNING_MOVED_FX = {'weather': ('WEATHER', 'WX_PARTICLES', 'RAIN_DROPS'),     # переезжают вместе со своим эффектом (пока его нет в схеме — notYet)
                    'sky': ('CLOUD_FIELD', 'CLOUD_FIELD_NIGHT', 'CLOUD_FIELD_SCALE', 'CLOUD_FIELD_SPEED')}
-FRAME_MOVED_FX = {'weather': ('snowMask', 'wx'), 'sky': ('cloudShadow',)}
+FRAME_MOVED_FX = {'weather': ('snowMask', 'wx'), 'sky': ('cloudShadow',), 'actors': ('poses',), 'show': ('showVideo', 'parade')}
 
 
 def frame_sky(f, kind, cf):
@@ -162,6 +170,91 @@ def frame_weather(f, kind, fdir):
         if a.get('wx') == 'after' and a.get('srcs'):
             w['rainbow'] = {'file': a['srcs'][0], 'rect': [round(min(max(x, 0), 1), 5) for x in a['rect']]}
     return w
+
+
+def _iou(a, b):
+    ix = max(0, min(a[2], b[2]) - max(a[0], b[0])); iy = max(0, min(a[3], b[3]) - max(a[1], b[1]))
+    u = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - ix * iy
+    return ix * iy / u if u > 0 else 0
+
+
+def frame_actors(f, kind, wx):
+    """Позы и ролики v1 (frames[].poses, e1.44–e1.59) → effects.actors кадра (docs/STANOK.md §4.6). Записи с перекрывающимися
+    прямоугольниками — один герой; ролики по часам зрителя: утро и день → media.day, вечер и ночь (19–5) → media.night; погода (wx) —
+    картинка Gemini + ролик поверх неё в одном варианте; tap — ролик тапа (poses.tap.hit — место). Радуга (wx: after) — эффект weather.
+    Карты тона (poses.tone) не переезжают: тон «версия / день» движок считает сам. emotion — у героя есть дневная петля и свои
+    варианты на каждую погоду кадра (стандарт изюминки)."""
+    P = f.get('poses') or {}
+    groups = []
+    for a in P.get('actors', []):
+        if a.get('wx') == 'after':
+            continue
+        g = next((q for q in groups if _iou(q['rect'], a['rect']) >= 0.4), None)
+        if g is None:
+            g = {'rect': a['rect'], 'items': []}
+            groups.append(g)
+        g['items'].append(a)
+    out = []
+    for g in groups:
+        first = next((a for a in g['items'] if a.get('video')), g['items'][0])
+        stem = (first.get('video') or (first.get('srcs') or ['x'])[0]).rsplit('.', 1)[0]
+        stem = re.sub(r'^(vid_|show_wx_|show_pose_)', '', stem)
+        toks = stem.split('_')
+        aid = '-'.join(toks[:2] if first.get('video') else toks)
+        media, imgs = {}, {}
+        var = lambda a: {k: v for k, v in (('name', a['video'].rsplit('.', 1)[0]), ('rect', [round(x, 5) for x in a['rect']]), ('video', a['video']),
+                                            ('mask', a.get('mask')), ('hours', a.get('hours'))) if v is not None}
+        for a in g['items']:
+            w = a.get('wx')
+            slots = ['rain', 'snow'] if w is True else ([w] if w else [])
+            if not a.get('video'):
+                for sl in slots:
+                    imgs[sl] = a
+                continue
+            v = var(a)
+            if a.get('tap'):
+                media['tap'] = v
+            elif slots:
+                for sl in slots:
+                    media.setdefault(sl, []).append(dict(v))
+            else:
+                h = a.get('hours')
+                if h and h[0] > h[1]:
+                    media.setdefault('night', []).append(v)
+                else:
+                    media.setdefault('day', []).append(v)
+        for sl, im in imgs.items():      # картинка погоды (Gemini) — под роликом той же погоды; ролика нет — одна картинка
+            src = im['srcs'][0]
+            if media.get(sl):
+                for v in media[sl]:
+                    v['image'] = src
+                    if [round(x, 5) for x in im['rect']] != v['rect']:
+                        v['imageRect'] = [round(x, 5) for x in im['rect']]
+            else:
+                media[sl] = [{'name': src.rsplit('.', 1)[0], 'rect': [round(x, 5) for x in im['rect']], 'image': src}]
+        if 'night' not in media and 'day' in media:
+            media['night'] = 'drawing'
+        ws = [k for k in ('rain', 'snow') if wx.get(k)]
+        a = {'id': aid, 'emotion': bool(media.get('day')) and all(media.get(k) for k in ws), 'rect': [round(x, 5) for x in g['rect']], 'media': media}
+        tp = P.get('tap')
+        if tp and 'tap' in media:
+            a['hit'] = [round(x, 5) for x in tp['hit']]
+        out.append(a)
+    return out
+
+
+def frame_show(f):
+    """Шоу кадра v1 (showVideo e1.50 + fx.cam e1.43 + fx.tod e1.45, кнопка парада со стилем fx) → effects.show кадра.
+    Детали шоу кодом (fx.items: буквы, свечи, «кино», призрак) в e2 не переезжают этим шагом — они остаются в notYet."""
+    sv, fx = f.get('showVideo'), f.get('fx') or {}
+    if not sv:
+        return {'type': 'none'}
+    v = {k: sv[k] for k in ('rect', 'video', 'mask', 't', 'fade', 'diff', 'keep', 'eraseV') if sv.get(k) is not None}
+    v['rect'] = [round(min(max(x, 0), 1), 6) for x in v['rect']]
+    out = {'type': 'video', 'dur': fx.get('dur', sv['t'][1] + 1), 'video': v, 'tod': fx.get('tod')}
+    if fx.get('cam'):
+        out['cam'] = {k: fx['cam'][k] for k in ('at', 'zoom', 'to', 't') if k in fx['cam']}
+    return out
 
 
 def migrate(bdir):
@@ -215,6 +308,8 @@ def migrate(bdir):
                       'overcast': lw.get('overcastShadow', 0.3)}}
     if not get('BUILDING_DEPTH_PIXEL'):
         raise SystemExit('перенос: у здания BUILDING_DEPTH_PIXEL = false, а в e2 глубина здания всегда по точкам — сначала пересобрать слои')
+    old = json.loads((src / CFG_NAME).read_text(encoding='utf-8')) if (src / CFG_NAME).is_file() else {}
+    oldf = {f['name']: f for f in old.get('frames', [])}
     frames, moved = [], {'name', 'caption', 'crop', 'sky', 'sun', 'tiltK', 'noon', 'sunset', 'hidden'}
     moved |= {'nightHalo', 'nightWins', 'nightLamps', 'lamps'}     # свет кодом e1.62 не переезжает (docs/STANOK.md §2.2): ночь — рисунок Gemini + lights
     tun_moved = set(TUNING_MOVED)
@@ -232,14 +327,20 @@ def migrate(bdir):
               'lights': {},
               'weather': frame_weather(f, kind, fdir),
               'sky': frame_sky(f, kind, get('CLOUD_FIELD'))}
+        fe['actors'] = {'list': frame_actors(f, kind, fe['weather'] if kind != 'interior' else {})}
+        fe['show'] = frame_show(f)
         g = {'name': f['name'], 'kind': kind}
         if f.get('caption'):
             g['caption'] = f['caption']
         g['effects'] = {e: trim(fe[e], FX[e]['frame'], kind) for e in fe if e in FX}
+        for e, v in (oldf.get(f['name'], {}).get('effects') or {}).items():     # то, чего в v1 нет (ветер: box крон — рука станка П3), — из прежнего building.e2.json
+            if e in FX and e not in fe:
+                g['effects'][e] = v
         g['effects']['tod'].setdefault('sun', fe['tod']['sun'])   # ключ обязателен (null — у кадра без неба)
         g['effects']['tod'].setdefault('sky', {})['end'] = end
         frames.append(g)
-        not_yet |= {k for k, v in f.items() if k not in moved and v not in (None, [], {}, False, 0)}
+        not_yet |= {k for k, v in f.items() if k not in moved and v not in (None, [], {}, False, 0)
+                    and not (k == 'fx' and 'show' in FX and not (v or {}).get('items'))}     # fx без деталей кодом = камера и время суток шоу — перенесены
     out = {'format': 2, 'id': v1['id'], 'source': '%s/building.json (v1, движок e1.62)' % bdir,
            'notYet': sorted('frames[].' + k for k in not_yet) + sorted('tuning.' + k for k in tun if k not in tun_moved),
            'text': v1.get('text'), 'look': {'frameSize': look['frameSize'], 'sunSide': look.get('sunSide', 'left')},
@@ -252,19 +353,21 @@ def migrate(bdir):
 
 
 # ---------------------------------------------------------------- эталон e1.62 без ещё не перенесённых эффектов (для паритета)
-def build_ref(bdir, site, sky=False):
+def build_ref(bdir, site, sky=False, show=False):
     """Страница здания на e1.62 (engine/), где выключено всё, чего в e2 ещё нет: актёры, pix (кроме плывущих облаков), шоу, листья, события неба.
     Остаются наклон, время суток, погода, плывущие облака рисунка (pix drift → sky.drift). Кадры те же.
     sky=False — без теней облаков (точный паритет: 0 отличий); sky=True — с ними, как в building.json (паритет теней: с порогом)."""
     import build_pages
     v1 = json.loads((ROOT / bdir / 'building.json').read_text(encoding='utf-8'))
     for f in v1['frames']:
+        keep = ('showVideo', 'fx') if show and f.get('showVideo') and not (f.get('fx') or {}).get('items') else ()     # сверка шоу: видео-шоу, камера, время суток остаются
         for k in ('poses', 'leafFly', 'showVideo', 'fx', 'showCaption'):
-            f.pop(k, None)
+            if k not in keep:
+                f.pop(k, None)
         drift = [q for q in f.pop('pix', None) or [] if q.get('kind') == 'drift'][:1]     # облака рисунка плывут — эффект sky (П2)
         if drift:
             f['pix'] = drift
-        f['parade'] = False
+        f['parade'] = 'fx' if keep else False
         if not sky:
             f['cloudShadow'] = 1e-9     # 0 движок e1.62 читает как «нет значения» и ставит 0,12
         f['life'] = {'day': [], 'sunset': [], 'night': []}
@@ -305,10 +408,11 @@ def gate_g5(site, page, bdir, e2=E2, building_raw=None):
     m = re.search(r'<script src="([^"]*)viewer\.js\?v=([^"]+)"', html)
     if not m or not m.group(1).endswith('e/%s/' % ver) or m.group(2) != ver:
         probs.append('движок на странице подключён не из папки версии e/%s/' % ver)
+    edir = Path(os.path.normpath(str(site / page / cfg['engine']['base'])))     # e/<версия>/ от корня сайта или внутри беты (beta/e/<версия>/)
     for n in ('viewer.js', 'prep.js'):
-        p = site / 'e' / ver / n
+        p = edir / n
         if not p.is_file() or p.read_bytes() != (e2 / n).read_bytes():
-            probs.append('e/%s/%s на сайте не совпадает с e2/%s' % (ver, n, n))
+            probs.append('%s/%s на сайте не совпадает с e2/%s' % (os.path.relpath(edir, site), n, n))
     man = json.loads((site / page / 'frames' / 'manifest.json').read_text(encoding='utf-8'))['files']
     for f in cfg['frames']:
         for key, url in f['files'].items():
@@ -380,6 +484,9 @@ def bad_configs(good):
         ('неизвестный kind', mod(lambda b: f0(b).update({'kind': 'panorama'})), 'panorama'),
         ('тени облаков в интерьере', mod(lambda b: (f0(b).update({'kind': 'interior'}), f0(b)['effects']['parallax'].update({'tilt': 0.2}), f0(b)['effects']['tod'].update({'sun': None}), f0(b)['effects']['tod']['sky'].update({'end': 0.01}), f0(b)['effects'].update({'weather': {}, 'sky': {'shadow': 0.15}}))), 'неба нет'),
         ('прямоугольник плывущих облаков не от верха кадра', mod(lambda b: f0(b)['effects'].setdefault('sky', {}).update({'drift': {'box': [0, 0.3, 1, 0.5], 'px': 20, 'periodS': 80}})), 'от верха кадра'),
+        ('героев с эмоцией меньше двух', mod(lambda b: [a.update({'emotion': False}) for f in b['frames'][1:] for a in (f['effects'].get('actors') or {}).get('list', [])]), 'не меньше двух'),
+        ('у изюминки нет варианта в снег', mod(lambda b: next(a for f in b['frames'] for a in (f['effects'].get('actors') or {}).get('list', []) if a.get('emotion'))['media'].pop('snow')), 'снег'),
+        ('ролик героя без маски', mod(lambda b: next(a for f in b['frames'] for a in (f['effects'].get('actors') or {}).get('list', []) if a.get('emotion'))['media']['day'][0].pop('mask')), 'маски'),
         ('крупный план с полным наклоном', mod(lambda b: (f0(b).update({'kind': 'close'}), f0(b)['effects']['parallax'].update({'tilt': 1}))), 'почти плоские'),
     ]
 
@@ -517,6 +624,51 @@ def gate_g1(site, page, chrome, out, frames=None):
     return g1_run(site, page, chrome, out, frames)
 
 
+def g10_run(site, page, chrome, out, frames=None, query=None, states=None):
+    """Прогон tools/stanok_g10.mjs (живость и изюминки). Возвращает список проблем (пустой — зелёный)."""
+    out = Path(out)
+    args = ['node', str(ROOT / 'tools' / 'stanok_g10.mjs'), '--site', str(site), '--page', page, '--out', str(out), '--chrome', chrome]
+    for k, v in (('frames', frames), ('query', query), ('states', states)):
+        if v:
+            args += ['--' + k, str(v)]
+    r = subprocess.run(args, capture_output=True, text=True)
+    jp = out / 'g10.json'
+    if not jp.is_file():
+        return ['прогон G10 не дал отчёта: ' + (r.stdout + r.stderr).strip()[-300:]]
+    return json.loads(jp.read_text(encoding='utf-8'))['problems']
+
+
+def hero_frames(bdir):
+    """Кадры с изюминками (emotion: true) — на них G10 по умолчанию."""
+    b = read_building(bdir)[0]
+    return [i for i, f in enumerate(b['frames']) if any(a.get('emotion') for a in (f.get('effects', {}).get('actors') or {}).get('list', []))]
+
+
+def gate_g10(site, page, chrome, out, bdir, frames=None):
+    """Живость: кадр меняется ≥ 2 % экрана за 5 с; изюминки живут во всех версиях кадра (день, закат, ночь, дождь, снег), не мельче
+    minFigure высоты экрана, тап по герою с hit запускает ролик тапа (tools/stanok_g10.mjs). По умолчанию — кадры с изюминками."""
+    return g10_run(site, page, chrome, out, frames or ','.join(map(str, hero_frames(bdir))))
+
+
+# красные случаи G10: каждая поломка обязана дать свою проблему (кадр — первый с изюминкой)
+G10_CASES = [('break=actors-sunset', 'day,sunset', 'пропала', '?break=actors-sunset — герой гаснет на закате (старая ошибка e1: «актёр пропал на «Закате»»)'),
+             ('break=actors-wxfreeze', 'day,rain,snow', 'замерла', '?break=actors-wxfreeze — в дождь и снег ролик героя стоит'),
+             ('off=actors,clouds,skymove,breath,wind,lights', 'day', 'мёртвый кадр', '?off=actors,… — кадр без героев и неба (мёртвый кадр)')]
+
+
+def selftest_g10(bdir, site, page, chrome):
+    if not chrome:
+        return [('G10', 'поломки в браузере ПРОПУЩЕНЫ: нет Chrome', None)]
+    hf = hero_frames(bdir)
+    if not hf:
+        return [('G10', 'у здания нет изюминок — самопроверка ПРОПУЩЕНА', None)]
+    res = []
+    for query, states, expect, title in G10_CASES:
+        probs = g10_run(site, page, chrome, tempfile.mkdtemp(prefix='stanok-g10-self-'), str(hf[0]), query, states)
+        res.append(('G10', title, any(expect in p for p in probs)))
+    return res
+
+
 # красные случаи ветра (на кадре с деревьями): каждая поломка обязана дать свою проблему
 G1_CASES = [('break=wind-smear', 'вне кроны', '?break=wind-smear — фон тянется за кроной (сдвигается картинка, а не крона)'),
             ('break=wind-far', 'вне кроны', '?break=wind-far — крона уходит дальше потолка maxPx'),
@@ -607,6 +759,8 @@ def selftest(bdir, gates, chrome, e1site=None):
         res += selftest_g7(bdir, site, page, chrome)
     if 'G1' in gates:
         res += selftest_g1(bdir, site, page, chrome)
+    if 'G10' in gates:
+        res += selftest_g10(bdir, site, page, chrome)
     return res
 
 
@@ -658,7 +812,8 @@ def selftest_g7(bdir, site, page, chrome):
         return res
     cases = [('break=tod', 'day,sunset,night', 'кнопка не работает', '?break=tod — кнопки времени суток ничего не делают'),
              ('break=lights-all', 'day,night', 'разом', '?break=lights-all — все окна зажигаются разом, а не по одному'),
-             ('break=lights-cells', 'day,night', 'клетки', '?break=lights-cells — мерцание клетками, а не по огню целиком')] + G7_WX_CASES + G7_SKY_CASES
+             ('break=lights-cells', 'day,night', 'клетки', '?break=lights-cells — мерцание клетками, а не по огню целиком'),
+             ('break=bar-cover', 'day', 'закрывают изюминку', '?break=bar-cover — кнопки поверх старика (как плашка 09.11)')] + G7_WX_CASES + G7_SKY_CASES
     for query, buttons, expect, title in cases:
         frames = '0'
         if isinstance(buttons, tuple):
@@ -724,6 +879,12 @@ def check(bdir, gates, chrome, do_selftest, frames=None, out=None, e1site=None):
             show('G7', gate_g7(site, page, chrome, g7out, frames), ' (кадры: %s; листы и числа: %s)' % (frames or 'все', g7out))
         else:
             print('G7 ПРОПУЩЕНО: нет Chrome (кнопки проверяются только в браузере)')
+    if 'G10' in gates:
+        if chrome:
+            g10out = (Path(out) / 'g10') if out else Path(tempfile.mkdtemp(prefix='stanok-g10-'))
+            show('G10', gate_g10(site, page, chrome, g10out, bdir, frames), ' (кадры: %s; листы и числа: %s)' % (frames or 'с изюминками', g10out))
+        else:
+            print('G10 ПРОПУЩЕНО: нет Chrome (живость проверяется только в браузере)')
     if 'G8' in gates:
         probs, n = gate_g8(bdir)
         show('G8', probs, ' (%d испорченных настроек + целые)' % n)
@@ -766,7 +927,7 @@ def parity(bdir, out, chrome, frames=None, states='day,sunset,night,rain,snow', 
     fa += ['--settle', settle] if settle else []
     allow = (ROOT / bdir if not Path(bdir).is_absolute() else Path(bdir)) / 'migration-allowed.json'      # разрешённые отличия здания (docs/STANOK.md §2.4 п.5)
     off = sorted({q['off'] for q in json.loads(allow.read_text(encoding='utf-8')).get('allowed', []) if q.get('off')}) if allow.is_file() else ['precip']
-    off = sorted(set(off) | {'wind'})        # ветер e2 — новое, в e1.62 так нет: сцена сравнивается без него (его проверяет G1)
+    off = sorted(set(off) | {'wind', 'actors'})        # ветер e2 — новое, в e1.62 так нет: сцена сравнивается без него (его проверяет G1)
     if not sky:
         off = sorted(set(off) | {'clouds'})
 
@@ -795,6 +956,82 @@ def parity(bdir, out, chrome, frames=None, states='day,sunset,night,rain,snow', 
     return code
 
 
+def publish_beta_e2(bdir, dry=False):
+    """Бета e2 на сайт (только советник; агент из промпта не запускает): временный worktree от origin/main → страница
+    beta/tests/<slug>-e2/ + движок beta/e/<версия>/ → G5 и G13 на собранном → коммит ТОЛЬКО этих папок → обычный пуш в main.
+    Бета e1.62 (beta/tests/<slug>/) и всё остальное в main не трогаются. Внимание: tools/publish_beta.py пересобирает beta/ целиком —
+    после него страницу e2 нужно выложить заново этой командой (пока build_pages не умеет e2 — П5)."""
+    import publish_beta as pb
+    tag = '[dry-run] ' if dry else ''
+    slug = bdir.split('/')[-1]
+    page = BETA_PAGE % slug
+    pb.git(ROOT, 'fetch', pb.REMOTE, pb.BRANCH)
+    base = pb.git(ROOT, 'rev-parse', '%s/%s' % (pb.REMOTE, pb.BRANCH))
+    tmp = Path(tempfile.mkdtemp(prefix='chka-beta-e2-'))
+    print('%sвременный worktree: %s (от %s/%s = %s)' % (tag, tmp, pb.REMOTE, pb.BRANCH, base[:7]))
+    try:
+        pb.git(ROOT, 'worktree', 'add', '--detach', str(tmp), base)
+        build(bdir, tmp, page, eng_root='beta/')
+        probs = gate_g5(tmp, page, bdir) + gate_g13(tmp, page)
+        if probs:
+            raise SystemExit('%sпубликация остановлена: %s' % (tag, '; '.join(probs[:5])))
+        ver = build_engine.version(E2)
+        pb.git(tmp, 'add', '-A', page.rstrip('/'), 'beta/e/%s' % ver)
+        staged = pb.git(tmp, 'diff', '--cached', '--name-only').splitlines()
+        outside = [p for p in staged if not (p.startswith(page) or p.startswith('beta/e/'))]
+        if outside:
+            raise SystemExit('%sв коммит попало что-то кроме %s и beta/e/: %s — стоп' % (tag, page, outside[:5]))
+        if not staged:
+            print('%sизменений нет — публиковать нечего' % tag)
+            return 0
+        print('%sфайлов в коммите: %d (%s + beta/e/%s)' % (tag, len(staged), page, ver))
+        msg = 'beta e2: %s на %s' % (slug, ver)
+        if dry:
+            print('[dry-run] СДЕЛАЛ БЫ: git commit -m "%s" && git push %s HEAD:%s (обычный пуш)' % (msg, pb.REMOTE, pb.BRANCH))
+            print('[dry-run] ссылка после публикации: https://chka.am/%s?v=%s' % (page, ver))
+            return 0
+        pb.git(tmp, 'commit', '-m', msg)
+        head = pb.git(tmp, 'rev-parse', 'HEAD')
+        pb.git(tmp, 'push', pb.REMOTE, 'HEAD:%s' % pb.BRANCH)
+        print('запушено в %s/%s: %s — https://chka.am/%s?v=%s' % (pb.REMOTE, pb.BRANCH, head[:7], page, ver))
+        return 0
+    finally:
+        pb.remove_worktree(tmp)
+        print('%sвременный worktree удалён' % tag)
+
+
+SHOW_SECS = {0: [2, 5, 8, 10.5], 1: [3, 8, 14, 20, 26], 2: [2.5, 5, 8, 10.5]}     # секунды сверки шоу A, B, C Погоса: наезд, середина, развязка, угасание
+
+
+def show_parity(bdir, out, chrome, frames=None):
+    """Шоу «до/после» на e2 против e1.62 (эталон: та же страница e1.62 с видео-шоу, камерой и временем суток, без героев и деталей кодом):
+    стоп-кадр показа на заданных секундах, день, наклон C, ролик встаёт на свою секунду в обоих движках. Отличия — только из
+    migration-allowed.json (как у паритета). Без теней облаков у обоих (их сверяет parity --sky 1)."""
+    if not chrome:
+        print('ПРОПУЩЕНО: нет Chrome')
+        return 2
+    out = Path(out)
+    out.mkdir(parents=True, exist_ok=True)
+    b = read_building(bdir)[0]
+    idx = [i for i, f in enumerate(b['frames']) if (f.get('effects', {}).get('show') or {}).get('type', 'none') != 'none']
+    if frames:
+        idx = [i for i in idx if str(i) in frames.split(',')]
+    spec = ';'.join('%d:%s' % (i, ','.join(str(x) for x in SHOW_SECS.get(i, [2, 5, 8]))) for i in idx)
+    s1, s2 = Path(tempfile.mkdtemp(prefix='stanok-show-e1-')), Path(tempfile.mkdtemp(prefix='stanok-show-e2-'))
+    p1, p2 = build_ref(bdir, s1, show=True), build(bdir, s2, quiet=True)
+    allow = (ROOT / bdir if not Path(bdir).is_absolute() else Path(bdir)) / 'migration-allowed.json'
+    off = sorted({q['off'] for q in json.loads(allow.read_text(encoding='utf-8')).get('allowed', []) if q.get('off')} | {'clouds', 'wind', 'actors'})
+    for eng, site, page, extra in (('e1', s1, p1, []), ('e2', s2, p2, ['--query', 'off=' + ','.join(off), '--times', out / 'e1' / 'index.json'])):
+        r = px(['shoot', '--engine', eng, '--site', site, '--page', page, '--out', out / eng, '--show', spec, '--tilts', 'C', '--png', '1'] + extra, chrome)
+        print(r.stdout.strip()[-400:])
+        if r.returncode != 0:
+            print(r.stderr.strip()[-600:])
+            return 1
+    r = px(['compare', out / 'e1', out / 'e2', '--delta', 3, '--share', 0.0005, '--report', out / 'show.json'] + (['--allow', allow] if allow.is_file() else []), chrome)
+    print(r.stdout.strip())
+    return r.returncode
+
+
 def main(argv):
     if not argv or argv[0] in ('-h', '--help'):
         print(__doc__)
@@ -805,7 +1042,7 @@ def main(argv):
     i = 0
     while i < len(rest):
         if rest[i].startswith('--'):
-            if rest[i] in ('--selftest',):
+            if rest[i] in ('--selftest', '--beta', '--dry-run'):
                 opt[rest[i][2:]] = True
             else:
                 opt[rest[i][2:]] = rest[i + 1]
@@ -822,18 +1059,25 @@ def main(argv):
     elif cmd == 'build':
         if 'site' not in opt:
             raise SystemExit('нужен --site ПАПКА (копия сайта; в репозиторий страница e2 пока не собирается)')
-        build(bdir, opt['site'], opt.get('page'))
+        if opt.get('beta'):
+            build(bdir, opt['site'], BETA_PAGE % bdir.split('/')[-1], eng_root='beta/')
+        else:
+            build(bdir, opt['site'], opt.get('page'))
+    elif cmd == 'beta':
+        return publish_beta_e2(bdir, dry=bool(opt.get('dry-run')))
     elif cmd == 'check':
-        gates = opt.get('gate', 'G1,G5,G6,G7,G8,G13').split(',')
+        gates = opt.get('gate', 'G1,G5,G6,G7,G8,G10,G13').split(',')
         return check(bdir, gates, chrome, bool(opt.get('selftest')), opt.get('frames'), opt.get('out'), opt.get('e1site'))
     elif cmd == 'parity':
         return parity(bdir, opt.get('out', tempfile.mkdtemp(prefix='stanok-parity-')), chrome, opt.get('frames'), opt.get('states', 'day,sunset,night,rain,snow'),
                       float(opt['delta']) if 'delta' in opt else None, float(opt['share']) if 'share' in opt else None, opt.get('tilts', 'L,C,R'),
                       sky=opt.get('sky') == '1', settle=opt.get('settle'))
+    elif cmd == 'showcmp':
+        return show_parity(bdir, opt.get('out', tempfile.mkdtemp(prefix='stanok-show-')), chrome, opt.get('frames'))
     elif cmd == 'ref':
         print(build_ref(bdir, opt['site']))
     else:
-        raise SystemExit('неизвестная команда %s (есть: migrate, build, check, parity, ref)' % cmd)
+        raise SystemExit('неизвестная команда %s (есть: migrate, build, check, parity, showcmp, ref)' % cmd)
     return 0
 
 

@@ -40,6 +40,12 @@ E2.Clock = (function () {
         return ((t ^ t >>> 14) >>> 0) / 4294967296;
       };
     },
+    hour: function () {                                     // час зрителя 0..24 (актёры: утренний и дневной ролик собаки); ?hour=8 — подмена; ?vt=1 — всегда 12 (проверки воспроизводимы)
+      var q = /[?&]hour=(\d+(?:\.\d+)?)/.exec(location.search);
+      if (q) return +q[1];
+      if (virtual) return 12;
+      var d = new Date(); return d.getHours() + d.getMinutes() / 60;
+    },
     real: function () { return performance.now(); },        // настоящие часы — ТОЛЬКО для замера fps (core/perf.js), на картинку не влияют
     pause: function () { return new Promise(function (r) { setTimeout(r, 0); }); }   // уступить поток при загрузке кадров (не движение)
   };

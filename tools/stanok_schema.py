@@ -111,6 +111,8 @@ def _value(v, s, where, kind=None):
             if not isinstance(p, list) or len(p) != 2 or any(not _is_num(x) or x < 0 or x > 1 for x in p):
                 fail('%s.%s — нужна точка [u, v] в долях кадра, а здесь %r' % (where, k, p))
         return v
+    if t == 'actors':
+        return _actors(v, where)
     if t == 'object':
         if v is False and s.get('orFalse'):
             return False
@@ -118,6 +120,96 @@ def _value(v, s, where, kind=None):
             fail('%s — нужен блок { … }%s, а здесь %r' % (where, ' или false' if s.get('orFalse') else '', v))
         return _object(v, s['keys'], where, kind)
     fail('схема: неизвестный тип «%s» у %s (e2/effects.schema.json)' % (t, where))
+
+
+ACTOR_KEYS = ('id', 'emotion', 'rect', 'hit', 'underShow', 'media')
+ACTOR_SLOTS = ('day', 'sunset', 'night', 'rain', 'snow', 'tap')
+VARIANT_KEYS = ('name', 'rect', 'video', 'webm', 'mask', 'image', 'imageRect', 'hours', 'note')
+
+
+def _variant(v, where, rect):
+    if not isinstance(v, dict):
+        fail('%s — нужен вариант {name, video, mask} или {name, image}, а здесь %r' % (where, v))
+    _check_keys(v, dict.fromkeys(VARIANT_KEYS), where)
+    out = {'name': _value(v.get('name'), {'type': 'string'}, where + '.name'),
+           'rect': _value(v.get('rect', rect), {'type': 'rect'}, where + '.rect')}
+    for k in ('video', 'webm', 'mask', 'image'):
+        out[k] = _value(v[k], {'type': 'string'}, where + '.' + k) if v.get(k) is not None else None
+    out['imageRect'] = _value(v['imageRect'], {'type': 'rect'}, where + '.imageRect') if v.get('imageRect') is not None else None
+    if out['imageRect'] and not out['image']:
+        fail('%s.imageRect — прямоугольник картинки есть, а картинки (image) нет' % where)
+    if not out['video'] and not out['image']:
+        fail('%s — у варианта нет ни ролика (video), ни картинки (image)' % where)
+    if out['video']:
+        if not out['video'].endswith('.mp4'):
+            fail('%s.video = %r — ролик героя — .mp4 (рядом .webm для браузеров без H.264)' % (where, out['video']))
+        if not out['mask']:
+            fail('%s.mask — у ролика нет маски: без неё ролик закрасил бы весь прямоугольник' % where)
+        out['webm'] = out['webm'] or out['video'][:-4] + '.webm'
+    h = v.get('hours')
+    if h is not None and (not isinstance(h, list) or len(h) != 2 or any(not _is_num(x) or x < 0 or x > 24 for x in h)):
+        fail('%s.hours — нужны часы [ч0, ч1) по местному времени (0…24), а здесь %r' % (where, h))
+    out['hours'] = h
+    return out
+
+
+def _actors(v, where):
+    """Герои кадра (эффект actors, docs/STANOK.md §4.6)."""
+    if not isinstance(v, list):
+        fail('%s — нужен список героев [{id, emotion, rect, media}, …], а здесь %r' % (where, v))
+    out, ids = [], set()
+    for i, a in enumerate(v):
+        w = '%s[%d]' % (where, i)
+        if not isinstance(a, dict):
+            fail('%s — герой не блок { … }' % w)
+        _check_keys(a, dict.fromkeys(ACTOR_KEYS), w)
+        g = {'id': _value(a.get('id'), {'type': 'slug'}, w + '.id')}
+        w = '%s (%s)' % (w, g['id'])
+        if g['id'] in ids:
+            fail('%s — id героя повторяется' % w)
+        ids.add(g['id'])
+        g['emotion'] = _value(a.get('emotion', False), {'type': 'bool'}, w + '.emotion')
+        g['rect'] = _value(a.get('rect'), {'type': 'rect'}, w + '.rect')
+        g['hit'] = _value(a['hit'], {'type': 'rect'}, w + '.hit') if a.get('hit') is not None else None
+        g['underShow'] = _value(a.get('underShow', True), {'type': 'bool'}, w + '.underShow')
+        m = a.get('media')
+        if not isinstance(m, dict) or not m:
+            fail('%s.media — нужен блок {day: […], rain: […], snow: […], …}' % w)
+        _check_keys(m, dict.fromkeys(ACTOR_SLOTS), w + '.media')
+        gm, names = {}, {}
+        for sl, lst in m.items():
+            ws = '%s.media.%s' % (w, sl)
+            if sl == 'night' and lst == 'drawing':
+                gm[sl] = 'drawing'
+                continue
+            if sl == 'tap':
+                gm[sl] = _variant(lst, ws, g['rect'])
+                vs = [gm[sl]]
+            else:
+                if not isinstance(lst, list) or not lst:
+                    fail('%s — нужен непустой список вариантов%s' % (ws, ' или "drawing"' if sl == 'night' else ''))
+                gm[sl] = vs = [_variant(x, '%s[%d]' % (ws, j), g['rect']) for j, x in enumerate(lst)]
+            for x in vs:
+                if x['name'] in names and names[x['name']] != x:
+                    fail('%s — имя варианта «%s» уже занято другим вариантом этого героя' % (ws, x['name']))
+                names[x['name']] = x
+        if g['hit'] and 'tap' not in gm:
+            fail('%s.hit — место тапа есть, а ролика тапа (media.tap) нет' % w)
+        if 'tap' in gm and not g['hit']:
+            fail('%s.media.tap — ролик тапа есть, а места тапа (hit) нет' % w)
+        g['media'] = gm
+        out.append(g)
+    return out
+
+
+def actor_files(lst):
+    """Файлы героев кадра (для manifest и проверки «файл есть»)."""
+    fs = []
+    for a in lst or []:
+        for sl, m in a['media'].items():
+            for v in ([m] if isinstance(m, dict) else (m if isinstance(m, list) else [])):
+                fs += [v[k] for k in ('video', 'webm', 'mask', 'image') if v.get(k)]
+    return fs
 
 
 def _default(s, kind):
@@ -240,6 +332,15 @@ def resolve(b, frames_dir=None, schema=None):
                 v = g['effects'][e].get(q['key'])
                 if v:      # 'sub' — имя файла записано в самих настройках (блок с ключом sub); иначе — по шаблону от имени кадра
                     g['files'][q['file']] = v[q['sub']] if q.get('sub') else q['pattern'].replace('{name}', g['name'])
+        for fn in actor_files((g['effects'].get('actors') or {}).get('list')):     # ролики, маски и картинки героев: ключ — само имя файла
+            g['files'][fn] = fn
+        shv = (g['effects'].get('show') or {}).get('video')
+        if shv:
+            if not shv['video'].endswith('.mp4'):
+                fail('%s, effects.show.video.video = %r — ролик шоу — .mp4 (рядом .webm)' % (tag, shv['video']))
+            shv['webm'] = shv.get('webm') or shv['video'][:-4] + '.webm'
+            for fn in (shv['video'], shv['webm'], shv['mask']):
+                g['files'][fn] = fn
         if fdir is not None:
             for key, fn in g['files'].items():
                 if not (fdir / fn).is_file():
@@ -265,6 +366,10 @@ def resolve(b, frames_dir=None, schema=None):
         _frame_budget(g, tag, S)
         frames.append(g)
     out['frames'] = frames
+    if 'actors' in FX:     # «≥ 2 изюминки на здание» (docs/STANOK.md §4.6, G8)
+        emo = [a['id'] for f in frames for a in (f['effects'].get('actors') or {}).get('list', []) if a['emotion']]
+        if len(emo) < 2:
+            fail('effects.actors — героев с эмоцией (emotion: true) на здание %d (%s), нужно не меньше двух: собака, старик с голубями, пара, кошка… (docs/STANOK.md §4.6)' % (len(emo), ', '.join(emo) or 'нет'))
     out['derived'] = derived     # сборка считает эти файлы и убирает ключ из настроек страницы
     if S.get('budget'):
         out['budget'] = {k: v for k, v in S['budget'].items() if k != 'about'}     # движок и гейт G7 сверяют с ним собранный шейдер и число частиц
@@ -308,6 +413,29 @@ def _frame_rules(g, tag):
         fail('%s, effects.weather — интерьер: ни дождя, ни снега, ни радуги (rain, snow, snowMask — false; kind: interior ставит это сам)' % tag)
     if wx is not None and wx['snowMask'] and not wx['snow']:
         fail('%s, effects.weather.snowMask — маска снега есть, а снег на кадре выключен (snow: false)' % tag)
+    ac = g['effects'].get('actors')
+    if ac is not None:
+        for a in ac['list']:
+            w = '%s, effects.actors (%s)' % (tag, a['id'])
+            if a['emotion'] and 'day' not in a['media']:
+                fail('%s — у изюминки нет дневной петли (media.day)' % w)
+            if a['emotion'] and wx is not None and (wx['rain'] or wx['snow']):
+                for k in ('rain', 'snow'):
+                    if wx[k] and k not in a['media']:
+                        fail('%s — у изюминки нет своего варианта в %s (media.%s): в непогоду герой не замирает и не пропадает (docs/STANOK.md §4.6)' % (w, 'дождь' if k == 'rain' else 'снег', k))
+    sh = g['effects'].get('show')
+    if sh is not None and sh['type'] == 'video':
+        if not sh['video']:
+            fail('%s, effects.show — тип video, а ролика (video: {rect, video, mask, t}) нет' % tag)
+        if not (sh['video']['t'][0] < sh['video']['t'][1] <= sh['dur'] + 1e-6):
+            fail('%s, effects.show.video.t = %r — окно ролика [с0 < с1] внутри длины шоу dur = %r' % (tag, sh['video']['t'], sh['dur']))
+        c = sh['cam']
+        if c and not (c['t'][0] <= c['t'][1] <= c['t'][2] <= c['t'][3] <= sh['dur'] + 1e-6):
+            fail('%s, effects.show.cam.t = %r — наезд и отъезд по порядку и внутри длины шоу %r' % (tag, c['t'], sh['dur']))
+        if sh['tod'] is not None and (not isinstance(sh['tod'], list) or any(not isinstance(q, list) or len(q) != 2 or not all(_is_num(x) for x in q) or not 0 <= q[1] <= 2.1667 for q in sh['tod'])):
+            fail('%s, effects.show.tod — нужен список [[секунда, p], …], p от 0 (день) до 2.1667 (ночь)' % tag)
+    elif sh is not None and (sh['video'] or sh['cam']):
+        fail('%s, effects.show — ролик или камера есть, а type: none' % tag)
     sk = g['effects'].get('sky')
     if sk is not None and g['kind'] == 'interior' and (sk['shadow'] or sk['drift']):
         fail('%s, effects.sky — интерьер: неба нет, ни теней облаков, ни плывущих облаков (shadow: 0, drift: false; kind: interior ставит это сам)' % tag)

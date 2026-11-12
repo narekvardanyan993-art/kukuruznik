@@ -15,6 +15,7 @@
   #bar { position: fixed; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom, 0px) + 10px); display: flex; gap: 5px; justify-content: center; z-index: 5; }
   #bar button { font: 13px/1 Georgia, serif; padding: 9px 7px; border: 1px solid #2f2a25; border-radius: 3px; background: rgba(248, 241, 224, .93); color: #2f2a25; }
   #bar button.on { background: #2f2a25; color: #f8f1e0; }
+  #bar button:disabled { opacity: .35; }
   html[data-ui="0"] #bar { display: none; }
 </style>
 </head>
@@ -27,6 +28,7 @@
   <button type="button" data-tod="night">Ночь</button>
   <button type="button" data-wx="snow">Снег</button>
   <button type="button" data-wx="rain">Дождь</button>
+  <button type="button" data-show aria-label="show">▶</button>
   <button type="button" data-go="1" aria-label="next">›</button>
 </div>
 <script>if (/[?&]ui=0/.test(location.search)) document.documentElement.setAttribute('data-ui', '0');

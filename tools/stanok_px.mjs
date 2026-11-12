@@ -60,13 +60,17 @@ if (cmd !== 'shoot') { console.error('команды: shoot, compare'); process.
 
 const site = path.resolve(opt.site), page_ = opt.page.replace(/^\/+|\/+$/g, ''), out = path.resolve(opt.out), eng = opt.engine;
 const states = (opt.states || 'day').split(','), tilts = (opt.tilts || 'C').split(',');
+// --show "0:2,5,8;1:4,12" — вместо состояний: шоу кадра 0 на секундах 2, 5, 8 и т. д. (стоп-кадр показа, день, наклон C) — сверка шоу с e1.62
+const SHOW = opt.show ? opt.show.split(';').map((q) => { const [f, s] = q.split(':'); return [+f, s.split(',').map(Number)]; }) : null;
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.webp': 'image/webp', '.png': 'image/png', '.jpg': 'image/jpeg', '.woff2': 'font/woff2', '.mp4': 'video/mp4', '.webm': 'video/webm', '.svg': 'image/svg+xml' };
 const srv = http.createServer((q, r) => {
   const p = decodeURIComponent(q.url.split('?')[0]); let f = path.join(site, p);
   if (!f.startsWith(site)) { r.writeHead(403); r.end(); return; }
   if (fs.existsSync(f) && fs.statSync(f).isDirectory()) f = path.join(f, 'index.html');
   if (!fs.existsSync(f)) { r.writeHead(404); r.end('not found'); return; }
-  r.writeHead(200, { 'Content-Type': MIME[path.extname(f).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-store' });
+  const st = fs.statSync(f), type = MIME[path.extname(f).toLowerCase()] || 'application/octet-stream', rg = q.headers.range;   // Range (206): без него ролик героя не перематывается
+  if (rg) { const m = /bytes=(\d*)-(\d*)/.exec(rg), a = m[1] ? +m[1] : 0, b = m[2] ? Math.min(+m[2], st.size - 1) : st.size - 1; r.writeHead(206, { 'Content-Type': type, 'Content-Range': `bytes ${a}-${b}/${st.size}`, 'Accept-Ranges': 'bytes', 'Content-Length': b - a + 1, 'Cache-Control': 'no-store' }); fs.createReadStream(f, { start: a, end: b }).pipe(r); return; }
+  r.writeHead(200, { 'Content-Type': type, 'Accept-Ranges': 'bytes', 'Content-Length': st.size, 'Cache-Control': 'no-store' });
   fs.createReadStream(f).pipe(r);
 });
 await new Promise((res) => srv.listen(0, '127.0.0.1', res));
@@ -114,7 +118,31 @@ try {
     const n = await page.evaluate(() => document.querySelectorAll('#dots span').length);
     const frames = (opt.frames ? opt.frames.split(',').map(Number) : [...Array(n).keys()]).filter((f) => f < n);
     await adv(3000);
-    for (const st of states) {
+    if (SHOW) {   // --show: шоу кадра на заданных секундах (кнопка парада со стилем fx → Details.parade + paradeFreeze), день, наклон C
+      for (const [f, secs] of SHOW) {
+        for (let g = 0; g < 12 && (await page.evaluate(() => window.__viewer.frame())) !== f; g++) {
+          await page.keyboard.press('ArrowRight');
+          for (let k = 0; k < 60; k++) { await adv(100); if (!(await page.evaluate(() => window.__viewer.fading()))) break; }
+        }
+        await adv(600);
+        for (const sec of secs) {
+          const ok = await page.evaluate((s) => { const D = window.Details; if (!D.paradeBusy()) D.parade(() => {}, 'fx'); D.paradeFreeze(s); return D.paradeBusy(); }, sec);
+          if (!ok) problems.push(`e1: шоу кадра ${f} не запустилось`);
+          for (let k = 0; k < 80; k++) {   // ролик шоу встал на свою секунду (seek идёт в браузере, время движка — наше)
+            await adv(64); await sleep(60);
+            const rd = await page.evaluate(() => Array.prototype.every.call(document.querySelectorAll('video'), (v) => !v.getAttribute('src') || v.preload === 'none' || (v.readyState >= 2 && !v.seeking)));
+            if (rd && k >= 3) break;
+          }
+          await adv(128);
+          const r = await page.evaluate(`(() => { window.__advance(32); const c = document.getElementById('gl'), g = c.getContext('webgl') || c.getContext('experimental-webgl'); const px = new Uint8Array(c.width * c.height * 4); g.readPixels(0, 0, c.width, c.height, g.RGBA, g.UNSIGNED_BYTE, px); return { w: c.width, h: c.height, t: window.__vtS(), data: (${b64})(px) }; })()`);
+          times[`f${f}-show${sec}-tC`] = r.t;
+          await save(`f${f}-show${sec}-tC`, r);
+        }
+        await page.evaluate(() => { if (window.Details.paradeBusy()) window.Details.paradeStop(); });
+        await adv(3000);
+      }
+    }
+    for (const st of (SHOW ? [] : states)) {
       await page.evaluate((s, wx) => {   // как tools/stanok_look.mjs: снег и дождь — днём; закат и ночь — без осадков
         const cl = (q) => { const b = document.querySelector(q); if (b) b.click(); };
         if (wx) { cl('#todSeg [data-tod=day]'); cl('#precipSeg [data-precip=' + wx + ']'); } else { cl('#precipSeg [data-precip=none]'); cl('#todSeg [data-tod=' + s + ']'); }
@@ -143,7 +171,28 @@ try {
     const n = await page.evaluate(() => window.E2_BUILDING.frames.length);
     const frames = (opt.frames ? opt.frames.split(',').map(Number) : [...Array(n).keys()]).filter((f) => f < n);
     await adv(3000);
-    for (const st of states) {
+    const settle = async () => { for (let k = 0; k < 400; k++) { const pd = await page.evaluate(() => { window.__e2.redraw(); return window.__e2.pending ? window.__e2.pending() : 0; }); if (!pd) return; await sleep(25); } problems.push('ролик не встал на свой кадр за 10 с'); };
+    if (SHOW) {
+      for (const [f, secs] of SHOW) {
+        if ((await page.evaluate(() => window.__e2.state().frame)) !== f) {
+          await page.evaluate((i) => window.__e2.go(i), f);
+          for (let k = 0; k < 60; k++) { await adv(100); if (!(await page.evaluate(() => window.__e2.state().fading))) break; }
+        }
+        await adv(600);
+        for (const sec of secs) {
+          if (!(await page.evaluate((i, s) => window.__e2.show(i, s), f, sec))) problems.push(`e2: шоу кадра ${f} не запустилось`);
+          await adv(64); await settle(); await adv(128); await settle();
+          const nm = `f${f}-show${sec}-tC`;
+          if (skyTimes && skyTimes[nm] !== undefined) await page.evaluate((v) => window.__e2.skyT(v), skyTimes[nm] + skyShift);
+          await adv(32); await settle();
+          const r = await page.evaluate(`(() => { window.__e2.redraw(); const p = window.__e2.pixels(); return { w: p.w, h: p.h, data: (${b64})(p.data) }; })()`);
+          if (skyTimes) await page.evaluate(() => window.__e2.skyT(null));
+          await save(nm, r);
+        }
+        await page.evaluate(() => window.__e2.show(-1)); await adv(3000);
+      }
+    }
+    for (const st of (SHOW ? [] : states)) {
       await page.evaluate((s, wx) => { if (wx) { window.__e2.setTod('day'); window.__e2.setWx(wx); } else { if (window.__e2.setWx) window.__e2.setWx('none'); window.__e2.setTod(s); } }, st, WX[st] || null);
       await adv(+(opt.settle || SETTLE[st] || 3200));
       for (const f of frames) {
@@ -160,7 +209,9 @@ try {
             if (ts === undefined) problems.push(`нет времени неба для f${f}-${st}-t${t} в ${opt.times}`);
             else await page.evaluate((v) => window.__e2.skyT(v), ts + skyShift);
           }
-          const r = await page.evaluate(`(() => { window.__e2.advance(32); const p = window.__e2.pixels(); return { w: p.w, h: p.h, data: (${b64})(p.data) }; })()`);
+          await adv(32);
+          await settle();   // ролики героев встали на свой кадр (время движка стоит)
+          const r = await page.evaluate(`(() => { window.__e2.redraw(); const p = window.__e2.pixels(); return { w: p.w, h: p.h, data: (${b64})(p.data) }; })()`);
           if (skyTimes) await page.evaluate(() => window.__e2.skyT(null));
           await save(`f${f}-${st}-t${t}`, r);
         }
