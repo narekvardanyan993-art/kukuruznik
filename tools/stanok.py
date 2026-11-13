@@ -1,5 +1,18 @@
 #!/usr/bin/env python3
-"""Станок chka.am — конвейер и гейты движка e2 (docs/STANOK.md). Сборка страницы e2, перенос настроек, гейты G1, G5, G6, G7, G8, G10, G13, паритет, сверка шоу.
+"""Станок chka.am — конвейер и гейты движка e2 (docs/STANOK.md). Путь здания: пакет → init → intake → layers → insert → build → check → бета.
+Гейты G1, G2, G3, G5, G6, G7, G8, G9, G10, G13 + гейт пакета, паритет, сверка шоу.
+
+  python3 tools/stanok.py check   --story surb-nikolay [--selftest]   # гейт пакета buildings-next/<slug>/ (tools/stanok_pack.py)
+  python3 tools/stanok.py init    surb-nikolay [--spare] [--force]    # пакет → tests/<slug>/building.e2.json (заготовка), zones.json, work/<slug>/
+  python3 tools/stanok.py status  surb-nikolay                        # шаги здания с отметками по файлам и следующий шаг
+  python3 tools/stanok.py intake  tests/<slug> <кадр> day|bg|night|sunset|snow <файл>   # приём рисунка Gemini в мастера (tools/stanok_layers.py)
+  python3 tools/stanok.py layers  tests/<slug> [кадр] [--models ПАПКА]  # мастера → слои, глубина, закат, ночь, маска снега, числа неба; вставки журнала — заново
+  python3 tools/stanok.py crop    tests/<slug> <кадр> --box u0,v0,u1,v1 --out вырезка.png [--version day|night|sunset]   # точный файл для правки Gemini
+  python3 tools/stanok.py insert  tests/<slug> <кадр> <правка.png> --box u0,v0,u1,v1 [--kind object|flat|inscription] [--layer ground|building]
+        [--id имя] [--night-edit ночная_правка.png] [--inscription "ТЕКСТ" [--spot B1]] [--dry-run]     # вставка во ВСЕ версии кадра (tools/stanok_insert.py)
+  python3 tools/stanok.py insert  tests/<slug> --list | --remove <id>   # журнал вставок; убрать вставку (кадр собирается заново без неё)
+  python3 tools/stanok.py replay  tests/<slug> [--frames a,b]           # пересобрать кадры из чистых файлов и журнала
+  python3 tools/stanok.py sheet   tests/<slug> [--frames 0,1] [--out DIR]   # листы 5 кнопок по кадрам (Chrome)
 
   python3 tools/stanok.py migrate tests/pogos-petros            # building.json (v1) → building.e2.json (format 2; только эффекты, которые уже есть в e2)
   python3 tools/stanok.py build   tests/pogos-petros --site DIR # страница e2: DIR/beta/e2/<id>/ + движок DIR/e/<версия>/ + manifest + штамп
@@ -31,6 +44,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import build_engine      # noqa: E402
+import stanok_insert     # noqa: E402
+import stanok_layers     # noqa: E402
+import stanok_pack       # noqa: E402
 import stanok_masks      # noqa: E402
 import stanok_schema     # noqa: E402
 
@@ -690,6 +706,161 @@ def selftest_g1(bdir, site, page, chrome):
     return res
 
 
+# ---------------------------------------------------------------- вставки (docs/STANOK.md §3) и гейт G3
+def frame_index(bdir):
+    return {f['name']: i for i, f in enumerate(read_building(bdir)[0]['frames'])}
+
+
+def g3_render(bdir, chrome, out=None, work=None, states=None, clean=None):
+    """G3 по рендеру: страница со вставками против страницы без них (чистые файлы) — на каждой из 5 кнопок вставка обязана быть видна.
+    Снимки сцены — tools/stanok_px.mjs; лист «со вставкой / без» — <out>/g3_<кадр>.jpg. clean — готовая папка снимков «без вставок»
+    (самопроверка снимает её один раз). Возвращает (проблемы, таблица)."""
+    si = stanok_insert
+    work = si.work_dir(bdir, work)
+    j = si.load_journal(work)
+    names = sorted({e['frame'] for e in j['inserts']})
+    if not names:
+        return [], []
+    states = tuple(states or si.G3_STATES)
+    b = read_building(bdir)[0]
+    idx = {f['name']: i for i, f in enumerate(b['frames']) if f['name'] in names}
+    out = Path(out or tempfile.mkdtemp(prefix='stanok-g3-'))
+    jobs = [(bdir, out / 'with')] + ([] if clean else [(str(si.clean_copy(bdir, work)), out / 'clean')])
+    for src, dest in jobs:
+        site = Path(tempfile.mkdtemp(prefix='stanok-g3-site-'))
+        page = build(src, site, quiet=True)
+        r = px(['shoot', '--engine', 'e2', '--site', site, '--page', page, '--out', dest, '--frames', ','.join(str(i) for i in sorted(idx.values())),
+                '--states', ','.join(states), '--tilts', 'C', '--png', '1'], chrome)
+        if r.returncode != 0:
+            return ['снимки не получились: ' + (r.stdout + r.stderr).strip()[-300:]], []
+    clean = Path(clean or out / 'clean')
+    probs, rows = si.g3_render_compare(out / 'with', clean, idx, j['inserts'], b['look']['frameSize'], states=states)
+    try:                                    # лист: кнопки в ряд, сверху со вставкой, снизу без
+        from PIL import Image
+        for name, i in idx.items():
+            tiles = [[Image.open(d / ('f%d-%s-tC.png' % (i, st))).convert('RGB') for st in states] for d in (out / 'with', clean)]
+            w, h = tiles[0][0].size
+            sheet = Image.new('RGB', (w * len(states), h * 2), 'white')
+            for r_, row in enumerate(tiles):
+                for c, im in enumerate(row):
+                    sheet.paste(im, (c * w, r_ * h))
+            sheet.save(out / ('g3_%s.jpg' % name), quality=85)
+    except Exception as e:                  # лист — удобство, не проверка
+        print('   (лист G3 не собран: %s)' % str(e)[:120])
+    (out / 'g3.json').write_text(json.dumps({'problems': probs, 'rows': rows}, ensure_ascii=False, indent=1), encoding='utf-8')
+    return probs, rows
+
+
+def gate_g3(bdir, chrome, out=None, work=None):
+    """Вставка во всех версиях кадра: по файлам (журнал, каждая версия, вне вставок — только шум), идемпотентность (повторная сборка —
+    те же байты) и, если есть Chrome, по рендеру 5 кнопок. Возвращает (проблемы, примечание)."""
+    si = stanok_insert
+    probs, n = si.gate_g3_files(bdir, work)
+    probs += si.gate_g3_idem(bdir, work)
+    note = ' (вставок в журнале: %d' % n
+    if n and chrome:
+        rp, rows = g3_render(bdir, chrome, out, work)
+        probs += rp
+        note += '; 5 кнопок: ' + ', '.join('%s %d px' % (q['button'], q['changedPx']) for q in rows)
+    elif n:
+        note += '; по рендеру 5 кнопок ПРОПУЩЕНО: нет Chrome'
+    return probs, note + ')'
+
+
+def temp_building(bdir, name):
+    """Копия папки здания для опытов и самопроверок: файлы кадра name — настоящими копиями (в них пишет вставка), остальное — ссылками."""
+    si = stanok_insert
+    src, fdir = si.bpath(bdir), si.frames_dir(bdir)
+    tmp = Path(tempfile.mkdtemp(prefix='stanok-tb-')) / src.name
+    (tmp / 'frames').mkdir(parents=True)
+    own = {fn for _, fn in si.frame_files(name)}
+    for p in fdir.iterdir():
+        if p.name in own:
+            shutil.copyfile(p, tmp / 'frames' / p.name)
+        else:
+            os.symlink(p, tmp / 'frames' / p.name)
+    for cfg in (CFG_NAME, 'migration-allowed.json'):
+        if (src / cfg).is_file():
+            c = json.loads((src / cfg).read_text(encoding='utf-8'))
+            if cfg == CFG_NAME:
+                c['framesDir'] = 'frames/'
+            (tmp / cfg).write_text(json.dumps(c, ensure_ascii=False, indent=1), encoding='utf-8')
+    return tmp
+
+
+def selftest_edit(bdir):
+    """Тестовая «правка» для самопроверки G3 на любом здании: кусок самого рисунка с перевёрнутой серединой (пиксели того же рисунка,
+    ничего не дорисовано; живёт только во временной копии). Возвращает (кадр, прямоугольник, файл правки) — место без героев."""
+    import numpy as np
+    from PIL import Image
+    si = stanok_insert
+    b = read_building(bdir)[0]
+    fdir = si.frames_dir(bdir)
+    order = sorted(b['frames'], key=lambda f: (not (fdir / (f['name'] + '_sunset.webp')).is_file(), not (fdir / (f['name'] + '_night.webp')).is_file()))
+    for f in order:
+        day = si.read_img(fdir / (f['name'] + '.webp'))[..., :3]
+        H, W = day.shape[:2]
+        rects = [a['rect'] for a in ((f.get('effects') or {}).get('actors') or {}).get('list', [])]
+        for v0 in (0.62, 0.72, 0.5, 0.38):
+            for u0 in (0.34, 0.12, 0.56):
+                box = [u0, v0, u0 + 0.3, v0 + 0.17]
+                if any(si._inter([box[0] - 0.05, box[1] - 0.05, box[2] + 0.05, box[3] + 0.05], r) > 0 for r in rects):
+                    continue
+                x0, y0, x1, y1 = si.box_px(box, W, H)
+                c = day[y0:y1, x0:x1].copy()
+                h, w = c.shape[:2]
+                ya, yb, xa, xb = int(h * 0.3), int(h * 0.7), int(w * 0.3), int(w * 0.7)
+                if c[ya:yb, xa:xb].std() < 14:
+                    continue
+                c[ya:yb, xa:xb] = c[ya:yb, xa:xb][::-1, ::-1]
+                p = Path(tempfile.mkdtemp(prefix='stanok-edit-')) / 'selftest_edit.png'
+                Image.fromarray(c).save(p)
+                return f['name'], box, p
+    return None
+
+
+def selftest_g3(bdir, chrome):
+    """Красные случаи G3 (во временной копии здания, журнал настоящего здания не трогается)."""
+    si = stanok_insert
+    t = selftest_edit(bdir)
+    if not t:
+        return [('G3', 'нет места для тестовой вставки без героев — самопроверка ПРОПУЩЕНА', None)]
+    name, box, edit = t
+    res = []
+
+    def fresh(only=None):
+        tb, work = temp_building(bdir, name), Path(tempfile.mkdtemp(prefix='stanok-work-'))
+        si.insert(str(tb), name, edit, box, kind='flat', iid='selftest', work=work, only=only, quiet=True)
+        return tb, work
+    tb, work = fresh()
+    ok_files = not si.gate_g3_files(str(tb), work)[0] and not si.gate_g3_idem(str(tb), work)
+    res.append(('G3', 'контроль: обычная вставка во все версии — зелёный', ok_files))
+    tb1, w1 = fresh(only=('day',))
+    p1 = si.gate_g3_files(str(tb1), w1)[0]
+    res.append(('G3', 'вставка только в день (--only day, урок pp-17): нет на закате и ночью', any('закат' in q or 'ночь' in q for q in p1)))
+    os.environ['STANOK_BREAK'] = 'insert-dup'
+    try:
+        res.append(('G3', 'повторная вставка поверх уже собранных файлов (двойная надпись)', len(si.gate_g3_idem(str(tb), work)) > 0))
+    finally:
+        del os.environ['STANOK_BREAK']
+    tb2, w2 = fresh()
+    night = name + '_night.webp'
+    (tb2 / 'frames' / night).write_bytes((w2 / 'base' / night).read_bytes())      # «новую ночь положили руками» — вставка в ней пропала
+    res.append(('G3', 'версию перезаписали мимо станка (новая ночь положена руками)', any('мимо станка' in q for q in si.gate_g3_files(str(tb2), w2)[0])))
+    si.replay(str(tb2), work=w2, quiet=True)
+    res.append(('G3', 'контроль: replay возвращает вставку в перезаписанную версию', not si.gate_g3_files(str(tb2), w2)[0]))
+    if chrome:
+        g = Path(tempfile.mkdtemp(prefix='stanok-g3-self-'))
+        rp, rows = g3_render(str(tb), chrome, g / 'ok', work)
+        res.append(('G3', 'контроль по рендеру: обычная вставка видна на 5 кнопках', not rp and len(rows) == 5))
+        # свои снимки «без вставки»: чистая страница перекодирует ровно те файлы, что перекодировала вставка, — чужие снимки дали бы шум WebP
+        rp1, rows1 = g3_render(str(tb1), chrome, g / 'only-day', w1, states=('day', 'sunset', 'night'))
+        res.append(('G3', 'по рендеру: вставка только в день не видна на «Закате» или «Ночью»', any('sunset' in q or 'night' in q for q in rp1)))
+    else:
+        res.append(('G3', 'по рендеру 5 кнопок ПРОПУЩЕНО: нет Chrome', None))
+    return res
+
+
 # ---------------------------------------------------------------- самопроверки (красные случаи)
 BREAK_FX = '''// ТЕСТОВЫЙ эффект самопроверки G6: движение по настоящим часам и случайности (так делать нельзя).
 E2.effect({ name: 'tod_break', glsl: function () { return null; },
@@ -761,6 +932,12 @@ def selftest(bdir, gates, chrome, e1site=None):
         res += selftest_g1(bdir, site, page, chrome)
     if 'G10' in gates:
         res += selftest_g10(bdir, site, page, chrome)
+    if 'G3' in gates:
+        res += selftest_g3(bdir, chrome)
+    if 'G2' in gates:
+        res += stanok_layers.selftest_g2(bdir)
+    if 'G9' in gates:
+        res += stanok_layers.selftest_g9(bdir)
     return res
 
 
@@ -864,6 +1041,15 @@ def check(bdir, gates, chrome, do_selftest, frames=None, out=None, e1site=None):
             show('G1', gate_g1(site, page, chrome, g1out, frames), ' (кадры: %s; лист и числа: %s)' % (frames or 'все с ветром', g1out))
         else:
             print('G1 ПРОПУЩЕНО: нет Chrome (ветер проверяется только в браузере)')
+    if 'G2' in gates:
+        probs, rows = stanok_layers.gate_g2(bdir, frames)
+        show('G2', probs, ' (кайма по файлам слоя здания: %d кадров; часть (б) — контур на рендере при наклоне — ещё не в станке)' % len(rows))
+    if 'G3' in gates:
+        probs, note = gate_g3(bdir, chrome, (Path(out) / 'g3') if out else None)
+        show('G3', probs, note)
+    if 'G9' in gates:
+        probs, rows = stanok_layers.gate_g9(bdir, frames)
+        show('G9', probs, ' (версий против дня: %d; наибольший сдвиг %d px)' % (len(rows), max([max(abs(q.get('dx', 0)), abs(q.get('dy', 0))) for q in rows] or [0])))
     if 'G5' in gates:
         show('G5', gate_g5(site, page, bdir))
     if 'G6' in gates:
@@ -1000,6 +1186,7 @@ def publish_beta_e2(bdir, dry=False):
         print('%sвременный worktree удалён' % tag)
 
 
+COMMANDS = 'init, status, intake, layers, crop, insert, replay, migrate, build, sheet, check, beta, parity, showcmp, ref'
 SHOW_SECS = {0: [2, 5, 8, 10.5], 1: [3, 8, 14, 20, 26], 2: [2.5, 5, 8, 10.5]}     # секунды сверки шоу A, B, C Погоса: наезд, середина, развязка, угасание
 
 
@@ -1032,6 +1219,59 @@ def show_parity(bdir, out, chrome, frames=None):
     return r.returncode
 
 
+def check_story(slug, do_selftest=False):
+    """Гейт пакета здания buildings-next/<slug>/ (S1; RUNBOOK §8: пакет из четырёх файлов + чек-лист)."""
+    probs = stanok_pack.gate_pack(slug)
+    bad = 1 if probs else 0
+    print('пакет %s %s' % (slug, 'КРАСНЫЙ' if probs else 'зелёный'))
+    for q in probs[:20]:
+        print('   - ' + q)
+    if do_selftest:
+        print('--- самопроверка: гейт обязан покраснеть на известной поломке ---')
+        for g, case, ok in stanok_pack.selftest_pack(slug):
+            if ok is None:
+                print('%s самопроверка: %s' % (g, case))
+            else:
+                print('%s самопроверка %s: %s' % (g, 'ок (покраснел)' if ok else 'ПРОВАЛ (не покраснел)', case))
+                bad += 0 if ok else 1
+    print('ИТОГ: %s' % ('всё зелёное' if not bad else 'красных: %d' % bad))
+    return 1 if bad else 0
+
+
+def _of(opt):
+    return tuple(int(x) for x in re.split(r'[x,]', opt['of'])) if opt.get('of') else None
+
+
+def cmd_insert(bdir, pos, opt):
+    """stanok.py insert <здание> <кадр> <правка.png> --box … [--layer ground|building] [--kind object|flat|inscription] [--id имя]
+    [--night-edit ночная_правка.png] [--inscription "ТЕКСТ" [--spot B1]] [--note …] [--dry-run] · insert <здание> --list · insert <здание> --remove <id>"""
+    si = stanok_insert
+    work = opt.get('work')
+    if opt.get('list'):
+        j = si.load_journal(si.work_dir(bdir, work))
+        for e in j['inserts']:
+            print('%-24s кадр %-10s %-11s %-9s %s  %s' % (e['id'], e['frame'], e['kind'], e['layer'], e['when'], ' '.join('%s:%s' % (v, q['action']) for v, q in e.get('versions', {}).items() if q['action'] not in ('не трогает', 'нет файла'))))
+        print('вставок: %d, убранных: %d (журнал: %s)' % (len(j['inserts']), len(j.get('removed', [])), si.work_dir(bdir, work) / 'journal.json'))
+        return 0
+    if opt.get('remove'):
+        e = si.remove(bdir, opt['remove'], work)
+        print('вставка «%s» убрана, кадр %s пересобран (запись — в removed журнала)' % (e['id'], e['frame']))
+        return 0
+    if len(pos) < 3 or 'box' not in opt:
+        raise SystemExit(cmd_insert.__doc__)
+    text = opt.get('inscription')
+    kind = 'inscription' if text else opt.get('kind', 'object')
+    if 'only' in opt and not os.environ.get('STANOK_TEST'):
+        raise SystemExit('--only — тестовый ключ самопроверки G3 (STANOK_TEST=1); в работе вставка всегда идёт во все версии')
+    e = si.insert(bdir, pos[1], pos[2], si.parse_box(opt['box'], _of(opt)), layer=opt.get('layer'), kind=kind, iid=opt.get('id'), night_edit=opt.get('night-edit'),
+                  work=work, only=tuple(opt['only'].split(',')) if opt.get('only') else None, text=text, note=opt.get('note'), dry=bool(opt.get('dry-run')))
+    if text:
+        d = si.deliver(bdir, e, text, opt.get('spot'), dry=bool(opt.get('dry-run')))
+        if d:
+            print('%sнадпись в building.json: %s' % ('[dry-run] ' if opt.get('dry-run') else '', json.dumps(d, ensure_ascii=False)))
+    return 0
+
+
 def main(argv):
     if not argv or argv[0] in ('-h', '--help'):
         print(__doc__)
@@ -1042,7 +1282,7 @@ def main(argv):
     i = 0
     while i < len(rest):
         if rest[i].startswith('--'):
-            if rest[i] in ('--selftest', '--beta', '--dry-run'):
+            if rest[i] in ('--selftest', '--beta', '--dry-run', '--list', '--spare', '--force'):
                 opt[rest[i][2:]] = True
             else:
                 opt[rest[i][2:]] = rest[i + 1]
@@ -1050,8 +1290,17 @@ def main(argv):
         else:
             pos.append(rest[i])
         i += 1
+    if cmd == 'check' and opt.get('story'):                      # гейт пакета здания (S1): stanok.py check --story <slug> [--selftest]
+        return check_story(opt['story'], bool(opt.get('selftest')))
     if not pos:
         raise SystemExit('нужна папка здания, например tests/pogos-petros')
+    if cmd in ('init', 'status'):                                # здесь аргумент — slug пакета buildings-next/<slug>
+        slug = pos[0].strip('/').split('/')[-1]
+        if cmd == 'init':
+            stanok_pack.init(slug, force=bool(opt.get('force')), spare=bool(opt.get('spare')))
+        else:
+            stanok_pack.status(slug)
+        return 0
     bdir = pos[0].strip('/')
     chrome = chrome_path(opt.get('chrome'))
     if cmd == 'migrate':
@@ -1066,7 +1315,7 @@ def main(argv):
     elif cmd == 'beta':
         return publish_beta_e2(bdir, dry=bool(opt.get('dry-run')))
     elif cmd == 'check':
-        gates = opt.get('gate', 'G1,G5,G6,G7,G8,G10,G13').split(',')
+        gates = opt.get('gate', 'G1,G2,G3,G5,G6,G7,G8,G9,G10,G13').split(',')
         return check(bdir, gates, chrome, bool(opt.get('selftest')), opt.get('frames'), opt.get('out'), opt.get('e1site'))
     elif cmd == 'parity':
         return parity(bdir, opt.get('out', tempfile.mkdtemp(prefix='stanok-parity-')), chrome, opt.get('frames'), opt.get('states', 'day,sunset,night,rain,snow'),
@@ -1074,10 +1323,33 @@ def main(argv):
                       sky=opt.get('sky') == '1', settle=opt.get('settle'))
     elif cmd == 'showcmp':
         return show_parity(bdir, opt.get('out', tempfile.mkdtemp(prefix='stanok-show-')), chrome, opt.get('frames'))
+    elif cmd == 'intake':
+        if len(pos) < 4:
+            raise SystemExit('intake: stanok.py intake <здание> <кадр> day|bg|night|sunset|snow <файл>')
+        stanok_layers.intake(bdir, pos[1], pos[2], pos[3], opt.get('work'))
+    elif cmd == 'layers':
+        reps = stanok_layers.layers(bdir, pos[1] if len(pos) > 1 else None, opt.get('work'), opt.get('models'))
+        return 1 if any(r.get('g9') or r.get('g2') for r in reps) else 0
+    elif cmd == 'sheet':
+        if not chrome:
+            raise SystemExit('sheet: нужен Chrome (в VM Мака его нет — облако или Терминал Мака)')
+        site = Path(tempfile.mkdtemp(prefix='stanok-sheet-'))
+        out = Path(opt.get('out') or (ROOT / bdir / 'report'))
+        probs = g7_run(site, build(bdir, site, quiet=True), chrome, out, opt.get('frames'))
+        print('листы 5 кнопок: %s (sheet_<кадр>.jpg)%s' % (out, ''.join('\n   - ' + q for q in probs[:12])))
+        return 1 if probs else 0
+    elif cmd == 'crop':
+        if len(pos) < 2 or 'box' not in opt or 'out' not in opt:
+            raise SystemExit('crop: stanok.py crop <здание> <кадр> --box u0,v0,u1,v1 --out файл.png [--version day|night|sunset]')
+        print(json.dumps(stanok_insert.crop(bdir, pos[1], stanok_insert.parse_box(opt['box'], _of(opt)), opt['out'], opt.get('version', 'day'), opt.get('work')), ensure_ascii=False))
+    elif cmd == 'insert':
+        return cmd_insert(bdir, pos, opt)
+    elif cmd == 'replay':
+        stanok_insert.replay(bdir, opt['frames'].split(',') if opt.get('frames') else None, opt.get('work'))
     elif cmd == 'ref':
         print(build_ref(bdir, opt['site']))
     else:
-        raise SystemExit('неизвестная команда %s (есть: migrate, build, check, parity, showcmp, ref)' % cmd)
+        raise SystemExit('неизвестная команда %s (есть: %s)' % (cmd, COMMANDS))
     return 0
 
 

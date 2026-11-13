@@ -1,0 +1,103 @@
+{
+ "format": 2,
+ "id": "surb-nikolay",
+ "source": "buildings-next/surb-nikolay/ (пакет здания, stanok init)",
+ "notYet": [
+  "рисунки: кадры ещё не нарисованы (stanok status surb-nikolay)",
+  "effects.tod.sky.end и sun каждого кадра — после stanok layers",
+  "effects.actors — после stanok actor (изюминки: a: ★ фаэтонщик с лошадью, рыжий пёс у дерева; b: ★ караван, лавочник с лавашом; c: кошка на тёплой ступени, свеча за приоткрытой дверью; d: старик в бурке с медным кувшином, вол у арбы; e: ★ фотограф под накидкой, мальчишки на ограде)",
+  "effects.show — после stanok show (кадры: a)",
+  "caption hy и en, text — после вычитки (черновики в buildings-next/surb-nikolay/story.md)"
+ ],
+ "text": {
+  "title": {
+   "hy": "Սուրբ Նիկոլայ մայր տաճար",
+   "ru": "Никольский собор",
+   "en": "Saint Nikolai Cathedral"
+  }
+ },
+ "look": {
+  "frameSize": [
+   768,
+   1365
+  ],
+  "sunSide": "left"
+ },
+ "effects": {},
+ "frames": [
+  {
+   "name": "nikolay_a",
+   "kind": "wide",
+   "caption": {
+    "ru": "Собор с площади"
+   },
+   "effects": {
+    "tod": {
+     "sky": {},
+     "sun": null
+    },
+    "wind": {
+     "on": true
+    }
+   }
+  },
+  {
+   "name": "nikolay_b",
+   "kind": "wide",
+   "caption": {
+    "ru": "Крепостная улица"
+   },
+   "effects": {
+    "tod": {
+     "sky": {},
+     "sun": null
+    }
+   }
+  },
+  {
+   "name": "nikolay_c",
+   "kind": "close",
+   "caption": {
+    "ru": "Портал"
+   },
+   "effects": {
+    "tod": {
+     "sky": {},
+     "sun": null
+    }
+   }
+  },
+  {
+   "name": "nikolay_d",
+   "kind": "wide",
+   "caption": {
+    "ru": "Главы над улицей"
+   },
+   "effects": {
+    "tod": {
+     "sky": {},
+     "sun": null
+    },
+    "wind": {
+     "on": true
+    }
+   }
+  },
+  {
+   "name": "nikolay_e",
+   "kind": "wide",
+   "caption": {
+    "ru": "Дума и ворота сада"
+   },
+   "effects": {
+    "tod": {
+     "sky": {},
+     "sun": null
+    },
+    "wind": {
+     "on": true
+    }
+   }
+  }
+ ]
+}
