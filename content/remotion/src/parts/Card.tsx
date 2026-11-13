@@ -21,10 +21,11 @@ export type CardP = {
   look: { sepia?: number; alive?: number };
   rot: number;
   enter: 'depth' | 'up' | 'left' | 'right';
-  exit: 'left' | 'right' | 'down' | 'up' | 'depth' | 'none';
+  exit: 'left' | 'right' | 'down' | 'up' | 'depth' | 'into' | 'none';
   enterDur: number; exitDur: number;
   // «до / после» шторкой: вторая картинка поверх первой, видна слева от ручки; ручка едет по ключам [t, доля x, кривая?]
-  compare?: { path: string; w: number; h: number; cam: [number, number, number]; keys: (number | string)[][]; show: number };
+  compare?: { path: string; w: number; h: number; cam: [number, number, number]; keys: (number | string)[][]; show: number;
+    rect?: [number, number, number, number]; hide?: number };   // rect — доли экрана, где идёт шторка (внутри телефона — без адресной строки); hide — когда ручка уходит
 };
 
 export type PoseKey = { t: number; x?: number; y?: number; s?: number; r?: number; rx?: number; ry?: number; e?: string };
@@ -82,16 +83,19 @@ const seqAt = (c: CardP, t: number) => {
 const seqUrl = (c: CardP, i: number) => staticFile(`${c.src.path}/${String(i).padStart(4, '0')}.jpg`);
 
 /** Шторка «до / после»: картинка compare поверх основной, обрезана по ручке; ручка — бумажная черта с кружком ‹ ›. */
-const Compare: React.FC<{ c: CardP; t: number; W: number; H: number }> = ({ c, t, W, H }) => {
+const Compare: React.FC<{ c: CardP; t: number; W: number; H: number }> = ({ c, t, W: W0, H: H0 }) => {
   const k = c.compare!;
+  const R = k.rect ?? [0, 0, 1, 1];
+  const W = (R[2] - R[0]) * W0, H = (R[3] - R[1]) * H0;
+  if (k.hide !== undefined && t > k.hide + 0.25) return null;
   const K = k.keys.map(([kt, hx, e]) => ({ t: +kt, v: +hx, e: e as string | undefined }));
   const hx = keyed(K, t, (q) => q.v);
   const fake = { ...c, src: { ...c.src, w: k.w, h: k.h }, fit: 'cover' as const, cam: { from: k.cam, to: k.cam, ease: 'inout' as const } };
   const { left, top, dw, dh } = camMap(fake as CardP, 0, W, H);
-  const D = drop(t - k.show);
+  const D = drop(t - k.show, k.hide !== undefined && t >= k.hide ? t - k.hide : -1);
   const knob = 76;
   return (
-    <>
+    <div style={{ position: 'absolute', left: R[0] * W0, top: R[1] * H0, width: W, height: H, overflow: 'hidden' }}>
       <div style={{ position: 'absolute', inset: 0, clipPath: `inset(0 ${(1 - hx) * 100}% 0 0)` }}>
         <Img src={staticFile(k.path)} style={{ position: 'absolute', left, top, width: dw, height: dh, maxWidth: 'none' }} />
       </div>
@@ -110,7 +114,7 @@ const Compare: React.FC<{ c: CardP; t: number; W: number; H: number }> = ({ c, t
           </div>
         </div>
       ) : null}
-    </>
+    </div>
   );
 };
 
@@ -211,7 +215,9 @@ export const cardPose = (c: CardP, t: number, fps: number) => {
   const te = c.dur - c.exitDur;
   if (c.exit !== 'none' && t > te) {
     const q = IN(clamp01((t - te) / c.exitDur));
-    if (c.exit === 'depth') {                    // к зрителю: растёт и растворяется
+    if (c.exit === 'into') {                     // обратно в экран: уменьшается и растворяется (фото «проваливается» в телефон)
+      s *= lerp(1, 0.58, q); o *= 1 - q * q; blur += 6 * q; y += 30 * q; lift += 0.2 * q;
+    } else if (c.exit === 'depth') {             // к зрителю: растёт и растворяется
       s *= lerp(1, 1.5, q); o *= 1 - q; blur += 14 * q; lift += 0.6 * q;
     } else {
       const dx = c.exit === 'left' ? -1250 : c.exit === 'right' ? 1250 : 0;

@@ -208,7 +208,7 @@ const cards = (S.cards ?? []).map((c) => {
     ...(d.compare ? { compare: (() => {
       // «до / после» шторкой: картинка compare.image поверх src, видна слева от ручки (ключи [t, доля x])
       const a = resolveSrc(d.compare.image), pr = probe(a);
-      return { path: publish(a), w: pr.w, h: pr.h, cam: d.compare.cam ?? [0.5, 0.5, 1], keys: d.compare.keys, show: d.compare.show ?? +(d.compare.keys?.[0]?.[0] ?? 0) - 0.2 };
+      return { path: publish(a), w: pr.w, h: pr.h, cam: d.compare.cam ?? [0.5, 0.5, 1], keys: d.compare.keys, show: d.compare.show ?? +(d.compare.keys?.[0]?.[0] ?? 0) - 0.2, rect: d.compare.rect, hide: d.compare.hide };
     })() } : {}),
   };
 });
@@ -234,7 +234,7 @@ const items = flat.map((it) => {
   if (d.kind === 'tag') {
     // слово за словом: шаг 70 мс (docs/ANIMATION.md: лесенка 50–80 мс)
     const step = d.step ?? 0.07;
-    o.words = String(d.text).split(/\s+/).filter(Boolean).map((s, i) => ({ s, at: d.at + 0.08 + i * step }));
+    o.words = String(d.text).split(/\s+/).filter(Boolean).map((s, i) => ({ s, at: d.at + (d.lead ?? 0.08) + i * step }));
   }
   if (d.kind === 'stamp') o.impact = d.impact ?? 0.14;
   return o;
