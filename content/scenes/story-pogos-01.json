@@ -1,0 +1,713 @@
+{
+ "name": "story-pogos-01",
+ "engine": "remotion",
+ "build": "node content/remotion/build.mjs content/scenes/story-pogos-01.json",
+ "title": "История за 20 секунд — Погос-Петрос: развалины собираются в церковь (V–VI) → фото квартала 1923 → живой рисунок музея (день, закат, ночь, снег) → снос 1930–1931 (шоу B) → кинотеатр Moskva 1936 → до/после шторкой → chka.am",
+ "format": "02 история за 20 секунд",
+ "hook": "№3 тип A: развалины собираются обратно в церковь (шоу B задом наперёд), кадр 0 уже в движении",
+ "fps": 30,
+ "size": [
+  1080,
+  1920
+ ],
+ "safe": [
+  250,
+  600,
+  160
+ ],
+ "seed": 3,
+ "dur": 20.4,
+ "source": "content/raw/story-pogos-show-b.mp4 (= tests/pogos-petros/frames/vid_b_show.mp4, 24 к/с), story-pogos-1923.jpg (pastvu 1445782), story-pogos-b{,_sunset,_night,_snow}.webp, story-pogos-now-2014.jpg (commons c_now_2014). Скорости видео — с целым шагом отбора кадров (×1,25 · ×2,5 · ×5).",
+ "bg": {
+  "paper": "repo:engine/paper/old-paper-1.webp",
+  "grid": 60
+ },
+ "fonts": [
+  {
+   "file": "repo:engine/fonts/NotoSerif-latin.woff2",
+   "range": "U+0000-00FF, U+0131, U+0152-0153, U+2000-206F, U+2190-21FF"
+  },
+  {
+   "file": "repo:engine/fonts/NotoSerifArmenian-armenian.woff2",
+   "range": "U+0530-058F, U+FB13-FB17"
+  }
+ ],
+ "room": {
+  "db": -31,
+  "lowpass": 380
+ },
+ "tempo": {
+  "max_gap": 1.45,
+  "min_pause": 1.0
+ },
+ "moments": [
+  {
+   "name": "снос: пауза на обвале",
+   "from": 10.31,
+   "to": 11.65
+  },
+  {
+   "name": "до/после: церковь вместо кинотеатра",
+   "from": 16.5,
+   "to": 17.6
+  },
+  {
+   "name": "финал chka.am",
+   "from": 18.4,
+   "to": 20.4
+  }
+ ],
+ "check_zoom": 3.4,
+ "cards": [
+  {
+   "id": "hook",
+   "at": -0.6,
+   "dur": 4.05,
+   "src": {
+    "video": "repo:content/raw/story-pogos-show-b.mp4",
+    "segs": [
+     {
+      "from": 30.25,
+      "to": 35.31,
+      "rate": 1.25
+     }
+    ]
+   },
+   "x": 490,
+   "y": 790,
+   "w": 780,
+   "h": 1030,
+   "mat": 18,
+   "radius": 22,
+   "rot": -1.0,
+   "enter": "depth",
+   "enterDur": 0.5,
+   "exit": "left",
+   "exitDur": 0.4,
+   "sfx_in": "none",
+   "sfx_out": "none",
+   "cam": {
+    "from": [
+     0.5,
+     0.5,
+     1.0
+    ],
+    "to": [
+     0.5,
+     0.5,
+     1.08
+    ],
+    "ease": "inout"
+   }
+  },
+  {
+   "id": "p23",
+   "at": 2.9,
+   "dur": 2.55,
+   "src": {
+    "image": "repo:content/raw/story-pogos-1923.jpg"
+   },
+   "x": 490,
+   "y": 790,
+   "w": 660,
+   "h": 1060,
+   "mat": 18,
+   "radius": 22,
+   "rot": 1.6,
+   "enter": "right",
+   "enterDur": 0.5,
+   "exit": "left",
+   "exitDur": 0.4,
+   "sfx_in": "whoosh_page",
+   "sfx_out": "none",
+   "look": {
+    "sepia": 0.25
+   },
+   "cam": {
+    "from": [
+     0.52,
+     0.49,
+     1.12
+    ],
+    "to": [
+     0.64,
+     0.47,
+     1.45
+    ],
+    "ease": "inout"
+   }
+  },
+  {
+   "id": "d1",
+   "at": 5.2,
+   "dur": 0.95,
+   "src": {
+    "image": "repo:content/raw/story-pogos-b.webp"
+   },
+   "x": 490,
+   "y": 800,
+   "w": 800,
+   "h": 1000,
+   "mat": 18,
+   "radius": 22,
+   "rot": -1.2,
+   "enter": "right",
+   "enterDur": 0.35,
+   "exit": "none",
+   "sfx_in": "whoosh_page",
+   "sfx_out": "none",
+   "cam": {
+    "from": [
+     0.5,
+     0.52,
+     1.0
+    ],
+    "to": [
+     0.5,
+     0.52,
+     1.025
+    ],
+    "ease": "inout"
+   }
+  },
+  {
+   "id": "d2",
+   "at": 6.0,
+   "dur": 0.95,
+   "src": {
+    "image": "repo:content/raw/story-pogos-b_sunset.webp"
+   },
+   "x": 490,
+   "y": 800,
+   "w": 800,
+   "h": 1000,
+   "mat": 18,
+   "radius": 22,
+   "rot": 1.0,
+   "enter": "depth",
+   "enterDur": 0.35,
+   "exit": "none",
+   "sfx_in": "tick",
+   "sfx_out": "none",
+   "cam": {
+    "from": [
+     0.5,
+     0.52,
+     1.025
+    ],
+    "to": [
+     0.5,
+     0.52,
+     1.05
+    ],
+    "ease": "inout"
+   }
+  },
+  {
+   "id": "d3",
+   "at": 6.8,
+   "dur": 0.95,
+   "src": {
+    "image": "repo:content/raw/story-pogos-b_night.webp"
+   },
+   "x": 490,
+   "y": 800,
+   "w": 800,
+   "h": 1000,
+   "mat": 18,
+   "radius": 22,
+   "rot": -0.8,
+   "enter": "depth",
+   "enterDur": 0.35,
+   "exit": "none",
+   "sfx_in": "tick",
+   "sfx_out": "none",
+   "cam": {
+    "from": [
+     0.5,
+     0.52,
+     1.05
+    ],
+    "to": [
+     0.5,
+     0.52,
+     1.075
+    ],
+    "ease": "inout"
+   }
+  },
+  {
+   "id": "d4",
+   "at": 7.6,
+   "dur": 0.95,
+   "src": {
+    "seq": "cap:snow_a",
+    "start": 0.4
+   },
+   "x": 490,
+   "y": 800,
+   "w": 800,
+   "h": 1000,
+   "mat": 18,
+   "radius": 22,
+   "rot": 1.2,
+   "enter": "depth",
+   "enterDur": 0.35,
+   "exit": "none",
+   "sfx_in": "tick",
+   "sfx_out": "none",
+   "cam": {
+    "from": [
+     0.5,
+     0.5,
+     1.0
+    ],
+    "to": [
+     0.5,
+     0.5,
+     1.03
+    ],
+    "ease": "inout"
+   }
+  },
+  {
+   "id": "dm",
+   "at": 8.35,
+   "dur": 7.02,
+   "src": {
+    "video": "repo:content/raw/story-pogos-show-b.mp4",
+    "segs": [
+     {
+      "from": 9.0,
+      "to": 12.9,
+      "rate": 2.5
+     },
+     {
+      "from": 12.9,
+      "to": 15.65,
+      "rate": 1.25
+     },
+     {
+      "from": 15.65,
+      "to": 18.1,
+      "rate": 2.5
+     },
+     {
+      "from": 18.1,
+      "to": 20.4,
+      "rate": 5.0
+     },
+     {
+      "from": 20.4,
+      "to": 24.95,
+      "rate": 2.5
+     }
+    ]
+   },
+   "x": 490,
+   "y": 790,
+   "w": 780,
+   "h": 1030,
+   "mat": 18,
+   "radius": 22,
+   "rot": 0.8,
+   "enter": "depth",
+   "enterDur": 0.45,
+   "exit": "none",
+   "sfx_in": "whoosh_thin",
+   "sfx_out": "none",
+   "cam": {
+    "from": [
+     0.5,
+     0.5,
+     1.0
+    ],
+    "to": [
+     0.5,
+     0.5,
+     1.08
+    ],
+    "ease": "inout"
+   }
+  },
+  {
+   "id": "cmp",
+   "at": 14.9,
+   "dur": 5.5,
+   "src": {
+    "image": "repo:content/raw/story-pogos-now-2014.jpg"
+   },
+   "x": 490,
+   "y": 740,
+   "w": 800,
+   "h": 740,
+   "mat": 18,
+   "radius": 22,
+   "rot": -1.4,
+   "enter": "right",
+   "enterDur": 0.5,
+   "exit": "none",
+   "sfx_in": "whoosh_page",
+   "sfx_out": "none",
+   "cam": {
+    "from": [
+     0.5,
+     0.5,
+     1.0
+    ],
+    "to": [
+     0.5,
+     0.5,
+     1.05
+    ],
+    "ease": "inout"
+   },
+   "compare": {
+    "image": "repo:content/raw/story-pogos-b_sunset.webp",
+    "cam": [
+     0.5,
+     0.53,
+     1.0
+    ],
+    "keys": [
+     [
+      0.55,
+      0.04
+     ],
+     [
+      1.6,
+      0.94
+     ],
+     [
+      2.7,
+      0.94
+     ],
+     [
+      3.25,
+      0.5
+     ]
+    ],
+    "show": 0.4
+   },
+   "float": [
+    6,
+    9
+   ]
+  }
+ ],
+ "items": [
+  {
+   "kind": "sfx",
+   "at": 0.06,
+   "type": "whoosh_thin",
+   "what": "развалины тронулись",
+   "gain": -25
+  },
+  {
+   "kind": "sfx",
+   "at": 0.65,
+   "type": "tick_2",
+   "what": "кладка встаёт",
+   "gain": -28
+  },
+  {
+   "kind": "sfx",
+   "at": 1.1,
+   "type": "tick_1",
+   "what": "стены поднимаются",
+   "gain": -27
+  },
+  {
+   "kind": "tag",
+   "text": "V–VI",
+   "variant": "tag",
+   "at": 1.55,
+   "dur": 1.3,
+   "x": 285,
+   "y": 335,
+   "size": 124,
+   "rot": -3,
+   "sfx": "pop_drop-1",
+   "gain": -22,
+   "sfx_out": "none"
+  },
+  {
+   "kind": "sfx",
+   "at": 2.32,
+   "type": "key_soft",
+   "what": "церковь собралась",
+   "gain": -29
+  },
+  {
+   "kind": "tag",
+   "text": "1923",
+   "variant": "tag",
+   "at": 3.3,
+   "dur": 1.35,
+   "x": 285,
+   "y": 335,
+   "size": 130,
+   "rot": 3,
+   "sfx": "pop_drop-2",
+   "gain": -22,
+   "sfx_out": "none"
+  },
+  {
+   "kind": "sfx",
+   "at": 3.75,
+   "type": "tick_1",
+   "what": "камера пошла к колокольне",
+   "gain": -28
+  },
+  {
+   "kind": "dot",
+   "on": "p23",
+   "pin": true,
+   "x": 0.76,
+   "y": 0.44,
+   "at": 4.25,
+   "dur": 1.0,
+   "sfx": "pop_soft",
+   "gain": -24,
+   "sfx_out": "none"
+  },
+  {
+   "kind": "sfx",
+   "at": 4.95,
+   "type": "whoosh_simple",
+   "what": "фото уходит",
+   "gain": -28
+  },
+  {
+   "kind": "icon",
+   "name": "sun",
+   "at": 5.45,
+   "dur": 0.7,
+   "x": 840,
+   "y": 400,
+   "size": 128,
+   "rot": -6,
+   "sfx": "pop_soft",
+   "gain": -25,
+   "sfx_out": "none"
+  },
+  {
+   "kind": "tag",
+   "text": "Pogos-Petros",
+   "variant": "label",
+   "at": 5.4,
+   "dur": 1.5,
+   "x": 335,
+   "y": 365,
+   "size": 64,
+   "rot": -2,
+   "sfx": "pop_drop-2",
+   "gain": -24,
+   "sfx_out": "none"
+  },
+  {
+   "kind": "icon",
+   "name": "sunset",
+   "at": 6.25,
+   "dur": 0.7,
+   "x": 840,
+   "y": 400,
+   "size": 128,
+   "rot": 4,
+   "sfx": "pop_soft",
+   "gain": -25,
+   "sfx_out": "none"
+  },
+  {
+   "kind": "icon",
+   "name": "moon",
+   "at": 7.05,
+   "dur": 0.7,
+   "x": 840,
+   "y": 400,
+   "size": 128,
+   "rot": -4,
+   "sfx": "pop_soft",
+   "gain": -25,
+   "sfx_out": "none"
+  },
+  {
+   "kind": "icon",
+   "name": "flake",
+   "at": 7.85,
+   "dur": 0.55,
+   "x": 840,
+   "y": 400,
+   "size": 128,
+   "rot": 5,
+   "sfx": "pop_soft",
+   "gain": -25,
+   "sfx_out": "none"
+  },
+  {
+   "kind": "tag",
+   "text": "1930–1931",
+   "variant": "tag",
+   "at": 8.55,
+   "dur": 1.6,
+   "x": 440,
+   "y": 335,
+   "size": 112,
+   "rot": -3,
+   "sfx": "pop_drop-1",
+   "gain": -22,
+   "sfx_out": "none"
+  },
+  {
+   "kind": "sfx",
+   "at": 8.95,
+   "type": "tick_2",
+   "what": "трещина",
+   "gain": -28
+  },
+  {
+   "kind": "sfx",
+   "at": 9.55,
+   "type": "tick_1",
+   "what": "купол накренился",
+   "gain": -29
+  },
+  {
+   "kind": "sfx",
+   "at": 10.31,
+   "type": "stamp",
+   "what": "обвал — один глухой акцент",
+   "gain": -21
+  },
+  {
+   "kind": "sfx",
+   "at": 11.7,
+   "type": "whoosh_thin",
+   "what": "пыль оседает",
+   "gain": -31,
+   "len": 0.8,
+   "fade": 0.5
+  },
+  {
+   "kind": "sfx",
+   "at": 13.2,
+   "type": "tick_2",
+   "what": "пустое место",
+   "gain": -29
+  },
+  {
+   "kind": "tag",
+   "text": "1936",
+   "variant": "tag",
+   "at": 13.75,
+   "dur": 1.4,
+   "x": 285,
+   "y": 335,
+   "size": 130,
+   "rot": 3,
+   "sfx": "pop_drop-2",
+   "gain": -21,
+   "sfx_out": "none"
+  },
+  {
+   "kind": "sfx",
+   "at": 13.6,
+   "type": "tick_1",
+   "what": "кинотеатр встаёт",
+   "gain": -28
+  },
+  {
+   "kind": "sfx",
+   "at": 15.45,
+   "type": "tick_1",
+   "what": "шторка: старт",
+   "gain": -24
+  },
+  {
+   "kind": "sfx",
+   "at": 15.5,
+   "type": "whoosh_thin",
+   "what": "шторка едет",
+   "gain": -29,
+   "len": 1.1,
+   "fade": 0.6
+  },
+  {
+   "kind": "chip",
+   "on": "cmp",
+   "text": "Moskva",
+   "at": 15.2,
+   "dur": 1.2,
+   "x": 0.27,
+   "y": 0.09,
+   "size": 54,
+   "rot": -3,
+   "sfx": "pop_soft",
+   "gain": -24,
+   "sfx_out": "none"
+  },
+  {
+   "kind": "sfx",
+   "at": 16.5,
+   "type": "tick_1",
+   "what": "шторка: церковь на месте кинотеатра",
+   "gain": -24
+  },
+  {
+   "kind": "chip",
+   "on": "cmp",
+   "text": "Pogos-Petros",
+   "at": 16.6,
+   "dur": 1.85,
+   "x": 0.3,
+   "y": 0.09,
+   "size": 54,
+   "rot": 3,
+   "sfx": "none",
+   "gain": -24,
+   "sfx_out": "none"
+  },
+  {
+   "kind": "sfx",
+   "at": 17.7,
+   "type": "tick_2",
+   "what": "ручка возвращается",
+   "gain": -27
+  },
+  {
+   "kind": "sfx",
+   "at": 18.15,
+   "type": "tick_2",
+   "what": "ручка встала посередине",
+   "gain": -27
+  },
+  {
+   "kind": "tag",
+   "text": "chka.am",
+   "variant": "big",
+   "at": 18.25,
+   "dur": 0,
+   "x": 490,
+   "y": 1210,
+   "size": 140,
+   "rot": -2,
+   "sfx": "pop_drop-1",
+   "gain": -22,
+   "sfx_out": "none"
+  },
+  {
+   "kind": "sfx",
+   "at": 19.6,
+   "type": "key_soft",
+   "what": "последний тихий звук",
+   "gain": -31
+  },
+  {
+   "kind": "sfx",
+   "at": 12.45,
+   "type": "tick_1",
+   "what": "руины осели",
+   "gain": -29
+  }
+ ]
+}

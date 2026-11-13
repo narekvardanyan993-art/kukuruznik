@@ -9,3 +9,4 @@ sfx/*.wav
 remotion/node_modules/
 remotion/public/
 remotion/.props/
+raw/
