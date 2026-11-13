@@ -10,3 +10,8 @@ remotion/node_modules/
 remotion/public/
 remotion/.props/
 raw/
+# закадровый голос (ElevenLabs): звук вне git, текст content/vo/<имя>.txt — в git
+vo/*.mp3
+vo/*.wav
+vo/*.m4a
+vo/*/

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useContext, useMemo } from 'react';
 import { ACCENT, DROP_OUT, IN, INDIGO, INK, OUT, SURFACE, clamp01, drop, lerp, mix, seg, sh, soft, softDrop, softText, spr } from './ease';
 
 // Всё ниже — графика интерфейса (бирки, значки, штамп) в стиле сайта: бумага, тень, карандашный контур.
@@ -7,7 +7,7 @@ import { ACCENT, DROP_OUT, IN, INDIGO, INK, OUT, SURFACE, clamp01, drop, lerp, m
 
 export type Word = { s: string; at: number };
 export type ItemP = {
-  kind: 'tag' | 'icon' | 'tap' | 'stamp' | 'counter' | 'dot' | 'chip' | 'ruler' | 'sfx' | 'loupe';
+  kind: 'tag' | 'icon' | 'tap' | 'stamp' | 'counter' | 'dot' | 'chip' | 'ruler' | 'sfx' | 'loupe' | 'caption';
   id: string; at: number; dur: number; x: number; y: number; rot: number; size: number;
   on?: string;               // id карточки: элемент едет вместе с ней (x, y — доли карточки)
   words?: Word[]; variant?: 'tag' | 'label' | 'big';
@@ -16,7 +16,8 @@ export type ItemP = {
   top?: string; mid?: string; bottom?: string;
   from?: string; to?: string; tick?: number; label?: string;
   impact?: number; paper?: boolean;
-  text?: string;             // chip: год, число или знак (→ ? × ✓)
+  text?: string;             // chip: год, число или знак (→ ? × ✓); caption: фраза (*слово* — акцент, \n — своя разбивка строк)
+  box?: number[];            // caption: прямоугольник [x0, y0, x1, y1] в пикселях кадра — текст вписывается в него целиком
   pin?: boolean;             // x, y (и x2, y2) — доли КАДРА ИСТОЧНИКА внутри карточки: точка едет с камерой карточки
   x2?: number; y2?: number; n?: number; step?: number;   // ruler: куда, сколько кусочков, шаг
 };
@@ -95,6 +96,54 @@ export const Tag: React.FC<{ it: ItemP; T: number; fps: number }> = ({ it, T, fp
               pathLength={1} strokeDasharray="1 1" strokeDashoffset={1 - under} />
           </svg>
         ) : null}
+      </div>
+    </div>
+  );
+};
+
+// ---------- подпись шага: крупная фраза на бумажной плашке (армянский, ≤ 6 слов) ----------
+// Текст вписывается в прямоугольник box: размер шрифта подбирается по настоящей ширине строк (после загрузки шрифтов),
+// 1 или 2 строки — что крупнее. Поэтому проверка зоны (zone.mjs) смотрит только на box.
+// Входит быстро и без отскока (текст читают с первого кадра), стоит весь шаг, уходит за 0,14 с.
+export const FontCtx = React.createContext(0);   // 1 — шрифты сайта загружены (Promo.tsx)
+const fitCaption = (text: string, bw: number, bh: number, max: number) => {
+  const clean = (ws: string[]) => ws.join(' ').replace(/\*/g, '');
+  const cv = document.createElement('canvas').getContext('2d')!;
+  cv.font = `700 100px ${FONT}`;
+  const wid = (ws: string[]) => cv.measureText(clean(ws)).width;
+  const LH = 1.2;
+  const all = text.split(/\s+/).filter(Boolean);
+  const opts: string[][][] = text.includes('\n')
+    ? [text.split('\n').map((l) => l.split(/\s+/).filter(Boolean))]
+    : [[all], ...all.slice(1).map((_, k) => [all.slice(0, k + 1), all.slice(k + 1)])];
+  let best = { lines: [all], size: 0 };
+  for (const lines of opts) {
+    const mw = Math.max(1, ...lines.map(wid));
+    const size = Math.min(max, (bw / mw) * 100, bh / (lines.length * LH));
+    if (size > best.size + 0.5) best = { lines, size };
+  }
+  return best;
+};
+export const Caption: React.FC<{ it: ItemP; T: number; fps: number }> = ({ it, T }) => {
+  const ready = useContext(FontCtx);
+  const [x0, y0, x1, y1] = it.box ?? [120, 285, 960, 545];
+  const bw = x1 - x0, bh = y1 - y0, padX = 34, padY = 20;
+  const fit = useMemo(() => fitCaption(it.text ?? '', bw - 2 * padX, bh - 2 * padY, it.size), [ready, it.text, bw, bh, it.size]);
+  const t = T - it.at;
+  if (t < 0 || (it.dur > 0 && t > it.dur)) return null;
+  const pin = OUT(clamp01(t / 0.22));
+  const pout = it.dur > 0 ? clamp01((t - (it.dur - 0.14)) / 0.14) : 0;
+  const accent = (line: string) => line.split('*').map((part, i) => (i % 2 ? <span key={i} style={{ color: ACCENT }}>{part}</span> : part));
+  return (
+    <div style={{ position: 'absolute', left: x0, top: y0, width: bw, height: bh, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{
+        position: 'relative', padding: `${padY}px ${padX}px`, background: paperBg, borderRadius: 18, boxShadow: paperShadow(1 - pin),
+        opacity: clamp01(t / 0.1) * (1 - pout), transform: `translateY(${lerp(22, 0, pin)}px) scale(${lerp(0.94, 1, pin)})`, textAlign: 'center',
+      }}>
+        <PencilBox r={14} />
+        {fit.lines.map((ln, i) => (
+          <div key={i} style={{ font: `700 ${fit.size}px/1.2 ${FONT}`, color: INK, whiteSpace: 'nowrap', textShadow }}>{accent(ln.join(' '))}</div>
+        ))}
       </div>
     </div>
   );
@@ -364,6 +413,7 @@ export const Item: React.FC<{ it: ItemP; T: number; fps: number }> = (pr) => {
     case 'dot': return <Dot {...pr} />;
     case 'chip': return <Chip {...pr} />;
     case 'ruler': return <Ruler {...pr} />;
+    case 'caption': return <Caption {...pr} />;
     default: return null;
   }
 };

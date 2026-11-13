@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AbsoluteFill, continueRender, delayRender, staticFile, useCurrentFrame } from 'remotion';
 import { Paper } from './parts/Paper';
 import { CardP, CardSeq } from './parts/Card';
-import { Item, ItemP } from './parts/Items';
+import { FontCtx, Item, ItemP } from './parts/Items';
 
 export type PromoProps = {
   fps: number; width: number; height: number; durationInFrames: number;
@@ -13,6 +13,8 @@ export type PromoProps = {
   items: ItemP[];
   shakes: { t: number; amp: number }[];
   showSafe?: boolean;
+  // безопасный кадр TikTok (zone.mjs): видимая ширина на высоком экране, верх и низ интерфейса, колонка кнопок
+  zone?: { crop: [number, number]; top: number; bottom: number; rail: { x: number; y0: number; y1: number }; pad: number };
 };
 
 /** Фильтры «карандаш» и «штемпельная краска» — один раз на весь кадр. */
@@ -44,17 +46,19 @@ const Defs: React.FC = () => (
 
 const useFonts = (fonts: PromoProps['fonts']) => {
   const [h] = useState(() => delayRender('fonts'));
+  const [ready, setReady] = useState(0);
   useEffect(() => {
     Promise.all(fonts.map(async (f) => {
       const ff = new FontFace(f.family, `url(${staticFile(f.path)}) format("woff2")`, { weight: '100 900', unicodeRange: f.range });
       await ff.load();
       (document as any).fonts.add(ff);
-    })).then(() => continueRender(h)).catch((e) => { console.error(e); continueRender(h); });
+    })).then(() => { setReady(1); continueRender(h); }).catch((e) => { console.error(e); setReady(1); continueRender(h); });
   }, [fonts, h]);
+  return ready;
 };
 
 export const Promo: React.FC<PromoProps> = (P) => {
-  useFonts(P.fonts);
+  const fontsReady = useFonts(P.fonts);
   const g = useCurrentFrame();
   const T = g / P.fps;
   const shakeAt = (frame: number) => {
@@ -80,9 +84,23 @@ export const Promo: React.FC<PromoProps> = (P) => {
         return <CardSeq key={c.id} c={c} shake={shakeAt} items={own} />;
       })}
       <AbsoluteFill style={{ transform: `translate(${sh.x * 0.5}px, ${sh.y * 0.5}px)` }}>
-        {free.map((i) => <Item key={i.id} it={i} T={T} fps={P.fps} />)}
+        <FontCtx.Provider value={fontsReady}>{free.map((i) => <Item key={i.id} it={i} T={T} fps={P.fps} />)}</FontCtx.Provider>
       </AbsoluteFill>
-      {P.showSafe ? (
+      {P.showSafe && P.zone ? (() => {
+        // рамка зоны: красное — срежет высокий экран или закроет интерфейс TikTok; зелёная линия — где можно ставить текст
+        const Z = P.zone!, red = 'rgba(255,0,0,0.22)', x0 = Z.crop[0] + Z.pad, x1 = Z.crop[1] - Z.pad;
+        const box = (l: number, t: number, w: number, h: number, bg = red) => <div style={{ position: 'absolute', left: l, top: t, width: w, height: h, background: bg }} />;
+        return (
+          <AbsoluteFill style={{ pointerEvents: 'none' }}>
+            {box(0, 0, Z.crop[0], P.height, 'rgba(255,0,0,0.4)')}{box(Z.crop[1], 0, P.width - Z.crop[1], P.height, 'rgba(255,0,0,0.4)')}
+            {box(Z.crop[0], 0, Z.crop[1] - Z.crop[0], Z.top)}{box(Z.crop[0], Z.bottom, Z.crop[1] - Z.crop[0], P.height - Z.bottom)}
+            {box(Z.rail.x, Z.rail.y0, Z.crop[1] - Z.rail.x, Z.rail.y1 - Z.rail.y0)}
+            <svg width={P.width} height={P.height} style={{ position: 'absolute', inset: 0 }}>
+              <path d={`M${x0} ${Z.top} H${x1} V${Z.rail.y0} H${Z.rail.x} V${Z.bottom} H${x0} Z`} fill="none" stroke="#19a04b" strokeWidth={4} strokeDasharray="18 10" />
+            </svg>
+          </AbsoluteFill>
+        );
+      })() : P.showSafe ? (
         <AbsoluteFill style={{ pointerEvents: 'none' }}>
           <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: P.safe[0], background: 'rgba(255,0,0,0.22)' }} />
           <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: P.safe[1], background: 'rgba(255,0,0,0.22)' }} />

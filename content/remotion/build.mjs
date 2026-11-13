@@ -2,7 +2,9 @@
 // Промо-ролик chka.am на Remotion — одна команда из папки репозитория:
 //   node content/remotion/build.mjs content/scenes/pogos-02.json
 // Флаги: --still 3.2 (один кадр + поля TikTok, без сборки) · --audio-only (пересвести звук к готовому видео)
-//        --browser <путь к Chrome> · --concurrency N
+//        --browser <путь к Chrome> · --concurrency N · --check (только проверки кадра и сюжета, без сборки)
+//        --dry (сценарий → свойства и события, без рендера) · --stdin (сценарий из stdin: проверки без файла)
+// Сюжет, подписи, голос, безопасный кадр TikTok — README.md, раздел «Ролик v2»; проверки — zone.mjs
 // Результат: content/out/<имя>.mp4, <имя>-sfx.wav (если в content/sfx/ есть звуки), <имя>-sheet.jpg, <имя>-events.json,
 //            <имя>-zoom10.jpg (10 кадров подряд на наезде) + проверка плавности в конце
 import { spawnSync } from 'node:child_process';
@@ -10,6 +12,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { checkStory, checkZone, words as storyWords, zoneOf } from './zone.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '../..');
@@ -22,8 +25,10 @@ const argv = process.argv.slice(2);
 const flag = (n) => argv.includes(n);
 const opt = (n, d) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : d; };
 const scenePath = argv.find((a) => a.endsWith('.json'));
-if (!scenePath) { console.error('нужен сценарий: node content/remotion/build.mjs content/scenes/<имя>.json'); process.exit(2); }
-const S = JSON.parse(fs.readFileSync(path.resolve(scenePath), 'utf8'));
+if (!scenePath && !flag('--stdin')) { console.error('нужен сценарий: node content/remotion/build.mjs content/scenes/<имя>.json'); process.exit(2); }
+const S = JSON.parse(flag('--stdin') ? fs.readFileSync(0, 'utf8') : fs.readFileSync(path.resolve(scenePath), 'utf8'));
+const CHECK = flag('--check');   // только проверки кадра и сюжета
+const LIGHT = CHECK || flag('--audio-only');   // картинка не нужна: ролики не режутся на кадры, файлы в public/ не копируются
 const fps = S.fps ?? 30;
 const [W, H] = S.size ?? [1080, 1920];
 const t0 = Date.now();
@@ -59,6 +64,7 @@ const resolveSrc = (p) => {
 const publish = (abs) => {
   const rel = path.relative(REPO, abs).split(path.sep).join('/');
   const dst = path.join(PUB, rel);
+  if (LIGHT) return rel;
   const st = fs.statSync(abs);
   if (st.isDirectory()) {
     fs.mkdirSync(dst, { recursive: true });
@@ -174,7 +180,7 @@ const cards = (S.cards ?? []).map((c) => {
       }
       segs = [{ start: src.start, rate, len: d.dur }];
     }
-    const rel = videoToSeq(abs, segs, d.id, crop);
+    const rel = LIGHT ? '_vid/none' : videoToSeq(abs, segs, d.id, crop);
     const w = crop ? crop[2] : pr.w, h = crop ? crop[3] : pr.h;
     src = { kind: 'seq', path: rel, start: 0, rate: 1, reverse: src.reverse, w, h, frames: Math.round(d.dur * fps), fps };
   } else if (kind === 'seq') {
@@ -227,6 +233,11 @@ for (const it of S.items ?? []) {
     flat.push({ ...m, on: m.on ?? it.on, at, dur: it.dur ? Math.max(0.3, end - at) : 0, chain: `${it.at}`, ci: k });
   });
 }
+// подписи шагов сюжета (story.steps): одна на шаг, стоит весь шаг, вписана в прямоугольник story.caption.box
+const Z = zoneOf(S);
+const STEPS = S.story?.steps ?? [];
+const CAP = { box: [120, 285, 960, 545], size: 96, lead: 0.08, tail: 0.1, ...(S.story?.caption ?? {}) };
+STEPS.forEach((s, i) => flat.push({ kind: 'caption', id: `caption${i + 1}`, at: +(s.at + CAP.lead).toFixed(3), dur: +(s.dur - CAP.lead - CAP.tail).toFixed(3), text: s.caption, box: s.box ?? CAP.box, size: s.size ?? CAP.size }));
 const SIZE = { dot: 44, chip: 54, tap: 140, ruler: 34, loupe: 300 };
 const items = flat.map((it) => {
   const d = { ...D[it.kind], ...it };
@@ -247,7 +258,18 @@ const props = {
   fps, width: W, height: H, durationInFrames: Math.round(dur * fps), safe: S.safe ?? [250, 600, 160],
   bg: { paper: S.bg?.paper ? publish(resolveSrc(S.bg.paper)) : '', grid: S.bg?.grid ?? 60 },
   fonts: fontList, cards, items, shakes, showSafe: flag('--still') || flag('--safe'),
+  ...(Z ? { zone: Z } : {}),
 };
+
+// ---------- проверки сборки: безопасный кадр TikTok и метод сюжета (zone.mjs) ----------
+// Ошибка = сборки нет (кроме --still: кадр с рамкой зоны нужен, чтобы увидеть, что не так).
+if (Z || S.story) {
+  const gate = [...(Z ? checkZone(props, Z) : []), ...(S.story ? checkStory(S.story, dur) : [])];
+  if (gate.length) console.log('ОШИБКА СБОРКИ (кадр и сюжет):\n- ' + gate.join('\n- '));
+  else log(`кадр и сюжет: зелёная${Z ? ` · зона ${typeof S.zone === 'string' ? S.zone : 'своя'}` : ''}${S.story ? ` · шагов ${STEPS.length}, слов в голосе ${STEPS.reduce((a, s) => a + storyWords(s.vo).length, 0)}` : ''}`);
+  if (gate.length && !flag('--still')) process.exit(1);
+}
+if (CHECK) process.exit(0);
 
 // ---------- события звука: каждое появление и уход ----------
 const G = { whoosh: -19, pop: -17, click: -23, stamp: -11, out: -21, key: -21, tick: -22, scroll: -22 };
@@ -360,14 +382,37 @@ fs.mkdirSync(OUT, { recursive: true });
 fs.mkdirSync(path.join(HERE, '.props'), { recursive: true });
 const name = S.name;
 const propsFile = path.join(HERE, '.props', `${name}.json`);
-fs.writeFileSync(propsFile, JSON.stringify(props));
+if (!flag('--audio-only')) fs.writeFileSync(propsFile, JSON.stringify(props));
 const evFile = path.join(OUT, `${name}-events.json`);
 fs.writeFileSync(evFile, JSON.stringify({ name, dur, fps, sfx_dir: 'content/sfx', density, moments, counts: Object.fromEntries(Object.keys(G).map((k) => [k, ev.filter((e) => String(e.type).startsWith(k)).length])), events: ev }, null, 1));
+// сюжет → таблица шагов для отчёта и текст закадрового голоса (один источник — сценарий)
+const VO_LEAD = S.vo?.lead ?? 0.25;
+if (S.story) {
+  const f2 = (x) => String(+(+x).toFixed(2)).replace('.', ',');
+  const md = [`# ${name} — сюжет`, '', `Посыл: ${S.story.message}`, '',
+    '| Шаг | Секунды | Мысль | Подпись (hy) | Перевод | Голос (hy) | Перевод |', '|---|---|---|---|---|---|---|',
+    ...STEPS.map((s, i) => `| ${i + 1} | ${f2(s.at)}–${f2(s.at + s.dur)} | ${s.thought} | ${String(s.caption).replace(/\*/g, '')} | ${s.caption_ru ?? ''} | ${s.vo} | ${s.vo_ru ?? ''} |`),
+    '', 'Что понял незнакомец:', ...['1', '3', '10'].map((k) => `- ${k}-я с: ${S.story.stranger?.[k] ?? ''}`), ''].join('\n');
+  fs.writeFileSync(path.join(OUT, `${name}-story.md`), md);
+  const txt = [`# ${name} — текст закадрового голоса (восточноармянский, разговорно). Файл пишет сборщик из сценария:`,
+    `# править content/scenes/${name}.json (story.steps[].vo), не здесь.`,
+    `# Запись: одна фраза на шаг, между фразами пауза ≥ 0,5 с — тогда один файл content/vo/${name}.mp3 сборщик сам разрежет по шагам.`,
+    `# Надёжнее — по файлу на шаг: content/vo/${name}/01.mp3, 02.mp3 … Потом: node content/remotion/build.mjs content/scenes/${name}.json --audio-only`,
+    '# В скобках: когда фраза звучит в ролике и сколько секунд на неё есть.', '',
+    ...STEPS.map((s, i) => `${i + 1}. [${f2(s.at + VO_LEAD)}–${f2(s.at + s.dur)} с · не длиннее ${f2(s.dur - VO_LEAD - 0.1)} с] ${s.vo}`), '',
+    '# Чистый текст для генератора голоса (строка = фраза). Адрес chka.am: если генератор читает его по буквам или не так,',
+    '# в окне генератора написать его так, как говорит Нарек; сценарий при этом не менять.',
+    ...STEPS.map((s) => (/[։.!?…]$/.test(String(s.vo).trim()) ? String(s.vo).trim() : `${String(s.vo).trim()}։`)), ''].join('\n');
+  const tf = path.join(REPO, 'content/vo', `${name}.txt`);
+  fs.mkdirSync(path.dirname(tf), { recursive: true });
+  if (!fs.existsSync(tf) || fs.readFileSync(tf, 'utf8') !== txt) fs.writeFileSync(tf, txt);
+}
+if (flag('--dry')) process.exit(0);
 log(`сценарий: ${cards.length} карточек, ${items.length} элементов, ${ev.length} звуковых событий, ${dur} с · звук: ${density.per_sec}/с, самая длинная тишина ${density.max_gap} с, разом до ${density.max_together}`);
 
 // ---------- Remotion ----------
 const remotion = path.join(HERE, 'node_modules/.bin/remotion');
-if (!fs.existsSync(remotion)) { console.error('нет Remotion: cd content/remotion && npm install'); process.exit(1); }
+if (!fs.existsSync(remotion) && !flag('--audio-only')) { console.error('нет Remotion: cd content/remotion && npm install'); process.exit(1); }
 const browser = opt('--browser', process.env.REMOTION_CHROME);
 const common = ['--props', propsFile, ...(browser ? ['--browser-executable', browser] : [])];
 
@@ -381,6 +426,8 @@ if (flag('--still')) {
 
 const mp4 = path.join(OUT, `${name}.mp4`);
 const silent = path.join(HERE, '.props', `${name}-video.mp4`);
+// --audio-only на машине, где ролик не рендерили (Мак): картинка берётся из готового content/out/<имя>.mp4
+if (flag('--audio-only') && !fs.existsSync(silent) && fs.existsSync(mp4)) fs.copyFileSync(mp4, silent);
 if (!flag('--audio-only')) {
   run(remotion, ['render', 'src/index.ts', 'promo', silent, ...common,
     '--codec', 'h264', '--crf', '18', '--pixel-format', 'yuv420p', '--color-space', 'bt709',
@@ -416,8 +463,79 @@ if (withFile.length) {
 } else {
   log(`звуков нет (content/sfx/ пуст) — ролик без звука, разметка в ${path.relative(REPO, evFile)}`);
 }
+// ---------- закадровый голос: content/vo/<имя>.mp3 (wav, m4a) или content/vo/<имя>/01.mp3, 02.mp3 … ----------
+// Фраза k звучит с начала шага k (+ vo.lead, по умолчанию 0,25 с) — там же, где стоит подпись шага.
+// Один файл сборщик режет сам: n − 1 самых длинных пауз = границы фраз (или vo.cuts: [[с, по], …] в секундах файла).
+// Фраза длиннее шага — ускоряется до ×1,12 (vo.max_tempo) с предупреждением. Под голосом звуки событий тише.
+// Нет файла — ролик собирается с подписями, без ошибки.
+let mixWav = null;
+if (STEPS.length) {
+  const cfg = S.vo ?? {};
+  const VOD = path.join(REPO, 'content/vo');
+  const slots = STEPS.map((s, i) => ({ step: i + 1, at: +(s.at + VO_LEAD).toFixed(3), room: +(s.dur - VO_LEAD - 0.1).toFixed(3), text: s.vo }));
+  const one = ['mp3', 'wav', 'm4a'].map((e) => path.join(VOD, `${name}.${e}`)).find((f) => fs.existsSync(f));
+  const dirV = path.join(VOD, name);
+  const many = fs.existsSync(dirV) ? fs.readdirSync(dirV).filter((f) => /^\d+.*\.(mp3|wav|m4a)$/i.test(f)).sort().map((f) => path.join(dirV, f)) : [];
+  const ff = (args) => spawnSync('ffmpeg', ['-hide_banner', '-nostats', ...args, '-f', 'null', '-'], { encoding: 'utf8' }).stderr ?? '';
+  const adur = (f) => parseFloat(run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f], { quiet: true }));
+  let phrases = null;   // [{file, from, to}] — секунды файла
+  if (many.length) {
+    if (many.length !== slots.length) warn(`голос: в content/vo/${name}/ файлов ${many.length}, шагов ${slots.length} — лишние не взяты, недостающие шаги без голоса`);
+    phrases = many.slice(0, slots.length).map((f) => ({ file: f, from: 0, to: adur(f) }));
+  } else if (one && cfg.cuts) {
+    phrases = cfg.cuts.slice(0, slots.length).map(([from, to]) => ({ file: one, from, to }));
+  } else if (one) {
+    const D = adur(one), err = ff(['-i', one, '-af', `silencedetect=noise=${cfg.noise ?? -35}dB:d=0.18`]);
+    const st = [...err.matchAll(/silence_start: (-?[\d.]+)/g)].map((m) => Math.max(0, +m[1]));
+    const en = [...err.matchAll(/silence_end: ([\d.]+)/g)].map((m) => +m[1]);
+    const sil = st.map((a, k) => ({ a, b: en[k] ?? D }));
+    const head = sil.find((q) => q.a < 0.05)?.b ?? 0, tail = sil.find((q) => q.b > D - 0.05)?.a ?? D;
+    const inner = sil.filter((q) => q.a >= 0.05 && q.b <= D - 0.05).sort((p, q) => (q.b - q.a) - (p.b - p.a));
+    if (inner.length < slots.length - 1) {
+      warn(`голос: в файле пауз ${inner.length}, для ${slots.length} фраз нужно ${slots.length - 1} — голос поставлен одним куском с шага 1; записать с паузой ≥ 0,5 с между фразами, дать vo.cuts или файлы по шагам`);
+      phrases = [{ file: one, from: head, to: tail }];
+    } else {
+      const cut = inner.slice(0, slots.length - 1).sort((p, q) => p.a - q.a);
+      phrases = slots.map((_, k) => ({ file: one, from: k ? cut[k - 1].b : head, to: k < cut.length ? cut[k].a : tail }));
+    }
+  }
+  const voFile = path.join(OUT, `${name}-vo.json`);
+  if (!phrases) {
+    log(`голоса нет (content/vo/${name}.mp3) — ролик с подписями; текст для озвучки — content/vo/${name}.txt`);
+    fs.writeFileSync(voFile, JSON.stringify({ name, voice: null, slots }, null, 1));
+  } else {
+    const src = [...new Set(phrases.map((p) => p.file))];
+    // громкость: пик каждого файла голоса → −3 dB (+ vo.db)
+    const peak = Object.fromEntries(src.map((f) => [f, parseFloat(/max_volume: (-?[\d.]+) dB/.exec(ff(['-i', f, '-af', 'volumedetect']))?.[1] ?? '-3')]));
+    const a = ['-y', '-v', 'error'];
+    if (withFile.length) a.push('-i', wav); else a.push('-f', 'lavfi', '-t', String(dur), '-i', 'anullsrc=r=48000:cl=stereo');
+    const fl = [], rep = [];
+    phrases.forEach((p, k) => {
+      const sl = slots[k], len = p.to - p.from;
+      let tempo = 1;
+      if (phrases.length > 1 && len > sl.room) {
+        tempo = Math.min(cfg.max_tempo ?? 1.12, len / sl.room);
+        if (len / tempo > sl.room + 0.03) warn(`голос: фраза ${sl.step} длится ${len.toFixed(2)} с, в шаге места ${sl.room} с — не помещается даже с ускорением ×${tempo.toFixed(2)}: удлинить шаг или сократить фразу`);
+        else warn(`голос: фраза ${sl.step} (${len.toFixed(2)} с) ускорена ×${tempo.toFixed(2)}, чтобы поместиться в шаг (${sl.room} с)`);
+      }
+      a.push('-i', p.file);
+      const ms = Math.round(sl.at * 1000), g = (cfg.db ?? 0) - 3 - peak[p.file];
+      fl.push(`[${k + 1}:a]atrim=${p.from.toFixed(3)}:${p.to.toFixed(3)},asetpts=PTS-STARTPTS,aresample=48000,aformat=channel_layouts=stereo,${tempo > 1 ? `atempo=${tempo.toFixed(4)},` : ''}afade=t=in:st=0:d=0.02,volume=${g.toFixed(2)}dB,adelay=${ms}|${ms}[v${k}]`);
+      rep.push({ step: sl.step, at: sl.at, file_from: +p.from.toFixed(3), file_to: +p.to.toFixed(3), len: +len.toFixed(3), room: sl.room, tempo: +tempo.toFixed(3), text: sl.text });
+    });
+    fl.push(`${phrases.map((_, k) => `[v${k}]`).join('')}${phrases.length > 1 ? `amix=inputs=${phrases.length}:normalize=0:duration=longest,` : ''}apad=whole_dur=${dur},atrim=0:${dur},asplit=2[vo][key]`);
+    // звуки событий под голосом тише: сжатие по голосу (замер: −6…−7 dB при голосе с пиком −3 dB), отпускает за 0,35 с
+    fl.push(`[0:a]aresample=48000,aformat=channel_layouts=stereo[bed];[bed][key]sidechaincompress=threshold=${cfg.duck_threshold ?? 0.1}:ratio=${cfg.duck_ratio ?? 3}:attack=25:release=350[duck]`);
+    fl.push('[duck][vo]amix=inputs=2:normalize=0:duration=first,alimiter=limit=0.9[out]');
+    mixWav = path.join(HERE, '.props', `${name}-mix.wav`);
+    run('ffmpeg', [...a, '-filter_complex', fl.join(';'), '-map', '[out]', '-t', String(dur), '-c:a', 'pcm_s16le', mixWav]);
+    const rel = src.map((f) => path.relative(REPO, f));
+    fs.writeFileSync(voFile, JSON.stringify({ name, voice: rel, split: many.length ? 'files' : cfg.cuts ? 'cuts' : 'auto', phrases: rep }, null, 1));
+    log(`голос: ${phrases.length} фраз (${rel.join(', ')}) → в звук ролика, события под голосом тише; тайминги — ${path.relative(REPO, voFile)}`);
+  }
+}
 const mux = ['-y', '-v', 'error', '-i', silent];
-if (withFile.length) mux.push('-i', wav, '-map', '0:v', '-map', '1:a', '-c:a', 'aac', '-b:a', '192k');
+if (mixWav || withFile.length) mux.push('-i', mixWav ?? wav, '-map', '0:v', '-map', '1:a', '-c:a', 'aac', '-b:a', '192k');
 else mux.push('-f', 'lavfi', '-t', String(dur), '-i', 'anullsrc=r=48000:cl=stereo', '-map', '0:v', '-map', '1:a', '-c:a', 'aac', '-b:a', '64k');
 // пометка цвета bt709 (iPhone иначе показывает мутно — lessons.md §7)
 run('ffmpeg', [...mux, '-c:v', 'copy', '-bsf:v', 'h264_metadata=colour_primaries=1:transfer_characteristics=1:matrix_coefficients=1',
@@ -428,6 +546,28 @@ const sheet = path.join(OUT, `${name}-sheet.jpg`);
 const cols = 7, rows = Math.ceil(dur / cols);
 run('ffmpeg', ['-y', '-v', 'error', '-i', mp4, '-vf', `fps=1,scale=216:384,tile=${cols}x${rows}:padding=4:color=white`, '-frames:v', '1', '-q:v', '3', sheet]);
 log(`готово: ${path.relative(REPO, mp4)} · ${path.relative(REPO, sheet)} · ${path.relative(REPO, evFile)}`);
+
+// ---------- лист «как в TikTok»: кадр каждого шага ----------
+// Верхний ряд — кадр, обрезанный как на высоком экране (видно crop), под макетом интерфейса TikTok (assets/tiktok-ui.png).
+// Нижний ряд — тот же кадр целиком с рамкой зоны: красное срежет экран или закроет интерфейс.
+if (Z) {
+  const times = STEPS.length ? STEPS.map((s) => s.at + s.dur * 0.6) : Array.from({ length: 6 }, (_, k) => (dur * (k + 0.5)) / 6);
+  const n = times.length, cw = Z.crop[1] - Z.crop[0], tw = 2 * Math.round((cw * 640) / H / 2);
+  const a = ['-y', '-v', 'error'];
+  times.forEach((t) => a.push('-ss', t.toFixed(3), '-i', mp4));
+  a.push('-loop', '1', '-i', path.join(HERE, 'assets/tiktok-ui.png'));
+  const L = (c) => times.map((_, k) => `[${c}${k}]`).join('');
+  const fl = [`[${n}:v]scale=${cw}:${H},split=${n}${L('u')}`];
+  times.forEach((_, k) => {
+    fl.push(`[${k}:v]split=2[p${k}][q${k}]`);
+    fl.push(`[p${k}]crop=${cw}:${H}:${Z.crop[0]}:0[c${k}];[c${k}][u${k}]overlay=0:0,scale=${tw}:640,pad=${tw + 8}:648:4:4:white[a${k}]`);
+    fl.push(`[q${k}]drawbox=0:0:${Z.crop[0]}:${H}:red@0.45:fill,drawbox=${Z.crop[1]}:0:${W - Z.crop[1]}:${H}:red@0.45:fill,drawbox=${Z.crop[0]}:0:${cw}:${Z.top}:red@0.25:fill,drawbox=${Z.crop[0]}:${Z.bottom}:${cw}:${H - Z.bottom}:red@0.25:fill,drawbox=${Z.rail.x}:${Z.rail.y0}:${Z.crop[1] - Z.rail.x}:${Z.rail.y1 - Z.rail.y0}:red@0.25:fill,scale=-2:524,pad=${tw + 8}:648:(ow-iw)/2:62:white[b${k}]`);
+  });
+  fl.push(`${L('a')}hstack=inputs=${n}[r1];${L('b')}hstack=inputs=${n}[r2];[r1][r2]vstack=inputs=2[out]`);
+  const tk = path.join(OUT, `${name}-tiktok.jpg`);
+  run('ffmpeg', [...a, '-filter_complex', fl.join(';'), '-map', '[out]', '-frames:v', '1', '-q:v', '3', tk]);
+  log(`лист «как в TikTok»: ${path.relative(REPO, tk)} (сверху — обрезка высокого экрана под интерфейсом, снизу — кадр с рамкой зоны)`);
+}
 
 // ---------- плавность и чёткость: 10 кадров подряд на наезде + повторы кадров ----------
 // Повтор = кадр почти не отличается от соседа, хотя камера идёт (признак «20 к/с»). Окно — середина каждой карточки.
