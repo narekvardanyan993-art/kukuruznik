@@ -462,9 +462,19 @@ if (withFile.length) {
     fl.push(`anoisesrc=r=48000:c=brown:a=0.5:d=${dur}:seed=11,highpass=f=70,lowpass=f=${R.lowpass ?? 420},volume=${R.db ?? -30}dB,aformat=channel_layouts=stereo,afade=t=in:st=0:d=0.8,afade=t=out:st=${Math.max(0, dur - 1.2)}:d=1.2[room]`);
     mixIn += '[room]';
   }
-  fl.push(`[0:a]${mixIn}amix=inputs=${withFile.length + 1 + (S.room ? 1 : 0)}:normalize=0:duration=first,alimiter=limit=0.7[out]`);
+  // музыка ("music": {"file": "repo:content/music/…mp3", "db": -8, "offset": 0, "fade_in": 1, "fade_out": 2}):
+  // идёт под всем роликом, плавно входит и уходит; под голосом приглушается вместе со звуками событий
+  let nIn = withFile.length + 1 + (S.room ? 1 : 0);
+  if (S.music) {
+    const M = typeof S.music === 'string' ? { file: S.music } : S.music;
+    const O = M.offset ?? 0, FI = M.fade_in ?? 1, FO = M.fade_out ?? 2;
+    args.push('-i', resolveSrc(M.file));
+    fl.push(`[${withFile.length + 1}:a]aresample=48000,aformat=channel_layouts=stereo,atrim=${O}:${O + dur},asetpts=PTS-STARTPTS,afade=t=in:st=0:d=${FI},afade=t=out:st=${Math.max(0, dur - FO)}:d=${FO},volume=${M.db ?? -8}dB[mus]`);
+    mixIn += '[mus]'; nIn++;
+  }
+  fl.push(`[0:a]${mixIn}amix=inputs=${nIn}:normalize=0:duration=first,alimiter=limit=0.7[out]`);
   run('ffmpeg', [...args, '-filter_complex', fl.join(';'), '-map', '[out]', '-c:a', 'pcm_s16le', wav]);
-  log(`звуки: ${withFile.length} из ${ev.length} событий → ${path.relative(REPO, wav)}`);
+  log(`звуки: ${withFile.length} из ${ev.length} событий${S.music ? ' + музыка' : ''} → ${path.relative(REPO, wav)}`);
 } else {
   log(`звуков нет (content/sfx/ пуст) — ролик без звука, разметка в ${path.relative(REPO, evFile)}`);
 }
@@ -534,7 +544,7 @@ if (STEPS.length) {
     fl.push(`${phrases.map((_, k) => `[v${k}]`).join('')}${phrases.length > 1 ? `amix=inputs=${phrases.length}:normalize=0:duration=longest,` : ''}apad=whole_dur=${dur},atrim=0:${dur},asplit=2[vo][key]`);
     // звуки событий под голосом тише: сжатие по голосу (замер: −6…−7 dB при голосе с пиком −3 dB), отпускает за 0,35 с
     fl.push(`[0:a]aresample=48000,aformat=channel_layouts=stereo[bed];[bed][key]sidechaincompress=threshold=${cfg.duck_threshold ?? 0.1}:ratio=${cfg.duck_ratio ?? 3}:attack=25:release=350[duck]`);
-    fl.push('[duck][vo]amix=inputs=2:normalize=0:duration=first,alimiter=limit=0.9[out]');
+    fl.push(`[duck][vo]amix=inputs=2:normalize=0:duration=first,alimiter=limit=0.9,apad=whole_dur=${dur}[out]`);
     mixWav = path.join(HERE, '.props', `${name}-mix.wav`);
     run('ffmpeg', [...a, '-filter_complex', fl.join(';'), '-map', '[out]', '-t', String(dur), '-c:a', 'pcm_s16le', mixWav]);
     const rel = src.map((f) => path.relative(REPO, f));
@@ -542,8 +552,21 @@ if (STEPS.length) {
     log(`голос: ${phrases.length} фраз (${rel.join(', ')}) → в звук ролика, события под голосом тише; тайминги — ${path.relative(REPO, voFile)}`);
   }
 }
+// громкость ролика ("loudness": -15): весь звук приводится к этой громкости (LUFS) одним усилением + ограничитель пиков −1,5 dB.
+// TikTok и Reels играют ролики около −14…−16 LUFS: тише — ролик звучит «мёртво» рядом с соседними.
+let finalWav = mixWav ?? (withFile.length ? wav : null);
+if (S.loudness && finalWav) {
+  const m = /I:\s+(-?[\d.]+) LUFS/.exec(spawnSync('ffmpeg', ['-hide_banner', '-nostats', '-i', finalWav, '-af', 'ebur128=framelog=quiet', '-f', 'null', '-'], { encoding: 'utf8' }).stderr ?? '');
+  if (m) {
+    const g = S.loudness - parseFloat(m[1]);
+    const nw = path.join(HERE, '.props', `${name}-final.wav`);
+    run('ffmpeg', ['-y', '-v', 'error', '-i', finalWav, '-af', `volume=${g.toFixed(2)}dB,alimiter=limit=0.84:level=false,apad=whole_dur=${dur}`, '-t', String(dur), '-c:a', 'pcm_s16le', nw]);
+    log(`громкость: было ${m[1]} LUFS → ${S.loudness} LUFS (усиление ${g >= 0 ? '+' : ''}${g.toFixed(1)} dB, пики не выше −1,5 dB)`);
+    finalWav = nw;
+  }
+}
 const mux = ['-y', '-v', 'error', '-i', silent];
-if (mixWav || withFile.length) mux.push('-i', mixWav ?? wav, '-map', '0:v', '-map', '1:a', '-c:a', 'aac', '-b:a', '192k');
+if (finalWav) mux.push('-i', finalWav, '-map', '0:v', '-map', '1:a', '-c:a', 'aac', '-b:a', '192k');
 else mux.push('-f', 'lavfi', '-t', String(dur), '-i', 'anullsrc=r=48000:cl=stereo', '-map', '0:v', '-map', '1:a', '-c:a', 'aac', '-b:a', '64k');
 // пометка цвета bt709 (iPhone иначе показывает мутно — lessons.md §7)
 run('ffmpeg', [...mux, '-c:v', 'copy', '-bsf:v', 'h264_metadata=colour_primaries=1:transfer_characteristics=1:matrix_coefficients=1',
