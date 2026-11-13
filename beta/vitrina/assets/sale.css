@@ -242,19 +242,79 @@ html.js .step.on .spot:nth-child(3) { animation-delay: 0.08s; }
 .cta { flex-direction: row-reverse; }
 .card-note { margin: 4px 0 0; font-size: 13px; color: var(--faint); text-align: center; }
 
-/* ---------- телефон: картинка шага помещается вместе с кнопкой ---------- */
+/* ---------- телефон: шаг = один экран (100dvh), картинка забирает всё, что осталось от текста ---------- */
+/* шапка 62px + подвал ≈31px; .flow растягивается на остаток экрана, шаг — колонка: картинка (flex:1, без процентов — дети absolute) + панель с кнопкой внизу */
 @media (max-width: 959px) {
-  .step[data-step="1"] .card { max-width: 400px; }
-  .step[data-step="1"] .ba-btn img { max-height: 40vh; max-height: 40svh; }
+  .flow { display: flex; flex-direction: column; }
+  html.js .step.on { flex: 1 1 auto; display: flex; flex-direction: column; gap: 8px; padding: 8px 0 0; min-height: 0; }
+  html.js .step.on > .panel { margin-top: auto; }
+  footer.sfoot { padding: 6px var(--g) calc(6px + env(safe-area-inset-bottom, 0px)); font-size: 12px; line-height: 1.5; }
+  .snav, .cta { margin-top: 6px; padding-top: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+  .nx, .btn, .bk { min-height: 48px; }
+  .museum { margin-bottom: 2px; }
+  .eyebrow { margin-bottom: 2px; }
+
+  /* ① картинка: квадрат по высоте остатка, карточка и «пара» внутри него */
+  html.js .step[data-step="1"] .stage { flex: 1 1 0; min-height: 110px; align-self: center; aspect-ratio: 1; width: auto; max-width: 100%;
+    max-height: min(420px, calc(100vw - 2 * var(--g))); padding: 0; position: relative; }
+  .step[data-step="1"] .card { position: absolute; inset: 4px 6px 24px 0; display: flex; padding: 10px; }
+  .step[data-step="1"] .card::before { inset: 5px; }
+  .step[data-step="1"] .ba { flex: 1; min-width: 0; }
+  .step[data-step="1"] .ba-btn { height: 100%; }
+  .step[data-step="1"] .ba-btn img { height: 100%; max-height: none; aspect-ratio: auto; }
+  .step[data-step="1"] .pstamp { transform: rotate(6deg) scale(0.8); transform-origin: top right; }
+  .step[data-step="1"] .mini { width: 34%; padding: 4px 4px 2px; }
+  .step[data-step="1"] .mini figcaption { margin-top: 2px; font-size: 11px; line-height: 1.2; }
+  .step[data-step="1"] .how { margin-top: 8px; gap: 5px; }
+
+  /* ② кадр по высоте остатка: стрелки и миниатюры — одним рядом под ним */
+  html.js .step[data-step="2"] .stage { flex: 1 1 0; min-height: 160px; display: flex; flex-direction: column;
+    max-height: calc((100vw - 2 * var(--g)) * 0.94 * 1.094 + 90px); }
+  html.js .step[data-step="2"] .car { flex: 1 1 0; min-height: 0; grid-template-columns: 44px minmax(0, 1fr) 44px; grid-template-rows: minmax(0, 1fr) auto; row-gap: 4px; align-items: center; }
+  .step[data-step="2"] .car .track { align-self: stretch; }
+  .step[data-step="2"] .fr { display: flex; flex-direction: column; height: 100%; flex-basis: 94%; }
+  .step[data-step="2"] .frpic { flex: 1 1 0; min-height: 0; aspect-ratio: 1000 / 1094; align-self: center; max-width: 100%; margin: 0; }
+  .step[data-step="2"] .frpic img { position: absolute; left: 6px; top: 6px; width: calc(100% - 12px); height: calc(100% - 12px); object-fit: cover; }
+  .step[data-step="2"] .fr figcaption { flex: none; margin-top: 4px; font-size: 14px; line-height: 1.3; }
+  .step[data-step="2"] .arr { width: 44px; height: 44px; }
+  .step[data-step="2"] .lead { margin-bottom: 4px; }
+  .step[data-step="2"] .free { margin-bottom: 4px; }
+  .step[data-step="2"] .sel { padding: 6px 12px; }
+
   .step[data-step="3"] .card-pv, .step[data-step="4"] .card-pv { max-width: 420px; margin: 0 auto; width: 100%; }
   .step[data-step="4"] .crop-sum { max-width: 150px; margin: 0 auto; }
-  /* шаги 2 и 4 на телефоне — потесней, чтобы лишней прокрутки было меньше */
-  .step[data-step="2"] .lead { margin-bottom: 4px; }
-  .step[data-step="2"] .free { margin-bottom: 6px; }
-  .step[data-step="2"] .sel { padding: 8px 12px; }
-  .step[data-step="2"] .car { row-gap: 6px; }
   .step[data-step="4"] .price { margin: 2px 0 6px; }
   .step[data-step="4"] .sum { margin-top: 8px; gap: 4px; }
+}
+/* узкий телефон: текст компактнее */
+@media (max-width: 599px) {
+  h1 { font-size: 26px; margin-bottom: 4px; } h2 { font-size: 24px; margin-bottom: 4px; }
+  .museum, .eyebrow { font-size: 12px; }
+  .step[data-step="1"] .lead, .step[data-step="1"] .how { font-size: 15px; line-height: 1.35; }
+  .step[data-step="1"] .lead { margin-bottom: 0; }
+  .how li::before { width: 22px; height: 22px; font-size: 13px; }
+  .step[data-step="2"] .lead { font-size: 15px; line-height: 1.35; }
+}
+/* метка у левого края кадра не выходит за рамку */
+@media (max-width: 599px) {
+  .spot.el .tag { transform: translateX(-8%); } .spot.el .tag::after { left: 8%; }
+}
+/* совсем низкий (360×640) */
+@media (max-width: 599px) and (max-height: 680px) {
+  .step[data-step="4"] .crop-sum { max-width: 84px; }
+  .step[data-step="3"] .yv { font-size: 32px; }
+}
+/* низкий телефон (375×667 и т. п.) */
+@media (max-width: 599px) and (max-height: 720px) {
+  h1 { font-size: 23px; } h2 { font-size: 22px; }
+  .step[data-step="1"] .lead, .step[data-step="1"] .how, .step[data-step="2"] .lead { font-size: 14px; line-height: 1.3; }
+  .step[data-step="1"] .how { margin-top: 6px; gap: 3px; }
+  .step[data-step="2"] .free, .step[data-step="2"] .sel { font-size: 15px; }
+  .step[data-step="4"] .crop-sum { max-width: 112px; }
+  .price b { font-size: 44px; }
+  .promise { gap: 3px; }
+  .step[data-step="4"] .sum { margin-top: 6px; gap: 3px; }
+  .nx, .btn, .bk { min-height: 46px; }
 }
 @media (min-width: 600px) { h1 { font-size: 36px; } }
 
