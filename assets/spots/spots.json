@@ -1,0 +1,150 @@
+{
+ "note": "Места надписей chka.am (Погос-Петрос). Собирает tools/build_sale_pages.py; sold — из building.json. Без личных данных.",
+ "building": "pogos-petros",
+ "price_usd": 15,
+ "days": 7,
+ "frames": [
+  {
+   "id": "A",
+   "img": "frame-a.webp",
+   "w": 1000,
+   "h": 1094,
+   "src_size": [
+    1536,
+    2731
+   ],
+   "view_y0": 1050
+  },
+  {
+   "id": "B",
+   "img": "frame-b.webp",
+   "w": 1000,
+   "h": 1094,
+   "src_size": [
+    1536,
+    2731
+   ],
+   "view_y0": 1050
+  },
+  {
+   "id": "C",
+   "img": "frame-c.webp",
+   "w": 1000,
+   "h": 1094,
+   "src_size": [
+    1536,
+    2731
+   ],
+   "view_y0": 1050
+  },
+  {
+   "id": "F",
+   "img": "frame-f.webp",
+   "w": 1000,
+   "h": 1094,
+   "src_size": [
+    1536,
+    2731
+   ],
+   "view_y0": 1050
+  }
+ ],
+ "spots": [
+  {
+   "id": "A1",
+   "frame": "A",
+   "type": "name",
+   "x": 70.31,
+   "y": 67.22,
+   "cx": 0.5,
+   "cy": 0.5,
+   "max_len": 10,
+   "crop": "A1.webp",
+   "sold": false
+  },
+  {
+   "id": "A2",
+   "frame": "A",
+   "type": "name",
+   "x": 93.1,
+   "y": 54.13,
+   "cx": 0.5,
+   "cy": 0.5,
+   "max_len": 6,
+   "crop": "A2.webp",
+   "sold": false
+  },
+  {
+   "id": "B1",
+   "frame": "B",
+   "type": "name",
+   "x": 26.04,
+   "y": 73.77,
+   "cx": 0.5,
+   "cy": 0.5,
+   "max_len": 10,
+   "crop": "B1.webp",
+   "sold": false
+  },
+  {
+   "id": "B2",
+   "frame": "B",
+   "type": "name",
+   "x": 72.92,
+   "y": 79.71,
+   "cx": 0.5,
+   "cy": 0.5,
+   "max_len": 10,
+   "crop": "B2.webp",
+   "sold": false
+  },
+  {
+   "id": "C1",
+   "frame": "C",
+   "type": "couple",
+   "x": 5.21,
+   "y": 60.08,
+   "cx": 0.125,
+   "cy": 0.5,
+   "max_len": 1,
+   "crop": "C1.webp",
+   "sold": false
+  },
+  {
+   "id": "C2",
+   "frame": "C",
+   "type": "name",
+   "x": 29.3,
+   "y": 67.22,
+   "cx": 0.5,
+   "cy": 0.5,
+   "max_len": 6,
+   "crop": "C2.webp",
+   "sold": false
+  },
+  {
+   "id": "F1",
+   "frame": "F",
+   "type": "couple",
+   "x": 54.69,
+   "y": 67.82,
+   "cx": 0.5,
+   "cy": 0.5,
+   "max_len": 1,
+   "crop": "F1.webp",
+   "sold": false
+  },
+  {
+   "id": "F2",
+   "frame": "F",
+   "type": "name",
+   "x": 84.64,
+   "y": 71.39,
+   "cx": 0.5,
+   "cy": 0.5,
+   "max_len": 10,
+   "crop": "F2.webp",
+   "sold": false
+  }
+ ]
+}
