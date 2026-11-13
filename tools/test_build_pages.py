@@ -505,7 +505,8 @@ def check_publish_hub():
             (site / f).write_bytes(d)
         aff = ph.affected_pages(site, changed)
         own = {p for p in files if p.endswith('.html')}
-        if changed:
+        sale_only = bool(changed) and all(f in ph.SALE_PAGES or f in ph.SALE_ASSETS for f in changed)   # витрина v2 (14.11): меняется только витрина
+        if changed and not sale_only:
             # ветка отличается от origin/main по payload главной — index.html обязан попасть в затронутые.
             aff_ok = 'index.html' in aff and set(aff) <= own
         else:
@@ -517,9 +518,10 @@ def check_publish_hub():
             shutil.copytree(site, synth_site)
             (synth_site / 'index.html').write_bytes(files['index.html'] + b'<!--synthetic s45-->')
             synth_aff = ph.affected_pages(synth_site, ['index.html'])
-            aff_ok = not aff and 'index.html' in synth_aff and set(synth_aff) <= own
+            # витрина v2: если отличается только витрина — затронуты ровно её страницы (не главная, не здания)
+            aff_ok = (set(aff) <= set(ph.SALE_PAGES) if sale_only else not aff) and 'index.html' in synth_aff and set(synth_aff) <= own
         rec('publish_hub: меняются только главная и about/history (%d стр.)' % len(aff), aff_ok,
-            ', '.join(sorted(set(aff) - own)) if changed else ('обнаружение не сработало на синтетической правке index.html' if not aff_ok else ''))
+            ', '.join(sorted(set(aff) - (set(ph.SALE_PAGES) if sale_only else own))) if changed else ('обнаружение не сработало на синтетической правке index.html' if not aff_ok else ''))
         foreign = set(ph.affected_pages(site, changed + ['engine/viewer.js'])) - own
         rec('publish_hub: правка движка задела бы страницы зданий — это ловится', bool(foreign))
     finally:
@@ -550,10 +552,12 @@ def cursor_problems(text):
 
 
 def check_sale_pages():
-    """С1 (11.11.2026): страницы продажи надписи — /buy, /t, /i, /f, /pay, /thanks — из одного шаблона (tools/build_sale_pages.py).
-    Файлы на диске == шаблон; места берутся из sale в building.json; /t /i /f отличаются от /buy только src; /pay берёт src из белого списка;
-    витрина сама никуда не перекидывает; счётчик на всех; красные случаи: испорченный sale, рукой правленая страница. Возвращает (ok, строки)."""
+    """Витрина v2 (14.11.2026; С1 — 11.11): страницы продажи надписи — /buy, /t, /i, /f, /pay, /thanks — из одного шаблона (tools/build_sale_pages.py).
+    Файлы на диске и assets/spots/spots.json == шаблон; места и «продано» — из building.json (inscriptions + sale) и сходятся между собой;
+    /t /i /f отличаются от /buy только src; /pay берёт src, место и текст только из белых списков; витрина сама никуда не перекидывает;
+    счётчик на всех; красные случаи: испорченный sale, рассинхрон «продано», чужое место, двойная продажа, надпись без места, рукой правленая страница."""
     import build_sale_pages as bs
+    import json
     out, ok = [], True
     def rec(name, good, extra=''):
         nonlocal ok
@@ -565,9 +569,16 @@ def check_sale_pages():
     snippet = snip.group(1) if snip else ''
     rec('sale: на всех страницах счётчик Cloudflare (<!--chka-analytics-->)', bool(snippet) and all(bs.SNIP.search(disk(f)) and bs.SNIP.search(disk(f)).group(1) == snippet for f in bs.PAGES), 'нет сниппета в buy/index.html' if not snippet else '')
     sale = bs.sale_block()
+    spots = bs.load_spots()
+    sold = bs.sold_from_building()
     pages = bs.build(sale, snippet)
     stale = [f for f in bs.PAGES if disk(f) != pages[f]]
     rec('sale: 6 страниц на диске == шаблон (build_sale_pages --check)', not stale, ('правлено руками или устарело: ' + ', '.join(stale) + ' — python3 tools/build_sale_pages.py') if stale else '')
+    pj = (ROOT / bs.SPOTS_JSON).read_text(encoding='utf-8')
+    rec('sale: публичный список мест %s == шаблон (sold из building.json)' % bs.SPOTS_JSON, pj == bs.public_json(spots, set(sold)))
+    pub = json.loads(pj)
+    keys = set().union(*[set(s) for s in pub['spots']])
+    rec('sale: в публичном списке мест только геометрия и sold (без текстов и личных данных)', keys <= {'id', 'frame', 'type', 'x', 'y', 'cx', 'cy', 'crop', 'sold'}, ', '.join(sorted(keys)))
     rec('sale: вся витрина — один шаблон: /t /i /f == /buy с точностью до src кнопки',
         all(pages[f].replace('/pay/?src=' + src, '/pay/?src=@').replace('data-src="%s"' % src, 'data-src="@"') == pages['buy'].replace('/pay/?src=site', '/pay/?src=@').replace('data-src="site"', 'data-src="@"')
             for f, src in bs.CHANNELS.items()))
@@ -577,14 +588,24 @@ def check_sale_pages():
         all('http-equiv="refresh"' not in pages[f] and 'location.replace' not in pages[f] for f in bs.CHANNELS))
     js = (ROOT / 'assets' / 'sale.js').read_text(encoding='utf-8')
     rec('sale: переход в sale.js только на /pay (data-page="pay"), утм из белого списка', js.count('location.replace') == 1 and js.index("page === 'pay'") < js.index('location.replace') and "ok.indexOf(m[1]) >= 0 ? m[1] : 'site'" in js)
-    rec('sale: /pay — касса Polar и каналы %s, запасной переход без JS с utm_source=site' % ','.join(bs.PAY_CHANNELS),
-        ('data-polar="%s"' % bs.POLAR_URL) in pages['pay'] and ('data-channels="%s"' % ','.join(bs.PAY_CHANNELS)) in pages['pay'] and ('<noscript><meta http-equiv="refresh" content="3; url=%s?utm_source=site">' % bs.POLAR_URL) in pages['pay'])
-    chips = lambda t: re.findall(r'<li class="chip( taken)?"', t)
-    rec('sale: места из sale (всего %d, свободно %d): %d чипов, занято %d' % (sale['total'], sale['left'], len(chips(pages['buy'])), sale['total'] - sale['left']),
-        len(chips(pages['buy'])) == sale['total'] and sum(1 for c in chips(pages['buy']) if c) == sale['total'] - sale['left'])
-    p5 = bs.build({'total': 8, 'left': 5}, snippet)['buy']
-    p0 = bs.build({'total': 8, 'left': 0}, snippet)['buy']
-    rec('sale: left=5 из 8 -> занято 3 и «5 из 8»; left=0 -> занято 8', sum(1 for c in chips(p5) if c) == 3 and ' 5 ' in p5 and sum(1 for c in chips(p0) if c) == 8)
+    rec('sale: /pay передаёт в Polar место только из свободных, текст — только буквы; поля custom_field_data.<слаг> и reference_id',
+        "free.indexOf(ms[1]) >= 0 ? ms[1] : ''" in js and "text.replace(/[^\\p{L}\\p{M}' +\\-]/gu, '')" in js and "'&custom_field_data.' + f[0]" in js and "'&reference_id='" in js)
+    rec('sale: витрина меняет ссылку оплаты при выборе места и текста (&spot=, &text=)', "href += '&spot=' + st.spot.id" in js and "href += '&text=' + encodeURIComponent(textOf())" in js)
+    free = [s['id'] for s in spots['spots'] if s['id'] not in sold]
+    rec('sale: /pay — касса Polar, каналы %s, свободные места, поля %s, запасной переход без JS с utm_source=site' % (','.join(bs.PAY_CHANNELS), ','.join(bs.POLAR_FIELDS)),
+        ('data-polar="%s"' % bs.POLAR_URL) in pages['pay'] and ('data-channels="%s"' % ','.join(bs.PAY_CHANNELS)) in pages['pay'] and ('data-spots="%s"' % ','.join(free)) in pages['pay']
+        and ('data-fields="%s"' % ','.join(bs.POLAR_FIELDS)) in pages['pay'] and ('<noscript><meta http-equiv="refresh" content="3; url=%s?utm_source=site">' % bs.POLAR_URL) in pages['pay'])
+    marks = lambda t: re.findall(r'<button type="button" class="spot( sold)?[^"]*" data-spot="([A-Z][0-9])"[^>]*?( disabled)?>', t)
+    m = marks(pages['buy'])
+    rec('sale: места из sale (всего %d, свободно %d): %d меток, продано %d (штамп и disabled)' % (sale['total'], sale['left'], len(m), sale['total'] - sale['left']),
+        len(m) == sale['total'] and sum(1 for x in m if x[0]) == sale['total'] - sale['left'] and all(bool(x[0]) == bool(x[2]) for x in m)
+        and pages['buy'].count('class="stamp"') == sale['total'] - sale['left'])
+    p5 = bs.build({'total': 8, 'left': 5}, snippet, sold=['A1', 'B2', 'C1'])
+    p0 = bs.build({'total': 8, 'left': 0}, snippet, sold=list(bs.WHERE))
+    m5 = marks(p5['buy'])
+    rec('sale: продано A1 B2 C1 -> 3 метки «продано» именно там и «5 из 8», /pay их не берёт; продано всё -> 8 и /pay без мест',
+        sorted(x[1] for x in m5 if x[0]) == ['A1', 'B2', 'C1'] and ' 5 ' in p5['buy'] and 'data-spots="A2,B1,C2,F1,F2"' in p5['pay']
+        and sum(1 for x in marks(p0['buy']) if x[0]) == 8 and 'data-spots=""' in p0['pay'])
     import json as _j
     tmp = Path(tempfile.mkdtemp(prefix='chka-test-sale-'))
     try:
@@ -598,15 +619,41 @@ def check_sale_pages():
             except SystemExit:
                 pass
         rec('sale: испорченный sale (нет блока, left>total, <0, строка, total=0, bool) останавливает сборку', not bad, ', '.join(bad))
+        bad = []
+        for name, sl, sd in (('left=7, продано 0', {'total': 8, 'left': 7}, []), ('left=8, продано B1', {'total': 8, 'left': 8}, ['B1']),
+                             ('чужое место Z9', {'total': 8, 'left': 7}, ['Z9']), ('B1 дважды', {'total': 8, 'left': 6}, ['B1', 'B1']),
+                             ('total=9 при 8 местах', {'total': 9, 'left': 9}, [])):
+            try:
+                bs.build(sl, snippet, sold=sd)
+                bad.append(name)
+            except SystemExit:
+                pass
+        f = tmp / 'b2.json'
+        f.write_text(_j.dumps({'sale': {'total': 8, 'left': 7}, 'inscriptions': [{'id': 'x', 'note': 'stanok insert'}]}), encoding='utf-8')
+        try:
+            bs.sold_from_building(f)
+            bad.append('надпись без места')
+        except SystemExit:
+            pass
+        f.write_text(_j.dumps({'inscriptions': [{'id': 'a', 'note': 'место B1'}, {'id': 'b', 'spot': 'F2'}]}), encoding='utf-8')
+        if bs.sold_from_building(f) != ['B1', 'F2']:
+            bad.append('note «место B1» / spot F2 не прочитаны')
+        rec('sale: «продано» сходится с sale (рассинхрон, чужое место, двойная продажа, total ≠ мест, надпись без места — стоп; note и spot читаются)', not bad, ', '.join(bad))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     hand = dict(pages)
     hand['buy'] = hand['buy'].replace('$15', '$14')
     rec('sale: правка страницы руками (цена) ловится сверкой с шаблоном', hand['buy'] != disk('buy'))
-    ex = [ROOT / 'assets' / n for n, _ in bs.EXAMPLES]
-    rec('sale: 3 картинки примеров есть, каждая ≤ 150 КБ', all(p.is_file() and p.stat().st_size <= 150 * 1024 for p in ex), ', '.join('%s %d КБ' % (p.name, p.stat().st_size // 1024) for p in ex if p.is_file()))
-    rec('sale: армянские строки есть у каждого ключа (hy не пустой)', all(v[0].strip() and re.search('[\u0531-\u058f]', v[0]) for v in bs.STR.values()))
+    crops = [ROOT / bs.SPOTS_DIR / ('%s.webp' % s) for s in bs.WHERE]
+    rec('sale: вырезки мест — webp ≤ 40 КБ (8 шт.)', all(p.is_file() and p.read_bytes()[8:12] == b'WEBP' and p.stat().st_size <= 40 * 1024 for p in crops),
+        ', '.join('%s %d КБ' % (p.name, p.stat().st_size // 1024) for p in crops if p.is_file() and p.stat().st_size > 40 * 1024))
+    other = [ROOT / f for f in bs.spot_files() if not any(f.endswith('/%s.webp' % s) for s in bs.WHERE)]
+    rec('sale: кадры, примеры и og есть, каждый ≤ 200 КБ', all(p.is_file() and p.stat().st_size <= 200 * 1024 for p in other),
+        ', '.join('%s %d КБ' % (p.name, p.stat().st_size // 1024) for p in other if p.is_file() and p.stat().st_size > 200 * 1024))
+    rec('sale: армянские строки есть у каждого ключа, кадра и места (hy не пустой)',
+        all(v[0].strip() and re.search('[Ա-֏]', v[0]) for v in list(bs.STR.values()) + list(bs.FRAMES.values()) + list(bs.WHERE.values())))
     rec('sale: нет почты в страницах (адреса почты в репозиторий нельзя)', not any(re.search(r'[\w.+-]+@[\w-]+\.[\w.]+', pages[f]) for f in bs.PAGES))
+    rec('sale: нет «Нарек из Еревана» и подобного (имя владельца в текстах)', not any(re.search(r'Нарек|Նարեկ|Narek\b', pages[f]) for f in bs.PAGES))
     return ok, out
 
 

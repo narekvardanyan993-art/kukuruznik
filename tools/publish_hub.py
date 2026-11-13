@@ -17,7 +17,7 @@
                                          chka-common.js, hub.js) + всё из assets/, на что ссылаются эти страницы (src, href и srcset:
                                          s40 — hub-pages.css, history.css, картинки сравнения compare-kuk-*);
   • kukuruznik/card.webp               — картинка карточки Кукурузника;
-  • buy/ t/ i/ f/ pay/ thanks/ index.html + assets/sale.css, sale.js, sale-ex-1..3.webp — страницы продажи надписи (С1; собирает tools/build_sale_pages.py,
+  • buy/ t/ i/ f/ pay/ thanks/ index.html + assets/sale.css, sale.js, assets/spots/* — страницы продажи надписи (С1; собирает tools/build_sale_pages.py,
                                          подвал главной у них не требуется);
   • about.html / history.html зданий   — у Кукурузника из kukuruznik/, у тестовых живых зданий (lenin) — из tests/<имя>/ так же, как их
                                          кладёт publish_building (адреса пересчитаны, без noindex), и их копии в бете beta/tests/<имя>/
@@ -50,7 +50,8 @@ ROOT = bp.ROOT
 SHARED_ASSETS = ['assets/hub.css', 'assets/hub-museum.css', 'assets/story.css', 'assets/chka-common.js', 'assets/hub.js', 'assets/pg-pencil-560.webp', 'assets/pg-pencil-920.webp', 'assets/pg-water-560.webp', 'assets/pg-water-920.webp', 'assets/pg-brush.webp', 'assets/pg-wash.webp']   # s43: гранат Gemini + маски (маски — только в CSS)
 KUK_PAGES = ['kukuruznik/about.html', 'kukuruznik/history.html']
 SALE_PAGES = ['buy/index.html', 't/index.html', 'i/index.html', 'f/index.html', 'pay/index.html', 'thanks/index.html']   # С1 (11.11.2026): продажа надписи, tools/build_sale_pages.py; свой вид, подвала главной нет
-SALE_ASSETS = ['assets/sale.css', 'assets/sale.js', 'assets/sale-ex-1.webp', 'assets/sale-ex-2.webp', 'assets/sale-ex-3.webp']
+import build_sale_pages as _bsp   # noqa: E402  витрина v2 (14.11): список файлов — у сборщика (assets/spots/*: кадры, вырезки, примеры, spots.json)
+SALE_ASSETS = list(_bsp.ASSETS)
 HUB_FILES = ['index.html'] + SHARED_ASSETS + ['kukuruznik/card.webp'] + KUK_PAGES + SALE_PAGES + SALE_ASSETS   # постоянная часть; страницы тестовых живых зданий — payload()
 _ASSET_REF = re.compile(r'(?:src|href)="((?:\.\./)*assets/[^"?#]+)')
 _SRCSET = re.compile(r'srcset="([^"]+)"')   # s40: картинки сравнения «архив ⇄ рисунок» стоят только в srcset — их тоже везём
