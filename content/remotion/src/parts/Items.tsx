@@ -1,5 +1,5 @@
 import React, { useContext, useMemo } from 'react';
-import { ACCENT, DROP_OUT, IN, INDIGO, INK, OUT, SURFACE, clamp01, drop, lerp, mix, seg, sh, soft, softDrop, softText, spr } from './ease';
+import { ACCENT, DROP_OUT, IN, INDIGO, INK, INOUT, IOS, OUT, SURFACE, clamp01, drop, lerp, mix, seg, sh, soft, softDrop, softText, spr } from './ease';
 
 // Всё ниже — графика интерфейса (бирки, значки, штамп) в стиле сайта: бумага, тень, карандашный контур.
 // Значки луны и снежинки — те же контуры, что на кнопках просмотрщика (engine/page.html),
@@ -17,6 +17,7 @@ export type ItemP = {
   from?: string; to?: string; tick?: number; label?: string;
   impact?: number; paper?: boolean;
   text?: string;             // chip: год, число или знак (→ ? × ✓); caption: фраза (*слово* — акцент, \n — своя разбивка строк)
+  underline?: boolean;       // caption: под акцентным словом рисуется линия от руки (мягкий намёк вместо стрелки)
   box?: number[];            // caption: прямоугольник [x0, y0, x1, y1] в пикселях кадра — текст вписывается в него целиком
   pin?: boolean;             // x, y (и x2, y2) — доли КАДРА ИСТОЧНИКА внутри карточки: точка едет с камерой карточки
   x2?: number; y2?: number; n?: number; step?: number;   // ruler: куда, сколько кусочков, шаг
@@ -131,19 +132,41 @@ export const Caption: React.FC<{ it: ItemP; T: number; fps: number }> = ({ it, T
   const fit = useMemo(() => fitCaption(it.text ?? '', bw - 2 * padX, bh - 2 * padY, it.size), [ready, it.text, bw, bh, it.size]);
   const t = T - it.at;
   if (t < 0 || (it.dur > 0 && t > it.dur)) return null;
-  const pin = OUT(clamp01(t / 0.22));
-  const pout = it.dur > 0 ? clamp01((t - (it.dur - 0.14)) / 0.14) : 0;
-  const accent = (line: string) => line.split('*').map((part, i) => (i % 2 ? <span key={i} style={{ color: ACCENT }}>{part}</span> : part));
+  // Плашка проявляется мягко (кривая iOS, 0,45 с), слова — одно за другим: каждое всплывает из лёгкого размытия
+  // за 0,42 с с шагом 0,07 с (как титры в заставках Apple). Уход — плавное таяние 0,24 с. Отскоков нет.
+  const pin = IOS(clamp01(t / 0.45));
+  const pout = it.dur > 0 ? INOUT(clamp01((t - (it.dur - 0.24)) / 0.24)) : 0;
+  let wi = 0, acc = false, accEnd = 0;
+  const word = (w: string, k: number) => {
+    const on = acc || w.startsWith('*');
+    acc = on && !w.endsWith('*');
+    const at = 0.1 + 0.07 * wi++;
+    const p = OUT(clamp01((t - at) / 0.42));
+    if (on) accEnd = Math.max(accEnd, at + 0.42);
+    return (
+      <span key={k} style={{
+        display: 'inline-block', marginRight: '0.28em', color: on ? ACCENT : INK, opacity: clamp01((t - at) / 0.2),
+        transform: `translateY(${lerp(0.32, 0, p)}em)`, filter: p < 0.98 ? `blur(${lerp(7, 0, p)}px)` : undefined,
+      }}>{w.replace(/\*/g, '')}</span>
+    );
+  };
+  const lines = fit.lines.map((ln, i) => (
+    <div key={i} style={{ font: `700 ${fit.size}px/1.2 ${FONT}`, whiteSpace: 'nowrap', textShadow, marginRight: '-0.28em' }}>{ln.map(word)}</div>
+  ));
+  const under = it.underline ? OUT(clamp01((t - accEnd - 0.1) / 0.7)) : 0;
   return (
     <div style={{ position: 'absolute', left: x0, top: y0, width: bw, height: bh, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{
         position: 'relative', padding: `${padY}px ${padX}px`, background: paperBg, borderRadius: 18, boxShadow: paperShadow(1 - pin),
-        opacity: clamp01(t / 0.1) * (1 - pout), transform: `translateY(${lerp(22, 0, pin)}px) scale(${lerp(0.94, 1, pin)})`, textAlign: 'center',
+        opacity: clamp01(t / 0.22) * (1 - pout), transform: `translateY(${lerp(18, 0, pin) - 10 * pout}px) scale(${lerp(0.965, 1, pin)})`, textAlign: 'center',
       }}>
         <PencilBox r={14} />
-        {fit.lines.map((ln, i) => (
-          <div key={i} style={{ font: `700 ${fit.size}px/1.2 ${FONT}`, color: INK, whiteSpace: 'nowrap', textShadow }}>{accent(ln.join(' '))}</div>
-        ))}
+        {lines}
+        {it.underline ? (
+          <svg style={{ position: 'absolute', left: padX, right: padX, bottom: padY * 0.45, height: fit.size * 0.16, width: `calc(100% - ${2 * padX}px)`, overflow: 'visible' }} viewBox="0 0 100 10" preserveAspectRatio="none">
+            <path d="M2 6 C 26 3, 62 9, 98 4" fill="none" stroke={ACCENT} strokeWidth={4.5} strokeOpacity={0.85} strokeLinecap="round" pathLength={1} strokeDasharray="1 1" strokeDashoffset={1 - under} />
+          </svg>
+        ) : null}
       </div>
     </div>
   );

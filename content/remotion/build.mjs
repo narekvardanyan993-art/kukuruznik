@@ -94,8 +94,10 @@ const warn = (m) => { warns.push(m); console.log('ВНИМАНИЕ:', m); };
 // у каждого своя скорость; склейки внутри карточки — мгновенные. crop [x, y, w, h] — срезать статус-бар и т. п.
 // Если кадров у источника хватает (запись iPhone 60 к/с при скорости ≤ 2), кадры ОТБИРАЮТСЯ (fps), а не дорисовываются:
 // дорисовка (minterpolate) на тексте интерфейса даёт «плывущие» буквы. Не хватает (Veo 24 к/с, замедление) — дорисовка.
-const videoToSeq = (abs, segs, id, crop) => {
-  const key = crypto.createHash('sha1').update(`${abs}|${fs.statSync(abs).size}|${JSON.stringify(segs)}|${crop}|${fps}|v5`).digest('hex').slice(0, 10);
+// twos — не дорисовывать кадры (src.interp: false): рисованный ролик идёт «на двойках» (кадр стоит два кадра ролика),
+// чисто, без «плывущих» дорисованных кадров; движение карточки и подписи при этом остаётся в полной частоте.
+const videoToSeq = (abs, segs, id, crop, twos = false) => {
+  const key = crypto.createHash('sha1').update(`${abs}|${fs.statSync(abs).size}|${JSON.stringify(segs)}|${crop}|${fps}|v5${twos ? '|twos' : ''}`).digest('hex').slice(0, 10);
   const rel = `_vid/${id}-${key}`;
   const dir = path.join(PUB, rel);
   const total = segs.reduce((a, g) => a + g.len, 0);
@@ -110,10 +112,10 @@ const videoToSeq = (abs, segs, id, crop) => {
     const n = Math.round(t * fps) - done;          // кадров в куске (накопленное округление — без дрейфа)
     const vf = crop ? [`crop=${crop[2]}:${crop[3]}:${crop[0]}:${crop[1]}`] : [];
     vf.push(`setpts=(PTS-STARTPTS)/${g.rate}`);
-    const interp = pr.fps / g.rate < fps - 0.01;
+    const interp = !twos && pr.fps / g.rate < fps - 0.01;
     // шаг отбора: 60 к/с × скорость / 30 должен быть целым (×1 → 2, ×1,5 → 3, ×2 → 4), иначе кадры идут через 1-2-1-2 — дёргается
     const step = (pr.fps * g.rate) / fps;
-    if (!interp && Math.abs(step - Math.round(step)) > 0.05) warn(`ролик ${id}: кусок с ${g.start} с ×${g.rate} — шаг ${step.toFixed(2)} кадра источника, неровный (дёргается); взять скорость с целым шагом`);
+    if (!interp && !twos && Math.abs(step - Math.round(step)) > 0.05) warn(`ролик ${id}: кусок с ${g.start} с ×${g.rate} — шаг ${step.toFixed(2)} кадра источника, неровный (дёргается); взять скорость с целым шагом`);
     vf.push(interp ? `minterpolate=fps=${fps}:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1` : `fps=${fps}`);
     log(`ролик ${id}: кусок ${g.start.toFixed(2)}–${(g.start + g.len * g.rate).toFixed(2)} с ×${g.rate} → ${n} кадров (${interp ? 'дорисовка' : 'отбор кадров, без повторов'})`);
     run('ffmpeg', ['-y', '-v', 'error', '-ss', String(g.start), '-t', String(g.len * g.rate + 0.25), '-i', abs, '-vf', vf.join(','),
@@ -123,7 +125,7 @@ const videoToSeq = (abs, segs, id, crop) => {
     done += n;
     bounds.push(done);
   }
-  fixDups(dir, bounds);
+  if (!twos) fixDups(dir, bounds);
   return rel;
 };
 
@@ -180,7 +182,7 @@ const cards = (S.cards ?? []).map((c) => {
       }
       segs = [{ start: src.start, rate, len: d.dur }];
     }
-    const rel = LIGHT ? '_vid/none' : videoToSeq(abs, segs, d.id, crop);
+    const rel = LIGHT ? '_vid/none' : videoToSeq(abs, segs, d.id, crop, c.src.interp === false);
     const w = crop ? crop[2] : pr.w, h = crop ? crop[3] : pr.h;
     src = { kind: 'seq', path: rel, start: 0, rate: 1, reverse: src.reverse, w, h, frames: Math.round(d.dur * fps), fps };
   } else if (kind === 'seq') {
@@ -210,7 +212,7 @@ const cards = (S.cards ?? []).map((c) => {
     keys: d.keys, frame: d.frame ?? 'photo', float: d.float,
     look: d.look ?? {}, rot: d.rot ?? 0, enter: d.enter ?? 'depth', exit: d.exit ?? 'left',
     enterDur: d.enterDur ?? 0.55, exitDur: d.exitDur ?? 0.42,
-    sfx_in: d.sfx_in ?? 'whoosh', sfx_out: d.sfx_out ?? 'whoosh',
+    sfx_in: d.sfx_in ?? 'whoosh', sfx_out: d.sfx_out ?? 'whoosh', ...(d.calm ? { calm: true } : {}),
     ...(d.compare ? { compare: (() => {
       // «до / после» шторкой: картинка compare.image поверх src, видна слева от ручки (ключи [t, доля x])
       const a = resolveSrc(d.compare.image), pr = probe(a);
@@ -237,7 +239,7 @@ for (const it of S.items ?? []) {
 const Z = zoneOf(S);
 const STEPS = S.story?.steps ?? [];
 const CAP = { box: [120, 285, 960, 545], size: 96, lead: 0.08, tail: 0.1, ...(S.story?.caption ?? {}) };
-STEPS.forEach((s, i) => flat.push({ kind: 'caption', id: `caption${i + 1}`, at: +(s.at + CAP.lead).toFixed(3), dur: +(s.dur - CAP.lead - CAP.tail).toFixed(3), text: s.caption, box: s.box ?? CAP.box, size: s.size ?? CAP.size }));
+STEPS.forEach((s, i) => flat.push({ kind: 'caption', id: `caption${i + 1}`, at: +(s.at + CAP.lead).toFixed(3), dur: +(s.dur - CAP.lead - CAP.tail).toFixed(3), text: s.caption, box: s.box ?? CAP.box, size: s.size ?? CAP.size, ...(s.underline ? { underline: true } : {}) }));
 const SIZE = { dot: 44, chip: 54, tap: 140, ruler: 34, loupe: 300 };
 const items = flat.map((it) => {
   const d = { ...D[it.kind], ...it };
@@ -394,15 +396,16 @@ if (S.story) {
     ...STEPS.map((s, i) => `| ${i + 1} | ${f2(s.at)}–${f2(s.at + s.dur)} | ${s.thought} | ${String(s.caption).replace(/\*/g, '')} | ${s.caption_ru ?? ''} | ${s.vo} | ${s.vo_ru ?? ''} |`),
     '', 'Что понял незнакомец:', ...['1', '3', '10'].map((k) => `- ${k}-я с: ${S.story.stranger?.[k] ?? ''}`), ''].join('\n');
   fs.writeFileSync(path.join(OUT, `${name}-story.md`), md);
+  const SAY = STEPS.map((s) => String(s.vo_say ?? s.vo).trim()).map((v) => (/[։.!?…]$/.test(v) ? v : `${v}։`));
   const txt = [`# ${name} — текст закадрового голоса (восточноармянский, разговорно). Файл пишет сборщик из сценария:`,
     `# править content/scenes/${name}.json (story.steps[].vo), не здесь.`,
     `# Запись: одна фраза на шаг, между фразами пауза ≥ 0,5 с — тогда один файл content/vo/${name}.mp3 сборщик сам разрежет по шагам.`,
     `# Надёжнее — по файлу на шаг: content/vo/${name}/01.mp3, 02.mp3 … Потом: node content/remotion/build.mjs content/scenes/${name}.json --audio-only`,
     '# В скобках: когда фраза звучит в ролике и сколько секунд на неё есть.', '',
     ...STEPS.map((s, i) => `${i + 1}. [${f2(s.at + VO_LEAD)}–${f2(s.at + s.dur)} с · не длиннее ${f2(s.dur - VO_LEAD - 0.1)} с] ${s.vo}`), '',
-    '# Чистый текст для генератора голоса (строка = фраза). Адрес chka.am: если генератор читает его по буквам или не так,',
-    '# в окне генератора написать его так, как говорит Нарек; сценарий при этом не менять.',
-    ...STEPS.map((s) => (/[։.!?…]$/.test(String(s.vo).trim()) ? String(s.vo).trim() : `${String(s.vo).trim()}։`)), ''].join('\n');
+    '# Чистый текст для генератора голоса (строка = фраза). Где фраза для генератора пишется иначе, чем в подписи',
+    '# (адрес chka.am — «չկա ամ», как «լիստ ամ»), она берётся из vo_say шага.',
+    ...SAY, '', '# То же одним куском для ElevenLabs v3 / v4: тег [pause] даёт паузу между фразами, по ней сборщик режет файл на шаги:', SAY.join(' [pause] '), ''].join('\n');
   const tf = path.join(REPO, 'content/vo', `${name}.txt`);
   fs.mkdirSync(path.dirname(tf), { recursive: true });
   if (!fs.existsSync(tf) || fs.readFileSync(tf, 'utf8') !== txt) fs.writeFileSync(tf, txt);
@@ -448,7 +451,9 @@ if (withFile.length) {
     // тишину в начале файла срезать (удар — точно в событие), хвост не длиннее 1,2 с
     const pt = e.pitch && Math.abs(e.pitch - 1) > 1e-3 ? `asetrate=${Math.round(48000 * e.pitch)},aresample=48000,` : '';
     const L = e.len ?? 1.2, F = Math.min(e.fade ?? 0.3, L), O = e.offset ?? 0;
-    fl.push(`[${k + 1}:a]aresample=48000,${pt}aformat=channel_layouts=stereo,silenceremove=start_periods=1:start_threshold=-45dB,atrim=${O}:${O + L},asetpts=PTS-STARTPTS,afade=t=out:st=${(L - F).toFixed(3)}:d=${F.toFixed(3)},volume=${e.gain_db}dB,adelay=${ms}|${ms}[a${k}]`);
+    // мягкий звук («как у iPhone»): "soft": {"lowpass": 4200} срезает резкий верх у всех звуков событий
+    const LP = S.soft?.lowpass ? `lowpass=f=${S.soft.lowpass},` : '';
+    fl.push(`[${k + 1}:a]aresample=48000,${pt}aformat=channel_layouts=stereo,silenceremove=start_periods=1:start_threshold=-45dB,atrim=${O}:${O + L},asetpts=PTS-STARTPTS,afade=t=out:st=${(L - F).toFixed(3)}:d=${F.toFixed(3)},${LP}volume=${e.gain_db}dB,adelay=${ms}|${ms}[a${k}]`);
   });
   // фон «комната» (ролик без музыки): тёмный шум, срезаны верх и низ, очень тихо; появляется и уходит плавно
   let mixIn = withFile.map((_, k) => `[a${k}]`).join('');
@@ -468,14 +473,17 @@ if (withFile.length) {
 // Один файл сборщик режет сам: n − 1 самых длинных пауз = границы фраз (или vo.cuts: [[с, по], …] в секундах файла).
 // Фраза длиннее шага — ускоряется до ×1,12 (vo.max_tempo) с предупреждением. Под голосом звуки событий тише.
 // Нет файла — ролик собирается с подписями, без ошибки.
+// Теги в квадратных скобках ([pause]) в тексте для генератора — паузы между фразами; в подписях их нет.
 let mixWav = null;
 if (STEPS.length) {
   const cfg = S.vo ?? {};
   const VOD = path.join(REPO, 'content/vo');
   const slots = STEPS.map((s, i) => ({ step: i + 1, at: +(s.at + VO_LEAD).toFixed(3), room: +(s.dur - VO_LEAD - 0.1).toFixed(3), text: s.vo }));
-  const one = ['mp3', 'wav', 'm4a'].map((e) => path.join(VOD, `${name}.${e}`)).find((f) => fs.existsSync(f));
   const dirV = path.join(VOD, name);
-  const many = fs.existsSync(dirV) ? fs.readdirSync(dirV).filter((f) => /^\d+.*\.(mp3|wav|m4a)$/i.test(f)).sort().map((f) => path.join(dirV, f)) : [];
+  const inDir = fs.existsSync(dirV) ? fs.readdirSync(dirV).filter((f) => /\.(mp3|wav|m4a)$/i.test(f)).sort().map((f) => path.join(dirV, f)) : [];
+  const many = inDir.filter((f) => /^\d/.test(path.basename(f)));
+  // один файл: content/vo/<имя>.mp3 — или единственный файл с любым именем в папке content/vo/<имя>/ (скачали из ElevenLabs и перетащили, не переименовывая)
+  const one = ['mp3', 'wav', 'm4a'].map((e) => path.join(VOD, `${name}.${e}`)).find((f) => fs.existsSync(f)) ?? (!many.length && inDir.length === 1 ? inDir[0] : undefined);
   const ff = (args) => spawnSync('ffmpeg', ['-hide_banner', '-nostats', ...args, '-f', 'null', '-'], { encoding: 'utf8' }).stderr ?? '';
   const adur = (f) => parseFloat(run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f], { quiet: true }));
   let phrases = null;   // [{file, from, to}] — секунды файла
@@ -586,7 +594,9 @@ if (Z) {
     // повтор: кадр заметно «тише» обоих соседей (дубль картинки, меняется только камера) — пила 20/10/20/10
     let rep = 0;
     for (let k = 1; k < seg2.length - 1; k++) if (seg2[k] < 0.65 * Math.min(seg2[k - 1], seg2[k + 1]) && seg2[k - 1] > 0.8 && seg2[k + 1] > 0.8) rep++;
-    rows.push({ card: c.id, frames: seg2.length, median_diff: +med.toFixed(2), repeats: rep });
+    // ролик «на двойках» (src.interp: false): каждый кадр источника стоит два кадра — это задумано, в повторы не идёт
+    const twos = (S.cards ?? []).find((q) => q.id === c.id)?.src?.interp === false;
+    rows.push({ card: c.id, frames: seg2.length, median_diff: +med.toFixed(2), repeats: twos ? 0 : rep, ...(twos ? { on_twos: true } : {}) });
     const zch = Math.abs(c.cam.to[2] - c.cam.from[2]);
     if (!worst || zch > worst.z) worst = { z: zch, c };
   }

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Img, OffthreadVideo, Sequence, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
-import { DROP_OUT, IN, INK, INOUT, OUT, clamp01, drop, lerp, seg, sh, soft, spr } from './ease';
+import { DROP_OUT, IN, INK, INOUT, IOS, OUT, clamp01, drop, lerp, seg, sh, soft, spr } from './ease';
 import { Item, ItemP } from './Items';
 
 export type Src = {
@@ -20,8 +20,9 @@ export type CardP = {
   float?: [number, number];  // парение (px по x, y): камера не замирает, даже когда запись стоит
   look: { sepia?: number; alive?: number };
   rot: number;
-  enter: 'depth' | 'up' | 'left' | 'right';
-  exit: 'left' | 'right' | 'down' | 'up' | 'depth' | 'into' | 'none';
+  enter: 'depth' | 'up' | 'left' | 'right' | 'soft';
+  exit: 'left' | 'right' | 'down' | 'up' | 'depth' | 'into' | 'soft' | 'none';
+  calm?: boolean;          // без покачивания: карточка лежит ровно («дорогой» спокойный кадр)
   enterDur: number; exitDur: number;
   // «до / после» шторкой: вторая картинка поверх первой, видна слева от ручки; ручка едет по ключам [t, доля x, кривая?]
   compare?: { path: string; w: number; h: number; cam: [number, number, number]; keys: (number | string)[][]; show: number;
@@ -208,15 +209,25 @@ export const cardPose = (c: CardP, t: number, fps: number) => {
   let o = clamp01(pIn * 3.5);
   let blur = c.enter === 'depth' ? lerp(10, 0, clamp01(pIn * 1.6)) : 0;
   let lift = 1 - clamp01(p);                     // «высота» над столом → тень
+  if (c.enter === 'soft') {
+    // «дорогой» вход (как появление окна в iOS): без вылета и отскока — проявляется на месте, чуть снизу,
+    // из лёгкого размытия и 95,5 % размера; кривая iOS: быстрый старт, долгое мягкое торможение
+    const q = IOS(pIn);
+    x = 0; y = lerp(46, 0, q); s = lerp(0.955, 1, q); r = c.rot;
+    o = clamp01(t / (c.enterDur * 0.55)); blur = lerp(14, 0, clamp01(t / (c.enterDur * 0.7))); lift = 1 - q;
+  }
   // приближение и лёгкое покачивание, пока карточка лежит
   s *= 1 + 0.035 * INOUT(clamp01(t / c.dur));
-  r += Math.sin(t * 1.3 + c.at) * 0.35;
+  if (!c.calm) r += Math.sin(t * 1.3 + c.at) * 0.35;
   // уход
   const te = c.dur - c.exitDur;
   if (c.exit !== 'none' && t > te) {
     const q = IN(clamp01((t - te) / c.exitDur));
     if (c.exit === 'into') {                     // обратно в экран: уменьшается и растворяется (фото «проваливается» в телефон)
       s *= lerp(1, 0.58, q); o *= 1 - q * q; blur += 6 * q; y += 30 * q; lift += 0.2 * q;
+    } else if (c.exit === 'soft') {              // «дорогой» уход: тает на месте — чуть вверх, чуть меньше, в лёгкое размытие (разгон и торможение)
+      const e = INOUT(clamp01((t - te) / c.exitDur));
+      s *= lerp(1, 0.97, e); o *= 1 - e; blur += 10 * e; y -= 26 * e;
     } else if (c.exit === 'depth') {             // к зрителю: растёт и растворяется
       s *= lerp(1, 1.5, q); o *= 1 - q; blur += 14 * q; lift += 0.6 * q;
     } else {
