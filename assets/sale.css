@@ -200,6 +200,14 @@ html.js .step.on .spot:nth-child(3) { animation-delay: 0.08s; }
 .ex-in img { width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; }
 .ex:not([data-kind="couple"]) .ex-c, .ex[data-kind="couple"] .ex-n { display: none; }
 .ex figcaption { position: relative; z-index: 2; margin: 8px 4px 0; font-size: 14px; font-style: italic; color: var(--faint); }
+/* шаг 3: крупно — вырезка выбранного места, сбоку в углу — маленький пример художника */
+.pick { position: relative; z-index: 2; display: grid; grid-template-columns: minmax(0, 1fr) 36%; gap: 12px; align-items: start; }
+.crop { margin: 0; }
+.crop-in { --vw: 1; position: relative; overflow: hidden; width: calc(100% * var(--vw)); aspect-ratio: var(--vw) / 1; margin: 0 auto; }
+.crop-in img { position: absolute; left: 0; top: 0; width: calc(100% / var(--vw)); max-width: none; height: 100%; }
+.exm { padding: 5px 5px 4px; background: #fff; transform: rotate(2deg); margin-top: 6px;
+  box-shadow: 0 1px 2px rgba(42, 36, 32, 0.22), 0 10px 22px -8px rgba(42, 36, 32, 0.45); }
+.exm figcaption { margin: 4px 2px 0; font-size: 12px; line-height: 1.25; text-align: center; }
 .yours { position: relative; z-index: 2; margin: 10px 4px 4px; padding-top: 10px; border-top: 1px dashed var(--line); text-align: center; }
 .yk { display: block; font-size: 14px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--indigo); }
 .yv { display: block; margin-top: 2px; font-size: 38px; line-height: 1.15; letter-spacing: 0.06em; overflow-wrap: anywhere; color: var(--ink); }
@@ -220,7 +228,7 @@ html.js .step.on .spot:nth-child(3) { animation-delay: 0.08s; }
 .bad { margin: 8px 0 0; color: var(--accent); font-weight: 700; }
 
 /* ---------- ④ итог и оплата ---------- */
-.ex-sum { max-width: 360px; }
+.crop-sum { max-width: 360px; }
 .sum { margin: 12px 4px 4px; display: grid; gap: 6px; position: relative; z-index: 2; }
 .sum div { display: flex; justify-content: space-between; gap: 12px; padding-bottom: 6px; border-bottom: 1px dashed var(--line); }
 .sum dt { color: var(--faint); }
@@ -239,36 +247,56 @@ html.js .step.on .spot:nth-child(3) { animation-delay: 0.08s; }
   .step[data-step="1"] .card { max-width: 400px; }
   .step[data-step="1"] .ba-btn img { max-height: 40vh; max-height: 40svh; }
   .step[data-step="3"] .card-pv, .step[data-step="4"] .card-pv { max-width: 420px; margin: 0 auto; width: 100%; }
-  .step[data-step="3"] .ex-in img { max-height: 32vh; max-height: 32svh; }
-  .step[data-step="4"] .ex-sum { max-width: 200px; margin: 0 auto; }
+  .step[data-step="4"] .crop-sum { max-width: 150px; margin: 0 auto; }
+  /* шаги 2 и 4 на телефоне — потесней, чтобы лишней прокрутки было меньше */
+  .step[data-step="2"] .lead { margin-bottom: 4px; }
+  .step[data-step="2"] .free { margin-bottom: 6px; }
+  .step[data-step="2"] .sel { padding: 8px 12px; }
+  .step[data-step="2"] .car { row-gap: 6px; }
+  .step[data-step="4"] .price { margin: 2px 0 6px; }
+  .step[data-step="4"] .sum { margin-top: 8px; gap: 4px; }
 }
 @media (min-width: 600px) { h1 { font-size: 36px; } }
 
 /* ---------- компьютер: две колонки, картинка большая ---------- */
+/* на компьютере шаг = один экран без вертикальной прокрутки: --hdr шапка, --ftr подвал, --avail — высота под картинку и текст; всё ниже считается от неё */
 @media (min-width: 960px) {
+  :root { --hdr: 62px; --ftr: 46px; --avail: calc(100vh - 156px); }
   body { font-size: 18px; }
+  footer.sfoot { padding: 12px var(--g); }
   .prog span { display: inline; }
   .prog li + li::before { width: 22px; }
-  .step { grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr); gap: 56px; align-items: center; padding: 32px 0 40px;
-    min-height: calc(100vh - 60px); min-height: calc(100svh - 60px); }
+  .step { grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr); gap: 56px; align-items: center; padding: 24px 0;
+    min-height: calc(100vh - var(--hdr) - var(--ftr)); }
   html:not(.js) .step { min-height: 0; }
   h1 { font-size: 46px; } h2 { font-size: 40px; }
   .snav, .cta { position: static; margin: 24px 0 0; padding: 0; background: none; }
   .nx, .btn { flex: 0 1 auto; min-width: 240px; }
-  .step[data-step="1"] .stage { max-width: 600px; justify-self: center; width: 100%; }
+  .step[data-step="1"] .stage { max-width: min(600px, calc(var(--avail) - 30px)); justify-self: center; width: 100%; }
   .mini { width: 34%; right: -28px; bottom: -6px; }
   .track { margin: 0; padding: 0 0 4px; scroll-padding: 0; gap: 0; }
   .fr { flex: 0 0 100%; }
-  .frpic { width: min(100%, calc((100vh - 210px) * 0.91)); width: min(100%, calc((100svh - 210px) * 0.91)); }
+  .frpic { width: min(100%, calc((var(--avail) - 118px) * 0.914)); }
   .car { grid-template-columns: 56px minmax(0, 1fr) 56px; grid-template-areas: "p t n" ". th ."; column-gap: 14px; row-gap: 14px; }
   .car .arr { align-self: center; width: 56px; height: 56px; }
-  .thumbs button { width: 64px; height: 64px; }
-  .step[data-step="3"] .stage, .step[data-step="4"] .stage { max-width: 560px; width: 100%; justify-self: center; }
-  .step[data-step="4"] .ex-sum { max-width: none; }
+  .thumbs button { width: 56px; height: 56px; }
+  .step[data-step="3"] .stage { max-width: 720px; width: 100%; justify-self: center; }
+  .step[data-step="4"] .stage { max-width: 560px; width: 100%; justify-self: center; }
+  .pick { --cw: min(470px, calc(var(--avail) - 130px)); grid-template-columns: var(--cw) minmax(0, 190px); justify-content: center; gap: 18px; }
+  .step[data-step="4"] .crop-sum { max-width: calc(var(--avail) - 175px); margin: 0 auto; }
   .cta { flex-direction: row; }
   .card-note { text-align: left; }
 }
-@media (min-width: 960px) and (max-height: 760px) { .step { min-height: 0; } }
+/* низкое окно (1280×720): текст компактнее */
+@media (min-width: 960px) and (max-height: 800px) {
+  body { font-size: 17px; line-height: 1.4; }
+  h1 { font-size: 36px; } h2 { font-size: 32px; }
+  .step { gap: 40px; }
+  .price b { font-size: 42px; }
+  .how { margin-top: 8px; gap: 6px; }
+  .nx, .btn, .bk { min-height: 48px; }
+  .snav, .cta { margin-top: 14px; }
+}
 
 /* ---------- /pay и /thanks ---------- */
 .center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; width: 100%; max-width: 560px;

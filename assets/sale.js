@@ -211,6 +211,10 @@
       if (!st.spot) return;
       var kindName = st.spot.type === 'couple' ? 'couple' : 'name';
       $$('.ex').forEach(function (ex) { ex.setAttribute('data-kind', kindName); });
+      var want = '../assets/spots/' + st.spot.id + '.webp', w = where();            // вырезка выбранного места (шаги 3 и 4)
+      var vw = +st.spot.el.getAttribute('data-vw') || 1;                          // у вырезок A2, F2 справа чёрная кайма — показываем только рисунок
+      $$('.crop-in').forEach(function (c) { c.style.setProperty('--vw', vw); });
+      $$('.crop-img').forEach(function (im) { if (im.getAttribute('src') !== want) im.setAttribute('src', want); im.setAttribute('alt', w); });
       var yv = $('.yv'), t = shown();
       yv.textContent = t || '—';
       yv.classList.toggle('empty', !t);

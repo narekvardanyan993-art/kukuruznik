@@ -48,6 +48,8 @@ SPOTS_JSON = SPOTS_DIR + '/spots.json'
 VIEW_Y0 = 1050                # окно кадра на витрине: высокий кадр 1536×2731, y от 880 до низа (места — в нижней трети)
 FRAME_W = 1000                # ширина картинки кадра на витрине
 CROP_W = 480                  # вырезка места (превью надписи), webp ≤ 40 КБ
+# доля ширины вырезки без чёрной каймы справа (место у края кадра: A2, F2); остальные вырезки — на всю ширину. Если пересобрать вырезки (--import-spots) — перемерить.
+CROP_VW = {'A2': 0.667, 'F2': 0.869}
 EX_NAME, EX_COUPLE = 'ex-b1-1.webp', 'ex-c1-1.webp'   # настоящие примеры художника для типа места (шаг 3 и 4)
 EXAMPLES = [('ex-b1-0.webp', 'B1_crop.png', None), ('ex-b1-1.webp', 'B1_crop.png', 'B1_NAREK_gemini.jpeg'), ('ex-c1-1.webp', 'C1_crop.png', 'C1_AL_gemini.jpeg')]
 OG = 'og.jpg'
@@ -331,6 +333,12 @@ def exfig(cls='', caption=True):
         ('<figcaption>%s</figcaption>' % tr('s3_ex')) if caption else '')
 
 
+def cropfig(cls=''):
+    """Вырезка ВЫБРАННОГО места (assets/spots/<id>.webp), без наложений. src подставляет sale.js при выборе места; до выбора — первое место."""
+    return ('<figure class="crop%s"><div class="crop-in"><img class="crop-img" src="../%s/%s.webp" width="%d" height="%d" alt="" decoding="async"></div></figure>') % (
+        cls, SPOTS_DIR, next(iter(WHERE)), CROP_W, CROP_W)
+
+
 def step1():
     ba = ('<figure class="ba" data-ba><button type="button" class="ba-btn" aria-label="%s / %s">'
           '<img class="ba-0" src="../%s/ex-b1-0.webp" width="640" height="640" alt="">'
@@ -360,9 +368,9 @@ def step2(spots, sold):
             lab = tr('sold') if is_sold else tr('pick')   # на метке — только «Выбрать»; тип места — после выбора (kinds)
             aria = '%s · %s%s' % (plain('kind_' + s['type'], 'hy'), w[0], (' · ' + plain('sold', 'hy')) if is_sold else '')
             btns.append(
-                '<button type="button" class="spot%s" data-spot="%s" data-type="%s" data-max="%d" style="left:%s%%;top:%s%%" aria-label="%s"%s>'
+                '<button type="button" class="spot%s" data-spot="%s" data-type="%s" data-max="%d"%s style="left:%s%%;top:%s%%" aria-label="%s"%s>'
                 '<span class="tag">%s</span><i class="pin"></i>%s<span class="wh" hidden>%s</span></button>' % (
-                    (' sold' if is_sold else '') + (' er' if s['x'] > 82 else ' el' if s['x'] < 18 else ''), s['id'], s['type'], s['max_len'], s['x'], s['y'], esc(aria),
+                    (' sold' if is_sold else '') + (' er' if s['x'] > 82 else ' el' if s['x'] < 18 else ''), s['id'], s['type'], s['max_len'], (' data-vw="%s"' % CROP_VW[s['id']]) if s['id'] in CROP_VW else '', s['x'], s['y'], esc(aria),
                     ' disabled' if is_sold else '', lab, stamp_svg() if is_sold else '', tr(None, table=w)))
         frames.append(
             '<figure class="fr" data-frame="%s" aria-label="%d/%d"><div class="frpic"><img src="../%s/%s" width="%d" height="%d" alt="%s"%s>%s</div>'
@@ -399,7 +407,8 @@ def step3():
            'autocapitalize="characters" spellcheck="false" enterkeyhint="next" aria-describedby="hc"></div><p class="hint" id="hc">%s</p></div>') % (
         tr('s3_la'), tr('s3_lb'), tr('hint_couple'))
     yours = '<p class="yours"><span class="yk">%s</span><b class="yv" aria-live="polite">—</b></p>' % tr('s3_yours')
-    stage = '<div class="stage"><div class="card card-pv">%s%s%s</div></div>' % (CORNERS, exfig(), yours)
+    pick = '<div class="pick">%s%s</div>' % (cropfig(), exfig(' exm'))   # крупно — выбранное место; в углу — маленький пример художника
+    stage = '<div class="stage"><div class="card card-pv">%s%s%s</div></div>' % (CORNERS, pick, yours)
     panel = ('<div class="panel">%s<h2><span class="h-name">%s</span><span class="h-couple" hidden>%s</span></h2>'
              '<form class="names" novalidate>%s%s<p class="bad" hidden>%s</p></form>%s</div>') % (
         eyebrow(3), tr('s3_h'), tr('s3_h2'), one, two, tr('s3_bad'), nav(True, 'next3', ' disabled'))
@@ -409,7 +418,7 @@ def step3():
 def step4(src):
     dl = ('<dl class="sum"><div><dt>%s</dt><dd class="sum-spot">—</dd></div><div><dt>%s</dt><dd class="sum-text">—</dd></div>'
           '<div><dt>%s</dt><dd>%s</dd></div></dl>') % (tr('s4_spot'), tr('s4_text'), tr('s4_when'), tr('s4_when_v'))
-    stage = '<div class="stage"><div class="card card-pv">%s%s%s</div></div>' % (CORNERS, exfig(' ex-sum', False), dl)
+    stage = '<div class="stage"><div class="card card-pv">%s%s%s</div></div>' % (CORNERS, cropfig(' crop-sum'), dl)
     panel = ('<div class="panel">%s<h2>%s</h2><div class="price"><b>$%d</b><span>%s</span></div>'
              '<ul class="promise"><li>%s</li><li>%s</li></ul>'
              '<div class="cta"><a class="btn" href="/pay/?src=%s">%s</a><button type="button" class="bk" data-back>%s</button></div>'
