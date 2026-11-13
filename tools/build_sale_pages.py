@@ -8,11 +8,12 @@
   python3 tools/build_sale_pages.py --out DIR --demo-sold B1          # пробная сборка в DIR (снимки), building.json не трогается
 
 Путь покупателя — 4 шага на одной странице, один экран — одна мысль: ① что это (пример «до/после») → ② место прямо на рисунке
-(листание: свайп, стрелки, клавиши ← →, мышь) → ③ текст + примерное превью на вырезке места → ④ цена, срок, кнопка оплаты.
+(листание: свайп, стрелки вне рисунка, клавиши ← →, мышь) → ③ имя (лимит max_len места) или две буквы + НАСТОЯЩИЙ пример художника
+для типа места (картинка, не наложение кодом) → ④ цена, срок, кнопка оплаты.
 Кнопка оплаты: /pay/?src=<канал>[&spot=<id>&text=<текст>] — адрес дописывает sale.js при выборе. /pay (1 с на счётчик Cloudflare) →
 касса Polar: utm_source, reference_id, custom_field_data.spot / custom_field_data.inscription (поля кабинета Polar со слагами spot и
 inscription — их включает советник; без них Polar берёт только utm и reference_id).
-Места: assets/spots/spots.json (публичный список, без личных данных) — координаты, вырезки, «продано». Продано = места, записанные в
+Места: assets/spots/spots.json (публичный список, без личных данных) — координаты, вырезки, max_len (длина имени; у «пары» — 1 буква), «продано». Продано = места, записанные в
 tests/pogos-petros/building.json → inscriptions (поле spot или note «место B1» — так пишут deliver_inscription и stanok insert --spot).
 Число проданных обязано совпасть с sale.total − sale.left, иначе стоп (рассинхрон — чинить building.json, не порог).
 После каждой продажи — эта же команда и publish_hub. Статистика Cloudflare — build_pages.analytics_snippet() (как в С1).
@@ -38,109 +39,100 @@ SHARE_URL = 'https://chka.am/buy'
 CHANNELS = {'buy': 'site', 't': 'tiktok', 'i': 'instagram', 'f': 'facebook'}   # папка витрины -> src кнопки
 PAY_CHANNELS = ['site', 'tiktok', 'instagram', 'facebook']                   # допустимые src на /pay (остальное -> site)
 PAGES = ['buy', 't', 'i', 'f', 'pay', 'thanks']
-MAXLEN = {'name': 12, 'couple': 8}
+TYPES = ('name', 'couple')
+NAME_MAX_LIMIT = 12   # верхняя граница max_len имени в spots.json
+# длина имени на месте (пишет --import-spots; потом правда — в spots.json): стены 10, мелкие места 6; «пара» — по одной букве
+SPOT_MAX = {'A1': 10, 'A2': 6, 'B1': 10, 'B2': 10, 'C1': 1, 'C2': 6, 'F1': 1, 'F2': 10}
 SPOTS_DIR = 'assets/spots'
 SPOTS_JSON = SPOTS_DIR + '/spots.json'
 VIEW_Y0 = 1050                # окно кадра на витрине: высокий кадр 1536×2731, y от 880 до низа (места — в нижней трети)
 FRAME_W = 1000                # ширина картинки кадра на витрине
 CROP_W = 480                  # вырезка места (превью надписи), webp ≤ 40 КБ
+EX_NAME, EX_COUPLE = 'ex-b1-1.webp', 'ex-c1-1.webp'   # настоящие примеры художника для типа места (шаг 3 и 4)
 EXAMPLES = [('ex-b1-0.webp', 'B1_crop.png', None), ('ex-b1-1.webp', 'B1_crop.png', 'B1_NAREK_gemini.jpeg'), ('ex-c1-1.webp', 'C1_crop.png', 'C1_AL_gemini.jpeg')]
 OG = 'og.jpg'
 SNIP = re.compile(r'<!--chka-analytics-->(.*?)<!--/chka-analytics-->', re.S)
 SOLD_NOTE = re.compile(r'место\s+([A-Z][0-9])\b')
 LANGS = ('hy', 'ru', 'en')
 
-# кадры витрины: id -> (hy, ru, en) подпись
+# кадры витрины: id -> (hy, ru, en) короткое название места (подпись под кадром и «Место» в итоге)
 FRAMES = {
-    'A': ('Եկեղեցին և ծերունին', 'Церковь и старик', 'The church and the old man'),
-    'B': ('Եկեղեցու պատի մոտ', 'У стены церкви', 'By the church wall'),
-    'C': ('Ծառը և առուն', 'Дерево и канал', 'The tree and the canal'),
-    'F': ('Այսօր՝ «Մոսկվա» կինոթատրոնը', 'Сегодня — кинотеатр «Москва»', 'Today: the Moskva cinema'),
+    'A': ('Եկեղեցու բակը', 'Двор церкви', 'The churchyard'),
+    'B': ('Եկեղեցու պատը', 'Стена церкви', 'The church wall'),
+    'C': ('Ծառը փողոցում', 'Дерево на улице', 'The tree in the street'),
+    'F': ('Շատրվանը', 'Фонтан', 'The fountain'),
 }
-# места: id -> (где hy, ru, en; наклон превью, °)
-WHERE = {
-    'A1': ('ավերակների առջևի պատը', 'передняя стенка руин', 'front wall of the ruins', 7),
-    'A2': ('աջ կողմի ավերակները', 'руины справа', 'ruins on the right', -4),
-    'B1': ('ձախ ցածր պատը', 'левая низкая стенка', 'low wall on the left', -4),
-    'B2': ('աջ ցածր պատը', 'правая низкая стенка', 'low wall on the right', 7),
-    'C1': ('ծեր ծառի բունը', 'ствол старого дерева', 'trunk of the old tree', 0),
-    'C2': ('առվի վրայի քարե կամրջակը', 'каменный мостик через канал', 'stone bridge over the canal', 6),
-    'F1': ('շատրվանի ձախ եզրը', 'край фонтана слева', 'left rim of the fountain', 5),
-    'F2': ('շատրվանի աջ եզրը', 'край фонтана справа', 'right rim of the fountain', -4),
-}
+SPOT_FRAME = {'A1': 'A', 'A2': 'A', 'B1': 'B', 'B2': 'B', 'C1': 'C', 'C2': 'C', 'F1': 'F', 'F2': 'F'}
+WHERE = {k: FRAMES[v] for k, v in SPOT_FRAME.items()}   # место = название кадра (описаний «левая низкая стенка» больше нет)
 
-# (hy, ru, en). {left} {total} {date} {n} подставляются шаблоном. Армянский — простой; на вычитку — --hy-lines.
+# (hy, ru, en). {left} {total} {date} {n} подставляются шаблоном. Армянский — литературный восточноармянский, коротко; на вычитку — --hy-lines.
 STR = {
-    'title':    ('Քո անունը՝ թանգարանում ընդմիշտ', 'Твоё имя — в музее навсегда', 'Your name in the museum, forever'),
-    'desc':     ('Նկարիչը քո անունը կփորագրի քանդված եկեղեցու նկարի քարին։ $15, մինչև 7 օր։',
+    'title':    ('Քո անունը թանգարանում՝ ընդմիշտ', 'Твоё имя — в музее навсегда', 'Your name in the museum, forever'),
+    'desc':     ('Նկարիչը քո անունը կփորագրի քանդված եկեղեցու նկարում՝ քարի վրա։ $15, մինչև 7 օր։',
                  'Художник вырежет твоё имя на камне в рисунке снесённой церкви. $15, до 7 дней.',
                  'An artist carves your name into a stone in the drawing of a demolished church. $15, within 7 days.'),
-    'st1':      ('Ինչ է սա', 'Что это', 'What it is'),
+    'st1':      ('Ի՞նչ է սա', 'Что это', 'What it is'),
     'st2':      ('Տեղը', 'Место', 'Spot'),
-    'st3':      ('Անունը', 'Имя', 'Name'),
+    'st3':      ('Գրությունը', 'Надпись', 'Text'),
     'st4':      ('Վճարում', 'Оплата', 'Payment'),
     'step':     ('Քայլ', 'Шаг', 'Step'),
-    'museum':   ('Թանգարան «Չկա» · Պողոս-Պետրոս եկեղեցի', 'Музей «Չկա» · церковь Погос-Петрос', 'Չկա museum · Poghos-Petros church'),
-    's1_p':     ('Նկարիչը քո անունը կփորագրի քանդված եկեղեցու կենդանի նկարի քարին։ Այն կերևա օրը, մայրամուտին և գիշերը։',
+    'museum':   ('«Չկա» թանգարան · Պողոս-Պետրոս եկեղեցի', 'Музей «Չկա» · церковь Погос-Петрос', 'Չկա museum · Poghos-Petros church'),
+    's1_p':     ('Նկարիչը քո անունը կփորագրի քանդված եկեղեցու կենդանի նկարում՝ քարի վրա։ Այն կերևա ցերեկը, մայրամուտին և գիշերը։',
                  'Художник вырежет твоё имя на камне в живом рисунке снесённой церкви. Его будет видно днём, на закате и ночью.',
                  'An artist carves your name into a stone in the living drawing of a demolished church. It shows by day, at sunset and at night.'),
-    'how1':     ('Ընտրում ես տեղը նկարում', 'Выбираешь место на рисунке', 'Pick a spot in the drawing'),
-    'how2':     ('Գրում ես անունը', 'Пишешь имя', 'Type the name'),
-    'how3':     ('7 օրվա ընթացքում նկարիչը փորագրում է այն', 'За 7 дней художник вырезает его', 'Within 7 days the artist carves it'),
-    'ba_tap':   ('Սեղմիր նկարին՝ առաջ և հետո', 'Нажми на рисунок — до и после', 'Tap the picture: before and after'),
+    'how1':     ('Նկարում ընտրում ես տեղը', 'Выбираешь место на рисунке', 'Pick a spot in the drawing'),
+    'how2':     ('Գրում ես անունը կամ երկու տառ', 'Пишешь имя или две буквы', 'Type a name or two letters'),
+    'how3':     ('Նկարիչը փորագրում է այն յոթ օրվա ընթացքում', 'За 7 дней художник вырезает его', 'Within 7 days the artist carves it'),
     'before':   ('Առաջ', 'До', 'Before'),
     'after':    ('Հետո', 'После', 'After'),
-    'ex_name':  ('Անուն պատին', 'Имя на стене', 'A name on a wall'),
-    'ex_pair':  ('Զույգ ծառին', 'Пара на дереве', 'A couple on a tree'),
     'next1':    ('Ընտրել տեղը', 'Выбрать место', 'Choose a spot'),
     's2_h':     ('Ընտրիր տեղը', 'Выбери место', 'Choose a spot'),
-    's2_p':     ('Սահեցրու նկարները և սեղմիր ազատ տեղին։', 'Листай рисунки и нажми на свободное место.', 'Swipe through the drawings and tap a free spot.'),
-    's2_keys':  ('Համակարգչում՝ սլաքներով կամ ← → ստեղներով։', 'На компьютере — стрелками или клавишами ← →.', 'On a computer: the arrows or the ← → keys.'),
-    's2_free':  ('Ազատ է {left} տեղ {total}-ից', 'Свободно {left} из {total}', '{left} of {total} spots free'),
+    's2_p':     ('Ազատ տեղում սեղմիր «Ընտրել»։', 'На свободном месте нажми «Выбрать».', 'On a free spot, tap “Pick”.'),
+    's2_free':  ('Ազատ տեղեր՝ {left} / {total}', 'Свободно {left} из {total}', '{left} of {total} spots free'),
     's2_none':  ('Տեղը դեռ ընտրված չէ', 'Место ещё не выбрано', 'No spot chosen yet'),
     's2_sel':   ('Ընտրված է՝', 'Выбрано:', 'Chosen:'),
     'prev':     ('Նախորդ նկարը', 'Предыдущий рисунок', 'Previous drawing'),
     'next':     ('Հաջորդ նկարը', 'Следующий рисунок', 'Next drawing'),
-    'type_name':   ('Անուն', 'Имя', 'Name'),
-    'type_couple': ('Զույգ', 'Пара', 'Couple'),
-    'kind_name':   ('մեկ անուն', 'одно имя', 'one name'),
-    'kind_couple': ('երկու անուն՝ Ա + Բ', 'два имени: А + Б', 'two names: A + B'),
+    'pick':     ('Ընտրել', 'Выбрать', 'Pick'),
+    'kind_name':   ('Անուն քարի վրա', 'Имя на камне', 'Name on a stone'),
+    'kind_couple': ('Երկու տառ ծառի վրա', 'Две буквы на дереве', 'Two letters on a tree'),
     'sold':     ('Վաճառված', 'Продано', 'Sold'),
-    'next2':    ('Գրել անունը', 'Написать имя', 'Write the name'),
+    'next2':    ('Շարունակել', 'Дальше', 'Next'),
     'back':     ('Հետ', 'Назад', 'Back'),
     's3_h':     ('Գրիր անունը', 'Напиши имя', 'Write the name'),
-    's3_h2':    ('Գրիր երկու անուն', 'Напиши два имени', 'Write two names'),
+    's3_h2':    ('Գրիր երկու տառ', 'Напиши две буквы', 'Write two letters'),
     's3_l1':    ('Անուն', 'Имя', 'Name'),
-    's3_la':    ('Առաջին անունը', 'Первое имя', 'First name'),
-    's3_lb':    ('Երկրորդ անունը', 'Второе имя', 'Second name'),
-    'hint_name':   ('Մինչև {n} տառ', 'До {n} букв', 'Up to {n} letters'),
-    'hint_couple': ('Ամեն անունը՝ մինչև {n} տառ', 'Каждое имя — до {n} букв', 'Each name up to {n} letters'),
+    's3_la':    ('Տառ 1', 'Буква 1', 'Letter 1'),
+    's3_lb':    ('Տառ 2', 'Буква 2', 'Letter 2'),
+    'left':     ('Մնացել է {n}', 'осталось {n}', '{n} left'),
+    'hint_couple': ('Յուրաքանչյուր դաշտում՝ մեկ տառ', 'В каждом поле — одна буква', 'One letter in each box'),
     's3_bad':   ('Միայն տառեր', 'Только буквы', 'Letters only'),
-    's3_note':  ('Մոտավորապես այսպես։ Իսկականը նկարում է նկարիչը։', 'Примерно так. По-настоящему рисует художник.', 'Roughly like this. The real one is drawn by an artist.'),
-    'next3':    ('Շարունակել', 'Дальше', 'Continue'),
+    's3_ex':    ('Այսպես է երևում պատրաստի աշխատանքը', 'Так выглядит готовая работа', 'This is what the finished work looks like'),
+    's3_yours': ('Քո գրությունը՝', 'Ваша надпись:', 'Your text:'),
+    'next3':    ('Դեպի վճարում', 'К оплате', 'To payment'),
     's4_h':     ('Ստուգիր և վճարիր', 'Проверь и оплати', 'Check and pay'),
     's4_spot':  ('Տեղը', 'Место', 'Spot'),
-    's4_text':  ('Գրությունը', 'Надпись', 'Inscription'),
+    's4_text':  ('Գրությունը', 'Надпись', 'Text'),
     's4_when':  ('Ժամկետը', 'Срок', 'Ready'),
     's4_when_v': ('մինչև 7 օր', 'до 7 дней', 'within 7 days'),
-    's4_free':  ('Չհավանես՝ անվճար կվերանկարենք։', 'Не понравится — перерисуем бесплатно.', "Don't like it? We'll redraw it for free."),
-    's4_mail':  ('Պատրաստ լինելուն պես հղումը կգա նամակով։', 'Когда будет готово, ссылка придёт на почту.', "When it's ready, the link arrives by email."),
-    's4_card':  ('Վճարում՝ քարտով, Polar-ի միջոցով', 'Оплата картой через Polar', 'Card payment via Polar'),
+    's4_free':  ('Եթե չհավանես՝ անվճար նորից կանենք։', 'Если не понравится — переделаем бесплатно.', "If you don't like it — we'll redo it for free."),
+    's4_mail':  ('Երբ պատրաստ լինի, հղումը կուղարկենք քո էլ. փոստին։', 'Когда будет готово, ссылка придёт на почту.', "When it's ready, the link arrives by email."),
+    's4_card':  ('Վճարում քարտով՝ Polar-ի միջոցով', 'Оплата картой через Polar', 'Card payment via Polar'),
     'cta':      ('Վճարել $15', 'Оплатить $15', 'Pay $15'),
     'foot':     ('Երևանի քանդված շենքերի թանգարան', 'Музей снесённых зданий Еревана', "Museum of Yerevan's demolished buildings"),
     'pay_open': ('Բացվում է վճարման էջը…', 'Открываем оплату…', 'Opening checkout…'),
     'pay_hand': ('Չբացվե՞ց։ Սեղմիր այստեղ։', 'Не открылось — нажми сюда.', "Didn't open? Tap here."),
     'th_h':     ('Շնորհակալություն', 'Спасибо', 'Thank you'),
-    'th_p':     ('Գրությունը պատրաստ կլինի մինչև {date}։ Հղումը կգա նամակով։',
+    'th_p':     ('Գրությունը պատրաստ կլինի մինչև {date}։ Հղումը կուղարկենք էլ. փոստով։',
                  'Надпись будет готова до {date}. Ссылка придёт письмом.',
                  'Your inscription will be ready by {date}. The link will arrive by email.'),
     'th_sel':   ('Քո ընտրությունը՝', 'Твой выбор:', 'Your choice:'),
     'share':    ('Ցույց տալ ընկերներին', 'Показать друзьям', 'Show your friends'),
     'copied':   ('Պատճենվեց', 'Скопировано', 'Copied'),
-    'share_t':  ('Քո անունը՝ թանգարանում ընդմիշտ', 'Твоё имя — в музее навсегда', 'Your name in the museum, forever'),
+    'share_t':  ('Քո անունը թանգարանում՝ ընդմիշտ', 'Твоё имя — в музее навсегда', 'Your name in the museum, forever'),
     'share_x':  ('Չկա — Երևանի քանդված շենքերի թանգարան', 'Չկա — музей снесённых зданий Еревана', "Չկա — museum of Yerevan's demolished buildings"),
-    'alt_ba':   ('Նկար՝ ցածր պատ, որի վրա փորագրված է NAREK', 'Рисунок: низкая стена с вырезанным именем NAREK', 'Drawing: a low wall with the name NAREK carved in it'),
-    'alt_pair': ('Նկար՝ ծառի բնին փորագրված սիրտ՝ A + L', 'Рисунок: сердце A + L на стволе дерева', 'Drawing: a heart with A + L carved on a tree trunk'),
+    'alt_ba':   ('Նկար՝ ցածր պատի վրա փորագրված NAREK անունը', 'Рисунок: низкая стена с вырезанным именем NAREK', 'Drawing: a low wall with the name NAREK carved in it'),
+    'alt_pair': ('Նկար՝ ծառի բնին փորագրված սիրտ և A + L տառերը', 'Рисунок: сердце и буквы A + L на стволе дерева', 'Drawing: a heart and the letters A + L carved on a tree trunk'),
 }
 
 
@@ -214,8 +206,11 @@ def load_spots(root=ROOT):
     if ids != list(WHERE) or frs != list(FRAMES):
         raise SystemExit('СТОП: %s: места %s / кадры %s не совпадают с WHERE / FRAMES в сборщике' % (SPOTS_JSON, ids, frs))
     for s in d['spots']:
-        if s['frame'] not in FRAMES or s['type'] not in MAXLEN or not (0 <= s['x'] <= 100 and 0 <= s['y'] <= 100):
+        if s['frame'] not in FRAMES or s['type'] not in TYPES or not (0 <= s['x'] <= 100 and 0 <= s['y'] <= 100):
             raise SystemExit('СТОП: %s: плохое место %r' % (SPOTS_JSON, s))
+        m = s.get('max_len')
+        if not (isinstance(m, int) and not isinstance(m, bool) and (m == 1 if s['type'] == 'couple' else 1 <= m <= NAME_MAX_LIMIT)):
+            raise SystemExit('СТОП: %s: место %s: max_len %r — у имени 1…%d, у пары ровно 1 (по букве в каждом поле)' % (SPOTS_JSON, s['id'], m, NAME_MAX_LIMIT))
     return d
 
 
@@ -327,20 +322,23 @@ def nav(back, nxt_key, nxt_attr=''):
             % (b, nxt_attr, tr(nxt_key)))
 
 
-def preview(cls=''):
-    return ('<figure class="pv%s"><div class="pv-in"><img class="pv-img" src="../%s/B1.webp" width="%d" height="%d" alt="">'
-            '<div class="pv-txt" aria-hidden="true"><span class="pv-heart">♡</span><span class="pv-t">ANNA</span></div></div></figure>') % (cls, SPOTS_DIR, CROP_W, CROP_W)
+def exfig(cls='', caption=True):
+    """Настоящий пример художника для типа места (картинка; текст поверх рисунка кодом не рисуем). Какой показать — data-kind (ставит sale.js)."""
+    return ('<figure class="ex%s"><div class="ex-in">'
+            '<img class="ex-n" src="../%s/%s" width="640" height="640" alt="%s" decoding="async">'
+            '<img class="ex-c" src="../%s/%s" width="640" height="640" alt="%s" decoding="async" loading="lazy"></div>%s</figure>') % (
+        cls, SPOTS_DIR, EX_NAME, esc(plain('alt_ba', 'hy')), SPOTS_DIR, EX_COUPLE, esc(plain('alt_pair', 'hy')),
+        ('<figcaption>%s</figcaption>' % tr('s3_ex')) if caption else '')
 
 
 def step1():
-    ba = ('<figure class="ba" data-ba><button type="button" class="ba-btn" aria-label="%s">'
+    ba = ('<figure class="ba" data-ba><button type="button" class="ba-btn" aria-label="%s / %s">'
           '<img class="ba-0" src="../%s/ex-b1-0.webp" width="640" height="640" alt="">'
-          '<img class="ba-1" src="../%s/ex-b1-1.webp" width="640" height="640" alt="%s">'
-          '<span class="ba-chip"><span class="c0">%s</span><span class="c1">%s</span></span></button>'
-          '<figcaption>%s</figcaption></figure>') % (
-        esc(plain('ba_tap', 'hy')), SPOTS_DIR, SPOTS_DIR, esc(plain('alt_ba', 'hy')), tr('before'), tr('after'), tr('ba_tap'))
-    pair = ('<figure class="mini"><img src="../%s/ex-c1-1.webp" width="640" height="640" alt="%s" loading="lazy" decoding="async">'
-            '<figcaption>%s</figcaption></figure>') % (SPOTS_DIR, esc(plain('alt_pair', 'hy')), tr('ex_pair'))
+          '<img class="ba-1" src="../%s/%s" width="640" height="640" alt="%s">'
+          '<span class="ba-chip"><span class="c0">%s</span><span class="c1">%s</span></span></button></figure>') % (
+        esc(plain('before', 'hy')), esc(plain('after', 'hy')), SPOTS_DIR, SPOTS_DIR, EX_NAME, esc(plain('alt_ba', 'hy')), tr('before'), tr('after'))
+    pair = ('<figure class="mini"><img src="../%s/%s" width="640" height="640" alt="%s" loading="lazy" decoding="async">'
+            '<figcaption>%s</figcaption></figure>') % (SPOTS_DIR, EX_COUPLE, esc(plain('alt_pair', 'hy')), tr('kind_couple'))
     stage = '<div class="stage"><div class="card">%s%s<span class="pstamp" aria-hidden="true"><b>$%d</b><i>Չկա</i></span></div>%s</div>' % (
         CORNERS, ba, PRICE_USD, pair)
     how = '<ol class="how"><li>%s</li><li>%s</li><li>%s</li></ol>' % (tr('how1'), tr('how2'), tr('how3'))
@@ -359,13 +357,13 @@ def step2(spots, sold):
                 continue
             w = WHERE[s['id']]
             is_sold = s['id'] in sold
-            lab = tr('sold') if is_sold else tr('type_' + s['type'])
-            aria = '%s · %s · %s' % (plain('type_' + s['type'], 'hy'), w[0], plain('sold', 'hy') if is_sold else '')
+            lab = tr('sold') if is_sold else tr('pick')   # на метке — только «Выбрать»; тип места — после выбора (kinds)
+            aria = '%s · %s%s' % (plain('kind_' + s['type'], 'hy'), w[0], (' · ' + plain('sold', 'hy')) if is_sold else '')
             btns.append(
-                '<button type="button" class="spot%s" data-spot="%s" data-type="%s" data-cx="%s" data-cy="%s" data-rot="%d" style="left:%s%%;top:%s%%" aria-label="%s"%s>'
+                '<button type="button" class="spot%s" data-spot="%s" data-type="%s" data-max="%d" style="left:%s%%;top:%s%%" aria-label="%s"%s>'
                 '<span class="tag">%s</span><i class="pin"></i>%s<span class="wh" hidden>%s</span></button>' % (
-                    (' sold' if is_sold else '') + (' er' if s['x'] > 82 else ' el' if s['x'] < 18 else ''), s['id'], s['type'], s['cx'], s['cy'], w[3], s['x'], s['y'], esc(aria.rstrip(' ·')),
-                    ' disabled' if is_sold else '', lab, stamp_svg() if is_sold else '', tr(None, table=w[:3])))
+                    (' sold' if is_sold else '') + (' er' if s['x'] > 82 else ' el' if s['x'] < 18 else ''), s['id'], s['type'], s['max_len'], s['x'], s['y'], esc(aria),
+                    ' disabled' if is_sold else '', lab, stamp_svg() if is_sold else '', tr(None, table=w)))
         frames.append(
             '<figure class="fr" data-frame="%s" aria-label="%d/%d"><div class="frpic"><img src="../%s/%s" width="%d" height="%d" alt="%s"%s>%s</div>'
             '<figcaption><b>%d/%d</b> %s</figcaption></figure>' % (
@@ -374,15 +372,17 @@ def step2(spots, sold):
         thumbs.append('<button type="button" data-fr="%d" aria-label="%d/%d"%s><img src="../%s/%s" width="%d" height="%d" alt="" loading="lazy" decoding="async"></button>' % (
             i, i + 1, nfr, ' aria-current="true"' if i == 0 else '', SPOTS_DIR, fr['img'], fr['w'], fr['h']))
     left = len(spots['spots']) - len(sold)
-    stage = ('<div class="stage"><div class="car"><div class="track" tabindex="0" aria-label="%s">%s</div>'
+    # стрелки — вне рисунка (по бокам на компьютере, под рисунком на телефоне): метка не может оказаться под кнопкой
+    stage = ('<div class="stage"><div class="car">'
              '<button type="button" class="arr prev" data-dir="-1" aria-label="%s"><svg><use href="#arr"/></svg></button>'
-             '<button type="button" class="arr next" data-dir="1" aria-label="%s"><svg><use href="#arr"/></svg></button></div>'
-             '<div class="thumbs">%s</div></div>') % (
-        esc(plain('s2_h', 'hy')), ''.join(frames), esc(plain('prev', 'hy')), esc(plain('next', 'hy')), ''.join(thumbs))
+             '<div class="track" tabindex="0" aria-label="%s">%s</div>'
+             '<button type="button" class="arr next" data-dir="1" aria-label="%s"><svg><use href="#arr"/></svg></button>'
+             '<div class="thumbs">%s</div></div></div>') % (
+        esc(plain('prev', 'hy')), esc(plain('s2_h', 'hy')), ''.join(frames), esc(plain('next', 'hy')), ''.join(thumbs))
     sel = ('<div class="sel" aria-live="polite"><p class="sel-none">%s</p><p class="sel-on" hidden><span class="sel-k">%s</span> '
-           '<b class="sel-w"></b> <span class="sel-t"></span></p></div>') % (tr('s2_none'), tr('s2_sel'))
-    panel = '<div class="panel">%s<h2>%s</h2><p class="lead">%s</p><p class="keys">%s</p><p class="free">%s</p>%s%s</div>' % (
-        eyebrow(2), tr('s2_h'), tr('s2_p'), tr('s2_keys'),
+           '<b class="sel-t"></b></p></div>') % (tr('s2_none'), tr('s2_sel'))
+    panel = '<div class="panel">%s<h2>%s</h2><p class="lead">%s</p><p class="free">%s</p>%s%s</div>' % (
+        eyebrow(2), tr('s2_h'), tr('s2_p'),
         tr('s2_free', {'left': str(left), 'total': str(len(spots['spots']))}), sel, nav(True, 'next2', ' disabled'))
     kinds = '<span class="kinds" hidden><span data-k="name">%s</span><span data-k="couple">%s</span></span>' % (tr('kind_name'), tr('kind_couple'))
     return '<section class="step" data-step="2">%s%s%s</section>\n' % (stage, panel, kinds)
@@ -391,16 +391,17 @@ def step2(spots, sold):
 def step3():
     one = ('<div class="fld g-name"><label for="n1">%s</label><input id="n1" name="n1" type="text" maxlength="%d" autocomplete="off" '
            'autocapitalize="characters" spellcheck="false" enterkeyhint="next" placeholder="ANNA"><p class="hint">%s</p></div>') % (
-        tr('s3_l1'), MAXLEN['name'], tr('hint_name', {'n': str(MAXLEN['name'])}))
-    two = ('<div class="g-couple" hidden><div class="fld"><label for="na">%s</label><input id="na" name="na" type="text" maxlength="%d" autocomplete="off" '
-           'autocapitalize="characters" spellcheck="false" enterkeyhint="next" placeholder="ANNA"></div>'
+        tr('s3_l1'), NAME_MAX_LIMIT, tr('left', {'n': '<b class="left-n">%d</b>' % NAME_MAX_LIMIT}))
+    two = ('<div class="g-couple" hidden><div class="fld"><label for="na">%s</label><input id="na" name="na" type="text" maxlength="2" autocomplete="off" '
+           'autocapitalize="characters" spellcheck="false" enterkeyhint="next" aria-describedby="hc"></div>'
            '<span class="plus" aria-hidden="true">+</span>'
-           '<div class="fld"><label for="nb">%s</label><input id="nb" name="nb" type="text" maxlength="%d" autocomplete="off" '
-           'autocapitalize="characters" spellcheck="false" enterkeyhint="next" placeholder="DAVID"></div><p class="hint">%s</p></div>') % (
-        tr('s3_la'), MAXLEN['couple'], tr('s3_lb'), MAXLEN['couple'], tr('hint_couple', {'n': str(MAXLEN['couple'])}))
-    stage = '<div class="stage"><div class="card card-pv">%s%s<p class="note">%s</p></div></div>' % (CORNERS, preview(), tr('s3_note'))
+           '<div class="fld"><label for="nb">%s</label><input id="nb" name="nb" type="text" maxlength="2" autocomplete="off" '
+           'autocapitalize="characters" spellcheck="false" enterkeyhint="next" aria-describedby="hc"></div><p class="hint" id="hc">%s</p></div>') % (
+        tr('s3_la'), tr('s3_lb'), tr('hint_couple'))
+    yours = '<p class="yours"><span class="yk">%s</span><b class="yv" aria-live="polite">—</b></p>' % tr('s3_yours')
+    stage = '<div class="stage"><div class="card card-pv">%s%s%s</div></div>' % (CORNERS, exfig(), yours)
     panel = ('<div class="panel">%s<h2><span class="h-name">%s</span><span class="h-couple" hidden>%s</span></h2>'
-             '<p class="where"></p><form class="names" novalidate>%s%s<p class="bad" hidden>%s</p></form>%s</div>') % (
+             '<form class="names" novalidate>%s%s<p class="bad" hidden>%s</p></form>%s</div>') % (
         eyebrow(3), tr('s3_h'), tr('s3_h2'), one, two, tr('s3_bad'), nav(True, 'next3', ' disabled'))
     return '<section class="step" data-step="3">%s%s</section>\n' % (stage, panel)
 
@@ -408,7 +409,7 @@ def step3():
 def step4(src):
     dl = ('<dl class="sum"><div><dt>%s</dt><dd class="sum-spot">—</dd></div><div><dt>%s</dt><dd class="sum-text">—</dd></div>'
           '<div><dt>%s</dt><dd>%s</dd></div></dl>') % (tr('s4_spot'), tr('s4_text'), tr('s4_when'), tr('s4_when_v'))
-    stage = '<div class="stage"><div class="card card-pv">%s%s%s</div></div>' % (CORNERS, preview(' pv-sum'), dl)
+    stage = '<div class="stage"><div class="card card-pv">%s%s%s</div></div>' % (CORNERS, exfig(' ex-sum', False), dl)
     panel = ('<div class="panel">%s<h2>%s</h2><div class="price"><b>$%d</b><span>%s</span></div>'
              '<ul class="promise"><li>%s</li><li>%s</li></ul>'
              '<div class="cta"><a class="btn" href="/pay/?src=%s">%s</a><button type="button" class="bk" data-back>%s</button></div>'
@@ -420,8 +421,8 @@ def step4(src):
 def shop(folder, sale, snippet, v, spots, sold):
     src = CHANNELS[folder]
     title = 'Չկա · %s' % plain('title', 'hy')
-    body = ('<body data-page="shop" data-src="%s" data-max-name="%d" data-max-couple="%d">\n%s%s<main class="flow">\n%s%s%s%s</main>\n%s') % (
-        src, MAXLEN['name'], MAXLEN['couple'], SPRITE, bar(progress()), step1(), step2(spots, sold), step3(), step4(src), foot())
+    body = ('<body data-page="shop" data-src="%s">\n%s%s<main class="flow">\n%s%s%s%s</main>\n%s') % (
+        src, SPRITE, bar(progress()), step1(), step2(spots, sold), step3(), step4(src), foot())
     return head(title, plain('desc', 'hy'), snippet, v) + body + script(v)
 
 
@@ -434,7 +435,7 @@ def pay(snippet, v, spots, sold):
     body = (
         '<body data-page="pay">\n<main class="center"><div class="paybox" data-polar="%s" data-channels="%s" data-spots="%s" data-fields="%s" data-max="%d">%s'
         '<p class="small"><a data-pay-link href="%s?utm_source=site">%s</a></p></div></main>\n'
-    ) % (POLAR_URL, ','.join(PAY_CHANNELS), free, ','.join(POLAR_FIELDS), MAXLEN['couple'] * 2 + 3, paras, POLAR_URL, hand)
+    ) % (POLAR_URL, ','.join(PAY_CHANNELS), free, ','.join(POLAR_FIELDS), max([5] + [s['max_len'] for s in spots['spots']]), paras, POLAR_URL, hand)
     h = head(title, plain('pay_open', 'hy'), snippet, v)
     return h.replace('<!--chka-analytics-->', nos + '<!--chka-analytics-->', 1) + body + script(v)
 
@@ -465,7 +466,6 @@ def build(sale, snippet, root=ROOT, sold=None, spots=None):
 def hy_lines():
     rows = ['%-12s %s\n%-12s ↳ %s' % (k, val[0], '', val[1]) for k, val in STR.items()]
     rows += ['frame %-6s %s\n%-12s ↳ %s' % (k, val[0], '', val[1]) for k, val in FRAMES.items()]
-    rows += ['spot %-7s %s\n%-12s ↳ %s' % (k, val[0], '', val[1]) for k, val in WHERE.items()]
     return '\n'.join(rows)
 
 
@@ -505,7 +505,7 @@ def import_spots(src, root=ROOT):
         spots.append({'id': sid, 'frame': s['frame'], 'type': s['type'],
                       'x': round(100 * s['x'] / W, 2), 'y': round(100 * (s['y'] - VIEW_Y0) / (H - VIEW_Y0), 2),
                       'cx': round((s['x'] - x0) / (x1 - x0), 3), 'cy': round((s['y'] - y0) / (y1 - y0), 3),
-                      'crop': '%s.webp' % sid, 'sold': False})
+                      'max_len': SPOT_MAX[sid], 'crop': '%s.webp' % sid, 'sold': False})
 
     def composite(crop_name, edit_name):
         """Правка Gemini → совмещение с вырезкой (ECC) → только пятно надписи в мягком прямоугольнике (как deliver_inscription)."""
@@ -573,7 +573,7 @@ def main():
     a = ap.parse_args()
     if a.hy_lines:
         Path(a.hy_lines).write_text(hy_lines() + '\n', encoding='utf-8')
-        print('армянских строк: %d -> %s' % (len(STR) + len(FRAMES) + len(WHERE), a.hy_lines))
+        print('армянских строк: %d -> %s' % (len(STR) + len(FRAMES), a.hy_lines))
         return
     if a.import_spots:
         import_spots(a.import_spots)

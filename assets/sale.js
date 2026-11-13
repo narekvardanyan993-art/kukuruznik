@@ -1,4 +1,4 @@
-/* Витрина надписей v2 (/buy, /t, /i, /f, /pay, /thanks): язык, 4 шага, листание кадров, выбор места, превью, ссылка оплаты, переход на кассу.
+/* Витрина надписей v2 (/buy, /t, /i, /f, /pay, /thanks): язык, 4 шага, листание кадров, выбор места, текст (имя до max_len места или две буквы), ссылка оплаты, переход на кассу.
    Делает tools/build_sale_pages.py вместе со страницами. Страница сама ничего не перекидывает, кроме /pay (data-page="pay"). */
 (function () {
   var d = document, root = d.documentElement, page = d.body.getAttribute('data-page');
@@ -10,6 +10,9 @@
   };
   var KEY = 'chka-sale-pick';
   var BAD = /[^\p{L}\p{M}' \-]/u;          // в имени — только буквы (любой алфавит), пробел, дефис, апостроф
+  var LETTER = /^\p{L}\p{M}*$/u;            // пара: ровно одна буква (любой алфавит)
+  var SEG = window.Intl && Intl.Segmenter ? new Intl.Segmenter() : null;
+  function glyphs(v) { return SEG ? Array.from(SEG.segment(v), function (x) { return x.segment; }) : Array.from(v); }
 
   function curLang() { var l = root.getAttribute('data-lang'); return LANGS.indexOf(l) < 0 ? 'hy' : l; }
   function $(s, el) { return (el || d).querySelector(s); }
@@ -44,7 +47,6 @@
 
   function shop() {
     var body = d.body, src = body.getAttribute('data-src') || 'site';
-    var MAX = { name: +body.getAttribute('data-max-name') || 12, couple: +body.getAttribute('data-max-couple') || 8 };
     var steps = $$('.step'), progBtns = $$('[data-go]');
     var st = { step: 1, spot: null, a: '', b: '' };
     var payBtn = $('a.btn'), payBase = payBtn.getAttribute('href');
@@ -54,8 +56,10 @@
       return st.spot.type === 'couple' ? (st.a && st.b ? st.a + ' + ' + st.b : '') : st.a;
     }
     function okText() {
-      var t = textOf();
-      return !!t && !BAD.test(st.a + st.b);
+      if (!st.spot) return false;
+      if (st.spot.type === 'couple') return LETTER.test(st.a) && LETTER.test(st.b) && glyphs(st.a).length === 1 && glyphs(st.b).length === 1;
+      var t = st.a;
+      return !!t && !BAD.test(t) && glyphs(t).length <= st.spot.max;
     }
     function allowed(n) { return n <= 2 || (n === 3 && !!st.spot) || (n === 4 && !!st.spot && okText()); }
 
@@ -140,35 +144,49 @@
         spots.forEach(function (x) { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
         var type = b.getAttribute('data-type');
         if (st.spot && st.spot.type !== type) { st.a = ''; st.b = ''; ['#n1', '#na', '#nb'].forEach(function (s) { var i = $(s); if (i) i.value = ''; }); }
-        st.spot = { id: b.getAttribute('data-spot'), type: type, cx: +b.getAttribute('data-cx'), cy: +b.getAttribute('data-cy'),
-          rot: +b.getAttribute('data-rot') || 0, el: b };
-        selInfo(); update();
+        st.spot = { id: b.getAttribute('data-spot'), type: type, max: +b.getAttribute('data-max') || 1, el: b };
+        if (type === 'name') {                       // имя длиннее нового лимита места — обрезаем (лимит у стен и мелких мест разный)
+          st.a = glyphs(st.a).slice(0, st.spot.max).join('');
+          var n1 = $('#n1'); if (n1) { n1.maxLength = st.spot.max; if (n1.value !== st.a) n1.value = st.a; }
+        }
+        selInfo(); counter(); update();
+        var nx3 = $('.step[data-step="3"] [data-next]'); if (nx3) nx3.disabled = !okText();
         var nx = $('.step[data-step="2"] [data-next]'); if (nx) nx.disabled = false;
         progBtns.forEach(function (p) { p.disabled = !allowed(+p.getAttribute('data-go')); });
       });
     });
-    function where() { return st.spot ? txt($('.wh', st.spot.el)) : ''; }
-    function kind() { return st.spot ? txt($('.kinds [data-k="' + st.spot.type + '"]')) : ''; }
+    function where() { return st.spot ? txt($('.wh', st.spot.el)) : ''; }       // короткое название места (кадра)
+    function kind() { return st.spot ? txt($('.kinds [data-k="' + st.spot.type + '"]')) : ''; }   // «Имя на камне» / «Две буквы на дереве»
     function selInfo() {
       if (!st.spot) return;
       $('.sel-none').hidden = true; $('.sel-on').hidden = false;
-      $('.sel-w').textContent = where();
-      $('.sel-t').textContent = kind();
+      $('.sel-t').textContent = kind();                                           // одной строкой, и только после выбора
       var c = st.spot.type === 'couple';
       $('.g-name').hidden = c; $('.g-couple').hidden = !c;
       $('.h-name').hidden = c; $('.h-couple').hidden = !c;
-      $('.where').textContent = where() + ' · ' + kind();
+    }
+    function counter() {                                                         // «осталось N» под полем имени
+      if (!st.spot || st.spot.type !== 'name') return;
+      var left = Math.max(0, st.spot.max - glyphs(st.a).length);
+      $$('.left-n').forEach(function (e) { e.textContent = left; });
     }
 
-    /* ③ имя и превью на вырезке места (примерно; рисует художник) */
-    function clean(v, max) { return v.replace(/\s+/g, ' ').replace(/^\s+/, '').toUpperCase().slice(0, max); }
+    /* ③ имя (до max_len места, счётчик «осталось N») или две буквы по одному полю; под примером художника — введённый текст крупно */
+    function cleanName(v, max) { return glyphs(v.replace(/\s+/g, ' ').replace(/^\s+/, '').toUpperCase()).slice(0, max).join(''); }
+    function oneLetter(inp) {                                                    // в поле одна буква: новая заменяет старую
+      var g = glyphs(inp.value.replace(/\s+/g, '')), raw = g.length ? g[g.length - 1] : '';
+      var v = raw.toUpperCase();
+      if (glyphs(v).length > 1) v = raw;                                         // «և» в верхнем регистре — две буквы: оставляем как есть
+      if (inp.value !== v) inp.value = v;
+      return v;
+    }
     function onInput() {
       var c = st.spot && st.spot.type === 'couple';
-      st.a = clean(c ? $('#na').value : $('#n1').value, c ? MAX.couple : MAX.name).trim();
-      st.b = c ? clean($('#nb').value, MAX.couple).trim() : '';
-      var bad = BAD.test(st.a + st.b);
+      if (c) { st.a = oneLetter($('#na')); st.b = oneLetter($('#nb')); }
+      else { st.a = cleanName($('#n1').value, st.spot ? st.spot.max : 12).trim(); st.b = ''; }
+      var bad = c ? (!!(st.a + st.b) && !(LETTER.test(st.a || 'x') && LETTER.test(st.b || 'x'))) : BAD.test(st.a);
       $('.bad').hidden = !bad;
-      paint(); update();
+      counter(); paint(); update();
       var nx = $('.step[data-step="3"] [data-next]'); if (nx) nx.disabled = !okText();
       progBtns.forEach(function (p) { p.disabled = !allowed(+p.getAttribute('data-go')); });
     }
@@ -184,31 +202,19 @@
     });
     $('.names').addEventListener('submit', function (e) { e.preventDefault(); });
 
+    function shown() {                                                          // что показать под примером: имя, «Ա + Լ» или прочерк
+      if (!st.spot) return '';
+      if (st.spot.type === 'couple') return (st.a || st.b) ? (st.a || '…') + ' + ' + (st.b || '…') : '';
+      return st.a;
+    }
     function paint() {
       if (!st.spot) return;
-      $$('.pv').forEach(function (pv) {
-        var img = $('.pv-img', pv), box = $('.pv-txt', pv), t = $('.pv-t', pv);
-        var want = '../assets/spots/' + st.spot.id + '.webp';
-        if (img.getAttribute('src') !== want) img.setAttribute('src', want);
-        pv.classList.toggle('couple', st.spot.type === 'couple');
-        var s = textOf() || (st.spot.type === 'couple' ? (st.a || 'ANNA') + ' + ' + (st.b || 'DAVID') : 'ANNA');
-        t.textContent = s;
-        pv.classList.toggle('empty', !textOf());
-        var lim = st.spot.type === 'couple' ? 0.3 : 0.24, cx = Math.max(lim, Math.min(1 - lim, st.spot.cx)), cy = Math.max(0.15, Math.min(0.85, st.spot.cy));
-        box.style.left = (cx * 100) + '%'; box.style.top = (cy * 100) + '%';
-        box.style.setProperty('--rot', st.spot.rot + 'deg');
-        box.style.opacity = textOf() ? '1' : '0.45';
-        fit(pv, t, st.spot.type === 'couple');
-      });
+      var kindName = st.spot.type === 'couple' ? 'couple' : 'name';
+      $$('.ex').forEach(function (ex) { ex.setAttribute('data-kind', kindName); });
+      var yv = $('.yv'), t = shown();
+      yv.textContent = t || '—';
+      yv.classList.toggle('empty', !t);
     }
-    function fit(pv, t, couple) {
-      var w = $('.pv-in', pv).getBoundingClientRect().width || 300;
-      var size = w * (couple ? 0.075 : 0.105), max = w * (couple ? 0.42 : 0.62);
-      t.style.fontSize = size + 'px';
-      var tw = t.getBoundingClientRect().width;
-      if (tw > max) t.style.fontSize = (size * max / tw) + 'px';
-    }
-    window.addEventListener('resize', function () { if (st.step >= 3) paint(); });
 
     /* ④ итог; ссылка оплаты: /pay/?src=<канал>&spot=<место>&text=<текст> — меняется при выборе места и текста */
     function update() {

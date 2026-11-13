@@ -58,6 +58,7 @@
    "y": 67.22,
    "cx": 0.5,
    "cy": 0.5,
+   "max_len": 10,
    "crop": "A1.webp",
    "sold": false
   },
@@ -69,6 +70,7 @@
    "y": 54.13,
    "cx": 0.5,
    "cy": 0.5,
+   "max_len": 6,
    "crop": "A2.webp",
    "sold": false
   },
@@ -80,6 +82,7 @@
    "y": 73.77,
    "cx": 0.5,
    "cy": 0.5,
+   "max_len": 10,
    "crop": "B1.webp",
    "sold": false
   },
@@ -91,6 +94,7 @@
    "y": 79.71,
    "cx": 0.5,
    "cy": 0.5,
+   "max_len": 10,
    "crop": "B2.webp",
    "sold": false
   },
@@ -102,6 +106,7 @@
    "y": 60.08,
    "cx": 0.125,
    "cy": 0.5,
+   "max_len": 1,
    "crop": "C1.webp",
    "sold": false
   },
@@ -113,6 +118,7 @@
    "y": 67.22,
    "cx": 0.5,
    "cy": 0.5,
+   "max_len": 6,
    "crop": "C2.webp",
    "sold": false
   },
@@ -124,6 +130,7 @@
    "y": 67.82,
    "cx": 0.5,
    "cy": 0.5,
+   "max_len": 1,
    "crop": "F1.webp",
    "sold": false
   },
@@ -135,6 +142,7 @@
    "y": 71.39,
    "cx": 0.5,
    "cy": 0.5,
+   "max_len": 10,
    "crop": "F2.webp",
    "sold": false
   }

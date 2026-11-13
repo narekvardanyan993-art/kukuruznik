@@ -578,7 +578,7 @@ def check_sale_pages():
     rec('sale: публичный список мест %s == шаблон (sold из building.json)' % bs.SPOTS_JSON, pj == bs.public_json(spots, set(sold)))
     pub = json.loads(pj)
     keys = set().union(*[set(s) for s in pub['spots']])
-    rec('sale: в публичном списке мест только геометрия и sold (без текстов и личных данных)', keys <= {'id', 'frame', 'type', 'x', 'y', 'cx', 'cy', 'crop', 'sold'}, ', '.join(sorted(keys)))
+    rec('sale: в публичном списке мест только геометрия и sold (без текстов и личных данных)', keys <= {'id', 'frame', 'type', 'x', 'y', 'cx', 'cy', 'max_len', 'crop', 'sold'}, ', '.join(sorted(keys)))
     rec('sale: вся витрина — один шаблон: /t /i /f == /buy с точностью до src кнопки',
         all(pages[f].replace('/pay/?src=' + src, '/pay/?src=@').replace('data-src="%s"' % src, 'data-src="@"') == pages['buy'].replace('/pay/?src=site', '/pay/?src=@').replace('data-src="site"', 'data-src="@"')
             for f, src in bs.CHANNELS.items()))
