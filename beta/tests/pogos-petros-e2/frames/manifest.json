@@ -1,6 +1,6 @@
 {
  "building": "pogos-petros",
- "engine": "e2.0.6",
+ "engine": "e2.0.11",
  "files": {
   "pogos_a.webp": {
    "bytes": 205414,
@@ -15,9 +15,9 @@
    "sha256": "a5ccdf3085d8a33615ccdd4449b0bb2598cba1dc6fb567bf22c9cb1fff83f414"
   },
   "pogos_a_crown.png": {
-   "bytes": 16875,
+   "bytes": 16822,
    "derived": "crown",
-   "sha256": "5d817c01ed04c63345b732c1e98b990fd3f7b8087f6b100d5256e5aa46e1831f"
+   "sha256": "eef8723e8eb96c8ba24d2bf464ad539cc0d3f5881771f77c3e03c9b2a8e27b6c"
   },
   "pogos_a_depth.webp": {
    "bytes": 30604,
@@ -28,9 +28,9 @@
    "sha256": "3c9b3c501cd21eb7c7b5e5150c0ddd307d2f423c5df396f69735a76c3543a0f3"
   },
   "pogos_a_lights.png": {
-   "bytes": 17675,
+   "bytes": 17557,
    "derived": "lights",
-   "sha256": "b81d4bb964104ff8bb4206c49d68730f2f9d961298c6a7d1f59d950e7c2b17d0"
+   "sha256": "8e0e7fbe2a95f874d314415d4fdd6c761fd569f9f94ba6557728b2bb866e696a"
   },
   "pogos_a_night.webp": {
    "bytes": 137638,
@@ -45,9 +45,9 @@
    "sha256": "4ca81367f194f922e2587fe398a59421bfb48fb555f360c32b8f0ae0e6fc9e0d"
   },
   "pogos_a_windfield.png": {
-   "bytes": 3820,
+   "bytes": 3782,
    "derived": "windfield",
-   "sha256": "e4008b5f4fcf26d256ef0d0e55fb522a21ef3d9c9d12814b5048fc983fdd69d0"
+   "sha256": "938054f8870c2566af36231e595c9b8ca80f2a2dc960ea36150c226c6be0e2b2"
   },
   "pogos_a_wx.webp": {
    "bytes": 5264,
@@ -67,9 +67,9 @@
    "sha256": "12e80799fdf73d76ad96ff4e735f188450fe28bf422051d399d354ed2f6a007a"
   },
   "pogos_b_crown.png": {
-   "bytes": 53734,
+   "bytes": 53601,
    "derived": "crown",
-   "sha256": "1fae39b56b65bad2d0c6e48684b713a5a5039a7957ec1ca8a0f0aa66d4ff3ed8"
+   "sha256": "9dfef774fd29fdec748dd62738c8a5ae261d1b42862fb46af9726c5edc681075"
   },
   "pogos_b_depth.webp": {
    "bytes": 31196,
@@ -80,9 +80,9 @@
    "sha256": "dd440368b540f014c7b5055493e6b6948c5a96e461732a7847e01951f2cb364f"
   },
   "pogos_b_lights.png": {
-   "bytes": 12282,
+   "bytes": 12222,
    "derived": "lights",
-   "sha256": "5e63928699685edc39a2ac6761b1d9fa2e5ecc3bbb0828a92c1a77a1618daeb1"
+   "sha256": "43d29c2b471e9d424acba98afc596331d9fedf5cc1215812094d9ff635ddd59a"
   },
   "pogos_b_night.webp": {
    "bytes": 137908,
@@ -101,9 +101,9 @@
    "sha256": "566ae508267debc6379c601cd24cb212cb555e007cf06bc90d8fb4d2d5dd84b3"
   },
   "pogos_b_windfield.png": {
-   "bytes": 4500,
+   "bytes": 4450,
    "derived": "windfield",
-   "sha256": "b997d20a95bd29e7618ea111cbd29e9557b89cd948b305fee398a044931587eb"
+   "sha256": "f122075e9861a7529a9941b83d4ecee7ccf3bec1592f7949b1dc5a8cf1be28fc"
   },
   "pogos_b_wx.webp": {
    "bytes": 5554,
@@ -123,9 +123,9 @@
    "sha256": "79125d40ee3c4bebd85a6e57900d8f938b6eac63cfe23d3986fb1a1c0b21a2db"
   },
   "pogos_c_crown.png": {
-   "bytes": 78507,
+   "bytes": 78415,
    "derived": "crown",
-   "sha256": "cd81bc97c90fcfcefe59630efe5e7034704ce23739e49aff05cbef4b361cc297"
+   "sha256": "2aed1cbc2f18556b788adc66063c8a7db72669f45b83154efd0a5406e6133e24"
   },
   "pogos_c_depth.webp": {
    "bytes": 43410,
@@ -136,9 +136,9 @@
    "sha256": "c98af8ec4a90fa9f03b653709b9d5392d897b38b0365fe447e278054870f9edd"
   },
   "pogos_c_lights.png": {
-   "bytes": 17633,
+   "bytes": 17497,
    "derived": "lights",
-   "sha256": "01e431a2772035fb888babeafa38c91e3de3815a28b2917b1ab87431f379aefd"
+   "sha256": "ed7a8e83a3ebdfc2f7447dc9298a812263f428fb174b9498b05ab8771d0e7ded"
   },
   "pogos_c_night.webp": {
    "bytes": 152260,
@@ -153,9 +153,9 @@
    "sha256": "18f0f789a9b93c8304e10f41dee4af0f7aef9c6fc10362fb15b9a3c18ad00fd5"
   },
   "pogos_c_windfield.png": {
-   "bytes": 5472,
+   "bytes": 5385,
    "derived": "windfield",
-   "sha256": "eadffe10e6c0385037a675964083ced050696d1120888d7f24c0c3d4c8001571"
+   "sha256": "92c58e202951878b25b441a4d48ea290658f08a27820fc2dec4309a6f1c1ab63"
   },
   "pogos_c_wx.webp": {
    "bytes": 6412,
@@ -183,9 +183,9 @@
    "sha256": "1479be5b1d6e3bd0edc930ed0d0cc4577c1bb6ff804287c2f7a75d6adc314fa8"
   },
   "pogos_d_lights.png": {
-   "bytes": 13461,
+   "bytes": 13314,
    "derived": "lights",
-   "sha256": "51648d92adf37181061d6ac7b541e7aaf10218d650290d784ac31181d28d1d6e"
+   "sha256": "906a8f33a23c1b20a3f92ee7b4797e2d3968437617c7988022a83142d6aa4139"
   },
   "pogos_d_night.webp": {
    "bytes": 181158,
@@ -216,9 +216,9 @@
    "sha256": "05be1388d1047d82fd676554ff273594f37c4215cd83631b25cbd223e171dd25"
   },
   "pogos_e_lights.png": {
-   "bytes": 24090,
+   "bytes": 23772,
    "derived": "lights",
-   "sha256": "a35677a749a886001ae38ddb2b43eecca3071556f4ea5ea4a4150a609fa8589f"
+   "sha256": "aa2faa8444a891e34468e45027fd31895895f7aca74b1ad3b7a181d7111c40f9"
   },
   "pogos_e_night.webp": {
    "bytes": 253806,
@@ -249,9 +249,9 @@
    "sha256": "67ed2da535ce98ddbc878c95797e95fdb25532e098773fbb0594ff44799295cd"
   },
   "pogos_f_lights.png": {
-   "bytes": 23778,
+   "bytes": 23606,
    "derived": "lights",
-   "sha256": "cf946ccca4c1d3fd5d581e9c9493d1e78da3a5b07b81dabcdaa178ff74aae6c6"
+   "sha256": "ef07af1075df1990f138d19ee3810362c74179a233a7f17dcda4cec0ae3f34c6"
   },
   "pogos_f_night.webp": {
    "bytes": 153292,
@@ -503,9 +503,9 @@
    "sha256": "fb37465ff423954f73bebcaa3bf4b9081e9d247d42b90a4d68eefdd1d7418e77"
   },
   "wx_atlas.png": {
-   "bytes": 76192,
+   "bytes": 75600,
    "derived": "atlas",
-   "sha256": "1d2596559f1e25e1716908813800ff81f28bf013f43b24b3357a5263ec7a38bd"
+   "sha256": "319b21ae576181b7bae293618affce165d975a08f495cf31068ed66c900c3d77"
   }
  },
  "schema": 1
