@@ -101,37 +101,6 @@
     sec.hidden = false; a.href = S.url || '/buy/';
     sm.textContent = n > 0 ? t.saleLeft[currentLang].replace('{n}', n).replace('{t}', tot) : t.saleNone[currentLang];
     a.classList.toggle('off', n <= 0);
-    saleFab(S, n, tot);
-  }
-  // e1.63: заметная кнопка «Оставить надпись» (не на первом кадре: появляется после первого касания или смены кадра; не на личной ссылке ?n=;
-  // прячется при открытой подсказке точки, шторке, открытке, режиме «погружение» — один продающий элемент на экран)
-  var saleFabEl = null, saleArmed = false;
-  function saleFab(S, n, tot) {
-    if (n <= 0 || /[?&]n=/.test(location.search)) { if (saleFabEl) saleFabEl.classList.remove('on'); return; }
-    if (!saleFabEl) {
-      saleFabEl = document.createElement('a'); saleFabEl.id = 'saleFab'; saleFabEl.target = '_blank'; saleFabEl.rel = 'noopener';
-      var svg = document.getElementById('saleBtn').querySelector('svg').cloneNode(true);
-      saleFabEl.appendChild(svg);
-      var sp = document.createElement('span'); sp.className = 'sale-t'; sp.innerHTML = '<b></b><small></small>'; saleFabEl.appendChild(sp);
-      document.body.appendChild(saleFabEl);
-      document.addEventListener('pointerdown', function () { saleArmed = true; }, true);
-      var last = -1;
-      (function watch() {
-        try {
-          if (typeof frameIndex !== 'number') { setTimeout(watch, 250); return; }
-          if (last < 0) last = frameIndex; else if (frameIndex !== last) saleArmed = true;
-          var pop = document.getElementById('hsPopup');
-          var busy = (pop && pop.classList.contains('show')) || bodyEl.classList.contains('card-open') || bodyEl.classList.contains('sheet-open') || bodyEl.classList.contains('immersive') || !!fade;
-          var on = saleArmed && !busy;
-          if (saleFabEl.classList.contains('on') !== on) saleFabEl.classList.toggle('on', on);
-        } catch (e) {}
-        setTimeout(watch, 250);
-      })();
-    }
-    var t = CONFIG.UI_I18N, w = { hy: 'Թողնել մակագրություն', ru: 'Оставить надпись', en: 'Leave an inscription' };
-    saleFabEl.href = S.url || '/buy/';
-    saleFabEl.querySelector('b').textContent = w[currentLang] || w.en;
-    saleFabEl.querySelector('small').textContent = t.saleLeft[currentLang].replace('{n}', n).replace('{t}', tot);
   }
   var wl = null;   // приветствие + загрузка (компонент test-assets/welcome-loader.js) — создаётся ниже, сразу
   function applyLang() {
