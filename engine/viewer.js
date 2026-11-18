@@ -1171,6 +1171,19 @@
       st.actors.push(A);
     });
     st.hasWx = all.some(function (a) { return a.wx; });
+    // e1.64 (баг 16.11, будка Погоса): погодная поза (будка, старик под газетой, пара под зонтом, замёрзший фонтан) жила только в дневном слое
+    // здания — на «Закате» (свой рисунок) и «Ночью» её не было, собака лежала прямо на снегу. Теперь она, как ролики набора (e1.53) и как e2
+    // (fx/actors.js), пишется ТОНОМ и в закатный и ночной рисунок кадра. Нет карты тона у кадра — считаем её сами: размыто(версия) / размыто(день).
+    // Радуга (wx "after") — только днём, в тон не пишется; поза с "tone": false (убирает нарисованное — струи фонтана: тон дал бы призрак) ночью
+    // уступает ночному рисунку, как раньше. Кусок тона — только прямоугольники тех, кто в него пишется (не весь кусок поз).
+    st.toneBox = null;
+    st.actors.forEach(function (A) {
+      var c = A.cfg; if (!(poseWxTone(c) || (c.set && P.tone))) return;
+      var b = A.box, tb = st.toneBox;
+      st.toneBox = tb ? [Math.min(tb[0], b[0]), Math.min(tb[1], b[1]), Math.max(tb[2], b[2]), Math.max(tb[3], b[3])] : b.slice();
+    });
+    if (st.toneBox) { var tb0 = st.toneBox; st.toneBox = [Math.max(0, tb0[0]), Math.max(0, tb0[1]), Math.min(w, tb0[2]), Math.min(h, tb0[3])]; }
+    if (!P.tone && st.toneBox) st.wxTone = { scale: 160, n: null, s: null, auto: true };
     // e1.53: наборы роликов (actors[].set), ролик тапа (actors[].tap)
     st.sets = null;
     st.actors.forEach(function (A) {
@@ -1179,13 +1192,16 @@
       SS.all.push(A); if (A.cfg.tap) SS.tap = A; A.mx = 0; A.zi = 0; A.ended = false; A.vFresh = false;
     });
     // e1.53 ТОН: дневной кадр куска целиком (здание поверх земли) + карты «ночь/закат ÷ день» (fix18.py tone)
-    if (P.tone) {
+    if (P.tone || st.wxTone) {   // e1.64: дневной кадр куска нужен и тону погодных поз
       var gsrc = r.ground4 || r.ground, gch = r.ground4 ? 4 : 3, pm = r.bldPm, df = new Uint8Array(w * h * 3);
       for (var yy = 0; yy < h; yy++) for (var xx = 0; xx < w; xx++) {
         var oo = (y0 + yy) * W + x0 + xx, qq = (yy * w + xx) * 3, al = pm[oo * 4 + 3] / 255;
         for (var cc = 0; cc < 3; cc++) df[qq + cc] = Math.min(255, pm[oo * 4 + cc] + gsrc[oo * gch + cc] * (1 - al));
       }
-      st.tone = { scale: P.tone.scale || 160, n: null, s: null, x0: x0, y0: y0 }; st.dfull = df;
+      st.dfull = df;
+    }
+    if (P.tone) {
+      st.tone = { scale: P.tone.scale || 160, n: null, s: null, x0: x0, y0: y0 };
       var tdir = String(FRAMES[i].color).split('?')[0].replace(/[^\/]*$/, '');
       [['n', P.tone.night], ['s', P.tone.sunset]].forEach(function (q) {
         if (!q[1]) return;
@@ -1346,37 +1362,75 @@
       });
     }
   }
-  function poseToneWrite(f, st) {   // e1.53: видео набора — в ночную (nB) и закатную (sB) картинку кадра
-    var T = st.tone;
+  function poseWxTone(c) { return !!c.wx && c.wx !== 'after' && c.tone !== false; }   // e1.64: погодная поза пишется тоном в закат и ночь
+  function poseWxW(st, c) { return c.wx === 'after' ? st.wxA : (c.wx === 'rain' ? st.wxR : (c.wx === 'snow' ? st.wxS : st.wxK)); }   // вес погодной позы 0..1
+  function poseToneOK(f, st, kd) {   // e1.64: в закатный ('s') / ночной ('n') рисунок кадра погодная поза пишется тоном (кусок версии уже лёг)
+    var T = st.tone || st.wxTone, B = f['pz' + kd];
+    return !!(T && st.toneBox && st.dfull && B && f[kd + 'B'] && (T[kd] || T.auto) && B.w === st.w && B.h === st.h && B.x0 === st.x0 && B.y0 === st.y0);
+  }
+  function toneAuto(ver, day, w, h, tb) {   // e1.64: карта тона «версия / день» (размыто 6 px, как toneBlurPx e2), ×160 в байт; вне куска тона — 1
+    var R = new Uint8Array(w * h * 3).fill(160), bw = tb[2] - tb[0], bh = tb[3] - tb[1], n = bw * bh * 3, a = new Float32Array(n), d = new Float32Array(n), x, y, c;
+    for (y = 0; y < bh; y++) for (x = 0; x < bw; x++) for (c = 0; c < 3; c++) { var q = ((tb[1] + y) * w + tb[0] + x) * 3 + c; a[(y * bw + x) * 3 + c] = ver[q]; d[(y * bw + x) * 3 + c] = day[q]; }
+    var bv = boxBlur3(a, bw, bh, 6), bd = boxBlur3(d, bw, bh, 6);
+    for (y = 0; y < bh; y++) for (x = 0; x < bw; x++) for (c = 0; c < 3; c++) { var i = (y * bw + x) * 3 + c; R[((tb[1] + y) * w + tb[0] + x) * 3 + c] = Math.round(clamp(bv[i] / Math.max(bd[i], 8), 0, 1.59) * 160); }
+    return R;
+  }
+  function boxBlur3(a, w, h, rad) {   // два прохода скользящего среднего по строкам и столбцам (≈ гаусс), 3 канала — как blur в e2 fx/actors.js
+    var b = new Float32Array(a.length), t = new Float32Array(a.length), pass, x, y, c, k, s, cnt, ad, rm;
+    for (pass = 0; pass < 2; pass++) {
+      var src = pass ? b : a;
+      for (y = 0; y < h; y++) for (c = 0; c < 3; c++) { s = 0; cnt = 0; for (k = 0; k <= rad && k < w; k++) { s += src[(y * w + k) * 3 + c]; cnt++; }
+        for (x = 0; x < w; x++) { t[(y * w + x) * 3 + c] = s / cnt; ad = x + rad + 1; rm = x - rad; if (ad < w) { s += src[(y * w + ad) * 3 + c]; cnt++; } if (rm >= 0) { s -= src[(y * w + rm) * 3 + c]; cnt--; } } }
+      for (x = 0; x < w; x++) for (c = 0; c < 3; c++) { s = 0; cnt = 0; for (k = 0; k <= rad && k < h; k++) { s += t[(k * w + x) * 3 + c]; cnt++; }
+        for (y = 0; y < h; y++) { b[(y * w + x) * 3 + c] = s / cnt; ad = y + rad + 1; rm = y - rad; if (ad < h) { s += t[(ad * w + x) * 3 + c]; cnt++; } if (rm >= 0) { s -= t[(rm * w + x) * 3 + c]; cnt--; } } }
+    }
+    return b;
+  }
+  function poseToneWrite(f, st) {   // e1.53: видео набора — в ночную (nB) и закатную (sB) картинку кадра; e1.64: и погодные позы (картинка + ролик)
+    var T = st.tone || st.wxTone, tb = st.toneBox;
     ['n', 's'].forEach(function (kd) {
-      var on = kd === 'n' ? tod.night : tod.sun, B = f['pz' + kd], tex = f[kd + 'B'], R = T[kd];
-      if (!(on > 0.002) || !B || !tex || !R || B.w !== st.w || B.h !== st.h || B.x0 !== st.x0 || B.y0 !== st.y0) return;
-      var w = st.w, h = st.h, n = w * h * 3, base = B.d, Df = st.dfull, sc = 1 / T.scale, i;
-      var acc = T.acc || (T.acc = new Float32Array(n)), out = T.out || (T.out = new Uint8Array(n));
-      for (i = 0; i < n; i++) acc[i] = base[i];
-      st.actors.filter(function (A) { return A.cfg.set && A.vid; }).sort(function (a, b) { return (a.zi || 0) - (b.zi || 0); }).forEach(function (A) {
-        var vdd = A.vdata, vm = A.vmask, k2 = A.vv * (st.hasWx ? 1 - st.wxK : 1); if (!vdd || !vm || k2 <= 0.003) return;
-        var vb = A.box, vw = vb[2] - vb[0];
-        for (var y = Math.max(0, vb[1]); y < Math.min(h, vb[3]); y++) for (var x = Math.max(0, vb[0]); x < Math.min(w, vb[2]); x++) {
-          var p2 = (y - vb[1]) * vw + (x - vb[0]), a2 = vm[p2] / 255 * k2; if (a2 <= 0.002) continue;
-          var s2 = p2 * 4, q = (y * w + x) * 3;
-          for (var c = 0; c < 3; c++) { var tg = base[q + c] + (vdd[s2 + c] - Df[q + c]) * R[q + c] * sc; acc[q + c] = tg * a2 + acc[q + c] * (1 - a2); }
+      var on = kd === 'n' ? tod.night : tod.sun, B = f['pz' + kd], tex = f[kd + 'B'];
+      if (!(on > 0.002) || !poseToneOK(f, st, kd)) return;
+      var R = T[kd] || (T[kd] = toneAuto(B.d, st.dfull, st.w, st.h, tb));
+      var w = st.w, base = B.d, Df = st.dfull, sc = 1 / T.scale, bw = tb[2] - tb[0], bh = tb[3] - tb[1], i, x, y, c;
+      var acc = T.acc || (T.acc = new Float32Array(bw * bh * 3)), out = T.out || (T.out = new Uint8Array(bw * bh * 3));   // кусок тона, не весь кусок поз
+      for (y = 0; y < bh; y++) for (x = 0; x < bw * 3; x++) acc[y * bw * 3 + x] = base[((y + tb[1]) * w + tb[0]) * 3 + x];
+      function lay(src, sw, bx, alpha, k) {   // src — RGBA прямоугольника bx (кусок поз), alpha(p) 0..1: тон = версия + (герой − день) × карта
+        for (var yy = Math.max(tb[1], bx[1]); yy < Math.min(tb[3], bx[3]); yy++) for (var xx = Math.max(tb[0], bx[0]); xx < Math.min(tb[2], bx[2]); xx++) {
+          var p2 = (yy - bx[1]) * sw + (xx - bx[0]), a2 = alpha(p2) * k; if (a2 <= 0.002) continue;
+          var s2 = p2 * 4, q = (yy * w + xx) * 3, qa = ((yy - tb[1]) * bw + xx - tb[0]) * 3;
+          for (var cc = 0; cc < 3; cc++) { var tg = base[q + cc] + (src[s2 + cc] - Df[q + cc]) * R[q + cc] * sc; acc[qa + cc] = tg * a2 + acc[qa + cc] * (1 - a2); }
         }
+      }
+      if (st.tone) st.actors.filter(function (A) { return A.cfg.set && A.vid; }).sort(function (a, b) { return (a.zi || 0) - (b.zi || 0); }).forEach(function (A) {
+        var vdd = A.vdata, vm = A.vmask, k2 = A.vv * (st.hasWx ? 1 - st.wxK : 1); if (!vdd || !vm || k2 <= 0.003) return;
+        lay(vdd, A.box[2] - A.box[0], A.box, function (p) { return vm[p] / 255; }, k2);
       });
-      for (i = 0; i < n; i++) { var z = acc[i]; out[i] = z < 0 ? 0 : (z > 255 ? 255 : z); }
+      st.actors.filter(function (A) { return poseWxTone(A.cfg) && !A.vid; }).forEach(function (A) {   // погодная картинка (будка)
+        var wk = poseWxW(st, A.cfg); if (!(wk > 0)) return;
+        var L = [[A.cur, A.prev !== A.cur ? A.mix : 1]]; if (A.prev !== A.cur && A.mix < 1) L.unshift([A.prev, 1]);
+        L.forEach(function (q) { var d = A.ims[q[0]]; if (d) lay(d, A.box[2] - A.box[0], A.box, function (p) { return d[p * 4 + 3] / 255; }, q[1] * wk); });
+      });
+      st.actors.filter(function (A) { return poseWxTone(A.cfg) && A.vid; }).forEach(function (A) {   // ролик непогоды — поверх своей картинки
+        var vdd = A.vdata, vm = A.vmask; if (!vdd || !vm || !(A.vv > 0.003)) return;
+        lay(vdd, A.box[2] - A.box[0], A.box, function (p) { return vm[p] / 255; }, A.vv);
+      });
+      for (i = 0; i < bw * bh * 3; i++) { var z = acc[i]; out[i] = z < 0 ? 0 : (z > 255 ? 255 : z); }
       gl.bindTexture(gl.TEXTURE_2D, tex); gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-      gl.texSubImage2D(gl.TEXTURE_2D, 0, st.x0, st.y0, w, h, gl.RGB, gl.UNSIGNED_BYTE, out);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, st.x0 + tb[0], st.y0 + tb[1], bw, bh, gl.RGB, gl.UNSIGNED_BYTE, out);
     });
   }
   function posesStep(f, now) {
     var st = f && f.poses; if (!st) return;
     var t = now / 1000, still = reduced(), nk = Math.round(sstep(0.06, 0.4, tod.night) * 20) / 20, busy = false;   // e1.46: позы гаснут к ночи плавно (все актёры): ночью — только ночной рисунок
     if (nk !== st.nightK) { st.nightK = nk; st.dirty = true; }
-    var wxRaw = typeof wx !== 'undefined' ? sstep(0.04, 0.6, Math.max(wx.cur[2], wx.cur[3])) : 0, wk = Math.round(wxRaw * 20) / 20;   // e1.49: непогода (дождь/снег) 0..1
+    // e1.64: «мокро» — доля от уровня дождя здания (у Погоса WEATHER.rain[2] = 0,45): иначе полный дождь давал позе вес 0,8 — будка на 80 %, сквозь неё собака с земли
+    var wetL = CONFIG.WEATHER && CONFIG.WEATHER.rain && CONFIG.WEATHER.rain[2] > 0 ? CONFIG.WEATHER.rain[2] : 1, wet = typeof wx !== 'undefined' ? Math.min(1, wx.cur[2] / wetL) : 0;
+    var wxRaw = typeof wx !== 'undefined' ? sstep(0.04, 0.6, Math.max(wet, wx.cur[3])) : 0, wk = Math.round(wxRaw * 20) / 20;   // e1.49: непогода (дождь/снег) 0..1
     if (wk !== st.wxK) { st.wxK = wk; st.dirty = true; }
-    var wS = typeof wx !== 'undefined' ? Math.round(sstep(0.04, 0.6, wx.cur[3]) * 20) / 20 : 0, wR = typeof wx !== 'undefined' ? Math.round(sstep(0.04, 0.6, wx.cur[2]) * (1 - wS) * 20) / 20 : 0;   // e1.50: снег важнее дождя
+    var wS = typeof wx !== 'undefined' ? Math.round(sstep(0.04, 0.6, wx.cur[3]) * 20) / 20 : 0, wR = typeof wx !== 'undefined' ? Math.round(sstep(0.04, 0.6, wet) * (1 - wS) * 20) / 20 : 0;   // e1.50: снег важнее дождя
     if (wS !== st.wxS || wR !== st.wxR) { st.wxS = wS; st.wxR = wR; st.dirty = true; }
-    var rawR = typeof wx !== 'undefined' ? sstep(0.04, 0.6, wx.cur[2]) * (1 - sstep(0.04, 0.6, wx.cur[3])) : 0;   // e1.59 РАДУГА: после дождя (wx "after")
+    var rawR = typeof wx !== 'undefined' ? sstep(0.04, 0.6, wet) * (1 - sstep(0.04, 0.6, wx.cur[3])) : 0;   // e1.59 РАДУГА: после дождя (wx "after")
     st.rainMem = Math.max(rawR, (st.rainMem || 0) - (st.lastT ? Math.min(0.25, now / 1000 - st.lastT) : 0) / 50);   // память дождя гаснет за ~50 с
     var wA = Math.round(clamp((st.rainMem - rawR) * 2.2, 0, 1) * clamp(st.rainMem * 1.6, 0, 1) * 20) / 20;
     if (wA !== st.wxA) { st.wxA = wA; st.dirty = true; }
@@ -1388,7 +1442,8 @@
       A.seen = now;
       if (A.cfg.set && st.sets) return;   // e1.53: набор — в setsStep
       var wxv = A.cfg.wx ? (A.cfg.wx === 'after' ? st.wxA : (A.cfg.wx === 'rain' ? st.wxR : (A.cfg.wx === 'snow' ? st.wxS : st.wxK))) : 1 - wxRaw;   // e1.56: видео-версия непогоды (actors[].video + wx) — живёт в дождь/снег, в ясную гаснет
-      var tgt = A.vbad ? 0 : (1 - sstep(0.06, 0.4, tod.night)) * wxv * (still ? 0 : 1) * (hourIn(A.cfg.hours, now) ? 1 : 0) * (1 - tod.sun), pv = A.vv;   // e1.52: часы зрителя; на закате — закатный рисунок
+      var wxT = poseWxTone(A.cfg);   // e1.64: ролик непогоды живёт и на закате, и ночью — в их рисунок он пишется тоном (poseToneWrite)
+      var tgt = A.vbad ? 0 : (wxT && poseToneOK(f, st, 'n') ? 1 : 1 - sstep(0.06, 0.4, tod.night)) * wxv * (still ? 0 : 1) * (hourIn(A.cfg.hours, now) ? 1 : 0) * (wxT && poseToneOK(f, st, 's') ? 1 : 1 - tod.sun), pv = A.vv;   // e1.52: часы зрителя; на закате — закатный рисунок
       A.vv = dtS > 0 ? A.vv + (tgt - A.vv) * Math.min(1, dtS / 0.6) : tgt; if (Math.abs(A.vv - tgt) < 0.01) A.vv = tgt;
       if (Math.abs(A.vv - pv) > 0.004) st.dirty = true;
       var vd = A.vid;
@@ -1420,7 +1475,7 @@
     var acc = new Float32Array(n * 4), ordA = st.actors.filter(function (A) { return !A.cfg.wx && !A.vid; }).concat(st.actors.filter(function (A) { return A.vid && !A.cfg.wx; }).sort(function (a, b) { return (a.zi || 0) - (b.zi || 0); }), st.actors.filter(function (A) { return A.cfg.wx && !A.vid; }), st.actors.filter(function (A) { return A.cfg.wx && A.vid; }));   // e1.56: видео непогоды — поверх своей картинки   // e1.49; e1.53: прежний ролик набора — под текущим
     for (i = 0; i < n; i++) { acc[i * 4] = b[i * 4]; acc[i * 4 + 1] = b[i * 4 + 1]; acc[i * 4 + 2] = b[i * 4 + 2]; acc[i * 4 + 3] = b[i * 4 + 3]; }
     ordA.forEach(function (A) {
-      var c = A.cfg, vis = (c.set && st.tone ? 1 : 1 - st.nightK) * (c.wx ?   /* e1.53: с тоном набор и ночью (альфа слоя здания) */ (c.wx === 'after' ? st.wxA : (c.wx === 'rain' ? st.wxR : (c.wx === 'snow' ? st.wxS : st.wxK))) : (st.hasWx ? 1 - st.wxK : 1)); if (vis <= 0) return;   // e1.50: wx "rain" / "snow" — своя версия   // e1.49: погодная версия — в непогоду, остальные актёры — в ясную
+      var c = A.cfg, vis = ((c.set && st.tone) || (poseWxTone(c) && poseToneOK(f, st, 'n')) ? 1 : 1 - st.nightK) * (c.wx ?   /* e1.64: погодная поза ночью — в ночном рисунке тоном, альфа слоя здания остаётся */   /* e1.53: с тоном набор и ночью (альфа слоя здания) */ (c.wx === 'after' ? st.wxA : (c.wx === 'rain' ? st.wxR : (c.wx === 'snow' ? st.wxS : st.wxK))) : (st.hasWx ? 1 - st.wxK : 1)); if (vis <= 0) return;   // e1.50: wx "rain" / "snow" — своя версия   // e1.49: погодная версия — в непогоду, остальные актёры — в ясную
       if (A.vid) {   // e1.49: кадр видео по маске
         var vdd = A.vdata, vm = A.vmask, k2 = A.vv * (c.wx ? 1 : (st.hasWx ? 1 - st.wxK : 1)); if (!vdd || !vm || k2 <= 0.003) return;   // e1.56: у видео непогоды своя видимость (vv)
         var vb = A.box, vw = vb[2] - vb[0];
@@ -1452,7 +1507,7 @@
       gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
       gl.texSubImage2D(gl.TEXTURE_2D, 0, st.x0, st.y0, w, h, oc === 4 ? gl.RGBA : gl.RGB, gl.UNSIGNED_BYTE, o);
     }
-    if (st.tone) poseToneWrite(f, st);   // e1.53 ТОН
+    if (st.tone || st.wxTone) poseToneWrite(f, st);   // e1.53 ТОН; e1.64 — и погодные позы
   }
   function uploadDay(f, r) {
     var steps = [
@@ -1485,7 +1540,7 @@
   function uploadState(f, kind, r) {
     safe('pose tone base', function () {
       var P = POSES && POSES[f.idx];
-      if (P && P.tone && r && r.full) {
+      if (P && (P.tone || (P.actors || []).some(poseWxTone)) && r && r.full) {   // e1.64: и кадрам с погодными позами
         var bx = posesBox(P, r.w, r.h), c = new Uint8Array(bx.w * bx.h * 3);
         for (var y = 0; y < bx.h; y++) c.set(r.full.subarray(((bx.y0 + y) * r.w + bx.x0) * 3, ((bx.y0 + y) * r.w + bx.x0 + bx.w) * 3), y * bx.w * 3);
         f['pz' + kind] = { d: c, x0: bx.x0, y0: bx.y0, w: bx.w, h: bx.h };
