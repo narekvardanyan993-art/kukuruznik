@@ -216,11 +216,12 @@ a.cover { display: block; height: auto; color: inherit; text-decoration: none; t
 .card-actions .btn { width: 100%; min-height: 48px; padding: 8px 16px; line-height: 1.15; gap: 10px; font-size: 1.0625rem; text-align: center; }
 @media (min-width: 1000px) { .card-actions .btn { padding: 8px 10px; gap: 8px; font-size: 1rem; } }   /* 4 колонки: «Смотреть в 3D» в одну строку */
 .card-actions .btn svg { width: 20px; height: 20px; flex: none; transition: transform var(--h-dur, 420ms) var(--h-ease, cubic-bezier(0.16, 1, 0.3, 1)); }
-.card-sale { display: flex; align-items: center; justify-content: center; gap: 10px; box-sizing: border-box; width: 100%; min-height: 52px; margin-top: 22px; padding: 8px 14px; font-size: 1rem; font-weight: 700; line-height: 1.2; text-align: center; text-decoration: none; color: #fff7e4; background: #b3402a; border: 2px solid var(--ink); border-radius: 4px; box-shadow: 3px 3px 0 var(--ink); -webkit-tap-highlight-color: transparent; transition: transform 120ms, box-shadow 120ms; }   /* «Оставить надпись»: красная охра, как #saleFab e1.63; текст и перо — из tools/build_pages.py */
-.card-sale:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink); }
-.card-sale:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+.card-sale { display: flex; align-items: center; gap: 8px; box-sizing: border-box; width: fit-content; max-width: 100%; min-height: 40px; margin: 16px auto 0; padding: 0 14px 0 11px; font-size: 0.9375rem; font-weight: 600; line-height: 1.2; white-space: nowrap; text-decoration: none; color: var(--ink); background: var(--surface); border: 1px solid rgba(42, 36, 32, 0.42); border-radius: 3px; box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset, 0 2px 4px rgba(42, 36, 32, 0.18); position: relative; -webkit-tap-highlight-color: transparent; }   /* «Оставить надпись»: маленькая бумажная бирка (вариант B, решение Нарека 18.11), без цены; текст и перо — из tools/build_pages.py */
+.card-sale::before { content: ""; position: absolute; inset: 3px; border: 1px dashed rgba(42, 36, 32, 0.22); border-radius: 2px; pointer-events: none; }
+.card-sale:active { transform: translateY(1px); }
 .card-sale:focus-visible { outline: 3px solid var(--indigo); outline-offset: 3px; }
-.card-sale .carve-i { width: 26px; height: 26px; flex: none; }
+.card-sale .carve-i { width: 20px; height: 20px; flex: none; color: var(--accent); }
+@media (min-width: 760px) { .card-sale { font-size: 0.8125rem; padding: 0 9px 0 8px; gap: 5px; min-height: 38px; } }   /* ПК: карточки узкие (~185 px) */
 .card-actions .btn-about { background: transparent; border: 1.5px solid rgba(42, 36, 32, 0.4); color: var(--ink); box-shadow: none; }
 a.cover:active .pic > img, a.cover.lift .pic > img { transform: scale(0.97); transition-duration: 160ms; }
 /* появление: наклейку кладут на стол — чуть крупнее и с поворотом, оседает с лёгкой пружиной */
