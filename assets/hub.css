@@ -644,7 +644,7 @@ html.scrolled .scroll-hint { opacity: 0; transform: translateY(10px); pointer-ev
    .lift из chka-common.js), без «зависшего» hover. «Уменьшить движение» — без сдвигов, только цвет. */
 
 /* ссылки внутри текста: тонкая линия всегда, акцентная — дорисовывается при наведении */
-.page p a:not(.btn), .page li a:not(.btn):not(.card-in):not(.card-history):not(.cover), .page figcaption a, .credit a, .gx-credit a {
+.page p a:not(.btn), .page li a:not(.btn):not(.card-in):not(.card-history):not(.cover):not(.card-sale), .page figcaption a, .credit a, .gx-credit a {
   color: inherit;
   text-decoration: none;
   background-image: linear-gradient(var(--accent), var(--accent)), linear-gradient(currentColor, currentColor);
@@ -654,9 +654,9 @@ html.scrolled .scroll-hint { opacity: 0; transform: translateY(10px); pointer-ev
   padding-bottom: 1px;
   transition: background-size var(--h-dur) var(--h-ease), color var(--h-dur-s) var(--h-ease);
 }
-.page p a:not(.btn):active, .page li a:not(.btn):not(.card-in):not(.card-history):not(.cover):active, .page figcaption a:active { color: var(--accent); background-size: 100% 1.5px, 100% 1px; }
+.page p a:not(.btn):active, .page li a:not(.btn):not(.card-in):not(.card-history):not(.cover):not(.card-sale):active, .page figcaption a:active { color: var(--accent); background-size: 100% 1.5px, 100% 1px; }
 @media (hover: hover) and (pointer: fine) {
-  .page p a:not(.btn):hover, .page li a:not(.btn):not(.card-in):not(.card-history):not(.cover):hover, .page figcaption a:hover, .credit a:hover, .gx-credit a:hover {
+  .page p a:not(.btn):hover, .page li a:not(.btn):not(.card-in):not(.card-history):not(.cover):not(.card-sale):hover, .page figcaption a:hover, .credit a:hover, .gx-credit a:hover {
     color: var(--accent); background-size: 100% 1.5px, 100% 1px;
   }
 }
