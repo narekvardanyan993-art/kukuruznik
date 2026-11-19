@@ -1,4 +1,4 @@
-/* Витрина надписей v2 (/buy, /t, /i, /f, /pay, /thanks): язык, 4 шага, листание кадров, выбор места, текст (имя до max_len места или две буквы), ссылка оплаты, переход на кассу.
+/* Лавка музея (концепт A, 19.11.2026): /shop, /buy /t /i /f (надпись — один экран: место → имя → кнопка), /w (обои), /pay, /thanks.
    Делает tools/build_sale_pages.py вместе со страницами. Страница сама ничего не перекидывает, кроме /pay (data-page="pay"). */
 (function () {
   var d = document, root = d.documentElement, page = d.body.getAttribute('data-page');
@@ -18,6 +18,7 @@
   function $(s, el) { return (el || d).querySelector(s); }
   function $$(s, el) { return Array.prototype.slice.call((el || d).querySelectorAll(s)); }
   function txt(el) { var s = el && el.querySelector('[lang="' + curLang() + '"]'); return s ? s.textContent : (el ? el.textContent : ''); }
+  function save(o) { try { o.t = Date.now(); localStorage.setItem(KEY, JSON.stringify(o)); } catch (e) {} }
 
   function fmtDate(dt, l) {
     var day = dt.getDate(), m = MONTHS[l][dt.getMonth()];
@@ -31,26 +32,28 @@
     el.textContent = fmtDate(dt, curLang());
   }
   var onLang = [];
-  function setLang(l, save) {
+  function setLang(l, keep) {
     if (LANGS.indexOf(l) < 0) return;
     root.setAttribute('data-lang', l);
     root.setAttribute('lang', l);
-    if (save) { try { localStorage.setItem('chka-lang', l); } catch (e) {} }
+    if (keep) { try { localStorage.setItem('chka-lang', l); } catch (e) {} }
     $$('[data-set-lang]').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-set-lang') === l ? 'true' : 'false'); });
     fillDate();
     onLang.forEach(function (f) { f(); });
   }
   $$('[data-set-lang]').forEach(function (b) { b.addEventListener('click', function () { setLang(b.getAttribute('data-set-lang'), true); }); });
 
-  /* ---------------- витрина: 4 шага ---------------- */
-  if (page === 'shop') shop();
+  /* ---------------- надпись: место → имя → кнопка, один экран ---------------- */
+  if (page === 'insc') insc();
 
-  function shop() {
-    var body = d.body, src = body.getAttribute('data-src') || 'site';
-    var steps = $$('.step'), progBtns = $$('[data-go]');
-    var st = { step: 1, spot: null, a: '', b: '' };
+  function insc() {
     var payBtn = $('a.btn'), payBase = payBtn.getAttribute('href');
+    var pols = $$('.pol'), exImg = $('.ex-img'), mine = $('.mine'), mineImg = $('.mine-img');
+    var st = { spot: null, a: '', b: '' };
+    var n1 = $('#n1'), na = $('#na'), nb = $('#nb'), form = $('.names');
 
+    function word(k) { return txt($('.dict [data-k="' + k + '"]')); }
+    function nameOf(id) { return txt($('.dict [data-name="' + id + '"]')); }
     function textOf() {
       if (!st.spot) return '';
       return st.spot.type === 'couple' ? (st.a && st.b ? st.a + ' + ' + st.b : '') : st.a;
@@ -61,118 +64,41 @@
       var t = st.a;
       return !!t && !BAD.test(t) && glyphs(t).length <= st.spot.max;
     }
-    function allowed(n) { return n <= 2 || (n === 3 && !!st.spot) || (n === 4 && !!st.spot && okText()); }
+    function limText() { return st.spot.type === 'couple' ? word('lim_two') : word('lim').replace('#', st.spot.max); }
 
-    function show(n, focus) {
-      if (!allowed(n)) return;
-      st.step = n;
-      steps.forEach(function (s) { s.classList.toggle('on', +s.getAttribute('data-step') === n); });
-      progBtns.forEach(function (b) {
-        var k = +b.getAttribute('data-go');
-        if (k === n) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
-        b.classList.toggle('done', k < n);
-        b.disabled = !allowed(k);
-      });
-      window.scrollTo(0, 0);
-      if (n === 1) carve();
-      if (n === 2) setTimeout(function () { go(idx(), true); }, 30);
-      if (n === 3) { paint(); if (focus) setTimeout(function () { var i = $(st.spot && st.spot.type === 'couple' ? '#na' : '#n1'); if (i && matchMedia('(pointer: fine)').matches) i.focus(); }, 60); }
-      if (n === 4) summary();
-      var h = $('.step.on h1, .step.on h2');
-      if (focus && h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }
-    }
-    progBtns.forEach(function (b) { b.addEventListener('click', function () { show(+b.getAttribute('data-go'), true); }); });
-    $$('[data-next]').forEach(function (b) { b.addEventListener('click', function () { show(st.step + 1, true); }); });
-    $$('[data-back]').forEach(function (b) { b.addEventListener('click', function () { show(st.step - 1, true); }); });
-
-    /* ① пример «до → после»: проявляется один раз, дальше — по нажатию */
-    var ba = $('[data-ba]'), carved = false;
-    function carve() { if (carved || !ba) return; carved = true; setTimeout(function () { ba.classList.add('after'); }, 700); }
-    if (ba) $('.ba-btn', ba).addEventListener('click', function () { carved = true; ba.classList.toggle('after'); });
-
-    /* ② кадры: свайп (родной скролл), стрелки, клавиши ← →, перетаскивание мышью, миниатюры */
-    var track = $('.track'), frs = $$('.fr'), thumbs = $$('[data-fr]'), arrows = $$('.arr');
-    function idx() { var w = frs[0].getBoundingClientRect().width || 1, x0 = frs[0].offsetLeft; return Math.max(0, Math.min(frs.length - 1, Math.round((track.scrollLeft) / (frs[1] ? frs[1].offsetLeft - x0 : w)))); }
-    function mark(i) {
-      thumbs.forEach(function (t, k) { t.setAttribute('aria-current', k === i ? 'true' : 'false'); });
-      arrows.forEach(function (a) { a.disabled = (+a.getAttribute('data-dir') < 0 && i === 0) || (+a.getAttribute('data-dir') > 0 && i === frs.length - 1); });
-    }
-    function go(i, instant) {
-      i = Math.max(0, Math.min(frs.length - 1, i));
-      var x = frs[i].offsetLeft - frs[0].offsetLeft;
-      if (track.scrollTo) track.scrollTo({ left: x, behavior: instant ? 'auto' : 'smooth' }); else track.scrollLeft = x;
-      mark(i);
-    }
-    var tmr;
-    track.addEventListener('scroll', function () { clearTimeout(tmr); tmr = setTimeout(function () { mark(idx()); }, 60); }, { passive: true });
-    arrows.forEach(function (a) { a.addEventListener('click', function () { go(idx() + (+a.getAttribute('data-dir'))); }); });
-    thumbs.forEach(function (t) { t.addEventListener('click', function () { go(+t.getAttribute('data-fr')); }); });
-    d.addEventListener('keydown', function (e) {
-      if (st.step !== 2 || e.altKey || e.ctrlKey || e.metaKey) return;
-      var tg = e.target && e.target.tagName;
-      if (tg === 'INPUT' || tg === 'TEXTAREA') return;
-      if (e.key === 'ArrowRight') { e.preventDefault(); go(idx() + 1); }
-      if (e.key === 'ArrowLeft') { e.preventDefault(); go(idx() - 1); }
-    });
-    var drag = null, moved = false;
-    track.addEventListener('pointerdown', function (e) {
-      if (e.pointerType !== 'mouse' || e.button !== 0) return;
-      drag = { x: e.clientX, s: track.scrollLeft, i: idx() }; moved = false;
-    });
-    window.addEventListener('pointermove', function (e) {
-      if (!drag) return;
-      var dx = e.clientX - drag.x;
-      if (!moved && Math.abs(dx) > 6) { moved = true; track.classList.add('drag'); }
-      if (moved) { track.scrollLeft = drag.s - dx; e.preventDefault(); }
-    });
-    window.addEventListener('pointerup', function (e) {
-      if (!drag) return;
-      var dx = e.clientX - drag.x, i = drag.i;
-      drag = null;
-      if (!moved) return;
-      track.classList.remove('drag');
-      go(Math.abs(dx) > 50 ? i + (dx < 0 ? 1 : -1) : i);
-      setTimeout(function () { moved = false; }, 0);
-    });
-    track.addEventListener('click', function (e) { if (moved) { e.stopPropagation(); e.preventDefault(); } }, true);
-    track.addEventListener('dragstart', function (e) { e.preventDefault(); });
-
-    var spots = $$('.spot');
-    spots.forEach(function (b) {
-      b.addEventListener('click', function () {
-        if (b.disabled) return;
-        spots.forEach(function (x) { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
-        var type = b.getAttribute('data-type');
-        if (st.spot && st.spot.type !== type) { st.a = ''; st.b = ''; ['#n1', '#na', '#nb'].forEach(function (s) { var i = $(s); if (i) i.value = ''; }); }
-        st.spot = { id: b.getAttribute('data-spot'), type: type, max: +b.getAttribute('data-max') || 1, el: b };
-        if (type === 'name') {                       // имя длиннее нового лимита места — обрезаем (лимит у стен и мелких мест разный)
-          st.a = glyphs(st.a).slice(0, st.spot.max).join('');
-          var n1 = $('#n1'); if (n1) { n1.maxLength = st.spot.max; if (n1.value !== st.a) n1.value = st.a; }
-        }
-        selInfo(); counter(); update();
-        var nx3 = $('.step[data-step="3"] [data-next]'); if (nx3) nx3.disabled = !okText();
-        var nx = $('.step[data-step="2"] [data-next]'); if (nx) nx.disabled = false;
-        progBtns.forEach(function (p) { p.disabled = !allowed(+p.getAttribute('data-go')); });
-      });
-    });
-    function where() { return st.spot ? txt($('.wh', st.spot.el)) : ''; }       // короткое название места (кадра)
-    function kind() { return st.spot ? txt($('.kinds [data-k="' + st.spot.type + '"]')) : ''; }   // «Имя на камне» / «Две буквы на дереве»
-    function selInfo() {
-      if (!st.spot) return;
-      $('.sel-none').hidden = true; $('.sel-on').hidden = false;
-      $('.sel-t').textContent = kind();                                           // одной строкой, и только после выбора
-      var c = st.spot.type === 'couple';
+    function pick(b, first) {
+      if (!b || b.disabled) return;
+      pols.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+      var type = b.getAttribute('data-type');
+      if (st.spot && st.spot.type !== type) { st.a = ''; st.b = ''; [n1, na, nb].forEach(function (i) { i.value = ''; }); }
+      st.spot = { id: b.getAttribute('data-spot'), type: type, max: +b.getAttribute('data-max') || 1, n: +b.getAttribute('data-n'),
+                  ex: b.getAttribute('data-ex'), exn: +b.getAttribute('data-exn'), mat: b.getAttribute('data-mat'), vw: b.style.getPropertyValue('--vw') || '1' };
+      var c = type === 'couple';
+      if (!c) { st.a = glyphs(st.a).slice(0, st.spot.max).join(''); n1.maxLength = st.spot.max; if (n1.value !== st.a) n1.value = st.a; }
       $('.g-name').hidden = c; $('.g-couple').hidden = !c;
-      $('.h-name').hidden = c; $('.h-couple').hidden = !c;
+      $('.l-name').hidden = c; $('.l-two').hidden = !c;
+      $('.nd-name').hidden = c; $('.nd-two').hidden = !c;
+      // пример художника: свой у места или ближайшего похожего — с честной подписью «с места № N» и вырезкой самого места рядом
+      var want = '../assets/spots/' + st.spot.ex, own = st.spot.exn === st.spot.n;
+      if (exImg.getAttribute('src') !== want) {
+        exImg.classList.add('swap');
+        var im = new Image();
+        im.onload = im.onerror = function () { exImg.setAttribute('src', want); exImg.classList.remove('swap'); };
+        im.src = want;
+      }
+      exImg.setAttribute('alt', word(c ? 'alt_pair' : 'alt_name'));
+      $('.ex-own').hidden = !own; $('.ex-from').hidden = own;
+      $('.exn').textContent = st.spot.exn;
+      mine.hidden = own;
+      $('.pic', mine).style.setProperty('--vw', st.spot.vw);
+      mineImg.setAttribute('src', '../assets/spots/' + st.spot.id + '.webp');
+      $('.need').hidden = true;
+      update();
+      if (!first && b.scrollIntoView && matchMedia('(max-width: 899px)').matches) b.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
     }
-    function counter() {                                                         // «осталось N» под полем имени
-      if (!st.spot || st.spot.type !== 'name') return;
-      var left = Math.max(0, st.spot.max - glyphs(st.a).length);
-      $$('.left-n').forEach(function (e) { e.textContent = left; });
-    }
+    pols.forEach(function (b) { b.addEventListener('click', function () { pick(b, false); }); });
 
-    /* ③ имя (до max_len места, счётчик «осталось N») или две буквы по одному полю; под примером художника — введённый текст крупно */
-    function cleanName(v, max) { return glyphs(v.replace(/\s+/g, ' ').replace(/^\s+/, '').toUpperCase()).slice(0, max).join(''); }
+    function cleanName(v, max) { return glyphs(v.replace(/\s+/g, ' ').replace(/^\s+/, '').toUpperCase()).slice(0, max).join(''); }   // буквы режутся в камне заглавными (как NAREK в примере)
     function oneLetter(inp) {                                                    // в поле одна буква: новая заменяет старую
       var g = glyphs(inp.value.replace(/\s+/g, '')), raw = g.length ? g[g.length - 1] : '';
       var v = raw.toUpperCase();
@@ -181,74 +107,99 @@
       return v;
     }
     function onInput() {
-      var c = st.spot && st.spot.type === 'couple';
-      if (c) { st.a = oneLetter($('#na')); st.b = oneLetter($('#nb')); }
-      else { st.a = cleanName($('#n1').value, st.spot ? st.spot.max : 12).trim(); st.b = ''; }
+      if (!st.spot) return;
+      var c = st.spot.type === 'couple';
+      if (c) { st.a = oneLetter(na); st.b = oneLetter(nb); }
+      else {
+        var cv = cleanName(n1.value, st.spot.max);
+        if (n1.value !== cv) { var pos = n1.selectionStart; n1.value = cv; try { n1.setSelectionRange(pos, pos); } catch (e) {} }
+        st.a = cv.trim(); st.b = '';
+      }
       var bad = c ? (!!(st.a + st.b) && !(LETTER.test(st.a || 'x') && LETTER.test(st.b || 'x'))) : BAD.test(st.a);
       $('.bad').hidden = !bad;
-      counter(); paint(); update();
-      var nx = $('.step[data-step="3"] [data-next]'); if (nx) nx.disabled = !okText();
-      progBtns.forEach(function (p) { p.disabled = !allowed(+p.getAttribute('data-go')); });
+      if (okText()) $('.need').hidden = true;
+      update();
     }
-    ['#n1', '#na', '#nb'].forEach(function (s) {
-      var i = $(s); if (!i) return;
+    [n1, na, nb].forEach(function (i) {
       i.addEventListener('input', onInput);
       i.addEventListener('keydown', function (e) {
         if (e.key !== 'Enter') return;
         e.preventDefault();
-        if (s === '#na') { $('#nb').focus(); return; }
-        if (okText()) show(4, true);
+        if (i === na) { nb.focus(); return; }
+        if (okText()) payBtn.click(); else i.blur();
       });
     });
-    $('.names').addEventListener('submit', function (e) { e.preventDefault(); });
+    na.addEventListener('input', function () { if (na.value) nb.focus(); });
+    form.addEventListener('submit', function (e) { e.preventDefault(); });
 
-    function shown() {                                                          // что показать под примером: имя, «Ա + Լ» или прочерк
-      if (!st.spot) return '';
-      if (st.spot.type === 'couple') return (st.a || st.b) ? (st.a || '…') + ' + ' + (st.b || '…') : '';
-      return st.a;
-    }
-    function paint() {
-      if (!st.spot) return;
-      var kindName = st.spot.type === 'couple' ? 'couple' : 'name';
-      $$('.ex').forEach(function (ex) { ex.setAttribute('data-kind', kindName); });
-      var want = '../assets/spots/' + st.spot.id + '.webp', w = where();            // вырезка выбранного места (шаги 3 и 4)
-      var vw = +st.spot.el.getAttribute('data-vw') || 1;                          // у вырезок A2, F2 справа чёрная кайма — показываем только рисунок
-      $$('.crop-in').forEach(function (c) { c.style.setProperty('--vw', vw); });
-      $$('.crop-img').forEach(function (im) { if (im.getAttribute('src') !== want) im.setAttribute('src', want); im.setAttribute('alt', w); });
-      var yv = $('.yv'), t = shown();
-      yv.textContent = t || '—';
-      yv.classList.toggle('empty', !t);
-    }
-
-    /* ④ итог; ссылка оплаты: /pay/?src=<канал>&spot=<место>&text=<текст> — меняется при выборе места и текста */
+    /* бирка у рисунка, счётчик, ссылка оплаты: /pay/?src=<канал>&spot=<место>&text=<текст> — меняется при выборе места и текста */
     function update() {
+      if (!st.spot) return;
+      var t = textOf(), typed = st.spot.type === 'couple' ? (st.a || st.b) : st.a;
+      $('.t-your').hidden = !typed;
+      var yv = $('.t-yours');
+      yv.hidden = !typed;
+      yv.textContent = st.spot.type === 'couple' ? (st.a || '…') + ' + ' + (st.b || '…') : st.a;
+      $('.t-n').textContent = typed ? '' : nameOf(st.spot.id);
+      $('.t-n').hidden = !!typed;
+      $('.t-lim').textContent = typed ? nameOf(st.spot.id) + ' · ' + word(st.spot.mat) : limText();
+      $('.lim').textContent = limText();
+      $('.cnt').textContent = st.spot.type === 'name' && st.a ? glyphs(st.a).length + '/' + st.spot.max : '';
+      var ph = n1.getAttribute('placeholder'), want = form.getAttribute('data-ph-' + curLang());
+      if (ph !== want) n1.setAttribute('placeholder', want);
       var href = payBase;
       if (st.spot) href += '&spot=' + st.spot.id;
       if (okText()) href += '&text=' + encodeURIComponent(textOf());
       payBtn.setAttribute('href', href);
+      payBtn.setAttribute('aria-disabled', okText() ? 'false' : 'true');
+      return t;
     }
-    function summary() {
-      paint();
-      $('.sum-spot').textContent = st.spot ? where() : '—';
-      $('.sum-text').textContent = textOf() || '—';
-    }
-    payBtn.addEventListener('click', function () {
-      try { localStorage.setItem(KEY, JSON.stringify({ spot: st.spot ? st.spot.id : '', where: where(), text: textOf(), t: Date.now() })); } catch (e) {}
+    payBtn.addEventListener('click', function (e) {
+      if (!okText()) {                                                           // без имени к кассе не пускаем: подсказка и поле
+        e.preventDefault();
+        if (!st.spot) return;
+        $('.need').hidden = false;
+        var i = st.spot.type === 'couple' ? (st.a ? nb : na) : n1;
+        i.focus();
+        return;
+      }
+      save({ item: 'insc', spot: st.spot.id, where: nameOf(st.spot.id), text: textOf() });
     });
-    onLang.push(function () { if (st.spot) { selInfo(); summary(); } });
+    onLang.push(function () { if (st.spot) update(); });
     setLang(curLang(), false);
-    show(1, false);
+    pick($('.pol[aria-pressed="true"]') || pols.filter(function (b) { return !b.disabled; })[0], true);
   }
 
-  /* ---------------- /pay: 1 секунда на счётчик Cloudflare, потом касса Polar ---------------- */
+  /* ---------------- обои: превью крупно по нажатию, канал из адреса ---------------- */
+  if (page === 'wall') {
+    setLang(curLang(), false);
+    var big = $('.wpstage .p2 img'), ths = $$('.th');
+    ths.forEach(function (b) {
+      b.addEventListener('click', function () {
+        ths.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+        var p = big.parentNode;
+        p.classList.remove('lock');
+        big.setAttribute('src', b.getAttribute('data-big'));
+        big.setAttribute('width', '480'); big.setAttribute('height', '1040');
+      });
+    });
+    var wb = $('a.btn'), ms0 = location.search.match(/[?&](?:src|utm_source)=(tiktok|instagram|facebook)(?:&|$)/);
+    if (ms0) wb.setAttribute('href', wb.getAttribute('href').replace('src=site', 'src=' + ms0[1]));
+    wb.addEventListener('click', function () { save({ item: 'w' }); });
+  }
+
+  if (page === 'store') setLang(curLang(), false);
+
+  /* ---------------- /pay: 1 секунда на счётчик Cloudflare, потом касса Polar (надпись или обои) ---------------- */
   if (page === 'pay') {
     setLang(curLang(), false);
     var box = d.querySelector('[data-polar]');
-    var base = box.getAttribute('data-polar');
+    var wall = /[?&]item=w(?:&|$)/.test(location.search);
+    var base = box.getAttribute(wall ? 'data-polar-w' : 'data-polar');
     var ok = (box.getAttribute('data-channels') || '').split(',');
     var m = location.search.match(/[?&]src=([a-z]+)(?:&|$)/), src = m && ok.indexOf(m[1]) >= 0 ? m[1] : 'site';
     var free = (box.getAttribute('data-spots') || '').split(','), f = (box.getAttribute('data-fields') || 'spot,inscription').split(',');
-    var ms = location.search.match(/[?&]spot=([A-Z][0-9])(?:&|$)/), spot = ms && free.indexOf(ms[1]) >= 0 ? ms[1] : '';
+    var ms = location.search.match(/[?&]spot=([A-Z][0-9])(?:&|$)/), spot = !wall && ms && free.indexOf(ms[1]) >= 0 ? ms[1] : '';
     var mt = location.search.match(/[?&]text=([^&]*)/), text = '';
     if (mt) { try { text = decodeURIComponent(mt[1].replace(/\+/g, ' ')); } catch (e) { text = ''; } }
     text = text.replace(/[^\p{L}\p{M}' +\-]/gu, '').replace(/\s+/g, ' ').trim().slice(0, +box.getAttribute('data-max') || 19);
@@ -261,13 +212,15 @@
     setTimeout(function () { location.replace(to); }, 1000);
   }
 
-  /* ---------------- /thanks: выбор покупателя и «показать друзьям» ---------------- */
+  /* ---------------- /thanks: что купили (надпись или обои) и «показать друзьям» ---------------- */
   if (page === 'thanks') {
     setLang(curLang(), false);
-    try {
-      var p = JSON.parse(localStorage.getItem(KEY) || 'null');
-      if (p && p.text && Date.now() - p.t < 864e5) { var el = $('.th-sel'); $('b', el).textContent = (p.where ? p.where + ' · ' : '') + p.text; el.hidden = false; }
-    } catch (e) {}
+    var p = null;
+    try { p = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
+    var fresh = p && Date.now() - p.t < 864e5;
+    var isW = /[?&]item=w(?:&|$)/.test(location.search) || (fresh && p.item === 'w');
+    $('.th-insc').hidden = isW; $('.th-w').hidden = !isW;
+    if (!isW && fresh && p.text) { var el = $('.th-sel'); $('b', el).textContent = (p.where ? p.where + ' · ' : '') + p.text; el.hidden = false; }
   }
   var sh = d.querySelector('[data-share]');
   if (sh) {
