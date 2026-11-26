@@ -1,6 +1,6 @@
 {
  "building": "pogos-petros",
- "engine": "e2.0.29",
+ "engine": "e2.0.31",
  "files": {
   "pogos_a.webp": {
    "bytes": 205414,
@@ -152,6 +152,10 @@
    "bytes": 152260,
    "sha256": "e40a68ce4829bd3b5e271629c1ffefb6659bae1b2f1951cdc63338b3385c5f4e"
   },
+  "pogos_c_orig.webp": {
+   "bytes": 88002,
+   "sha256": "7a9628d32dbd278eeca0958747d67bc73fa44af45ec0ed7b50de1a7c448480f1"
+  },
   "pogos_c_snow.webp": {
    "bytes": 54504,
    "sha256": "32854ae9474fbcbadf02819f8134e296f743f0c6459053f3a10c1284bac319a1"
@@ -272,6 +276,10 @@
   "pogos_f_night.webp": {
    "bytes": 153292,
    "sha256": "f281b8a2977ad5b20883fbaa2026c32ef74c893e8dca281e0ea126f32678c29a"
+  },
+  "pogos_f_orig.webp": {
+   "bytes": 225618,
+   "sha256": "e49943ab00b9c7411be820a12e84d71f017fc2362200cdfc00be5ec7bccd48fd"
   },
   "pogos_f_snow.webp": {
    "bytes": 37236,
