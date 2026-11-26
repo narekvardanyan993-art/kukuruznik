@@ -40,8 +40,8 @@
 <link rel="apple-touch-icon" href="assets/icon-180.png">
 <link rel="preload" as="font" type="font/woff2" crossorigin href="engine/fonts/NotoSerifArmenian-armenian.woff2">
 <link rel="stylesheet" href="assets/hub.css?v=15">
-<link rel="stylesheet" href="assets/hub-museum.css?v=10">
-<!--chka-analytics--><script>(function(){var m=(location.search.match(/[?&]me=([01])/)||[])[1],o=0;try{if(m==='1')localStorage.setItem('chka_owner','1');else if(m==='0')localStorage.removeItem('chka_owner');o=localStorage.getItem('chka_owner')==='1'}catch(e){o=m==='1'}if(m){var t=m==='1'?'вы — хозяин, ваши заходы не считаются':'метка хозяина снята';var n=function(){var d=document.createElement('div');d.textContent=t;d.style.cssText='position:fixed;left:50%;bottom:12px;transform:translateX(-50%);z-index:2147483647;background:rgba(40,30,20,.88);color:#fff;font:12px/1.3 sans-serif;padding:6px 12px;border-radius:14px;pointer-events:none';document.body.appendChild(d);setTimeout(function(){d.remove()},3000)};if(document.body)n();else document.addEventListener('DOMContentLoaded',n)}if(o||navigator.webdriver||!/(^|\.)chka\.am$/.test(location.hostname))return;var s=document.createElement('script');s.defer=true;s.src='https://static.cloudflareinsights.com/beacon.min.js';s.setAttribute('data-cf-beacon','{"token": "4f01792791754703ad86dfbc0e762731"}');document.head.appendChild(s)})();</script><!--/chka-analytics--></head>
+<link rel="stylesheet" href="assets/hub-museum.css?v=11">
+<!--chka-analytics--><script src="/assets/chka-count.js?v=1" data-token="4f01792791754703ad86dfbc0e762731" defer></script><!--/chka-analytics--></head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="ghost-dome" viewBox="0 0 200 200"><path d="M20 170h160v-8h-10v-40c0-38-31-70-70-70s-70 32-70 70v40H20z M92 52V34h16v18"/></symbol>
@@ -57,8 +57,84 @@
 <nav class="nav"><div class="nav-in">
   <a class="logo" href="./" aria-label="Չկա — на главную"><span class="hy">Չկա</span><span class="dot" aria-hidden="true"></span></a>
   <!-- shop-link — лавка музея (build_pages.shop_link; вписывает tools/build_sale_pages.py), руками не править -->
-  <style>.shop-link{margin-left:auto;display:inline-flex;align-items:center;min-height:44px;padding:0 4px;font:600 14px/1.2 var(--font);color:var(--ink);text-decoration:none;white-space:nowrap}.shop-link>span{border-bottom:1px solid var(--accent);padding-bottom:2px}@media (max-width:359px){.shop-link{font-size:13px}}</style>
-  <a class="shop-link" href="/shop/"><span><span class="i18n-inline" lang="hy">Թանգարանի խանութ</span><span class="i18n-inline" lang="ru">Лавка музея</span><span class="i18n-inline" lang="en">Museum shop</span></span></a>
+  <style>
+  /* Шапка: круглая кнопка лавки r1 (тонкое терракотовое кольцо), отступы 10px */
+  .nav-in {
+    gap: 10px !important;
+  }
+  .shop-btn-base {
+    margin-left: auto;
+    position: relative;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    box-sizing: border-box;
+    text-decoration: none;
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+    box-shadow: var(--shadow-sm);
+    flex-shrink: 0;
+    transition: transform 200ms var(--spring), background 220ms var(--ease), color 220ms var(--ease), box-shadow 220ms var(--ease), border-color 220ms var(--ease);
+  }
+  .shop-btn-base:active {
+    transform: scale(0.9);
+  }
+  .shop-btn-r1 {
+    display: grid;
+    place-items: center;
+    background: rgba(251, 246, 234, 0.95);
+    border: 1.5px solid var(--accent);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), var(--shadow-sm);
+  }
+  .shop-btn-r1 .shop-btn-text {
+    color: var(--ink);
+    font-family: var(--font);
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    transition: color 200ms ease;
+  }
+  .shop-btn-r1 .shop-btn-text [lang="ru"] {
+    font-size: 11.5px;
+    letter-spacing: 0.01em;
+    display: inline-block;
+    transform: translate(0.2px, -2.8px);
+  }
+  .shop-btn-r1 .shop-btn-text [lang="en"] {
+    font-size: 11.5px;
+    letter-spacing: 0.02em;
+    display: inline-block;
+    transform: translate(0.25px, -4.2px);
+  }
+  .shop-btn-r1 .shop-btn-text [lang="hy"] {
+    font-family: var(--hy);
+    font-size: 9.9px;
+    letter-spacing: -0.02em;
+    display: inline-block;
+    transform: translate(-0.1px, -4.3px);
+  }
+  .shop-btn-r1:hover {
+    background: #fbf5e6;
+    border-color: var(--accent-strong);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), var(--shadow);
+    transform: translateY(-1px);
+  }
+  .shop-btn-r1:hover .shop-btn-text {
+    color: var(--accent-strong);
+  }
+  </style>
+
+  <!-- shop-btn r1 (Тонкое кольцо) -->
+  <a class="shop-btn-base shop-btn-r1" href="/shop/" aria-label="Խանութ · Лавка музея">
+    <span class="shop-btn-text">
+      <span class="i18n-inline" lang="hy">Խանութ</span>
+      <span class="i18n-inline" lang="ru">Лавка</span>
+      <span class="i18n-inline" lang="en">Shop</span>
+    </span>
+  </a>
+  <!-- /shop-btn r1 -->
   <!-- /shop-link -->
   <div class="lang-switch-mount" data-lang-switch></div>
 </div></nav>
@@ -69,13 +145,13 @@
     <svg class="corner tl" aria-hidden="true"><use href="#corner"/></svg><svg class="corner tr" aria-hidden="true"><use href="#corner"/></svg><svg class="corner bl" aria-hidden="true"><use href="#corner"/></svg><svg class="corner br" aria-hidden="true"><use href="#corner"/></svg>
     <div class="stack" aria-hidden="true">
       <div class="stack-card sc-a"><div class="sc-pic"><svg class="ghost" viewBox="0 0 200 200"><use href="#ghost-tower"/></svg></div></div>
-      <!-- stack:pogos-petros — собирается из tests/pogos-petros/building.json (card.stack, card.image), руками не править -->
-      <div class="stack-card sc-b"><div class="sc-pic"><img src="pogos-petros/card.webp" width="480" height="480" alt="" decoding="async"></div></div>
+      <!-- stack:pogos-petros — собирается из tests/pogos-petros/building.json (card.stack, card.sheet или card.image), руками не править -->
+      <div class="stack-card sc-b"><div class="sc-pic"><img src="assets/hub-sheets/pogos-petros.webp" width="480" height="600" alt="" decoding="async"></div></div>
       <!-- /stack:pogos-petros -->
-      <!-- stack:lenin — собирается из tests/lenin/building.json (card.stack, card.image), руками не править -->
-      <div class="stack-card sc-c"><div class="sc-pic"><img src="lenin/card.webp" width="480" height="480" alt="" decoding="async"></div></div>
+      <!-- stack:lenin — собирается из tests/lenin/building.json (card.stack, card.sheet или card.image), руками не править -->
+      <div class="stack-card sc-c"><div class="sc-pic"><img src="assets/hub-sheets/lenin.webp" width="480" height="600" alt="" decoding="async"></div></div>
       <!-- /stack:lenin -->
-      <div class="stack-card sc-d"><div class="sc-pic"><img src="kukuruznik/card.webp" width="480" height="480" alt="" fetchpriority="high" decoding="async"></div></div>
+      <div class="stack-card sc-d"><div class="sc-pic"><img src="assets/hub-sheets/kukuruznik.webp" width="480" height="600" alt="" fetchpriority="high" decoding="async"></div></div>
       <svg class="hero-stamp" viewBox="0 0 120 140" aria-hidden="true"><rect x="2" y="2" width="116" height="136" fill="#fbf6ea"/><rect x="2" y="2" width="116" height="136" fill="none" stroke="#2a2420" stroke-width="1.5" stroke-dasharray="3 3"/><rect x="13" y="13" width="94" height="114" fill="#8a2c33"/><rect x="17" y="17" width="86" height="106" fill="none" stroke="#fbf6ea" stroke-width=".8" opacity=".7"/><use href="#wheel" x="27" y="27" width="66" height="66" style="color:#fbf6ea"/><text x="60" y="113" text-anchor="middle" font-family="Chka Serif" font-size="13" font-weight="700" fill="#fbf6ea">ՉԿԱ · 100</text></svg>
       <svg class="hero-postmark" viewBox="0 0 168 120" aria-hidden="true"><circle cx="60" cy="60" r="54" fill="#fbf6ea" fill-opacity=".66"/><g fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="60" cy="60" r="54" stroke-width="2.8"/><path d="M22 47h76M22 73h76" stroke-width="1.6"/><path d="M118 43c15-7 31-7 48 0M119 60c15-7 31-7 47 0M118 77c15-7 31-7 48 0" stroke-width="2.6"/></g><path id="pm-top" d="M18 60a42 42 0 0 1 84 0" fill="none"/><path id="pm-bot" d="M9 60a51 51 0 0 0 102 0" fill="none"/><g fill="currentColor" font-family="Chka Serif" font-weight="700" stroke="#fbf6ea" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke"><text font-size="13" letter-spacing="2.2"><textPath href="#pm-top" startOffset="50%" text-anchor="middle">ԵՐԵՎԱՆ</textPath></text><text font-size="12" letter-spacing="2.4"><textPath href="#pm-bot" startOffset="50%" text-anchor="middle">ЕРЕВАН</textPath></text><text x="60" y="66" text-anchor="middle" font-size="16.5" letter-spacing=".3">1920–2026</text></g></svg>
     </div>

@@ -44,7 +44,7 @@
   }
   $$('[data-set-lang]').forEach(function (b) { b.addEventListener('click', function () { setLang(b.getAttribute('data-set-lang'), true); }); });
 
-  /* ---------------- надпись: место → имя → кнопка, один экран ---------------- */
+  /* ---------------- надпись: 4 шага (материал → место → имя → оплата), каждый — один экран ---------------- */
 
   /* буквы по одной (чернила/перо V1): каждая — свой span; keep — оставить совпадающее начало без анимации (ввод) */
   var RM = matchMedia('(prefers-reduced-motion: reduce)').matches || /[?&]rm=1(?:&|$)/.test(location.search);
@@ -79,7 +79,8 @@
     var payBtn = $('a.btn'), payBase = payBtn.getAttribute('href');
     var dots = $$('.spot'), card = $('.card'), ex = $('.ex'), inp = $('#nm'), nmv = $('.nmv'), tag = $('.tag'), sec = $('#spot');
     var PER = 120, BASE = 520;
-    var st = { spot: null, a: '', b: '' };
+    var st = { spot: null, a: '', b: '', step: 1 };
+    var nextBtn = $('.wnext'), backBtn = $('.wback'), FINE = matchMedia('(hover: hover) and (pointer: fine)').matches;
     var caret = d.createElement('i'); caret.className = 'caret'; nmv.appendChild(caret);
 
     function word(k) { return txt($('.dict [data-k="' + k + '"]')); }
@@ -111,7 +112,6 @@
     function render(anim) {
       var s = st.spot, c = s.type === 'couple', own = s.exn === s.n;
       dots.forEach(function (b) { b.setAttribute('aria-pressed', b === s.el ? 'true' : 'false'); });
-      $$('.mats button').forEach(function (b) { b.setAttribute('aria-current', b.getAttribute('data-mat') === s.mat ? 'true' : 'false'); });
       $('.of').textContent = word('of').replace('#', s.n);
       $('.no').textContent = '№ ' + s.n;
       $('.sn').textContent = nameOf(s.id);
@@ -121,7 +121,7 @@
       ex.setAttribute('alt', word('alt_ex').replace('#', nameOf(s.id)));
       $('.ex-own').hidden = !own; $('.ex-from').hidden = own; $('.exn').textContent = s.exn;
       $('.soldmark').hidden = !s.sold;
-      $('.l-name').hidden = c; $('.l-two').hidden = !c;
+      $$('.l-name').forEach(function (e) { e.hidden = c; }); $$('.l-two').forEach(function (e) { e.hidden = !c; });
       $('.nd-name').hidden = c; $('.nd-two').hidden = !c;
       $('.need').hidden = true; $('.bad').hidden = true;
       inp.maxLength = c ? 2 : s.max;
@@ -153,7 +153,7 @@
       setTimeout(function () { card.classList.remove('out'); card.style.removeProperty('--sx'); choose(b, true); busy = false; }, 300);
     }
     function step(k) {
-      if (order.length < 2) return;
+      if (order.length < 2 || st.step > 1) return;                              // на шагах «имя» и «оплата» место уже выбрано — листать нельзя
       var i = order.indexOf(st.spot.el);
       go(order[(i + k + order.length) % order.length], k > 0 ? 'next' : 'prev');
     }
@@ -161,16 +161,10 @@
     $('.next').addEventListener('click', function () { step(1); });
     if (order.length < 2) { $('.prev').hidden = true; $('.next').hidden = true; }
     dots.forEach(function (b) { b.addEventListener('click', function () { go(b); }); });
-    $$('.mats button').forEach(function (m) {
-      m.addEventListener('click', function () {
-        var k = m.getAttribute('data-mat');
-        if (st.spot.mat !== k) go(order.filter(function (b) { return b.getAttribute('data-mat') === k; })[0]);
-      });
-    });
     d.addEventListener('keydown', function (e) { if (e.target === inp) return; if (e.key === 'ArrowLeft') step(-1); if (e.key === 'ArrowRight') step(1); });
     /* свайп по открытке */
     var stage = $('.stage'), x0 = null, y0 = 0, dx = 0;
-    stage.addEventListener('pointerdown', function (e) { if (busy) return; x0 = e.clientX; y0 = e.clientY; dx = 0; });
+    stage.addEventListener('pointerdown', function (e) { if (busy || st.step > 1) return; x0 = e.clientX; y0 = e.clientY; dx = 0; });
     stage.addEventListener('pointermove', function (e) {
       if (x0 === null) return; dx = e.clientX - x0;
       if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(e.clientY - y0)) { card.classList.add('drag'); card.style.setProperty('--sx', dx + 'px'); }
@@ -207,7 +201,35 @@
     });
     inp.addEventListener('focus', function () { tag.classList.add('focus'); });
     inp.addEventListener('blur', function () { tag.classList.remove('focus'); });
-    inp.addEventListener('keydown', function (e) { if (e.key !== 'Enter') return; e.preventDefault(); if (okText()) payBtn.click(); else inp.blur(); });
+    inp.addEventListener('keydown', function (e) { if (e.key !== 'Enter') return; e.preventDefault(); if (okText()) toStep(3); else $('.need').hidden = false; });
+    tag.addEventListener('click', function () { if (st.spot && !st.spot.sold) toStep(2); });          // тап по бирке — сразу к имени
+    tag.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tag.click(); } });
+
+    /* шаги: 1 место · 2 имя · 3 проверка и оплата. Рисунок на всех шагах один и тот же и ничем не закрыт */
+    function toStep(n) {
+      if (n < 1 || n > 3 || !st.spot) return;
+      if (n >= 2 && st.spot.sold) return;
+      if (n === 3 && !okText()) n = 2;
+      st.step = n;
+      sec.setAttribute('data-step', n);
+      $$('[data-s]', sec).forEach(function (e) {
+        var on = +e.getAttribute('data-s') === n;
+        if (e.hidden === on) { e.hidden = !on; if (on && !RM) { e.classList.remove('wz-in'); void e.offsetWidth; e.classList.add('wz-in'); } }
+      });
+      $$('.prog li', sec).forEach(function (li, i) { li.className = i + 1 < n ? 'done' : i + 1 === n ? 'on' : ''; });
+      $$('.stn').forEach(function (e) { e.textContent = n; });
+      backBtn.hidden = n === 1; nextBtn.hidden = n === 3; payBtn.hidden = n !== 3;
+      $('.need').hidden = true;
+      if (n === 3) { $('.sum-place').textContent = '№ ' + st.spot.n + ' · ' + nameOf(st.spot.id); $('.sum-name').textContent = textOf(); }
+      if (n === 2 && FINE) setTimeout(function () { inp.focus(); }, 60);
+      if (n !== 2 && d.activeElement === inp) inp.blur();
+      update();
+    }
+    nextBtn.addEventListener('click', function () {
+      if (st.step === 2 && !okText()) { $('.need').hidden = false; inp.focus(); return; }          // без имени дальше не пускаем: подсказка и поле
+      toStep(st.step + 1);
+    });
+    backBtn.addEventListener('click', function () { toStep(st.step - 1); });
 
     /* ссылка оплаты: /pay/?src=<канал>&spot=<место>&text=<текст> — меняется при выборе места и текста */
     function update() {
@@ -217,6 +239,8 @@
       if (okText()) href += '&text=' + encodeURIComponent(textOf());
       payBtn.setAttribute('href', href);
       payBtn.setAttribute('aria-disabled', okText() ? 'false' : 'true');
+      nextBtn.setAttribute('aria-disabled', st.step === 2 && !okText() ? 'true' : 'false');
+      if (st.step === 3) $('.sum-name').textContent = textOf();
     }
     payBtn.addEventListener('click', function (e) {
       if (!okText()) {                                                           // без имени к кассе не пускаем: подсказка и поле
@@ -249,7 +273,7 @@
         big.setAttribute('width', '480'); big.setAttribute('height', '1040');
       });
     });
-    var wb = $('a.btn'), ms0 = location.search.match(/[?&](?:src|utm_source)=(tiktok|instagram|facebook)(?:&|$)/);
+    var wb = $('a.btn'), ms0 = location.search.match(/[?&](?:src|utm_source)=(tiktok|instagram|facebook|youtube|pinterest)(?:&|$)/);
     if (ms0) wb.setAttribute('href', wb.getAttribute('href').replace('src=site', 'src=' + ms0[1]));
     wb.addEventListener('click', function () { save({ item: 'w' }); });
   }
