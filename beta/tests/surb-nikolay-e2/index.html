@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="hy">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="engine-version" content="e2.0.31">
+<meta name="build-stamp" content="92e4d659449fa9aa">
+<title>Никольский собор · e2</title>
+<style>
+  /* Страница e2: сцена, кнопки состояний, точки, надписи (?n=), открытка (П5). Панель и плашка — П6 (core/ui.js). */
+  html, body { margin: 0; height: 100%; background: #f5ecda; overflow: hidden; }
+  /* e2.0.26 (отзыв Нарека 21.11: «на Маке бета огромная»): сцена не шире кадра, вписанного по высоте экрана (--e2-ar = ширина/высота кадра,
+     ставит core/stage.js). Телефон стоймя — ширина экрана меньше, всё как было («cover»); ПК и телефон лёжа — столбик по центру, кадр целиком. */
+  :root { --e2-ar: 0.5626; --e2-sw: min(100vw, calc(100vh * var(--e2-ar))); --e2-sx: calc((100vw - var(--e2-sw)) / 2); }
+  @supports (height: 100dvh) { :root { --e2-sw: min(100vw, calc(100dvh * var(--e2-ar))); } }
+  #stage { position: fixed; top: 0; bottom: 0; left: var(--e2-sx); width: var(--e2-sw); touch-action: none; }
+  body.fit-old #stage { left: 0; width: 100%; }
+  #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  /* Нижний ряд: ‹ меню › — расположение e2.0.11. Вид — как у e1.62 на телефоне: стрелки — «пузыри» с карандашным значком, меню — бумажная бирка со значком и словом.
+     Больше на экране ничего: время суток, осадки, «до и после», кадры, открытка, надпись, язык — в меню (шторка снизу, вид и анимации e1.62, docs/ANIMATION.md). */
+  #bar { position: fixed; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom, 0px) + 10px); display: flex; gap: 14px; justify-content: center; align-items: center; z-index: 5; pointer-events: none; }
+  body.panel-open #bar { z-index: 12; }
+  #bar .arrow-btn { pointer-events: auto; touch-action: manipulation; -webkit-tap-highlight-color: transparent; display: grid; place-items: center; box-sizing: border-box; flex: none; width: 56px; height: 56px; padding: 0;
+    border: 0; border-radius: 50%; color: var(--fg); cursor: pointer; background: radial-gradient(closest-side, rgba(var(--bk), 0.9) 0, rgba(var(--bk), 0.86) 60%, rgba(var(--bk), 0) 100%);
+    transition: transform 200ms var(--spring), opacity 200ms var(--spring); }
+  #bar .arrow-btn svg { display: block; width: 36px; height: 36px; }
+  #bar .nav-next svg { transform: rotate(180deg); }
+  #bar .arrow-btn:active { transform: scale(0.9); opacity: 0.85; }
+  /* бирка меню: значок-список и слово на языке страницы; открыто — крестик и «Закрыть»; идёт шоу — квадрат и «Стоп» */
+  #bar #menuBtn { pointer-events: auto; touch-action: manipulation; -webkit-tap-highlight-color: transparent; position: relative; display: block; box-sizing: border-box; width: auto; min-width: 66px; height: 58px; padding: 0;
+    border: 0; border-radius: 0; background: none; color: var(--fg); cursor: pointer; transform-origin: 50% 8%; transition: transform 350ms var(--ease); }
+  #bar #menuBtn:active { transform: scale(0.94); }
+  .pb-tag { display: flex; position: relative; min-width: 66px; height: 58px; padding: 3px 9px 0; box-sizing: border-box; flex-direction: column; align-items: center; justify-content: center; color: var(--fg); transition: transform 300ms var(--spring); }
+  body.panel-open .pb-tag { transform: rotate(-4deg); }
+  .pb-bg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 2px 3px rgba(60, 45, 20, 0.22)); }
+  .pb-fill { fill: rgba(var(--bk), 0.95); }
+  .pb-line { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; }
+  .pb-line2 { fill: none; stroke: currentColor; stroke-width: 0.8; opacity: 0.45; stroke-linecap: round; }
+  .pb-hole { fill: none; stroke: currentColor; stroke-width: 1.1; opacity: 0.7; }
+  .pb-ic { position: relative; width: 24px; height: 17px; display: none; }
+  .pb-ic.ic-menu { display: block; }
+  body.panel-open .pb-ic.ic-menu, body.show-on .pb-ic.ic-menu { display: none; }
+  body.panel-open .pb-ic.ic-x { display: block; }
+  body.show-on:not(.panel-open) .pb-ic.ic-stop { display: block; }
+  .pb-txt { position: relative; margin-top: 3px; font: 700 11px/1.05 var(--font); letter-spacing: 0.01em; white-space: nowrap; }
+  html[lang="hy"] .pb-txt { font-size: 10px; letter-spacing: 0; }
+  html[data-ui="0"] #bar, html[data-ui="0"] #panel, html[data-ui="0"] #panelScrim, html[data-ui="0"] #plate, html[data-ui="0"] #plateTag, html[data-ui="0"] #immExit { display: none; }
+  /* Шторка меню: выезжает снизу над нижним рядом, бумага с карандашной рамкой; перо обводит рамку (украшение — ничего не задерживает), пункты проявляются лесенкой.
+     Бюджет П6 (docs/STANOK.md §5.4, гейт G12): первая строка видна и нажимается ≤ 250 мс, вся анимация ≤ 450 мс, закрытие — зеркало и быстрее (≤ 60 %). */
+  #panelScrim { position: fixed; inset: 0; z-index: 10; background: rgba(20, 16, 8, 0.32); opacity: 0; pointer-events: none; transition: opacity 180ms var(--ease); }
+  body.panel-open #panelScrim { opacity: 1; pointer-events: auto; transition: opacity 300ms var(--ease); }
+  #panel { position: fixed; z-index: 11; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 78px); width: min(calc(100vw - 16px), 460px); box-sizing: border-box; color: var(--ink); font: 16px/1.4 var(--font);
+    height: min(68vh, calc(100vh - 78px - env(safe-area-inset-bottom, 0px) - env(safe-area-inset-top, 0px) - 16px)); height: min(68dvh, calc(100dvh - 78px - env(safe-area-inset-bottom, 0px) - env(safe-area-inset-top, 0px) - 16px));
+    opacity: 0; visibility: hidden; pointer-events: none; transform: translate(-50%, 22px); transform-origin: 50% 100%; will-change: transform, opacity; transition: none; }   /* закрытие — сразу (шторка не ждёт кадров), открытие — подъём ниже */
+  /* Открытие (e2.0.20, отзыв Нарека 19.11 «просто появляется»): бумага выезжает из-под бирки меню — подъём 22 px за 280 мс по кривой шторок iOS (было 14 px за 140 мс),
+     пункты проявляются лесенкой (ниже). Только transform — на GPU. Проявление шторки (opacity) и расправление (scale 0,965) пробовались: G12 ×4 — 439–491 и 300–309 мс
+     (непрозрачность группы и новый масштаб растра стоят кадров); только подъём — 171–217 мс (e2.0.19 — 228). */
+  body.panel-open #panel { opacity: 1; visibility: visible; pointer-events: auto; transform: translate(-50%, 0) scale(1); transition: transform 280ms var(--ios); }
+  /* Прогрев: один раз вскоре после первого кадра шторка на 0,4 с «рисуется» почти прозрачной на своём месте (core/ui.js) — первое настоящее открытие не ждёт растеризации (G12) */
+  body.panel-warm #panelScrim { opacity: 0.01; transition: none; }
+  body.panel-warm #panel { visibility: visible; opacity: 0.01; transform: translate(-50%, 0); pointer-events: none; transition: none; }
+  html.no-anim #panel, html.no-anim #panelScrim, html.no-anim #plate, html.no-anim #plateTag { transition: none !important; }
+  .sketch { background: var(--paper); border: 2px solid var(--ink); border-radius: 22px 22px 12px 12px / 18px 18px 12px 12px; box-shadow: 3px 4px 0 rgba(47, 42, 37, 0.16);
+    outline: 1px solid rgba(47, 42, 37, 0.3); outline-offset: -7px; }
+  .panel-card { position: absolute; inset: 0; display: grid; grid-template-rows: minmax(0, 1fr); padding: 0; font-size: var(--fs-body); }
+  /* прокручивается внутренняя область. Края — не маска и не скругляющий клип (в программном рендере они компилируют отдельные шейдеры и тормозят первое открытие, G12):
+     область — прямоугольник, вдвинутый внутрь скруглений рамки, а растворение у краёв — две полоски-градиента цвета бумаги */
+  .panel-scroll { min-height: 0; margin: 14px 6px; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; scrollbar-width: thin; display: grid; align-content: start; row-gap: var(--s2); padding: var(--s2) var(--s3) var(--s3);
+    grid-template-columns: minmax(0, 420px); justify-content: center; scroll-padding: var(--s3) 0; }
+  .panel-card::before, .panel-card::after { content: ''; position: absolute; left: 6px; right: 6px; height: 18px; z-index: 2; pointer-events: none; }
+  .panel-card::before { top: 14px; background: linear-gradient(var(--paper), rgba(245, 236, 218, 0)); }
+  .panel-card::after { bottom: 14px; background: linear-gradient(rgba(245, 236, 218, 0), var(--paper)); }
+  .panel-scroll > * { min-width: 0; }
+  .p-title { display: block; margin: 0 var(--s4) 0 0; font: 700 22px/1.2 var(--font); }
+  .p-sec { margin: 0; }
+  .p-sec h3 { margin: 0 0 var(--s1); font: 700 20px/1.2 var(--font); }
+  #sheetClose { position: absolute; top: 10px; right: 10px; z-index: 4; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border-radius: 50%; border: 1.5px solid rgba(47, 42, 37, 0.3);
+    background: rgba(255, 252, 244, 0.85); color: var(--ink); cursor: pointer; touch-action: manipulation; }
+  #sheetClose svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 1; }
+  .pen-m { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; overflow: visible; }
+  .pen-m path { fill: none; stroke: var(--ink); stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
+  .pen-m .pm1 { stroke-width: 2.2; } .pen-m .pm2 { stroke-width: 1; opacity: 0.4; }
+  /* кнопки-значки: «одно из» — в общей дорожке (выбрана одна), «можно вместе» — отдельные с отметкой; включённая — тёмная, её значок оживает */
+  .p-grp .grp-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 0 6px; }
+  .p-grp .grp-h h3 { margin: 0; }
+  .grp-hint { font: italic 500 12px/1.2 var(--font); color: rgba(47, 42, 37, 0.6); white-space: nowrap; }
+  .chips { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
+  .chips-one { padding: 4px; border-radius: 16px; background: rgba(47, 42, 37, 0.07); box-shadow: inset 0 1px 2px rgba(47, 42, 37, 0.12); }
+  .chip { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 60px; padding: 7px 3px 6px; box-sizing: border-box;
+    border: 1.5px solid rgba(47, 42, 37, 0.22); border-radius: 13px; background: rgba(255, 252, 244, 0.75); color: var(--ink); font: 600 12px/1.3 var(--font); cursor: pointer; box-shadow: 0 1px 0 rgba(47, 42, 37, 0.10);
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+    transition: background-color 220ms var(--spring), color 220ms var(--spring), border-color 220ms var(--spring), transform 160ms var(--spring), box-shadow 220ms var(--spring); }
+  .chips-one .chip { border-color: transparent; background: transparent; box-shadow: none; }
+  .chip:active { transform: scale(0.94); }
+  .chip.on { background: var(--ink); color: var(--paper); border-color: var(--ink); box-shadow: 0 2px 8px rgba(47, 42, 37, 0.28); }
+  .chip svg { width: 30px; height: 30px; overflow: visible; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .chip span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.4; padding-bottom: 1px; }
+  .chips-text .chip { min-height: 44px; font-size: 15px; }
+  .chip:disabled { opacity: 0.35; cursor: not-allowed; filter: grayscale(1); }
+  .i-sun { fill: #f2b632; stroke: #b9831a; } .i-setsun { fill: #f08a3c; stroke: #b95a1f; } .i-glow { stroke: #f08a3c; }
+  .i-moon { fill: #efe6c4; stroke: #a99a64; } .i-star { stroke: #e9c85a; }
+  .i-cloudf { fill: #fbf8f0; stroke: currentColor; }
+  .i-drops path { stroke: #4a86c5; stroke-width: 2.1; } .i-flake { stroke: #6fa2cf; }
+  .i-check { stroke: #6aa05a; stroke-width: 2.2; }
+  .i-cardsun { stroke: #6aa05a; } .i-cardsun2 { fill: #f2b632; stroke: #b9831a; } .i-plq { stroke: currentColor; opacity: 0.7; }
+  .chip.on .i-cloudf { fill: #fbf8f0; stroke: #fbf8f0; } .chip.on .i-drops path { stroke: #8cc0f2; } .chip.on .i-flake { stroke: #bfe0ff; }
+  .p-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .p-acts .act[hidden], .p-acts[hidden], .p-sec[hidden] { display: none; }
+  .p-acts .chip-act { width: 100%; min-height: 64px; white-space: normal; }
+  .p-acts .chip-act span { white-space: normal; text-align: center; line-height: 1.15; }
+  .p-acts .act-pair { min-height: 68px; gap: 5px; border-width: 1.5px; border-color: rgba(47, 42, 37, 0.4); }
+  .act-pair svg { width: 32px; height: 32px; overflow: visible; }
+  .act-pair span { font-size: 13px; font-weight: 700; }
+  .p-acts.solo .act:not([hidden]) { grid-column: 1 / -1; }
+  .p-acts .act-card:has(#cardBtn[hidden]) { display: none; }
+  .p-acts:has(#cardBtn[hidden]) .act { grid-column: 1 / -1; }
+  #cardBtn[hidden] { display: none; }
+  .i-fs path { transition: transform 420ms var(--spring); transform-box: view-box; } .i-fs-in { transform-origin: 16px 16px; }
+  .i-story { transition: transform 420ms var(--spring); transform-box: view-box; transform-origin: 16px 28px; }
+  .sh-star { transform-box: fill-box; transform-origin: 50% 50%; }
+  .sh-sp1, .sh-sp2 { transform-box: fill-box; transform-origin: 50% 50%; }
+  body.panel-settled .sh-star { animation: shTwinkle 5200ms var(--spring) infinite; }
+  body.panel-settled .sh-sp1, body.panel-settled .sh-sp2 { animation: shTwinkle 5200ms var(--spring) 260ms infinite; }
+  @keyframes shTwinkle { 0%, 84%, 100% { transform: scale(1) rotate(0); } 89% { transform: scale(1.32) rotate(18deg); } 94% { transform: scale(0.9) rotate(-6deg); } }
+  /* «Ожить» (шоу кадра) и «Оставить надпись» — компактные бумажные бирки, как кнопка B на главной (assets/hub-museum.css .card-sale, решение Нарека 18.11;
+     отзыв 19.11: оба пункта в одном стиле). Нажали «Ожить» → шторка закрывается → начинается показ; во время показа бирка меню = «Стоп» */
+  .p-tag { position: relative; display: flex; align-items: center; gap: 8px; box-sizing: border-box; width: fit-content; max-width: 100%; min-height: 44px; margin: 0 auto; padding: 0 16px 0 12px;
+    font: 600 16px/1.2 var(--font); white-space: nowrap; text-decoration: none; color: var(--ink); background: #fbf6ea; border: 1px solid rgba(42, 36, 32, 0.42); border-radius: 3px;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset, 0 2px 4px rgba(42, 36, 32, 0.18); cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+    transition: transform 160ms var(--spring), box-shadow 160ms var(--spring); }
+  .p-tag::before { content: ""; position: absolute; inset: 3px; border: 1px dashed rgba(42, 36, 32, 0.22); border-radius: 2px; pointer-events: none; }
+  .p-tag:active { transform: translateY(1px); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset, 0 1px 2px rgba(42, 36, 32, 0.18); }
+  .p-tag svg { width: 20px; height: 20px; flex: none; overflow: visible; color: #8a2c33; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .p-tag:disabled { opacity: 0.4; cursor: not-allowed; filter: grayscale(1); }
+  html[data-textsize="normal"] .p-tag { font-size: 15px; min-height: 42px; }
+  .p-btn { display: flex; align-items: center; justify-content: center; box-sizing: border-box; width: 100%; min-height: 48px; padding: var(--s1) var(--s2); cursor: pointer; border: 2px solid var(--ink); border-radius: 12px 6px 12px 6px / 6px 12px 6px 12px;
+    background: transparent; color: var(--ink); text-align: center; text-decoration: none; font: 700 var(--fs-body)/1.15 var(--font); touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: background-color 200ms var(--spring), color 200ms var(--spring); }
+  .p-btn:active { background-color: rgba(47, 42, 37, 0.08); }
+  .p-btn.p-history { background: var(--ink); color: var(--paper); }
+  .p-btn.p-history:active { background-color: #443c35; }
+  .p-sale[hidden] { display: none; }
+  .p-about p { margin: 0 0 var(--s1); font-size: var(--fs-small); line-height: 1.35; }
+  #thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s1); }
+  #thumbs button { position: relative; padding: 0; border: 1.5px solid rgba(47, 42, 37, 0.25); border-radius: 12px; overflow: hidden; cursor: pointer; background: var(--paper); aspect-ratio: 4 / 5; box-shadow: 0 1px 0 rgba(47, 42, 37, 0.12);
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: border-color 260ms var(--spring), transform 320ms var(--spring), box-shadow 320ms var(--spring); }
+  #thumbs button img, #thumbs button canvas { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 58%; filter: saturate(0.85); transition: filter 400ms; }
+  #thumbs .th-num { position: absolute; left: 6px; bottom: 6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: rgba(245, 236, 218, 0.92); color: var(--ink); font: 700 11px/20px var(--font); text-align: center; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); }
+  #thumbs button.on { border-color: var(--ink); transform: scale(1.04); box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink), 0 6px 16px rgba(47, 42, 37, 0.3); }
+  #thumbs button.on img, #thumbs button.on canvas { filter: none; }
+  #thumbs button.on .th-num { background: var(--ink); color: var(--paper); }
+  #thumbs button:active { transform: scale(0.95); }
+  .size-mini { display: inline-grid; grid-auto-columns: 48px; gap: 2px; padding: 3px; border-radius: 14px; flex: none; }
+  .size-mini .chip { min-height: 40px; padding: 0; border-radius: 11px; gap: 0; }
+  .p-size .grp-h { align-items: center; margin: 0; }
+  .aa { font-family: var(--font); font-weight: 700; line-height: 1; } .aa-s { font-size: 13px; } .aa-l { font-size: 19px; }
+  /* размер текста: «крупный» по умолчанию (аудитория пожилая), как у e1.62 */
+  html[data-textsize="normal"] { --fs-body: 15px; --fs-small: 13px; --fs-card: 17px; }
+  /* Появление (украшение, на готовность не влияет): перо обводит рамку, рамка проступает, пункты и кнопки проявляются лесенкой (шаг 12 мс, всего ≤ 120 мс) */
+  :is(body.panel-open, body.panel-warm) .pen-m .pm1 { animation: penDraw 340ms cubic-bezier(0.4, 0.05, 0.3, 1) 40ms backwards, penFade 200ms linear 330ms forwards; }
+  :is(body.panel-open, body.panel-warm) .pen-m .pm2 { animation: penDraw 300ms cubic-bezier(0.4, 0.05, 0.3, 1) 110ms backwards, penFade 200ms linear 380ms forwards; }
+  :is(body.panel-open, body.panel-warm) .panel-card { animation: sheetInQ 240ms ease 60ms backwards; }
+  :is(body.panel-open, body.panel-warm) .panel-scroll > *:nth-child(n+4) { animation: itemIn 220ms var(--ease) backwards; animation-delay: calc(60ms + var(--n, 0) * 12ms); }
+  :is(body.panel-open, body.panel-warm) .panel-scroll > *:nth-child(n+4) .chips > .chip, :is(body.panel-open, body.panel-warm) #thumbs button { animation: chipIn 260ms var(--spring) backwards; animation-delay: calc(100ms + var(--n, 0) * 12ms + var(--c, 0) * 15ms); }
+  :is(body.panel-open, body.panel-warm) #sheetClose { animation: chipIn 260ms var(--spring) 120ms backwards; }
+  :is(body.panel-open, body.panel-warm) #sheetClose path { animation: penDraw 260ms ease 200ms backwards; }
+  @keyframes penDraw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+  @keyframes penFade { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes sheetInQ{ from { border-color: transparent; outline-color: transparent; box-shadow: none; } }
+  @keyframes itemIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  @keyframes chipIn { 0% { opacity: 0; transform: translateY(8px) scale(0.86); } 70% { opacity: 1; transform: scale(1.04); } 100% { transform: none; } }
+  /* живые значки — только у включённых и только без «уменьшения движения» */
+  @keyframes icSpin { to { transform: rotate(360deg); } }
+  @keyframes icSink { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(2.2px); } }
+  @keyframes icTwinkle { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+  @keyframes icDrop { 0% { transform: translate(0, -3px); opacity: 0; } 25% { opacity: 1; } 100% { transform: translate(-1.2px, 4px); opacity: 0; } }
+  @keyframes icFlake { 0% { transform: rotate(0) scale(1); } 50% { transform: rotate(60deg) scale(0.9); } 100% { transform: rotate(120deg) scale(1); } }
+  @keyframes icPop { 0% { transform: scale(0.8); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
+  @media (prefers-reduced-motion: no-preference) {
+    .chip.on svg { animation: icPop 360ms var(--spring); }
+    body.panel-settled .chip.on .i-rays { transform-origin: 16px 16px; animation: icSpin 9s linear infinite; }
+    body.panel-settled .chip.on .i-setsun { animation: icSink 3.2s ease-in-out infinite; }
+    body.panel-settled .chip.on .i-star { animation: icTwinkle 1.8s ease-in-out infinite; } body.panel-settled .chip.on .i-star.s2 { animation-delay: 0.7s; }
+    body.panel-settled .chip.on .i-drops path { animation: icDrop 0.9s linear infinite; } body.panel-settled .chip.on .i-drops .d2 { animation-delay: 0.3s; } body.panel-settled .chip.on .i-drops .d3 { animation-delay: 0.6s; }
+    body.panel-settled .chip.on .i-flake { transform-origin: 16px 16px; animation: icFlake 4s ease-in-out infinite; }
+  }
+  /* «Уменьшить движение»: шторка просто проявляется, без пера и лесенки; отклик на нажатие остаётся */
+  @media (prefers-reduced-motion: reduce) {
+    #panel { transition-duration: 1ms; } body.panel-open #panel { transition-duration: 1ms; }
+    :is(body.panel-open, body.panel-warm) .pen-m, :is(body.panel-open, body.panel-warm) .panel-scroll > *, :is(body.panel-open, body.panel-warm) .chips > .chip, :is(body.panel-open, body.panel-warm) #thumbs button, :is(body.panel-open, body.panel-warm) #sheetClose, :is(body.panel-open, body.panel-warm) #sheetClose path, :is(body.panel-open, body.panel-warm) .panel-card { animation: none; }
+    .pen-m { display: none; } body.panel-settled .sh-star, body.panel-settled .sh-sp1, body.panel-settled .sh-sp2 { animation: none; }
+  }
+  /* смена языка и размера текста (как у e1.62): текст гаснет 120 мс → меняется → проявляется снизу; только opacity/transform */
+  html.tx-run.tx-lang :is([data-i18n], #aboutText, .pb-txt), html.tx-run.tx-size :is(.panel-scroll, #plate) { transition: opacity 300ms var(--out), transform 460ms var(--spring); }
+  html.tx-run.tx-size .panel-scroll { transform-origin: 50% 0; }
+  html.tx-lang.tx-out :is([data-i18n], #aboutText, .pb-txt) { opacity: 0; transform: translateY(-4px); transition: opacity 120ms var(--in), transform 120ms var(--in); }
+  html.tx-lang.tx-pre :is([data-i18n], #aboutText, .pb-txt) { opacity: 0; transform: translateY(6px); transition: none; }
+  html.tx-size.tx-out :is(.panel-scroll, #plate) { opacity: 0; transform: scale(0.985); transition: opacity 120ms var(--in), transform 120ms var(--in); }
+  html.tx-size.tx-pre :is(.panel-scroll, #plate) { opacity: 0; transform: translateY(6px) scale(0.98); transition: none; }
+  /* «Во весь экран» на iPhone: Safari не даёт полный экран страницам — прячем всё, кроме картинки; крестик в углу возвращает */
+  #immExit { display: none; }
+  body.immersive #bar, body.immersive #plate, body.immersive #plateTag, body.immersive #hotspots { opacity: 0 !important; pointer-events: none !important; transition: opacity 500ms; }
+  body.immersive #immExit { display: grid; place-items: center; position: fixed; top: calc(env(safe-area-inset-top, 0px) + 12px); right: calc(var(--e2-sx) + 12px); z-index: 90; width: 44px; height: 44px; padding: 0; border-radius: 50%; border: 1.5px solid rgba(47, 42, 37, 0.3);
+    background: rgba(255, 252, 244, 0.8); color: var(--ink); animation: chipIn 420ms var(--spring) backwards; }
+  body.immersive #immExit svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+  body.immersive.imm-idle #immExit { opacity: 0.18; transition: opacity 800ms; }
+  /* Плашка (название + подпись кадра): 3 с при входе на кадр, потом бирка. Место выбирает core/ui.js по карте изюминок кадра */
+  #plate { position: fixed; z-index: 4; left: 50%; box-sizing: border-box; max-width: min(86vw, 380px); padding: 8px 14px; text-align: center; color: var(--ink); background: rgba(245, 236, 218, .92);
+    border: 1.5px solid var(--ink); border-radius: 4px; display: grid; gap: 2px; pointer-events: none; opacity: 0; visibility: hidden; transform: translate(-50%, -4px); transition: opacity 300ms var(--ease), transform 300ms var(--ease), visibility 0s 300ms; }
+  #plate.on { opacity: 1; visibility: visible; transform: translate(-50%, 0); transition-delay: 0s; }
+  #plate b { font: 700 16px/1.2 var(--font); } #plate span { font: 400 13px/1.25 var(--font); }
+  /* Честное «страница не загрузилась» (e2.0.28): вместо пустого экрана, если первый кадр или сам движок не поднялись. Работает без движка — стиль и скрипт лежат здесь. */
+  #loadFail { position: fixed; inset: 0; z-index: 100; display: none; align-items: center; justify-content: center; box-sizing: border-box; padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
+    background: #f5ecda; color: #2f2a25; font: 16px/1.4 "Chka Serif", "Noto Serif", serif; text-align: center; }
+  html[data-e2-fail] #loadFail { display: flex; }
+  .wl.wl-fixed { z-index: 95; }   /* экран загрузки (e2.0.30) — над сценой, меню и «Оригиналом», под плашкой «не загрузилась» */
+  #loadFail .lf-card { box-sizing: border-box; width: min(100%, 360px); padding: 22px 18px 18px; background: #f5ecda; border: 2px solid #2f2a25; border-radius: 22px 22px 12px 12px / 18px 18px 12px 12px; box-shadow: 3px 4px 0 rgba(47, 42, 37, 0.16); }
+  #loadFail h1 { margin: 0 0 2px; font-size: 22px; line-height: 1.2; font-weight: 700; }
+  #loadFail p { margin: 0 0 14px; font-size: 15px; }
+  #loadFail .lf-ru { opacity: 0.8; }
+  #loadFail .lf-sep { height: 0; margin: 14px 0; border: 0; border-top: 1px dashed rgba(47, 42, 37, 0.4); }
+  #loadFail button, #loadFail a { display: block; box-sizing: border-box; width: 100%; min-height: 48px; margin: 0 0 10px; padding: 8px 12px; font-size: 16px; line-height: 1.25; font-weight: 700; font-family: inherit; text-decoration: none; text-align: center; cursor: pointer;
+    color: #2f2a25; background: #ede0c2; border: 2px solid #2f2a25; border-radius: 14px 14px 10px 10px / 12px 12px 10px 10px; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+  #loadFail button:active, #loadFail a:active { transform: scale(0.97); }
+  #loadFail a { background: transparent; border-color: rgba(47, 42, 37, 0.45); font-weight: 600; margin-bottom: 0; }
+  #loadFail small { display: block; margin-top: 10px; font-size: 12px; opacity: 0.55; }
+  #plate.pos-top, #plateTag.pos-top { top: calc(env(safe-area-inset-top, 0px) + 72px); }
+  #plate.pos-bottom { bottom: calc(env(safe-area-inset-bottom, 0px) + 80px); }
+  #plateTag.pos-bottom { bottom: calc(env(safe-area-inset-bottom, 0px) + 80px); }
+  #plateTag { position: fixed; z-index: 4; left: calc(var(--e2-sx) + 10px); max-width: calc(var(--e2-sw) * 0.46); min-height: 32px; box-sizing: border-box; padding: 4px 10px; font: 400 13px/1.2 var(--font); color: var(--ink); background: rgba(245, 236, 218, .85);
+    border: 1px solid rgba(47, 42, 37, .7); border-radius: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; touch-action: manipulation; opacity: 0; visibility: hidden; transition: opacity 300ms var(--ease), visibility 0s 300ms; }
+  #plateTag.on { opacity: 1; visibility: visible; transition-delay: 0s; }
+  @media (prefers-reduced-motion: reduce) { #panel, #plate { transition-duration: 1ms; } }
+  /* «Оригинал» (fx/original.js, e2.0.29): архивное фото кадра на своём месте, шторка-карандаш между рисунком и фото (вариант 1, report/source-photo/compare.jpg).
+     Справа от линии — бумага и фото (проявляется из сепии), слева — живой рисунок; табличка сверху. Пока открыт — стрелки и точки прячутся, бирка меню = «Закрыть». */
+  #orig { position: absolute; inset: 0; z-index: 6; overflow: hidden; touch-action: none; cursor: ew-resize; -webkit-user-select: none; user-select: none; }
+  #orig[hidden] { display: none; }
+  #orig .og-side { position: absolute; inset: 0; clip-path: inset(0 0 0 100%); -webkit-clip-path: inset(0 0 0 100%); }
+  #orig .og-paper { position: absolute; inset: 0; background: radial-gradient(120% 90% at 50% 45%, rgba(239, 228, 204, 0.9), rgba(226, 211, 180, 0.95)); }
+  #orig .og-img { position: absolute; left: 0; top: 0; display: block; max-width: none; box-sizing: border-box; opacity: 0; pointer-events: none;
+    filter: sepia(0.9) brightness(1.35) contrast(0.7); box-shadow: 0 0 0 3px #fbf8ef, 0 0 0 4px rgba(47, 42, 37, 0.38), 0 6px 18px rgba(47, 42, 37, 0.25);
+    transition: opacity 700ms var(--ease), filter 1400ms var(--ease); }
+  #orig .og-img.in { opacity: 1; filter: sepia(0.18) contrast(1.04); }
+  /* e2.0.30: подпись авторства мелко на самом фото — правый нижний угол видимой части, только на стороне фото (внутри шторки) */
+  #orig .og-credit { position: absolute; box-sizing: border-box; max-width: min(calc(50% - 24px), 300px); padding: 2px 6px; font: 400 10.5px/1.25 var(--font); color: var(--ink); background: rgba(245, 236, 218, 0.78); border-radius: 3px; text-align: right; pointer-events: none; opacity: 0; transition: opacity 400ms var(--ease) 300ms; }
+  #orig.open .og-credit { opacity: 0.9; } #orig.shut .og-credit { opacity: 0; transition-delay: 0s; }
+  #orig .og-line { position: absolute; left: -6px; top: 0; bottom: 0; width: 12px; pointer-events: none; will-change: transform; }
+  #orig .og-line svg { width: 100%; height: 100%; overflow: visible; }
+  #orig .og-line path { fill: none; stroke: var(--ink); stroke-linecap: round; vector-effect: non-scaling-stroke; }
+  #orig .og-line .l1 { stroke-width: 2.2; } #orig .og-line .l2 { stroke-width: 0.9; opacity: 0.45; }
+  html[data-night="1"] #orig .og-line path { stroke: #f3e9d2; }
+  #orig .og-knob { position: absolute; left: -22px; top: 56%; width: 44px; height: 44px; margin: -22px 0 0; padding: 0; border: 0; background: none; color: var(--ink);
+    transform: translateX(100vw); will-change: transform; cursor: ew-resize; touch-action: none; -webkit-tap-highlight-color: transparent; }
+  #orig .og-dot { display: grid; place-items: center; width: 44px; height: 44px; box-sizing: border-box; border-radius: 50%; background: var(--paper); border: 1.8px solid var(--ink); box-shadow: 0 2px 6px rgba(47, 42, 37, 0.3); }
+  #orig .og-dot svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  #orig .og-tag { position: absolute; top: 50%; transform: translateY(-50%); padding: 3px 8px; font: 600 13px/1.2 var(--font); white-space: nowrap; color: var(--ink);
+    background: rgba(245, 236, 218, 0.92); border: 1px solid rgba(47, 42, 37, 0.6); border-radius: 3px; transition: opacity 250ms var(--ease); }
+  #orig .og-l { right: calc(100% + 6px); } #orig .og-r { left: calc(100% + 6px); }
+  #orig.edge-l .og-l, #orig.edge-r .og-r { opacity: 0; }
+  #orig .og-plate { position: absolute; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 14px); box-sizing: border-box; width: max-content; max-width: min(calc(100% - 24px), 380px);
+    display: grid; gap: 1px; padding: 8px 14px 7px; text-align: center; color: var(--ink); background: rgba(245, 236, 218, 0.95); border: 1.5px solid var(--ink); border-radius: 4px;
+    box-shadow: 2px 3px 0 rgba(47, 42, 37, 0.16); cursor: default; transform: translate(-50%, -8px); opacity: 0; transition: opacity 300ms var(--ease), transform 300ms var(--ease); }
+  #orig.open .og-plate { opacity: 1; transform: translate(-50%, 0); transition-delay: 350ms; }
+  #orig.shut .og-plate { opacity: 0; transition-delay: 0s; }
+  #orig .og-plate b { font: 700 17px/1.25 var(--font); } #orig .og-plate span { font: 400 13px/1.3 var(--font); opacity: 0.85; }
+  #orig .og-plate a { justify-self: center; min-height: 30px; display: inline-flex; align-items: center; padding: 0 6px; font: 600 13px/1 var(--font); color: #8a2c33; text-underline-offset: 3px; }
+  #orig .og-plate a[hidden] { display: none; }
+  body.orig-on #bar { z-index: 12; }
+  body.orig-on #bar .arrow-btn, body.orig-on #hotspots { opacity: 0; pointer-events: none; transition: opacity 200ms; }
+  body.orig-on .pb-ic.ic-menu { display: none; } body.orig-on:not(.show-on) .pb-ic.ic-x { display: block; }
+  @media (prefers-reduced-motion: reduce) { #orig .og-img { transition-duration: 1ms; } #orig .og-plate { transition-duration: 1ms; } }
+  /* Шрифт открытки и карточек — Noto Serif (OFL, fonts/LICENSE.txt), как у e1.62; файлы рядом с движком e/<версия>/fonts/ */
+  @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
+    src: url(../../../beta/e/e2.0.31/fonts/NotoSerif-latin.woff2?v=e2.0.31) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
+    src: url(../../../beta/e/e2.0.31/fonts/NotoSerif-cyrillic.woff2?v=e2.0.31) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+  @font-face { font-family: "Chka Serif"; font-style: normal; font-weight: 400 700; font-display: swap;
+    src: url(../../../beta/e/e2.0.31/fonts/NotoSerifArmenian-armenian.woff2?v=e2.0.31) format("woff2"); unicode-range: U+0308, U+0530-058F, U+2010, U+2024, U+25CC, U+FB13-FB17; }
+  :root { --font: "Chka Serif", "Noto Serif", serif; --paper: #f5ecda; --paper-2: #ede0c2; --ink: #2f2a25; --ease: cubic-bezier(.22, 1, .36, 1);
+    /* кривые и меры меню — те же, что у e1.62 (docs/ANIMATION.md): пружина iOS, кривая шторок, появление, уход */
+    --spring: cubic-bezier(0.22, 1, 0.36, 1); --ios: cubic-bezier(0.32, 0.72, 0, 1); --out: cubic-bezier(0.16, 1, 0.3, 1); --in: cubic-bezier(0.4, 0, 0.9, 0.3);
+    --s1: 8px; --s2: 16px; --s3: 24px; --s4: 32px; --fs-body: 18px; --fs-small: 15px; --fs-card: 22px; --bk: 245, 236, 218; --fg: #2f2a25; }
+  @supports (transition-timing-function: linear(0, 1)) {
+    :root { --spring: linear(0, 0.0193, 0.0683, 0.1365, 0.2155, 0.2993, 0.3832, 0.4643, 0.5405, 0.6104, 0.6734, 0.7293, 0.7782, 0.8205, 0.8565, 0.8869, 0.9123, 0.9332, 0.9502, 0.9639, 0.9748, 0.9834, 0.9899, 0.9949, 0.9985, 1.0011, 1.0029, 1.0041, 1.0047, 1.005, 1.005, 1.0048, 1.0045, 1.0042, 1.0038, 1.0033, 1.0029, 1.0025, 1.0021, 1.0018, 1); }
+  }
+  html[data-night="1"] { --bk: 22, 28, 50; --fg: #f3e9d2; }   /* ночью подложка кнопок тёмно-синяя, значки светлые (ставит core/ui.js) */
+  /* Точки-подсказки (fx/hotspots.js) — как у живого e1.62: без цифр и обводок, мягкий пульс; карточка-бумага растёт из точки */
+  #hotspots { position: absolute; inset: 0; z-index: 6; pointer-events: none; }
+  .hs-dot { position: absolute; top: 0; left: 0; width: 22px; height: 22px; margin: -11px; border: none; padding: 0; background: none;
+    pointer-events: auto; cursor: pointer; opacity: 0; transition: opacity 400ms var(--ease); }
+  .hs-dot.show { opacity: 1; }
+  .hs-dot::before, .hs-dot::after { content: ''; position: absolute; left: 50%; top: 50%; border-radius: 50%; transform: translate(-50%, -50%); }
+  .hs-dot::before { width: 10px; height: 10px; background: #fff; border: 2px solid rgba(20,16,8,0.55); box-shadow: 0 1px 4px rgba(0,0,0,0.35); }
+  .hs-dot::after { width: 10px; height: 10px; background: rgba(255,255,255,0.7); animation: hsPulse 2.2s var(--ease) infinite; }
+  @keyframes hsPulse { 0% { transform: translate(-50%, -50%) scale(1); opacity: 0.7; } 100% { transform: translate(-50%, -50%) scale(2.8); opacity: 0; } }
+  .hs-dot.insc-me { animation: inscPulse 1.6s var(--ease) 3; border-radius: 50%; }
+  @keyframes inscPulse { 0% { box-shadow: 0 0 0 0 rgba(255,236,190,.9); } 100% { box-shadow: 0 0 0 22px rgba(255,236,190,0); } }
+  #hsPopup { position: fixed; z-index: 7; width: max-content; max-width: min(84vw, 360px); display: grid; row-gap: 10px; padding: 10px 14px;
+    font: 18px/1.35 var(--font); color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 4px; --shift: 0px;
+    transform-origin: calc(50% - var(--shift)) calc(100% + 16px); transform: translate(calc(-50% + var(--shift)), -100%) translateY(-16px) scale(0.9);
+    opacity: 0; pointer-events: none; transition: opacity 300ms var(--ease), transform 300ms var(--ease); }
+  #hsPopup.show { opacity: 1; pointer-events: auto; transform: translate(calc(-50% + var(--shift)), -100%) translateY(-16px) scale(1); transition-duration: 350ms; }
+  #hsPopup.below { transform-origin: calc(50% - var(--shift)) -16px; transform: translate(calc(-50% + var(--shift)), 0) translateY(16px) scale(0.9); }
+  #hsPopup.below.show { transform: translate(calc(-50% + var(--shift)), 0) translateY(16px) scale(1); }
+  #hsPopup::after { content: ''; position: absolute; left: calc(50% - var(--shift)); top: 100%; width: 14px; height: 14px; margin-left: -7px; margin-top: -8px;
+    background: var(--paper); border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); transform: rotate(45deg); }
+  #hsPopup.below::after { top: 0; margin-top: -6px; border: none; border-left: 2px solid var(--ink); border-top: 2px solid var(--ink); }
+  /* не влезает (e2.0.15): окно не выше места между вырезом экрана и рядом ‹ меню › (max-height текста ставит fx/hotspots.js), лишний текст
+     прокручивается внутри окна, длинное слово переносится; нет места ни над точкой, ни под ней — окно по центру, без хвостика */
+  #hsText { min-height: 0; overflow-y: auto; overflow-wrap: anywhere; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+  #hsPopup.center { transform-origin: 50% 50%; transform: translate(calc(-50% + var(--shift)), -50%) scale(0.9); }
+  #hsPopup.center.show { transform: translate(calc(-50% + var(--shift)), -50%) scale(1); }
+  #hsPopup.center::after { display: none; }
+  #hsSafe { position: fixed; left: 0; width: 0; top: env(safe-area-inset-top, 0px); bottom: env(safe-area-inset-bottom, 0px); visibility: hidden; pointer-events: none; }
+  #hsBack { min-height: 48px; font: 17px/1 var(--font); color: var(--ink); background: transparent; border: 1px solid var(--ink); border-radius: 3px; }
+  #gl { transition: filter 650ms var(--ease); }
+  #stage.reading #gl { filter: brightness(0.6) saturate(0.4) blur(6px); }
+  @media (prefers-reduced-motion: reduce) { .hs-dot::after { display: none; } }
+  /* Открытка (fx/postcard.js): кнопка живёт в панели (#pnCard), окно снизу — превью лица и оборота, «Добавить оборот», «Сохранить» */
+  #cardBtn[hidden] { display: none; }
+  html[data-ui="0"] #cardBtn, html[data-ui="0"] #hotspots, html[data-ui="0"] #hsPopup { display: none; }   /* ?ui=0 — только сцена (снимки гейтов) */
+  #cardCfg { position: fixed; left: 0; right: 0; bottom: 0; z-index: 9; display: none; gap: 8px; padding: 12px 12px calc(env(safe-area-inset-bottom, 0px) + 12px);
+    background: var(--paper); border-top: 2px solid var(--ink); font: 16px/1.2 var(--font); color: var(--ink); grid-template-columns: 1fr 1fr; }
+  body.card-open #cardCfg { display: grid; }
+  #cardCfg .cc-prev { grid-column: 1 / -1; display: flex; gap: 10px; justify-content: center; }
+  #cardCfg canvas { width: 90px; height: 160px; border: 1px solid var(--ink); background: #fff; }
+  #cardCfg button { min-height: 48px; font: inherit; color: var(--ink); background: transparent; border: 1px solid var(--ink); border-radius: 3px; }
+  #cardBack[aria-pressed="true"], #cardFest[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+  #cardFest[hidden] { display: none; }
+  #cardGo:disabled { opacity: 0.55; }
+  #cardGo { grid-column: 1 / -1; background: var(--ink) !important; color: var(--paper) !important; }
+  #cardCfgClose { grid-column: 1 / -1; }
+  #cardToast { grid-column: 1 / -1; display: none; padding: 12px; text-align: center; border: 2px dashed var(--ink); }
+  #cardToast.on { display: block; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="bar">
+  <button type="button" class="arrow-btn nav-btn" data-go="-1" aria-label="prev"><svg viewBox="0 0 40 40" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21.6 10.4C18.8 14.8 15.6 18.4 12.6 20.2c3.1 1.8 6.6 5.2 9.6 9.6" stroke-width="3"/><path d="M13.4 20.3 Q20.6 19.6 28.4 20.4" stroke-width="2.6"/><path d="M22.7 11.5C19.4 15.7 16.4 18.9 13.8 20.6c2.9 1.9 6.1 5 8.9 8.8 M14.6 21.4 Q21.2 20.9 27.4 21.6" stroke-width="1.1" opacity=".5"/><path d="M29.6 18.6 q1.6 1.7 0 3.6" stroke-width="1.2" opacity=".6"/></g></svg></button>
+  <button type="button" id="menuBtn" aria-label="menu" aria-expanded="false" aria-controls="panel"><span class="pb-tag" aria-hidden="true"><svg class="pb-bg" viewBox="0 0 66 58" preserveAspectRatio="none"><path class="pb-fill" d="M7.5 6.2 Q33 3.4 58.6 5.4 Q61.2 29 59.6 52.4 Q33 55.2 6.4 52.9 Q4.4 29 7.5 6.2Z"/><path class="pb-line" d="M7.5 6.2 Q33 3.4 58.6 5.4 Q61.2 29 59.6 52.4 Q33 55.2 6.4 52.9 Q4.4 29 7.5 6.2Z"/><path class="pb-line2" d="M8.6 7.6 Q33 5.2 57.2 6.8 M58.4 8 Q59.6 30 58.2 50.6 M7.6 51.2 Q33 53.8 57.6 51.4"/><circle class="pb-hole" cx="13.5" cy="12.5" r="2.3"/></svg><svg class="pb-ic ic-menu" viewBox="0 0 26 18"><g fill="none" stroke="currentColor" stroke-linecap="round"><path d="M3.4 3.6 h.01 M3.2 9.2 h.01 M3.5 14.9 h.01" stroke-width="3.2"/><path d="M8.2 3.4 Q15.4 2.7 23.2 3.8" stroke-width="2.1"/><path d="M8 9 Q15.2 8.4 23.4 9.4" stroke-width="2.1"/><path d="M8.3 14.8 Q15.6 14.1 22.8 15.2" stroke-width="2.1"/><path d="M8.9 4.3 Q15.6 3.7 22.4 4.6 M8.7 9.9 Q15.4 9.3 22.6 10.2 M9 15.6 Q15.8 15 22 15.9" stroke-width="0.7" opacity=".5"/></g></svg><svg class="pb-ic ic-x" viewBox="0 0 26 18"><g fill="none" stroke="currentColor" stroke-linecap="round"><path d="M7.6 2.4 Q13 9.2 18.4 15.8" stroke-width="2.4"/><path d="M18.6 2.2 Q13 9 7.4 15.6" stroke-width="2.4"/><path d="M8.6 2.6 Q13.2 8.4 17.6 14.6" stroke-width="0.7" opacity=".5"/></g></svg><svg class="pb-ic ic-stop" viewBox="0 0 32 32"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><g><path d="M9 9 Q16 8.4 23 9 Q23.6 16 23 23 Q16 23.6 9 23 Q8.4 16 9 9Z" fill="currentColor" fill-opacity=".16" stroke-width="2.2"/><path d="M10.2 10.3 Q16 9.8 21.8 10.2 M21.9 10.8 Q22.3 16 21.8 21.4" stroke-width="0.8" opacity=".5"/></g></g></svg><span class="pb-txt">Меню</span></span></button>
+  <button type="button" class="arrow-btn nav-btn nav-next" data-go="1" aria-label="next"><svg viewBox="0 0 40 40" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21.6 10.4C18.8 14.8 15.6 18.4 12.6 20.2c3.1 1.8 6.6 5.2 9.6 9.6" stroke-width="3"/><path d="M13.4 20.3 Q20.6 19.6 28.4 20.4" stroke-width="2.6"/><path d="M22.7 11.5C19.4 15.7 16.4 18.9 13.8 20.6c2.9 1.9 6.1 5 8.9 8.8 M14.6 21.4 Q21.2 20.9 27.4 21.6" stroke-width="1.1" opacity=".5"/><path d="M29.6 18.6 q1.6 1.7 0 3.6" stroke-width="1.2" opacity=".6"/></g></svg></button>
+</div>
+<div id="panelScrim"></div>
+<div id="panel" role="dialog" aria-label="menu">
+  <div class="panel-card sketch">
+    <svg class="pen-m" id="penM" aria-hidden="true"><path class="pm1" pathLength="1"/><path class="pm2" pathLength="1"/></svg>
+    <button type="button" id="sheetClose" aria-label="Закрыть"><svg viewBox="0 0 32 32" aria-hidden="true"><path pathLength="1" d="M9 9l14 14M23 9L9 23"/></svg></button>
+    <div class="panel-scroll">
+      <span class="p-title" id="pnTitle"></span>
+      <section class="p-sec p-grp">
+        <div class="grp-h"><h3 data-i18n="tod">Время суток</h3><span class="grp-hint" data-i18n="oneOf">одно из</span></div>
+        <div class="chips chips-one" id="pnTod" role="group">
+        <button type="button" class="chip on" data-tod="day"><svg viewBox="0 0 32 32" aria-hidden="true"><g class="i-rays"><path d="M16 3.5v3.2M16 25.3v3.2M3.5 16h3.2M25.3 16h3.2M7.2 7.2l2.3 2.3M22.5 22.5l2.3 2.3M7.2 24.8l2.3-2.3M22.5 9.5l2.3-2.3"/></g><circle class="i-sun" cx="16" cy="16" r="5.6"/></svg><span data-i18n="day">День</span></button>
+        <button type="button" class="chip" data-tod="sunset"><svg viewBox="0 0 32 32" aria-hidden="true"><defs><clipPath id="icSetClip"><rect x="0" y="0" width="32" height="21"/></clipPath></defs><g clip-path="url(#icSetClip)"><circle class="i-setsun" cx="16" cy="20" r="6.5"/></g><path class="i-glow" d="M8 13.5l1.6 1M24 13.5l-1.6 1M16 8.5v1.8"/><path d="M4 21h24M8 25h16"/></svg><span data-i18n="sunset">Закат</span></button>
+        <button type="button" class="chip" data-tod="night"><svg viewBox="0 0 32 32" aria-hidden="true"><path class="i-moon" d="M20.5 24.5a9 9 0 1 1-6.8-17 7.2 7.2 0 0 0 6.8 17z"/><path class="i-star s1" d="M23.5 7.5v3M22 9h3"/><path class="i-star s2" d="M26 15v2.2M24.9 16.1h2.2"/></svg><span data-i18n="night">Ночь</span></button>
+        </div>
+      </section>
+      <section class="p-sec p-grp">
+        <div class="grp-h"><h3 data-i18n="precip">Осадки</h3><span class="grp-hint" data-i18n="oneOf">одно из</span></div>
+        <div class="chips chips-one" id="pnWx" role="group">
+        <button type="button" class="chip on" data-wxoff><svg viewBox="0 0 32 32" aria-hidden="true"><path class="i-cloudf" d="M9 21h14.5a4.6 4.6 0 0 0 .5-9.2 6.6 6.6 0 0 0-12.5 1.5A3.9 3.9 0 0 0 9 21z"/><path class="i-check" d="M12.5 15.8l2.4 2.4 4.6-4.6"/></svg><span data-i18n="precipNone">Сухо</span></button>
+        <button type="button" class="chip" data-wx="rain"><svg viewBox="0 0 32 32" aria-hidden="true"><path class="i-cloudf" d="M9 17h14.5a4.5 4.5 0 0 0 .5-9 6.5 6.5 0 0 0-12.3 1.4A3.9 3.9 0 0 0 9 17z"/><g class="i-drops"><path class="d1" d="M11 20.5l-1.2 3.2"/><path class="d2" d="M16 20.5l-1.2 3.2"/><path class="d3" d="M21 20.5l-1.2 3.2"/></g></svg><span data-i18n="wxRain">Дождь</span></button>
+        <button type="button" class="chip" data-wx="snow"><svg viewBox="0 0 32 32" aria-hidden="true"><g class="i-flake"><path d="M16 5.5v21M6.9 10.75l18.2 10.5M6.9 21.25l18.2-10.5M13.2 7.3L16 9.6l2.8-2.3M13.2 24.7L16 22.4l2.8 2.3M7.6 14.6l3.5-.6-1.3-3.3M24.4 17.4l-3.5.6 1.3 3.3M7.6 17.4l3.5.6-1.3 3.3M24.4 14.6l-3.5-.6 1.3-3.3"/></g></svg><span data-i18n="wxSnow">Снег</span></button>
+        </div>
+      </section>
+      <section class="p-sec" id="pnShow">
+        <button type="button" class="p-tag" data-show><svg class="sh-ic" viewBox="0 0 32 32" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><g class="sh-play"><path d="M5.6 27 L18.9 13.4" stroke-width="3.3"/><path d="M15.2 15.5 L17.7 18" stroke-width="1.3" opacity=".7"/><path class="sh-star" d="M23.4 3 Q24.2 7.6 28.8 8.6 Q24.2 9.6 23.4 14.2 Q22.6 9.6 18 8.6 Q22.6 7.6 23.4 3Z" fill="currentColor" fill-opacity=".2" stroke-width="1.8"/><path class="sh-sp1" d="M27.6 17 Q27.9 18.5 29.4 18.8 Q27.9 19.1 27.6 20.6 Q27.3 19.1 25.8 18.8 Q27.3 18.5 27.6 17Z" stroke-width="1.1"/><path class="sh-sp2" d="M10.6 5.4 Q10.8 6.6 12 6.8 Q10.8 7 10.6 8.2 Q10.4 7 9.2 6.8 Q10.4 6.6 10.6 5.4Z" stroke-width="1"/></g></g></svg><span data-i18n="show">Ожить</span></button>
+      </section>
+      <section class="p-sec" id="pnOrig" hidden>
+        <button type="button" class="p-tag" data-orig><svg class="og-ic" viewBox="0 0 32 32" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M5.4 7.6 Q16 6.8 26.6 7.4 Q27.4 16 26.7 24.6 Q16 25.4 5.3 24.7 Q4.6 16 5.4 7.6Z" stroke-width="1.8"/><path d="M5.6 11.2 L9.4 7.6 M26.4 21 L22.6 24.5" stroke-width="1.3" opacity=".7"/><path d="M8.8 21.4 L13.4 15.6 L16.6 19 L19 16.6 L23.2 21.4" stroke-width="1.6"/><path d="M16 4.2 V27.8" stroke-width="1.4" stroke-dasharray="2.2 2"/></g></svg><span data-i18n="original">Оригинал</span></button>
+      </section>
+      <section class="p-sec">
+        <h3 data-i18n="frames">Кадры</h3>
+        <div id="thumbs"></div>
+      </section>
+      <section class="p-sec p-acts" id="pnActs">
+        <div class="act act-fs"><div class="act"><button type="button" id="fsBtn" class="chip chip-act act-pair"><svg viewBox="0 0 32 32" aria-hidden="true"><g class="i-fs"><path class="c1" d="M5.7 12.6 Q5.3 8.6 5.8 5.9 Q8.6 5.4 12.4 5.7"/><path class="c2" d="M19.6 5.6 Q23.6 5.3 26.2 5.8 Q26.7 8.6 26.4 12.5"/><path class="c3" d="M26.4 19.5 Q26.8 23.5 26.2 26.2 Q23.4 26.7 19.6 26.4"/><path class="c4" d="M12.4 26.5 Q8.5 26.8 5.8 26.2 Q5.3 23.4 5.7 19.6"/><path class="i-fs-in" d="M11.4 11.7 Q16 11.3 20.6 11.6 Q20.9 16 20.5 20.4 Q16 20.8 11.5 20.5 Q11.1 16 11.4 11.7Z" stroke-width="1.2" opacity=".5"/></g></svg><span data-i18n="fullscreen">Во весь экран</span></button></div></div>
+        <div class="act act-card" id="pnCard"></div>
+      </section>
+      <section class="p-sec p-sale" id="pSale" hidden>
+        <a id="saleBtn" class="p-tag" href="#" target="_blank" rel="noopener"></a>
+      </section>
+      <section class="p-sec p-grp p-size">
+        <div class="grp-h"><h3 data-i18n="textSize">Размер текста</h3>
+          <div class="chips chips-one size-mini" id="sizeSeg" role="group">
+            <button type="button" class="chip" data-size="normal" aria-label="Обычный"><b class="aa aa-s" aria-hidden="true">Aa</b></button>
+            <button type="button" class="chip on" data-size="large" aria-label="Крупный"><b class="aa aa-l" aria-hidden="true">Aa</b></button>
+          </div>
+        </div>
+      </section>
+      <section class="p-sec p-grp">
+        <div class="grp-h"><h3 data-i18n="language">Язык</h3></div>
+        <div class="chips chips-one chips-text" id="langSeg" role="group">
+          <button type="button" class="chip" data-lang="hy"><b>Հայ</b></button>
+          <button type="button" class="chip" data-lang="ru"><b>Рус</b></button>
+          <button type="button" class="chip" data-lang="en"><b>Eng</b></button>
+        </div>
+      </section>
+      <section class="p-sec p-about">
+        <h3 data-i18n="about">О здании</h3>
+        <div id="aboutText"></div>
+      </section>
+      <section class="p-sec" id="pHist" hidden><a class="p-btn p-history" id="historyLink" href="#" data-i18n="history">История здания ›</a></section>
+      <section class="p-sec"><a class="p-btn" id="homeLink" href="/" data-i18n="home">На главную</a></section>
+    </div>
+  </div>
+</div>
+<template id="tplCardIc"><svg viewBox="0 0 32 32" aria-hidden="true"><g class="i-story"><path d="M10.4 3.6 Q16 3.2 21.8 3.7 Q23.6 3.8 23.6 5.8 Q24 16 23.5 26.4 Q23.4 28.3 21.5 28.3 Q16 28.7 10.3 28.2 Q8.5 28.1 8.5 26.2 Q8.1 16 8.6 5.6 Q8.7 3.7 10.4 3.6Z"/><path d="M9.9 5.2 Q16 4.8 22 5.3 M22.2 6.4 Q22.5 16 22.1 26.6" stroke-width="0.8" opacity=".5"/><path class="i-cardsun" d="M10.6 19.6 l3.6-3.4 2.9 2.4 2.3-2 2.2 2.4"/><circle class="i-cardsun2" cx="19.2" cy="10.6" r="1.7"/><path class="i-plq" d="M11.2 23.4 h6.6 M11.2 25.6 h4.2" stroke-width="1.4"/></g></svg></template>
+<button type="button" id="immExit" aria-label="Выйти"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M11 5H5v6M21 5h6v6M11 27H5v-6M21 27h6v-6"/></svg></button>
+<div id="plate" aria-live="polite"><b id="plateT"></b><span id="plateC"></span></div>
+<button type="button" id="plateTag"></button>
+<div id="loadFail" role="alert" aria-live="assertive">
+  <div class="lf-card">
+    <h1 lang="hy">Էջը չբեռնվեց</h1>
+    <p lang="hy">Ստուգիր կապը և փորձիր նորից։</p>
+    <h1 class="lf-ru" lang="ru">Страница не загрузилась</h1>
+    <p class="lf-ru" lang="ru">Проверь связь и попробуй снова.</p>
+    <button type="button" id="loadRetry"><span lang="hy">Կրկին փորձել</span> · <span lang="ru">Попробовать снова</span></button>
+    <a id="loadHome" href="/"><span lang="hy">Գլխավոր էջ</span> · <span lang="ru">На главную</span></a>
+    <small id="loadWhy"></small>
+  </div>
+</div>
+<script>
+/* e2.0.28: честная плашка «страница не загрузилась». E2_fail(причина) зовёт движок (boot.js: сцена не поднялась / первый кадр не пришёл), сам этот скрипт — если viewer.js не загрузился
+   или за 45 с нет первого кадра. Пришёл первый кадр позже — плашка уходит (E2_ok). «Попробовать снова» — перезагрузка с новой меткой ?r=, чтобы Safari не взял сломанный ответ из кэша. */
+(function () {
+  var d = document.documentElement, t = null;
+  window.E2_fail = function (why) {
+    if (/[?&]break=fail-silent(&|$)/.test(location.search)) return;
+    d.setAttribute('data-e2-fail', String(why || 'fail'));
+    var w = document.getElementById('loadWhy'); if (w) w.textContent = String(why || '');
+  };
+  window.E2_ok = function () { if (t) { clearTimeout(t); t = null; } d.removeAttribute('data-e2-fail'); };
+  function ready() { var s = d.getAttribute('data-e2'); return s === 'first' || s === 'all'; }
+  t = setTimeout(function () { t = null; if (!ready()) window.E2_fail('timeout'); }, 45000);
+  document.addEventListener('DOMContentLoaded', function () {
+    var b = document.getElementById('loadRetry');
+    if (b) b.addEventListener('click', function () {
+      var u = location.href.replace(/([?&])r=\d+&?/, '$1').replace(/[?&]$/, '').replace(/#.*$/, '');
+      location.replace(u + (u.indexOf('?') < 0 ? '?' : '&') + 'r=' + Date.now() + location.hash);
+    });
+  });
+})();
+</script>
+<script>if (/[?&]ui=0/.test(location.search)) document.documentElement.setAttribute('data-ui', '0');
+window.E2_BUILDING = {"format":2,"id":"surb-nikolay","source":"buildings-next/surb-nikolay/ (пакет здания, stanok init)","notYet":["рисунки: кадры ещё не нарисованы (stanok status surb-nikolay); запросы — buildings-next/surb-nikolay/prompts.md","effects.tod.sky.end и sun каждого кадра — после stanok layers","effects.wind.box кадров a, d, e — после рисунка дня (кроны)","effects.hotspots — тексты готовы в facts, места точек — после рисунков (план: buildings-next/surb-nikolay/page.md §2)","effects.actors — после stanok actor (изюминки: a: ★ фаэтонщик с лошадью, рыжий пёс у дерева; b: ★ караван, лавочник с лавашом; c: кошка на тёплой ступени, свеча за приоткрытой дверью; d: старик в бурке с медным кувшином, вол у арбы; e: ★ фотограф под накидкой, мальчишки на ограде)","effects.show — после stanok show (кадр a)","card.image card.webp, live.meta.ogImage og.jpg, meta.ogImage — из рисунка кадра a (после S4)","sale — не заведена (решение Нарека: продавать ли места надписей у собора и сколько)","hy — черновик, не вычитан Нареком; ru и en — по history.md"],"framesDir":"frames/","meta":{"url":"https://chka.am/beta/tests/surb-nikolay-e2/","title":{"hy":"Սուրբ Նիկոլայ տաճար, Երևան | Չկա","ru":"Никольский собор, Ереван | Չկա","en":"Saint Nikolai Cathedral, Yerevan | Չկա"},"description":{"hy":"Սուրբ Նիկոլայ տաճարը (1890-ականներ – 1920–30-ականների սահման) Երևանի Մայր տաճարի հրապարակում՝ վերակենդանացած գծանկարով։ Թեքեք նկարը, փոխեք օրվա ժամը և թերթեք կադրերը։","ru":"Никольский собор (1890-е — рубеж 1920–30-х) на Соборной площади Еревана — ожившим рисунком. Наклоняйте картинку, меняйте время суток, листайте кадры.","en":"Saint Nikolai Cathedral (1890s – around 1930) on Yerevan’s Cathedral Square, brought back as a living drawing. Tilt the picture, change the time of day, flip through the frames."},"ogImage":null,"ogAlt":{"hy":"Սուրբ Նիկոլայ տաճարը Երևանում, գծանկար","ru":"Никольский собор в Ереване, рисунок","en":"Saint Nikolai Cathedral in Yerevan, drawing"},"themeColor":"#f5ecda","favicon":"../../assets/favicon-32.png","appleTouchIcon":"../../assets/icon-180.png","viewerVersion":"test"},"app":{"name":"Никольский собор","shortName":"Никольский"},"links":{"home":"../../","history":"about.html"},"text":{"title":{"hy":"Սուրբ Նիկոլայ","ru":"Никольский собор","en":"St Nikolai Cathedral"},"pageTitle":{"hy":"Սուրբ Նիկոլայ տաճար, Երևան | Չկա","ru":"Никольский собор, Ереван | Չկա","en":"Saint Nikolai Cathedral, Yerevan | Չկա"},"plaque":{"hy":"Սուրբ Նիկոլայ տաճար (1890-ականներ – 1920–30-ականների սահման) · Մայր տաճարի հրապարակ, Երևան · գեղարվեստական վերակառուցում արխիվային լուսանկարներից","ru":"Никольский собор (1890-е — рубеж 1920–30-х) · Соборная площадь, Ереван · художественная реконструкция по архивным фото","en":"Saint Nikolai Cathedral (1890s – around 1930) · Cathedral Square, Yerevan · artistic reconstruction after archive photos"},"panelTitle":{"hy":"Սուրբ Նիկոլայ տաճար","ru":"Никольский собор","en":"Saint Nikolai Cathedral"},"welcome":{"hy":"Բարի գալուստ Սուրբ Նիկոլայ տաճար","ru":"Добро пожаловать к Никольскому собору","en":"Welcome to Saint Nikolai Cathedral"}},"facts":{"place":{"hy":"Որտեղ էր կանգնած։ Մայր տաճարի հրապարակի հյուսիսարևելյան կողմի մեջտեղում՝ այնտեղ, որտեղ այսօր Շահումյանի հուշարձանն է։","ru":"Где он стоял. В середине северо-восточной стороны Соборной площади — там, где сегодня памятник Шаумяну.","en":"Where it stood. In the middle of the north-eastern side of Cathedral Square, where the Shahumyan monument stands today."},"domes":{"hy":"Հինգ գմբեթ։ Հինգ սոխաձև գմբեթ՝ այն ժամանակ Ռուսաստանում ընդունված «ռուսական ոճով»․ դրանք երևում են 1899-ի, մոտ 1906-ի և 1919-ի լուսանկարներում։","ru":"Пять глав. Пять луковичных глав в «русском стиле», принятом тогда в России, — их видно на снимках 1899, около 1906 и 1919 годов.","en":"Five domes. Five onion domes in the “Russian style” then common in Russia — they show on photos of 1899, around 1906 and 1919."},"tiflis":{"hy":"Սխալ բացիկը։ Մոտ 1906 թ. բացիկի վրա Երևանի տաճարը ստորագրված է «Թիֆլիս»․ հրատարակիչը շփոթել է քաղաքը։","ru":"Ошибка на открытке. На открытке около 1906 года ереванский собор подписан «Тифлисъ» — издатель перепутал город.","en":"The wrong postcard. On a postcard of around 1906 Yerevan’s cathedral is labelled “Tiflis” — the publisher mixed up the city."},"military":{"hy":"Զինվորական տաճար։ Քաղաքում այն կոչում էին Զինվորական տաճար․ նրան էր կցված կայազորը։","ru":"Военный собор. В городе его звали Военным: к собору был приписан гарнизон.","en":"The Military Cathedral. Locals called it the Military Cathedral: the garrison was attached to it."},"tuff":{"hy":"Կարմիր և սև տուֆ։ Նկարագրությունների համաձայն՝ տաճարը շարված էր տեղական կարմիր և սև տուֆից, ինչպես հին Երևանի շատ շենքեր։","ru":"Красный и чёрный туф. По описаниям, собор сложили из местного красного и чёрного туфа — как многие дома старого Еревана.","en":"Red and black tuff. By the descriptions, the cathedral was built of local red and black tuff, like many houses of old Yerevan."},"building":{"hy":"Երկար շինարարություն։ Նախագիծը հաստատվեց 1894-ին․ 1899-ին գմբեթներն արդեն կանգնած են, բայց հարդարումը շարունակվում է, իսկ 1901-ին դեռ նվիրատվություններ էին հավաքում։","ru":"Стройка на годы. Проект утвердили в 1894 году; в 1899-м главы уже стоят, но идёт отделка, а в 1901-м ещё собирали пожертвования.","en":"Years of building. The design was approved in 1894; by 1899 the domes stand but the finishing goes on, and in 1901 donations were still being collected."},"builders":{"hy":"Երկու շինարար։ Շինարարությունը սկսել է Վ. Միրզոևը, ավարտել՝ Կիտկինը (ըստ Վիքիպեդիայի)։","ru":"Двое строителей. Стройку начинал В. Мирзоев, заканчивал Киткин (по данным Википедии).","en":"Two builders. V. Mirzoev began the work and Kitkin finished it (according to Wikipedia)."},"square":{"hy":"Հրապարակը փոխեց անունը։ Մայր տաճարի հրապարակը դարձավ Շահումյանի հրապարակ։","ru":"Площадь сменила имя. Соборная площадь стала площадью Шаумяна.","en":"The square changed its name. Cathedral Square became Shahumyan Square."},"demolished":{"hy":"Ինչ կա այսօր։ Տաճարը քանդեցին 1920–30-ականների սահմանին, իսկ 1931-ին նրա տեղում բացվեց Ստեփան Շահումյանի հուշարձանը (քանդակագործ՝ Ս. Մերկուրով, ճարտարապետ՝ Ի. Ժոլտովսկի)։","ru":"Что на месте. Собор разобрали на рубеже 1920–30-х, а в 1931 году на его месте открыли памятник Степану Шаумяну (скульптор С. Меркуров, архитектор И. Жолтовский).","en":"What is there now. The cathedral was taken down around 1930, and in 1931 a monument to Stepan Shahumyan (sculptor S. Merkurov, architect I. Zholtovsky) opened on its site."}},"aboutFacts":["place","domes","demolished"],"postcardFile":"surb-nikolay.png","postcard":{"name":{"hy":"Սուրբ Նիկոլայ","ru":"Никольский собор","en":"St Nikolai"},"years":{"hy":"1890-ականներ – մոտ 1930","ru":"1890-е – ок. 1930","en":"1890s – c. 1930"},"url":"chka.am/surb-nikolay","no":4,"fact":{"hy":"Հինգգմբեթ տաճարը քառորդ դարից ավելի կանգնած էր Երևանի Մայր տաճարի հրապարակում։ Այն քանդեցին, և 1931-ին նույն տեղում բացվեց Շահումյանի հուշարձանը։","ru":"Пятиглавый собор больше четверти века стоял на Соборной площади Еревана. Его разобрали, и в 1931 году на этом месте открыли памятник Шаумяну.","en":"For more than a quarter of a century a five-domed cathedral stood on Yerevan’s Cathedral Square. It was taken down, and in 1931 a monument to Shahumyan opened on the spot."}},"live":{"slug":"surb-nikolay","meta":{"url":"https://chka.am/surb-nikolay/","ogImage":"og.jpg","favicon":"../assets/favicon-32.png","appleTouchIcon":"../assets/icon-180.png","viewerVersion":"surb-nikolay-1"},"links":{"home":"../"}},"card":{"eyebrow":{"hy":"Ինտերակտիվ · մոտ 1906","ru":"Интерактив · около 1906","en":"Interactive · around 1906"},"meta":{"hy":"Մայր տաճարի հրապարակ · Երևան","ru":"Соборная площадь · Ереван","en":"Cathedral Square · Yerevan"},"image":"card.webp","history":"about.html"},"look":{"frameSize":[768,1365],"sunSide":"left"},"effects":{"parallax":{"shiftX":0.02,"shiftY":0.012,"zoomNear":0.02,"baseScale":1.05,"depthBlurPx":6,"smooth":0.12,"returnMs":800,"crossfadeMs":1200,"maxTiltDeg":20,"breath":{"amp":0.004,"periodS":6}},"tod":{"day":{"skyTop":[0.58,0.78,0.97],"skyHor":[0.83,0.92,0.99],"mix":0.8,"greenHue":0.3,"greenPull":0.78,"greenSat":1.9},"noon":{"wb":[0.97,1.0,1.03],"sat":1.0,"lift":0.0,"bright":1.04,"sky":0.9},"daySunsetS":2.5,"sunsetNightS":3,"sunsetProc":{"tint":[1.05,0.87,0.68],"skyLow":[1.0,0.6,0.64],"skyHigh":[1.0,0.68,0.4],"glowColor":[1.0,0.52,0.22],"glowStrength":0.24,"windowColor":[1.0,0.74,0.44],"windowStrength":0.22},"sunsetShade":{"length":0.012,"strength":0.0,"dark":0.68},"night":{"dim":0.64}},"wind":{"maxPx":9,"swayPx":5,"leanPx":2,"periodS":4.6,"gustS":19,"minPhonePx":40},"lights":{"turnOnS":5,"riseS":0.5,"flicker":{"window":0.05,"lamp":0.03,"share":0.5},"rareS":[20,40]},"weather":{"fadeMs":4000,"overcast":{"gray":0.2,"dim":0.08,"sky":[0.8,0.82,0.84]},"wetDim":0.07,"rain":{"overcast":0.35,"wet":0.45,"drops":380,"tintDay":[0.78,0.8,0.88,0.8],"tintNight":[1.3,1.32,1.4,0.6]},"snow":{"overcast":0.35,"accumS":12,"meltS":30,"tint":[0.95,0.96,0.99],"k":0.95,"flakes":260,"tintDay":[1,1,1,0.95],"tintNight":[0.6,0.66,0.86,0.85]},"sprites":{"flakes":["show_flake_1.png","show_flake_2.png","show_flake_3.png","show_flake_4.png","show_flake_5.png","show_flake_6.png","show_flake_7.png","show_flake_8.png"],"rain":["show_rain_1.png","show_rain_2.png","show_rain_3.png","show_rain_4.png","show_rain_5.png","show_rain_6.png","show_rain_7.png","show_rain_8.png"]},"rainbowS":50},"sky":{"clouds":{"scale":2.4,"speed":0.011,"night":0.5,"overcast":0.3}},"actors":{"fadeS":0.6,"updateMs":40,"toneBlurPx":6,"tapMaxPx":10,"tapMaxS":0.6,"minFigure":0.06},"show":{"stopMs":700},"hotspots":{},"inscriptions":{},"postcard":{},"original":{}},"effectsOn":["parallax","tod","wind","lights","weather","sky","actors","show","hotspots","inscriptions","postcard","original"],"files":{"wxAtlas":"frames/wx_atlas.png?v=319b21ae"},"frames":[{"name":"nikolay_a","kind":"wide","caption":{"hy":"Մոտ 1906 · տաճարը Մայր տաճարի հրապարակից","ru":"Около 1906 · собор с Соборной площади","en":"Around 1906 · the cathedral from Cathedral Square"},"effects":{"parallax":{"tilt":1,"crop":[0,0,1,1]},"tod":{"sky":{"ref":0.753,"end":0.659},"noonK":1,"sunsetPicture":false,"sun":{"day":[0.18,0.06],"sunset":[0.82,0.3],"moon":[0.78,0.1]}},"wind":{"on":true,"box":[0.0,0.22,0.27,0.58],"exclude":[]},"lights":{"on":true},"weather":{"rain":true,"snow":true,"snowMask":true,"rainbow":false},"sky":{"shadow":0.12,"drift":false},"actors":{"list":[{"id":"a-coachman","emotion":true,"rect":[0.28516,0.66667,0.74089,0.81099],"hit":null,"underShow":true,"media":{"day":[{"name":"vid_a_coachman","rect":[0.28516,0.66667,0.74089,0.81099],"video":"vid_a_coachman.mp4","webm":"vid_a_coachman.webm","mask":"vid_a_coachman_mask.png","image":null,"imageRect":null,"hours":null}],"snow":[{"name":"vid_a_coachman_snow","rect":[0.28516,0.66667,0.74089,0.81099],"video":"vid_a_coachman_snow.mp4","webm":"vid_a_coachman_snow.webm","mask":"vid_a_coachman_snow_mask.png","image":null,"imageRect":null,"hours":null}],"rain":[{"name":"vid_a_coachman_rain","rect":[0.28516,0.66667,0.74089,0.81099],"video":"vid_a_coachman_rain.mp4","webm":"vid_a_coachman_rain.webm","mask":"vid_a_coachman_rain_mask.png","image":null,"imageRect":null,"hours":null}],"night":[{"name":"vid_a_coachman_night","rect":[0.28516,0.66667,0.74089,0.81099],"video":"vid_a_coachman_night.mp4","webm":"vid_a_coachman_night.webm","mask":"vid_a_coachman_night_mask.png","image":null,"imageRect":null,"hours":null}]}}]},"show":{"type":"none","dur":12,"video":false,"cam":false,"tod":null,"grade":false,"pix":[],"letters":false,"image":false},"hotspots":{"list":[]},"inscriptions":{},"postcard":{},"original":{"photo":{"year":"1906","approx":true,"credit":{"hy":"G. Tarverdyan / PastVu","ru":"G. Tarverdyan / PastVu","en":"G. Tarverdyan / PastVu"},"url":"https://pastvu.com/p/1370700","fit":[-0.3667,-0.0492,1.0375,0.452],"how":"auto","center":[0.5,0.5],"size":[1400,888],"license":"PD","score":0.288}}},"files":{"color":"frames/nikolay_a.webp?v=21a24e89","depth":"frames/nikolay_a_depth.webp?v=550e5092","bg":"frames/nikolay_a_bg.webp?v=185f955c","building":"frames/nikolay_a_building.webp?v=49699c44","env":"frames/nikolay_a_env.webp?v=60bcc9af","win":"frames/nikolay_a_win2.webp?v=6f99fe99","night":"frames/nikolay_a_night.webp?v=3c5e9840","snow":"frames/nikolay_a_snow.webp?v=c3f8f92a","photo":"frames/nikolay_a_orig.webp?v=4af40845","vid_a_coachman.mp4":"frames/vid_a_coachman.mp4?v=b867420d","vid_a_coachman.webm":"frames/vid_a_coachman.webm?v=0b96400f","vid_a_coachman_mask.png":"frames/vid_a_coachman_mask.png?v=0d1b0782","vid_a_coachman_snow.mp4":"frames/vid_a_coachman_snow.mp4?v=67d7c5d2","vid_a_coachman_snow.webm":"frames/vid_a_coachman_snow.webm?v=b7c43d03","vid_a_coachman_snow_mask.png":"frames/vid_a_coachman_snow_mask.png?v=b5bca4b1","vid_a_coachman_rain.mp4":"frames/vid_a_coachman_rain.mp4?v=8f8d032a","vid_a_coachman_rain.webm":"frames/vid_a_coachman_rain.webm?v=65d27cc4","vid_a_coachman_rain_mask.png":"frames/vid_a_coachman_rain_mask.png?v=69961bb5","vid_a_coachman_night.mp4":"frames/vid_a_coachman_night.mp4?v=717af85e","vid_a_coachman_night.webm":"frames/vid_a_coachman_night.webm?v=7398a6cc","vid_a_coachman_night_mask.png":"frames/vid_a_coachman_night_mask.png?v=afa11700","crown":"frames/nikolay_a_crown.png?v=1ffc8ddc","windfield":"frames/nikolay_a_windfield.png?v=d02c3ee7","lights":"frames/nikolay_a_lights.png?v=1fb8d84d","wx":"frames/nikolay_a_wx.webp?v=b0e74898"},"derived":{"crown":{"trees":1,"crownPx":59140,"info":[{"bbox":[0,306,208,792],"area":50227}],"maxPx":9,"size":486},"windfield":{"trees":1,"crownPx":59140,"info":[{"bbox":[0,306,208,792],"area":50227}],"maxPx":9,"size":486},"lights":{"n":64,"lamps":12,"tone":[0.8454,0.8,0.8296],"list":[["lamp",0.0768,0.8286,0.3021,0.8579],["lamp",0.0938,0.7846,0.2266,0.8234],["lamp",0.1771,0.5758,0.2344,0.6322],["lamp",0.2865,0.57,0.3281,0.6344],["lamp",0.2448,0.5736,0.2839,0.63],["lamp",0.2448,0.63,0.2826,0.6579],["lamp",0.3177,0.6308,0.3607,0.6645],["lamp",0.151,0.5729,0.1849,0.6066],["lamp",0.1133,0.8242,0.1536,0.8388],["lamp",0.1732,0.5502,0.224,0.5604],["lamp",0.5391,0.7092,0.5846,0.7201],["lamp",0.1953,0.6322,0.2174,0.6513],["window",0.2552,0.6271,0.2591,0.6337],["window",0.7799,0.5443,0.7904,0.5619],["window",0.3372,0.7267,0.3542,0.7377],["window",0.1576,0.5905,0.1628,0.5956],["window",0.4622,0.7194,0.4714,0.7304],["window",0.5221,0.7348,0.5352,0.7443],["window",0.2526,0.6073,0.2747,0.6249],["window",0.3424,0.5897,0.3555,0.6059],["window",0.2188,0.641,0.2331,0.6491],["window",0.5352,0.5487,0.5469,0.57],["window",0.4792,0.7267,0.4818,0.7377],["window",0.5208,0.7187,0.5326,0.7311],["window",0.6159,0.7187,0.6224,0.726],["window",0.6094,0.7355,0.625,0.759],["window",0.7331,0.5201,0.7565,0.5722],["window",0.2617,0.6081,0.2682,0.6139],["window",0.1992,0.6132,0.2083,0.6198],["window",0.8177,0.6454,0.8307,0.6974],["window",0.2148,0.622,0.2331,0.6344],["window",0.2617,0.6022,0.2669,0.6066],["window",0.3255,0.567,0.3294,0.5758],["window",0.2539,0.7905,0.2643,0.7963],["window",0.4388,0.6923,0.4609,0.7121],["window",0.2448,0.6447,0.25,0.652],["window",0.3503,0.7392,0.3568,0.7458],["window",0.2539,0.778,0.4323,0.7963],["window",0.6068,0.7245,0.6159,0.7289],["window",0.5352,0.5839,0.5378,0.5897],["window",0.349,0.5641,0.3529,0.5685],["window",0.4974,0.7963,0.5104,0.8022],["window",0.2188,0.6491,0.2331,0.6579],["window",0.8112,0.6425,0.8268,0.644],["window",0.1576,0.5978,0.1667,0.6029],["window",0.5352,0.5714,0.5521,0.6088],["window",0.5716,0.8029,0.5846,0.8081],["window",0.2109,0.6022,0.2253,0.6205],["window",0.724,0.652,0.7292,0.6608],["window",0.3411,0.57,0.3438,0.5773],["window",0.2214,0.5978,0.2539,0.619],["window",0.3802,0.6938,0.4518,0.7399],["window",0.6992,0.5385,0.7135,0.5817],["window",0.263,0.6227,0.2734,0.6286],["window",0.5234,0.7495,0.5312,0.767],["window",0.7214,0.6308,0.7292,0.6513],["window",0.4375,0.7084,0.4648,0.7209],["window",0.5352,0.5744,0.5378,0.5817],["window",0.3268,0.5897,0.3307,0.6095],["window",0.349,0.57,0.3542,0.5897],["window",0.4323,0.5524,0.444,0.6103],["window",0.5508,0.7172,0.5872,0.7333],["window",0.6172,0.7648,0.6198,0.7744],["window",0.2109,0.63,0.2214,0.6366]]},"wx":{"cover":0.2827}}},{"name":"nikolay_b","kind":"wide","caption":{"hy":"Մոտ 1906 · Բերդի փողոցը, խորքում՝ տաճարը","ru":"Около 1906 · Крепостная улица, собор в глубине","en":"Around 1906 · Fortress Street, the cathedral beyond"},"effects":{"parallax":{"tilt":1,"crop":[0,0,1,1]},"tod":{"sky":{"ref":0.832,"end":0.492},"noonK":1,"sunsetPicture":false,"sun":{"day":[0.2,0.08],"sunset":[0.3,0.25],"moon":[0.25,0.12]}},"wind":{"on":false,"exclude":[]},"lights":{"on":true},"weather":{"rain":true,"snow":true,"snowMask":true,"rainbow":false},"sky":{"shadow":0.12,"drift":false},"actors":{"list":[]},"show":{"type":"none","dur":12,"video":false,"cam":false,"tod":null,"grade":false,"pix":[],"letters":false,"image":false},"hotspots":{"list":[]},"inscriptions":{},"postcard":{},"original":{"photo":{"year":"1901","approx":true,"credit":{"hy":"G. Tarverdyan / PastVu","ru":"G. Tarverdyan / PastVu","en":"G. Tarverdyan / PastVu"},"url":"https://pastvu.com/p/422684","fit":[-0.2583,0.2061,1.0792,0.7541],"how":"auto","center":[0.6,0.5],"size":[1400,1021],"license":"PD","score":0.449}}},"files":{"color":"frames/nikolay_b.webp?v=c2e902af","depth":"frames/nikolay_b_depth.webp?v=42bbec57","bg":"frames/nikolay_b_bg.webp?v=79a9e733","building":"frames/nikolay_b_building.webp?v=ff58a40f","env":"frames/nikolay_b_env.webp?v=d13f2168","win":"frames/nikolay_b_win2.webp?v=6f99fe99","night":"frames/nikolay_b_night.webp?v=afb37099","snow":"frames/nikolay_b_snow.webp?v=aa563246","photo":"frames/nikolay_b_orig.webp?v=c50a7eef","lights":"frames/nikolay_b_lights.png?v=cc1be3de","wx":"frames/nikolay_b_wx.webp?v=be2ffdb2"},"derived":{"lights":{"n":64,"lamps":12,"tone":[0.8673,0.8479,0.8895],"list":[["lamp",0.1654,0.7377,0.4857,0.7839],["lamp",0.2057,0.674,0.4883,0.7407],["lamp",0.4036,0.7004,0.4974,0.7458],["lamp",0.556,0.7919,0.6237,0.8103],["lamp",0.6146,0.7993,0.6875,0.8168],["lamp",0.8177,0.4659,0.8411,0.5077],["lamp",0.6849,0.8168,0.7448,0.8271],["lamp",0.4076,0.7062,0.4596,0.7377],["lamp",0.6068,0.789,0.6589,0.7993],["lamp",0.0234,0.5751,0.0365,0.6139],["lamp",0.3516,0.6593,0.3789,0.6821],["lamp",0.4714,0.7971,0.5078,0.8073],["window",0.138,0.5773,0.1732,0.6],["window",0.8776,0.356,0.8906,0.3773],["window",0.4609,0.5612,0.4635,0.581],["window",0.4349,0.5663,0.4492,0.5883],["window",0.6107,0.3839,0.6146,0.3985],["window",0.8516,0.7223,0.9062,0.7319],["window",0.9297,0.4374,0.9388,0.474],["window",0.2891,0.548,0.3125,0.5612],["window",0.9154,0.6674,0.9232,0.7004],["window",0.401,0.6059,0.4245,0.6125],["window",0.9141,0.3275,0.931,0.4154],["window",0.9518,0.4352,0.9622,0.4484],["window",0.694,0.4872,0.7031,0.4967],["window",0.9284,0.4982,0.9349,0.5451],["window",0.9674,0.3612,0.974,0.4051],["window",0.8477,0.4249,0.8568,0.4374],["window",0.651,0.4879,0.6602,0.5099],["window",0.9089,0.4755,0.9258,0.4857],["window",0.8359,0.7267,1.0,0.8059],["window",0.0391,0.5136,0.0872,0.5399],["window",0.3646,0.5626,0.3698,0.5773],["window",0.9505,0.4476,1.0,0.619],["window",0.9792,0.3062,0.9961,0.3341],["window",0.9167,0.5458,0.9219,0.5707],["window",0.9232,0.3619,0.9297,0.3832],["window",0.25,0.5707,0.2852,0.6154],["window",0.0443,0.5187,0.1289,0.5487],["window",0.6706,0.4784,0.6849,0.507],["window",0.6276,0.3795,0.6354,0.3985],["window",0.8971,0.7941,0.9271,0.8022],["window",0.3229,0.5553,0.3359,0.5817],["window",0.2487,0.5597,0.2852,0.5802],["window",0.8802,0.6674,0.9062,0.6799],["window",0.9245,0.3355,0.931,0.356],["window",0.1914,0.5905,0.2031,0.6234],["window",0.9167,0.6081,0.9258,0.6286],["window",0.138,0.5216,0.1745,0.5495],["window",0.9167,0.6527,0.9219,0.6659],["window",0.3997,0.5648,0.4089,0.5919],["window",0.8451,0.507,0.8542,0.5158],["window",0.4349,0.5524,0.4505,0.5685],["window",0.8945,0.5546,0.9049,0.5648],["window",0.9284,0.5473,0.9323,0.5626],["window",0.8385,0.3619,0.9258,0.6037],["window",0.8789,0.4432,0.9128,0.4667],["window",0.9609,0.6711,1.0,0.696],["window",0.2917,0.5546,0.3216,0.63],["window",0.6315,0.6681,0.9115,0.7297],["window",0.9805,0.3311,0.9961,0.4],["window",0.0378,0.5451,0.1263,0.6015],["window",0.8711,0.3487,0.8893,0.3597],["window",0.901,0.4359,0.9284,0.4733]]},"wx":{"cover":0.2646}}},{"name":"nikolay_c","kind":"close","caption":{"hy":"Տաճարի շքամուտքը և աստիճանները","ru":"Портал и ступени собора","en":"The cathedral’s portal and steps"},"effects":{"parallax":{"tilt":0.2,"crop":[0,0,1,1]},"tod":{"sky":{"ref":0.814,"end":0.0},"noonK":1,"sunsetPicture":false,"sun":null},"wind":{"on":false,"exclude":[]},"lights":{"on":true},"weather":{"rain":true,"snow":true,"snowMask":true,"rainbow":false},"sky":{"shadow":0.12,"drift":false},"actors":{"list":[]},"show":{"type":"none","dur":12,"video":false,"cam":false,"tod":null,"grade":false,"pix":[],"letters":false,"image":false},"hotspots":{"list":[]},"inscriptions":{},"postcard":{},"original":{"photo":{"year":"1899","approx":true,"credit":{"hy":"հեղինակն անհայտ է / PastVu","ru":"автор неизвестен / PastVu","en":"author unknown / PastVu"},"url":"https://pastvu.com/p/1358009","fit":[-0.0083,0.0796,1.0917,0.6276],"how":"auto","center":[0.45,0.62],"size":[1000,885],"license":"PD","score":0.5}}},"files":{"color":"frames/nikolay_c.webp?v=80571574","depth":"frames/nikolay_c_depth.webp?v=396deaf9","bg":"frames/nikolay_c_bg.webp?v=77020651","building":"frames/nikolay_c_building.webp?v=2db1c3cb","env":"frames/nikolay_c_env.webp?v=4b44141c","win":"frames/nikolay_c_win2.webp?v=6f99fe99","night":"frames/nikolay_c_night.webp?v=1ccdb495","snow":"frames/nikolay_c_snow.webp?v=a5c73312","photo":"frames/nikolay_c_orig.webp?v=6b44bacd","lights":"frames/nikolay_c_lights.png?v=c83f93a3","wx":"frames/nikolay_c_wx.webp?v=c2679d72"},"derived":{"lights":{"n":23,"lamps":12,"tone":[0.776,0.6862,0.7475],"list":[["lamp",0.474,0.4652,0.7227,0.7421],["lamp",0.1979,0.7136,0.5859,0.7736],["lamp",0.5938,0.5172,0.6693,0.7121],["lamp",0.276,0.7641,0.6823,0.7971],["lamp",0.7656,0.463,0.7891,0.663],["lamp",0.7214,0.4249,0.7474,0.6681],["lamp",0.5729,0.5055,0.6198,0.6044],["lamp",0.7005,0.6139,0.724,0.6872],["lamp",0.4701,0.0037,0.5273,0.033],["lamp",0.6706,0.5099,0.6862,0.652],["lamp",0.3151,0.5582,0.3424,0.6147],["lamp",0.362,0.5033,0.3724,0.5832],["window",0.3346,0.5487,0.3398,0.5568],["window",0.4297,0.0022,0.4362,0.0103],["window",0.4297,0.0095,0.4362,0.0161],["window",0.3333,0.6344,0.3411,0.6505],["window",0.4297,0.0381,0.4388,0.0432],["window",0.4362,0.0022,0.4427,0.0374],["window",0.4453,0.0037,0.4531,0.0374],["window",0.3372,0.6007,0.3424,0.6073],["window",0.4518,0.0,0.4622,0.0381],["window",0.5573,0.7018,0.5664,0.7048],["window",0.332,0.6081,0.3424,0.6161]]},"wx":{"cover":0.1666}}},{"name":"nikolay_d","kind":"wide","caption":{"hy":"Հինգ գմբեթ սալահատակի վերևում","ru":"Пять глав над мостовой","en":"Five domes above the cobbles"},"effects":{"parallax":{"tilt":1,"crop":[0,0,1,1]},"tod":{"sky":{"ref":0.749,"end":0.85},"noonK":1,"sunsetPicture":false,"sun":{"day":[0.8,0.1],"sunset":[0.12,0.3],"moon":[0.7,0.1]}},"wind":{"on":true,"box":[0.0,0.5,0.28,0.7],"exclude":[]},"lights":{"on":true},"weather":{"rain":true,"snow":true,"snowMask":true,"rainbow":false},"sky":{"shadow":0.12,"drift":false},"actors":{"list":[]},"show":{"type":"none","dur":12,"video":false,"cam":false,"tod":null,"grade":false,"pix":[],"letters":false,"image":false},"hotspots":{"list":[]},"inscriptions":{},"postcard":{},"original":{"photo":{"year":"1919","approx":false,"credit":{"hy":"հեղինակն անհայտ է / Library of Congress","ru":"автор неизвестен / Library of Congress","en":"author unknown / Library of Congress"},"url":"https://pastvu.com/p/1380370","fit":[-0.25,0.3232,1.1542,0.9204],"how":"auto","center":[0.54,0.4],"size":[932,705],"license":"PD","score":0.362}}},"files":{"color":"frames/nikolay_d.webp?v=255fd2bc","depth":"frames/nikolay_d_depth.webp?v=3306c227","bg":"frames/nikolay_d_bg.webp?v=b0ae80d8","building":"frames/nikolay_d_building.webp?v=ae9d2f5b","env":"frames/nikolay_d_env.webp?v=d2b33139","win":"frames/nikolay_d_win2.webp?v=6f99fe99","night":"frames/nikolay_d_night.webp?v=976fca2f","snow":"frames/nikolay_d_snow.webp?v=bcc6b457","photo":"frames/nikolay_d_orig.webp?v=05efca56","crown":"frames/nikolay_d_crown.png?v=258daa0a","windfield":"frames/nikolay_d_windfield.png?v=6252aa9e","lights":"frames/nikolay_d_lights.png?v=23b2d4ba","wx":"frames/nikolay_d_wx.webp?v=f4ce5c80"},"derived":{"crown":{"trees":1,"crownPx":24046,"info":[{"bbox":[0,691,216,956],"area":21490}],"maxPx":9,"size":265},"windfield":{"trees":1,"crownPx":24046,"info":[{"bbox":[0,691,216,956],"area":21490}],"maxPx":9,"size":265},"lights":{"n":64,"lamps":12,"tone":[0.7281,0.767,0.9308],"list":[["lamp",0.0339,0.5407,0.2917,0.6571],["lamp",0.0156,0.8029,0.4622,0.8535],["lamp",0.0169,0.8176,0.0938,0.8366],["lamp",0.1302,0.6791,0.1758,0.7106],["lamp",0.1289,0.7136,0.1758,0.7458],["lamp",0.5534,0.7245,0.625,0.7414],["lamp",0.4961,0.7275,0.5312,0.7516],["lamp",0.125,0.6513,0.1823,0.6645],["lamp",0.1784,0.8689,0.2135,0.8762],["lamp",0.306,0.7839,0.3242,0.7993],["lamp",0.0391,0.8037,0.0638,0.8103],["lamp",0.513,0.7707,0.5273,0.7941],["window",0.5911,0.441,0.5964,0.4637],["window",0.3359,0.6015,0.3451,0.6234],["window",0.4727,0.7832,0.487,0.7934],["window",0.4102,0.7707,0.4232,0.7788],["window",0.0859,0.5853,0.1068,0.6125],["window",0.1224,0.6799,0.1328,0.6894],["window",0.7669,0.633,0.7721,0.6462],["window",0.6237,0.611,0.6276,0.6366],["window",0.1914,0.6161,0.2018,0.622],["window",0.082,0.63,0.1016,0.6425],["window",0.3646,0.693,0.3724,0.7055],["window",0.3047,0.4703,0.3112,0.4901],["window",0.1172,0.7883,0.1211,0.8044],["window",0.3763,0.6967,0.3854,0.7048],["window",0.1745,0.7399,0.1927,0.7509],["window",0.1146,0.6447,0.1276,0.652],["window",0.3633,0.707,0.3724,0.7348],["window",0.3555,0.5861,0.362,0.6198],["window",0.6237,0.6381,0.6276,0.6535],["window",0.6992,0.4894,0.7057,0.5026],["window",0.4909,0.6088,0.513,0.6549],["window",0.4909,0.4198,0.4987,0.4505],["window",0.0482,0.5692,0.1029,0.6374],["window",0.3763,0.7172,0.3932,0.7267],["window",0.2018,0.7158,0.2214,0.7253],["window",0.375,0.6967,0.3932,0.7158],["window",0.2995,0.7729,0.3099,0.7978],["window",0.1771,0.6205,0.1888,0.63],["window",0.5365,0.4432,0.5417,0.452],["window",0.4531,0.4271,0.4635,0.444],["window",0.5299,0.452,0.5365,0.4615],["window",0.4232,0.7341,0.4492,0.7399],["window",0.5612,0.4381,0.5729,0.4615],["window",0.7044,0.6051,0.7083,0.6249],["window",0.3581,0.5868,0.3711,0.6271],["window",0.388,0.8667,0.4049,0.8725],["window",0.388,0.6051,0.3971,0.6212],["window",0.7253,0.4879,0.7331,0.5026],["window",0.4544,0.444,0.4635,0.4542],["window",0.1094,0.5853,0.1302,0.6125],["window",0.2526,0.474,0.2565,0.4879],["window",0.3815,0.6762,0.3932,0.6945],["window",0.194,0.7333,0.2031,0.7421],["window",0.5013,0.6037,0.5117,0.6088],["window",0.5156,0.7846,0.5234,0.8132],["window",0.6302,0.6081,0.6341,0.6542],["window",0.276,0.4689,0.2891,0.4872],["window",0.3633,0.6755,0.3724,0.685],["window",0.6888,0.6066,0.694,0.6256],["window",0.4167,0.7436,0.444,0.767],["window",0.3893,0.5971,0.3958,0.6044],["window",0.1146,0.5802,0.1706,0.6454]]},"wx":{"cover":0.2293}}},{"name":"nikolay_e","kind":"wide","caption":{"hy":"Մոտ 1910 · Քաղաքային դուման և Անգլիական այգու դարպասը","ru":"Около 1910 · Городская дума и ворота Английского сада","en":"Around 1910 · the City Duma and the English Garden gate"},"effects":{"parallax":{"tilt":1,"crop":[0,0,1,1]},"tod":{"sky":{"ref":0.767,"end":0.538},"noonK":1,"sunsetPicture":false,"sun":{"day":[0.8,0.08],"sunset":[0.62,0.2],"moon":[0.85,0.1]}},"wind":{"on":false,"box":[0.27,0.3,0.78,0.6],"exclude":[]},"lights":{"on":true},"weather":{"rain":true,"snow":true,"snowMask":true,"rainbow":false},"sky":{"shadow":0.12,"drift":false},"actors":{"list":[{"id":"e-photographer","emotion":true,"rect":[0.2487,0.73114,0.70443,0.87546],"hit":null,"underShow":true,"media":{"day":[{"name":"vid_e_photographer","rect":[0.2487,0.73114,0.70443,0.87546],"video":"vid_e_photographer.mp4","webm":"vid_e_photographer.webm","mask":"vid_e_photographer_mask.png","image":null,"imageRect":null,"hours":null}],"rain":[{"name":"vid_e_photographer_rain","rect":[0.2487,0.73114,0.70443,0.87546],"video":"vid_e_photographer_rain.mp4","webm":"vid_e_photographer_rain.webm","mask":"vid_e_photographer_rain_mask.png","image":null,"imageRect":null,"hours":null}],"snow":[{"name":"vid_e_photographer_snow","rect":[0.2487,0.73114,0.70443,0.87546],"video":"vid_e_photographer_snow.mp4","webm":"vid_e_photographer_snow.webm","mask":"vid_e_photographer_snow_mask.png","image":null,"imageRect":null,"hours":null}]}}]},"show":{"type":"none","dur":12,"video":false,"cam":false,"tod":null,"grade":false,"pix":[],"letters":false,"image":false},"hotspots":{"list":[]},"inscriptions":{},"postcard":{},"original":{"photo":{"year":"1913","approx":true,"credit":{"hy":"հեղինակն անհայտ է / PastVu","ru":"автор неизвестен / PastVu","en":"author unknown / PastVu"},"url":"https://pastvu.com/p/422706","fit":[-0.1042,-0.0468,1.425,0.6019],"how":"auto","center":[0.45,0.55],"size":[1400,1058],"license":"PD","score":0.324}}},"files":{"color":"frames/nikolay_e.webp?v=a4a34348","depth":"frames/nikolay_e_depth.webp?v=a1fc89cf","bg":"frames/nikolay_e_bg.webp?v=a93545b9","building":"frames/nikolay_e_building.webp?v=7d7fef94","env":"frames/nikolay_e_env.webp?v=03823725","win":"frames/nikolay_e_win2.webp?v=6f99fe99","night":"frames/nikolay_e_night.webp?v=ca2a8c38","snow":"frames/nikolay_e_snow.webp?v=8d77a3ea","photo":"frames/nikolay_e_orig.webp?v=b7646762","vid_e_photographer.mp4":"frames/vid_e_photographer.mp4?v=5a5283a2","vid_e_photographer.webm":"frames/vid_e_photographer.webm?v=48b2d6fb","vid_e_photographer_mask.png":"frames/vid_e_photographer_mask.png?v=8a874198","vid_e_photographer_rain.mp4":"frames/vid_e_photographer_rain.mp4?v=bb2f8aec","vid_e_photographer_rain.webm":"frames/vid_e_photographer_rain.webm?v=cb94b5dc","vid_e_photographer_rain_mask.png":"frames/vid_e_photographer_rain_mask.png?v=e0c17a70","vid_e_photographer_snow.mp4":"frames/vid_e_photographer_snow.mp4?v=2fd77206","vid_e_photographer_snow.webm":"frames/vid_e_photographer_snow.webm?v=1d0b1fdf","vid_e_photographer_snow_mask.png":"frames/vid_e_photographer_snow_mask.png?v=afa11700","lights":"frames/nikolay_e_lights.png?v=d5040ab9","wx":"frames/nikolay_e_wx.webp?v=314f81eb"},"derived":{"lights":{"n":44,"lamps":12,"tone":[0.875,0.6792,0.6791],"list":[["lamp",0.0859,0.7824,0.3789,0.8718],["lamp",0.0781,0.7414,0.375,0.7795],["lamp",0.0833,0.6652,0.2891,0.7011],["lamp",0.5534,0.7282,0.7201,0.7692],["lamp",0.4661,0.7912,0.5221,0.8689],["lamp",0.5299,0.7824,0.5742,0.8681],["lamp",0.0898,0.5516,0.2148,0.63],["lamp",0.0859,0.6418,0.2148,0.6645],["lamp",0.4427,0.7773,0.4922,0.8645],["lamp",0.0872,0.5516,0.1471,0.6256],["lamp",0.5651,0.7802,0.6693,0.8103],["lamp",0.0677,0.5341,0.1068,0.6256],["window",0.5013,0.619,0.5039,0.6286],["window",0.444,0.685,0.4714,0.6886],["window",0.418,0.5766,0.4857,0.6564],["window",0.3919,0.715,0.4401,0.7355],["window",0.4909,0.6125,0.4987,0.6271],["window",0.0911,0.5194,0.151,0.5465],["window",0.1654,0.5714,0.1745,0.6139],["window",0.1654,0.619,0.1706,0.6256],["window",0.0898,0.2974,0.1224,0.304],["window",0.1315,0.3348,0.1536,0.378],["window",0.1107,0.2879,0.1211,0.2908],["window",0.5065,0.6029,0.5169,0.6205],["window",0.6602,0.6249,0.668,0.6381],["window",0.0898,0.5509,0.1146,0.5656],["window",0.1641,0.3861,0.1693,0.3905],["window",0.4909,0.5934,0.5078,0.6029],["window",0.1276,0.57,0.1536,0.6205],["window",0.4896,0.6029,0.4922,0.6095],["window",0.1523,0.293,0.1706,0.2982],["window",0.3451,0.7597,0.375,0.7927],["window",0.1328,0.5538,0.1406,0.5582],["window",0.1198,0.2996,0.1523,0.3253],["window",0.457,0.696,0.474,0.7048],["window",0.1628,0.2982,0.1732,0.3824],["window",0.1003,0.2864,0.112,0.2894],["window",0.1367,0.2916,0.151,0.2952],["window",0.1484,0.5158,0.168,0.5326],["window",0.0911,0.3333,0.1081,0.3575],["window",0.457,0.5788,0.4727,0.5868],["window",0.1406,0.5538,0.1523,0.567],["window",0.0898,0.5729,0.1107,0.6132],["window",0.1237,0.2894,0.1393,0.293]]},"wx":{"cover":0.2961}}}],"budget":{"cost":13,"lookups":32,"particles":[400,150,60]},"derived":{"wxAtlas":{"flakes":[[0.01367,0.01562,0.10938,0.23438],[0.13281,0.01953,0.24219,0.22656],[0.26562,0.01562,0.35938,0.23438],[0.38281,0.01953,0.49219,0.22656],[0.50781,0.01953,0.61719,0.23047],[0.64062,0.01562,0.73438,0.23438],[0.75781,0.01562,0.86719,0.23047],[0.89062,0.01562,0.98242,0.23438]],"rain":[[0.01367,0.26562,0.0332,0.98438],[0.0625,0.26562,0.07617,0.98438],[0.10938,0.26562,0.125,0.98438],[0.1543,0.26562,0.17188,0.98438],[0.20117,0.26562,0.21875,0.98438],[0.25,0.26562,0.26367,0.98438],[0.29492,0.26562,0.3125,0.98438],[0.33984,0.26562,0.36133,0.98438]]}},"engine":{"base":"../../../beta/e/e2.0.31/","version":"e2.0.31"}};</script>
+<script src="../../../beta/e/e2.0.31/welcome-letters.js?v=e2.0.31"></script>
+<script src="../../../beta/e/e2.0.31/welcome-loader.js?v=e2.0.31"></script>
+<script>
+/* e2.0.30: экран загрузки, как на живом сайте (e1.62): приветствие здания и буквы, которые пишет перо, — сразу, до движка и кадров; минимум 3 с,
+   уходит само, когда пришёл первый кадр (core/boot.js: __wl.loaded()). Компонент — копия e1.62 (e2/lib/welcome-*.js, G5 сверяет байты).
+   Проверки по виртуальным часам (?vt=1) снимают сцену без него; ?wl=1 включает его и там (G20, часть «загрузка»). */
+(function () {
+  var q = location.search, c = window.E2_BUILDING;
+  if (!window.WelcomeLoader || !c || (/[?&]vt=1(&|$)/.test(q) && !/[?&]wl=1(&|$)/.test(q))) return;
+  var m = /[?&]lang=(hy|ru|en)(&|$)/.exec(q), l = m ? m[1] : null;
+  if (!l) { try { l = localStorage.getItem('chka-lang') || ((navigator.languages && navigator.languages[0]) || navigator.language || '').slice(0, 2).toLowerCase(); } catch (e) { l = 'hy'; } }
+  if (['hy', 'ru', 'en'].indexOf(l) < 0) l = 'hy';
+  var w = (c.text && c.text.welcome) || (c.text && c.text.title) || {};
+  window.__wl = WelcomeLoader.create({ parent: document.body, fixed: true, lang: l, minMs: 3000, letters: window.WL_LETTERS || [],
+    text: function (k, lg) { return w[lg] || w.en || ''; } });
+})();
+</script>
+<script>
+/* Скорость (П6): файлы первого кадра начинают качаться сразу, параллельно с движком, а не после его запуска и старта воркера. Те же адреса и тот же режим запроса (fetch,
+   cors, cookie своего сайта), что у воркера подготовки (core/prep.js), — браузер берёт файл из своей предзагрузки, второй раз не качает. Личная ссылка ?n= — другой первый кадр: не угадываем. */
+(function () {
+  try {
+    var c = window.E2_BUILDING, q = /[?&]f=(\d+)/.exec(location.search), n = /[?&]n=/.test(location.search), i = q ? +q[1] : 0, f = c && c.frames && c.frames[i];
+    if (n || !f || !f.files || /[?&]noworker=1/.test(location.search)) return;
+    var keys = ['color', 'depth', 'bg', 'building', 'env', 'win', 'lights'];
+    if (f.effects && f.effects.wind && f.effects.wind.on) keys.push('crown', 'windfield');
+    keys.forEach(function (k) {
+      if (typeof f.files[k] !== 'string') return;
+      var l = document.createElement('link'); l.rel = 'preload'; l.as = 'fetch'; l.crossOrigin = 'anonymous'; l.href = new URL(f.files[k], location.href).href; document.head.appendChild(l);
+    });
+  } catch (e) { /* без предзагрузки страница работает как раньше */ }
+})();
+</script>
+<script src="../../../beta/e/e2.0.31/viewer.js?v=e2.0.31" onerror="E2_fail('viewer.js')"></script>
+</body>
+</html>
