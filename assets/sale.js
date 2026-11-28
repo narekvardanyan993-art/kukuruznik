@@ -278,7 +278,19 @@
     wb.addEventListener('click', function () { save({ item: 'w' }); });
   }
 
-  if (page === 'store') setLang(curLang(), false);
+  if (page === 'store') {
+    setLang(curLang(), false);
+    $$('[data-fs]').forEach(function (b) {   /* «A+» как на главной: весь текст крупнее на 15 %, выбор хранится в браузере (chka-fs) */
+      function paint() { var big = root.classList.contains('fs-big'); b.textContent = big ? 'A−' : 'A+'; b.setAttribute('aria-pressed', big ? 'true' : 'false'); }
+      b.addEventListener('click', function () {
+        var big = !root.classList.contains('fs-big');
+        root.classList.toggle('fs-big', big);
+        try { localStorage.setItem('chka-fs', big ? 'big' : 'normal'); } catch (e) {}
+        paint();
+      });
+      paint();
+    });
+  }
 
   /* ---------------- /pay: 1 секунда на счётчик Cloudflare, потом касса Polar (надпись или обои) ---------------- */
   if (page === 'pay') {

@@ -52,42 +52,7 @@ p, h1, h2, dl, dd { margin: 0; }
 .l { display: inline-block; white-space: pre; }
 .wd { display: inline-block; white-space: nowrap; }
 
-/* ---------- 1. приветствие (/shop) ---------- */
-.w-head { flex: none; padding-top: 6px; }
-.w-title { font-size: 40px; line-height: 1.1; font-weight: 600; margin: 6px 0 6px; letter-spacing: -.01em; }
-.w-sub { font-size: 16px; color: var(--muted); max-width: 30ch; }
-.w-grid { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; margin: 10px 0 4px; }
-.prod { display: flex; flex-direction: column; min-height: 0; padding: 10px 12px 12px; background: rgba(255, 253, 247, .6); border: 1px solid rgba(42, 36, 32, .14); border-radius: 3px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, .08), 0 10px 22px rgba(60, 40, 20, .12); }
-.prod-main { flex: 1; }
-.prod-pic { display: block; position: relative; flex: 1; min-height: 150px; }
-.prod h2 { font-size: 22px; line-height: 1.2; font-weight: 600; }
-.w-meta { font-size: 14px; color: var(--muted); margin: 3px 0 10px; }
-.prod-txt { flex: none; text-align: center; }
-.prod-main .w-meta { max-width: 36ch; margin-left: auto; margin-right: auto; }
-.prod-wall { flex: none; flex-direction: row; align-items: center; gap: 14px; padding: 10px 12px; }
-.prod-wall .prod-pic { flex: 0 0 34%; height: 132px; min-height: 0; }
-.prod-wall .prod-txt { flex: 1; text-align: left; }
-.prod-wall h2 { font-size: 18px; }
-.prod-wall .w-meta { font-size: 13px; margin: 2px 0 8px; }
-.cta2 { background: transparent; color: var(--accent); border: 2px solid var(--accent); box-shadow: none; min-height: 46px; font-size: 16px; }
-.cta2:active { background: rgba(138, 44, 51, .08); }
-.fan { position: absolute; inset: 0; }
-.wf { position: absolute; left: 50%; top: 50%; height: 100%; aspect-ratio: 480 / 1040; transform: translate(-50%, -50%) translateX(var(--x, 0)) rotate(var(--r, 0deg));
-  border-radius: 6px; overflow: hidden; background: #d8ccb4; box-shadow: 0 0 0 2px var(--mat), 0 6px 12px rgba(40, 25, 10, .28); }
-.wf img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.wf0 { --x: -34%; --r: -9deg; } .wf1 { --x: 34%; --r: 9deg; } .wf2 { --x: 0%; --r: 0deg; z-index: 1; }
-.w-more { flex: none; text-align: center; font-size: 13px; color: var(--muted); padding-top: 6px; min-height: 28px; }
-.stack { position: absolute; inset: 0; overflow-x: clip; }   /* раскладка (поворот ×2,4) не расширяет страницу */
-.pc { position: absolute; left: 50%; top: 50%; height: min(86%, calc(min(100vw, 460px) * .6 / .84)); aspect-ratio: .84;   /* веер (±24% ширины + поворот) не шире экрана: иначе iPhone уменьшает всю страницу */ margin: 0; background: var(--mat); padding: 3.2% 3.2% 0;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, .18), 0 12px 26px rgba(60, 40, 20, .2); transform: translate(-50%, -50%) translateX(var(--x, 0)) rotate(var(--rot, 0deg)); }
-.pcw { display: block; position: relative; width: 100%; aspect-ratio: 1; overflow: hidden; background: #d8ccb4; }
-.pcw img { position: absolute; max-width: none; display: block; }
-.pc0 { --x: -17%; --rot: -7deg; } .pc1 { --x: 16%; --rot: 5deg; } .pc2 { --x: 0%; --rot: -1.5deg; }
-.pc-tag { position: absolute; left: 10%; bottom: 3%; display: flex; align-items: center; gap: 8px; height: 13%; padding: 0 12px 0 16px; font-size: 18px; letter-spacing: .08em;
-  background: #e9d7b0; color: var(--ink2); clip-path: polygon(10px 0, 100% 0, 100% 100%, 10px 100%, 0 50%); transform-origin: 0 50%;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, .15); font-weight: 600; }
-.pc-tag i { width: 6px; height: 6px; border-radius: 50%; background: #fbf6ea; box-shadow: inset 0 1px 1px rgba(0, 0, 0, .3); }
+/* ---------- 1. лавка (/shop): секция в конце файла ---------- */
 
 /* ---------- 2. место (/buy /t /i /f) ---------- */
 .s-head { flex: none; margin-top: 6px; }
@@ -201,18 +166,8 @@ html[lang=hy] .stp-h { font-size: 22px; }
 .t-back { min-height: 44px; display: flex; align-items: center; font-size: 15px; color: var(--muted); text-decoration: underline 1px; text-underline-offset: 3px; }
 
 /* ---------- движение V1 ---------- */
-.w-title .l { animation: v1ink .5s ease-out both; }
-@keyframes v1ink { from { clip-path: inset(-20% 100% -20% 0); color: var(--wet); } 60% { color: var(--wet); } to { clip-path: inset(-20% 0 -20% 0); } }
 @keyframes v1fade { from { opacity: 0; transform: translateY(6px); } }
-.w-sub { animation: v1fade .8s .9s both; }
-.pc { animation: v1deal .8s var(--ease) both; }
-.pc0 { animation-delay: .35s; } .pc1 { animation-delay: .5s; } .pc2 { animation-delay: .7s; }
-@keyframes v1deal { from { opacity: 0; transform: translate(-50%, -50%) translate(var(--x), 70%) rotate(calc(var(--rot) * -2.4)); } }
-.pc-tag { animation: v1swing 2.2s 1.4s var(--ease) both, v1sway 6s 3.6s ease-in-out infinite; }
 @keyframes v1swing { 0% { transform: rotate(-14deg); opacity: 0; } 15% { opacity: 1; } 40% { transform: rotate(7deg); } 65% { transform: rotate(-3deg); } 85% { transform: rotate(1deg); } }
-@keyframes v1sway { 50% { transform: rotate(2deg); } }
-.prod { animation: v1fade .7s 1.2s both; }
-.prod-wall { animation-delay: 1.45s; }
 
 .card.in { animation: v1in .55s var(--ease) both; }
 @keyframes v1in { from { opacity: 0; transform: translateY(16px) rotate(2.5deg) scale(.97); } }
@@ -249,24 +204,6 @@ html[lang=hy] .stp-h { font-size: 22px; }
   .bar { height: 64px; }
   .bar .logo { font-size: 26px; }
   .langs button { min-width: 48px; font-size: 16px; }
-  /* лавка: заголовок слева, под ним две карточки рядом — главная (место) шире, обои рядом, рисунок крупный */
-  .w-head { padding-top: 10px; }
-  .w-title { font-size: 56px; margin: 8px 0; }
-  .w-sub { font-size: 19px; max-width: 46ch; }
-  .w-grid { flex-direction: row; gap: 28px; margin: 22px 0 8px; max-height: 780px; align-items: stretch; }
-  .prod { padding: 20px 24px 24px; }
-  .prod-main { flex: 1.45; }
-  .prod-wall { flex: 1; flex-direction: column; align-items: stretch; gap: 0; padding: 20px 24px 24px; }
-  .prod-wall .prod-pic { flex: 1; height: auto; min-height: 280px; }
-  .prod-wall .prod-txt { flex: none; text-align: center; }
-  .prod-pic { min-height: 280px; }
-  .prod h2, .prod-wall h2 { font-size: 28px; }
-  .w-meta, .prod-wall .w-meta { font-size: 16px; margin: 6px auto 16px; }
-  .cta, .cta2 { max-width: 420px; margin-left: auto; margin-right: auto; min-height: 56px; font-size: 19px; }
-  .pc { height: min(86%, 460px); }
-  .wf { height: 94%; }
-  .wf0 { --x: -38%; } .wf1 { --x: 38%; }
-  .w-more { font-size: 15px; padding-top: 10px; }
   /* место: слева крупный рисунок, справа панель шагов */
   :root { --ph: clamp(300px, calc(100dvh - 300px), 580px); }
   #spot.wz { display: grid; grid-template-columns: minmax(0, 1fr) 440px; grid-template-rows: auto auto; column-gap: 64px; align-content: center; justify-content: center; }
@@ -284,6 +221,76 @@ html[lang=hy] .stp-h { font-size: 22px; }
   .wnav { margin-top: 6px; }
   .wnav .cta, .wback { min-height: 58px; font-size: 19px; max-width: none; margin: 0; }
   .fine { font-size: 13px; margin-top: 12px; }
+}
+
+/* ---------- лавка (/shop), макет sa: открытки в белой рамке, цена на красной марке, одна кнопка «Выбрать» ----------
+   Новый товар = одна запись в PRODUCTS (tools/build_sale_pages.py); карточка и сетка не меняются. */
+body[data-page="store"] { background-image: linear-gradient(to right, rgba(42, 36, 32, .055) 1px, transparent 1px), linear-gradient(to bottom, rgba(42, 36, 32, .055) 1px, transparent 1px); background-size: 16px 16px; }
+.letters { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; opacity: .13;
+  -webkit-mask-image: linear-gradient(180deg, #000 70%, rgba(0, 0, 0, .4)); mask-image: linear-gradient(180deg, #000 70%, rgba(0, 0, 0, .4)); }
+html.fs-big body[data-page="store"] .app { zoom: 1.15; }
+.sbar { position: relative; flex: none; display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 7px 0 3px; border-bottom: 1px solid var(--line); }
+.sbar::before { content: ""; position: absolute; left: calc(-1 * var(--g)); right: calc(-1 * var(--g)); top: 0; height: 5px;
+  background: repeating-linear-gradient(135deg, var(--accent) 0 14px, var(--paper) 14px 21px, var(--ink2) 21px 35px, var(--paper) 35px 42px); }
+.sbar .logo { display: inline-flex; align-items: center; gap: 5px; font-size: 25px; font-weight: 700; letter-spacing: -.02em; min-height: 44px; }
+.sbar .logo i { width: 7px; height: 7px; margin-top: 6px; border-radius: 50%; background: var(--accent); }
+.nav-ctrls { display: flex; align-items: center; gap: 7px; }
+.ctl { display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border-radius: 50%; border: 1.5px solid var(--line); background: var(--paper); color: var(--ink);
+  font-size: 11px; font-weight: 700; line-height: 1; box-shadow: 0 1px 2px rgba(42, 36, 32, .1); }
+.ctl-shop { border-color: var(--accent); background: rgba(251, 246, 234, .95); font-size: 10px; }
+.ctl-fs { font-size: 12.5px; }
+html[lang="hy"] .ctl-shop { font-size: 8.5px; letter-spacing: -.02em; }
+.nav-ctrls .langs { margin: 0; gap: 4px; }
+.nav-ctrls .langs button { min-width: 0; width: 38px; height: 38px; font-size: 11px; font-weight: 700; color: var(--ink); text-decoration: none; }
+.nav-ctrls .langs button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); text-decoration: none; }
+.shop-head { flex: none; padding: 10px 0 8px; }
+.shop-head .eyebrow { display: flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: .16em; font-weight: 700; color: var(--ink2); margin-bottom: 2px; }
+.shop-head .eyebrow::after { content: ""; width: 28px; height: 1px; background: var(--ink2); opacity: .35; }
+.shop-title { font-size: 30px; line-height: 1.15; font-weight: 700; letter-spacing: -.01em; }
+.shop-sub { font-size: 13px; line-height: 1.35; color: var(--muted); margin-top: 3px; }
+.shop-grid { flex: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; align-content: start; margin: 4px 0 8px; }
+.card-a { display: flex; color: inherit; flex-direction: column; min-width: 0; padding: 5px 5px 7px; background: #fff; border: 1px solid rgba(42, 36, 32, .1); border-radius: 3px;
+  box-shadow: 0 1px 2px rgba(42, 36, 32, .1), 0 4px 10px -2px rgba(42, 36, 32, .16); transition: transform .18s ease, box-shadow .18s ease; }
+.card-a:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(42, 36, 32, .12), 0 8px 18px -4px rgba(42, 36, 32, .22); }
+.card-a-pic { position: relative; display: block; aspect-ratio: 4 / 3; overflow: hidden; background: #e8ded0; border: 1px solid rgba(42, 36, 32, .12); border-radius: 2px; }
+.card-a-pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.stamp-badge { position: absolute; top: 5px; right: 5px; z-index: 2; padding: 2.5px; background: var(--paper); border: 1px dashed rgba(42, 36, 32, .32); border-radius: 1px;
+  box-shadow: 0 1.5px 4px rgba(42, 36, 32, .35); transform: rotate(3deg); pointer-events: none; }
+.stamp-core { display: flex; flex-direction: column; align-items: center; line-height: 1; padding: 3px 6px; background: var(--accent); color: var(--paper); border: .8px dashed rgba(251, 246, 234, .75); }
+.stamp-hy { font-size: 6.5px; letter-spacing: .12em; opacity: .85; margin-bottom: 2px; }
+.stamp-cost { font-size: 12px; font-weight: 700; letter-spacing: .02em; }
+.card-a-body { flex: 1; display: flex; flex-direction: column; padding-top: 6px; }
+.card-title { font-size: 12.5px; line-height: 1.25; font-weight: 700; min-height: 2.5em; }
+.card-a:hover .card-title { color: var(--accent-strong); }
+.card-a:hover .btn-ring, .card-a:focus-visible .btn-ring { background: #fbf5e6; border-color: var(--accent-strong); color: var(--accent-strong); }
+.card-a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.card-desc { display: block; font-size: 11px; line-height: 1.3; color: var(--muted); margin-top: 3px; min-height: 2.6em; }
+.card-foot { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: auto; padding-top: 4px; border-top: 1px dashed rgba(42, 36, 32, .14); }
+.card-tag { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 10px; font-style: italic; color: #7a6c5e; letter-spacing: .02em; white-space: nowrap; }
+.btn-ring { display: inline-flex; align-items: center; justify-content: center; flex: none; height: 26px; padding: 0 10px; border-radius: 999px; border: 1.2px solid var(--accent); background: rgba(251, 246, 234, .95);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .85), 0 1px 2px rgba(42, 36, 32, .06); color: var(--ink); font-size: 11.5px; font-weight: 700; letter-spacing: .02em; white-space: nowrap;
+  transition: background .15s ease, border-color .15s ease, color .15s ease; }
+.btn-ring:hover { background: #fbf5e6; border-color: var(--accent-strong); color: var(--accent-strong); }
+.btn-ring:active { transform: translateY(1px); }
+body[data-page="store"] .app { min-height: 0; }
+.shop-end { flex: none; margin-top: 14px; padding-top: 6px; border-top: 1px solid var(--line); text-align: center; }
+.end-orn { font-size: 10px; letter-spacing: .25em; color: var(--accent); opacity: .85; }
+.end-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .14em; color: var(--ink2); margin-top: 2px; }
+.end-note { font-size: 11px; color: #7a6c5e; margin-top: 1px; }
+.end-back { display: inline-block; margin-top: 4px; min-height: 28px; font-size: 11.5px; font-weight: 600; color: var(--accent); }
+.end-back:hover { text-decoration: underline; }
+@media (min-width: 640px) { .shop-grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; } }
+@media (min-width: 1024px) {
+  .sbar { height: 64px; padding-top: 10px; } .sbar::before { height: 6px; }
+  .sbar .logo { font-size: 32px; } .sbar .logo i { width: 8px; height: 8px; margin-top: 8px; }
+  .ctl, .nav-ctrls .langs button { width: 44px; height: 44px; font-size: 12.5px; } .ctl-shop { font-size: 11.5px; } html[lang="hy"] .ctl-shop { font-size: 10px; } .ctl-fs { font-size: 15px; }
+  .shop-head { padding: 14px 0 10px; } .shop-head .eyebrow { font-size: 11px; } .shop-title { font-size: 44px; } .shop-sub { font-size: 16px; }
+  .shop-grid { margin: 8px 0 14px; }
+  .card-a { padding: 9px 9px 11px; border-radius: 4px; }
+  .stamp-badge { top: 7px; right: 7px; padding: 3.5px; } .stamp-core { padding: 3px 8px; } .stamp-hy { font-size: 8px; } .stamp-cost { font-size: 15px; }
+  .card-a-body { padding-top: 9px; } .card-title { font-size: 16px; line-height: 1.3; } .card-desc { font-size: 13px; margin-top: 4px; }
+  .card-tag { font-size: 12px; } .btn-ring { height: 30px; padding: 0 15px; font-size: 13px; }
+  .end-title { font-size: 11.5px; } .end-note, .end-back { font-size: 12.5px; }
 }
 
 /* «меньше движения»: всё сразу в конечном виде */
